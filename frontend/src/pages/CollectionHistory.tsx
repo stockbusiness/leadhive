@@ -1,26 +1,15 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { History, CheckCircle, XCircle, Copy, AlertTriangle } from "lucide-react";
-
-interface CollectionLog {
-  id: number;
-  keyword_id: number;
-  keyword_text: string;
-  total_found: number;
-  success_count: number;
-  duplicate_count: number;
-  rejected_count: number;
-  error_count: number;
-  created_at: string;
-}
+import { api } from "../api";
+import type { CollectionLog } from "../types";
 
 export default function CollectionHistory() {
   const [logs, setLogs] = useState<CollectionLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get("/api/collect/history").then((res) => {
-      setLogs(res.data.logs);
+    api.collector.history().then((data) => {
+      setLogs(data.logs);
       setLoading(false);
     });
   }, []);
@@ -76,24 +65,16 @@ export default function CollectionHistory() {
                     <td className="px-4 py-3 text-slate-800 font-medium">{log.keyword_text}</td>
                     <td className="px-4 py-3 text-center text-slate-700">{log.total_found}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-medium">
-                        {log.success_count}
-                      </span>
+                      <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-medium">{log.success_count}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium">
-                        {log.duplicate_count}
-                      </span>
+                      <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium">{log.duplicate_count}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-medium">
-                        {log.rejected_count}
-                      </span>
+                      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-medium">{log.rejected_count}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-medium">
-                        {log.error_count}
-                      </span>
+                      <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-medium">{log.error_count}</span>
                     </td>
                   </tr>
                 ))}

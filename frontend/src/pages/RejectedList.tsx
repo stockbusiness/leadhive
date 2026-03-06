@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { ShieldBan, Plus, Trash2 } from "lucide-react";
-
-interface RejectedItem {
-  id: number;
-  domain: string;
-  url: string;
-  reason: string;
-  created_at: string;
-}
+import { api } from "../api";
+import type { RejectedItem } from "../types";
 
 export default function RejectedList() {
   const [items, setItems] = useState<RejectedItem[]>([]);
@@ -17,7 +10,7 @@ export default function RejectedList() {
   const [error, setError] = useState("");
 
   const fetchItems = () => {
-    axios.get("/api/rejected").then((res) => setItems(res.data.rejected));
+    api.rejected.list().then((data) => setItems(data.rejected));
   };
 
   useEffect(() => {
@@ -28,7 +21,7 @@ export default function RejectedList() {
     if (!domain.trim()) return;
     setError("");
     try {
-      await axios.post("/api/rejected", { domain: domain.trim(), reason });
+      await api.rejected.create({ domain: domain.trim(), reason });
       setDomain("");
       setReason("手動追加");
       fetchItems();
@@ -38,7 +31,7 @@ export default function RejectedList() {
   };
 
   const handleDelete = async (id: number) => {
-    await axios.delete(`/api/rejected/${id}`);
+    await api.rejected.delete(id);
     fetchItems();
   };
 
@@ -106,18 +99,13 @@ export default function RejectedList() {
               <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-3 font-medium text-slate-800">{item.domain}</td>
                 <td className="px-4 py-3">
-                  <span className="inline-block bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded">
-                    {item.reason}
-                  </span>
+                  <span className="inline-block bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded">{item.reason}</span>
                 </td>
                 <td className="px-4 py-3 text-slate-500 text-xs">
                   {item.created_at ? new Date(item.created_at).toLocaleDateString("ja-JP") : "-"}
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-red-400 hover:text-red-600 p-1"
-                  >
+                  <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-600 p-1">
                     <Trash2 size={16} />
                   </button>
                 </td>
@@ -125,9 +113,7 @@ export default function RejectedList() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
-                  拒否リストは空です
-                </td>
+                <td colSpan={4} className="px-4 py-8 text-center text-slate-400">拒否リストは空です</td>
               </tr>
             )}
           </tbody>

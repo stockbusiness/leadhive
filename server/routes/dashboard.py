@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from server.database import get_db
 from server.models import Company, ApiUsageLog
-from server.routes.companies import company_to_dict
+from server.schemas import company_to_dict
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 

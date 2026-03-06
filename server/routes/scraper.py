@@ -73,7 +73,7 @@ def scrape_url(data: dict, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(company)
 
-    from server.routes.companies import company_to_dict
+    from server.schemas import company_to_dict
     return {"company": company_to_dict(company)}
 
 

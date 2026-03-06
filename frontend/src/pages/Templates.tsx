@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { FileText, Plus, Trash2 } from "lucide-react";
-
-interface MemoTemplate {
-  id: number;
-  title: string;
-  content: string;
-  created_at: string;
-}
+import { api } from "../api";
+import type { MemoTemplate } from "../types";
 
 export default function Templates() {
   const [templates, setTemplates] = useState<MemoTemplate[]>([]);
@@ -17,8 +11,8 @@ export default function Templates() {
   const [adding, setAdding] = useState(false);
 
   const fetchTemplates = () => {
-    axios.get("/api/templates").then((res) => {
-      setTemplates(res.data.templates);
+    api.templates.list().then((data) => {
+      setTemplates(data.templates);
       setLoading(false);
     });
   };
@@ -30,7 +24,7 @@ export default function Templates() {
   const handleAdd = () => {
     if (!title.trim() || !content.trim()) return;
     setAdding(true);
-    axios.post("/api/templates", { title: title.trim(), content: content.trim() }).then(() => {
+    api.templates.create({ title: title.trim(), content: content.trim() }).then(() => {
       setTitle("");
       setContent("");
       setAdding(false);
@@ -40,7 +34,7 @@ export default function Templates() {
 
   const handleDelete = (id: number) => {
     if (confirm("このテンプレートを削除しますか？")) {
-      axios.delete(`/api/templates/${id}`).then(() => fetchTemplates());
+      api.templates.delete(id).then(() => fetchTemplates());
     }
   };
 
@@ -103,11 +97,7 @@ export default function Templates() {
                     {t.created_at ? new Date(t.created_at).toLocaleDateString("ja-JP") : ""}
                   </p>
                 </div>
-                <button
-                  onClick={() => handleDelete(t.id)}
-                  className="text-red-400 hover:text-red-600 p-1 ml-3"
-                  title="削除"
-                >
+                <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:text-red-600 p-1 ml-3" title="削除">
                   <Trash2 size={16} />
                 </button>
               </div>

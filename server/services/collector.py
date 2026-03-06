@@ -1,122 +1,11 @@
-import re
-import requests
-from datetime import date
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session
-from server.models import AppSetting, Company, RejectedUrl, SearchKeyword, ApiUsageLog, CollectionLog
+from server.models import AppSetting, Company, RejectedUrl, SearchKeyword, CollectionLog
 from server.services.scraper import scrape_company_info
 from server.services.categorizer import categorize_company, detect_flags
 from server.services.scorer import calculate_score
-
-KNOWN_AGGREGATOR_DOMAINS = [
-    "matome.naver.jp", "matomeno.in", "togetter.com",
-    "naver.jp", "hatena.ne.jp", "hatenablog.com",
-    "qiita.com", "zenn.dev", "note.com",
-    "kakaku.com", "price.com", "mybest.com",
-    "rank-king.jp", "ranking.net",
-    "comparison.com", "hikaku.com",
-    "ferret-plus.com", "liskul.com", "boxil.jp",
-    "itreview.jp", "oricon.co.jp",
-    "minne.com", "creema.jp",
-    "coconala.com", "lancers.jp", "crowdworks.jp",
-    "wikipedia.org", "youtube.com", "twitter.com", "x.com",
-    "facebook.com", "instagram.com", "linkedin.com",
-    "amazon.co.jp", "rakuten.co.jp",
-    "amebaownd.com", "ameblo.jp", "livedoor.com",
-    "fc2.com", "seesaa.net", "jugem.jp",
-    "wix.com", "jimdo.com", "weebly.com",
-]
-
-AGGREGATOR_TITLE_PATTERNS = [
-    r"\d+選", r"\d+社", r"おすすめ\d+",
-    r"ランキング", r"比較", r"まとめ",
-    r"一覧", r"徹底比較", r"厳選",
-    r"best\s*\d+", r"top\s*\d+",
-]
-
-AGGREGATOR_URL_PATTERNS = [
-    r"ranking", r"matome", r"hikaku",
-    r"compare", r"best-?of", r"top-?\d+",
-    r"recommend", r"osusume",
-]
-
-
-def normalize_domain(domain: str) -> str:
-    domain = domain.lower().strip()
-    if domain.startswith("www."):
-        domain = domain[4:]
-    return domain
-
-
-def is_aggregator_site(url: str, title: str = "") -> tuple[bool, str]:
-    domain = normalize_domain(urlparse(url).netloc)
-    path = urlparse(url).path.lower()
-
-    for agg_domain in KNOWN_AGGREGATOR_DOMAINS:
-        if agg_domain in domain:
-            return True, f"既知のまとめサイト: {agg_domain}"
-
-    for pattern in AGGREGATOR_URL_PATTERNS:
-        if re.search(pattern, path, re.IGNORECASE):
-            return True, f"URLパターン: {pattern}"
-
-    if title:
-        for pattern in AGGREGATOR_TITLE_PATTERNS:
-            if re.search(pattern, title, re.IGNORECASE):
-                return True, f"タイトルパターン: {pattern}"
-
-    return False, ""
-
-
-def increment_api_usage(db: Session):
-    today = date.today()
-    log = db.query(ApiUsageLog).filter(ApiUsageLog.usage_date == today).first()
-    if log:
-        log.request_count += 1
-    else:
-        log = ApiUsageLog(usage_date=today, request_count=1)
-        db.add(log)
-    db.commit()
-
-
-def get_api_usage_today(db: Session) -> int:
-    today = date.today()
-    log = db.query(ApiUsageLog).filter(ApiUsageLog.usage_date == today).first()
-    return log.request_count if log else 0
-
-
-def search_google(api_key: str, cx: str, query: str, db: Session, num: int = 10, start: int = 1) -> list[dict]:
-    try:
-        increment_api_usage(db)
-
-        resp = requests.get(
-            "https://www.googleapis.com/customsearch/v1",
-            params={
-                "key": api_key,
-                "cx": cx,
-                "q": query,
-                "num": min(num, 10),
-                "start": start,
-                "lr": "lang_ja",
-                "gl": "jp",
-            },
-            timeout=15,
-        )
-        if resp.status_code != 200:
-            error_msg = resp.json().get("error", {}).get("message", "Unknown error")
-            return [{"error": error_msg}]
-
-        data = resp.json()
-        results = []
-        for item in data.get("items", []):
-            results.append({
-                "url": item.get("link", ""),
-                "title": item.get("title", ""),
-                "snippet": item.get("snippet", ""),
-            })
-        return results
-    except Exception as e:
-        return [{"error": str(e)}]
+from server.services.aggregator import normalize_domain, is_aggregator_site
+from server.services.google_search import search_google
 
 
 def collect_by_keyword(keyword_id: int, db: Session) -> dict:
@@ -162,7 +51,40 @@ def collect_by_keyword(keyword_id: int, db: Session) -> dict:
     if search_results and "error" in search_results[0]:
         return {"error": f"検索APIエラー: {search_results[0]['error']}"}
 
+    results = _process_search_results(search_results, db, rejected_domains, existing_domains)
+
+    summary = {
+        "keyword": keyword.keyword,
+        "total": len(results),
+        "success": sum(1 for r in results if r["status"] == "success"),
+        "duplicate": sum(1 for r in results if r["status"] == "duplicate"),
+        "rejected": sum(1 for r in results if r["status"] == "rejected"),
+        "error": sum(1 for r in results if r["status"] == "error"),
+    }
+
+    log = CollectionLog(
+        keyword_id=keyword.id,
+        keyword_text=keyword.keyword,
+        total_found=summary["total"],
+        success_count=summary["success"],
+        duplicate_count=summary["duplicate"],
+        rejected_count=summary["rejected"],
+        error_count=summary["error"],
+    )
+    db.add(log)
+    db.commit()
+
+    return {"results": results, "summary": summary}
+
+
+def _process_search_results(
+    search_results: list[dict],
+    db: Session,
+    rejected_domains: set,
+    existing_domains: set,
+) -> list[dict]:
     results = []
+
     for sr in search_results:
         url = sr.get("url", "")
         title = sr.get("title", "")
@@ -233,25 +155,4 @@ def collect_by_keyword(keyword_id: int, db: Session) -> dict:
             "company_id": company.id,
         })
 
-    summary = {
-        "keyword": keyword.keyword,
-        "total": len(results),
-        "success": sum(1 for r in results if r["status"] == "success"),
-        "duplicate": sum(1 for r in results if r["status"] == "duplicate"),
-        "rejected": sum(1 for r in results if r["status"] == "rejected"),
-        "error": sum(1 for r in results if r["status"] == "error"),
-    }
-
-    log = CollectionLog(
-        keyword_id=keyword.id,
-        keyword_text=keyword.keyword,
-        total_found=summary["total"],
-        success_count=summary["success"],
-        duplicate_count=summary["duplicate"],
-        rejected_count=summary["rejected"],
-        error_count=summary["error"],
-    )
-    db.add(log)
-    db.commit()
-
-    return {"results": results, "summary": summary}
+    return results

@@ -1,50 +1,19 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell,
 } from "recharts";
-
-interface CompanyBrief {
-  id: number;
-  company_name: string;
-  domain: string;
-  score_total: number;
-  score_rank: string;
-  category_main: string;
-  created_at: string;
-}
-
-interface DashboardData {
-  total: number;
-  unique_domains: number;
-  unconfirmed: number;
-  high_score: number;
-  with_contact: number;
-  by_category: Record<string, number>;
-  by_status: Record<string, number>;
-  by_rank: Record<string, number>;
-  by_prefecture: Record<string, number>;
-  recent_companies: CompanyBrief[];
-  api_usage_today: number;
-  api_daily_limit: number;
-}
-
-const RANK_COLORS: Record<string, string> = {
-  A: "#10b981",
-  B: "#3b82f6",
-  C: "#f59e0b",
-  D: "#94a3b8",
-};
-
-const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#6366f1"];
+import { api } from "../api";
+import { RANK_COLORS, PIE_COLORS, SCORE_BADGE_COLORS } from "../constants";
+import { StatCard } from "../components/common";
+import type { DashboardData } from "../types";
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
 
   useEffect(() => {
-    axios.get("/api/dashboard").then((res) => setData(res.data));
+    api.dashboard.get().then(setData);
   }, []);
 
   if (!data) {
@@ -85,29 +54,11 @@ export default function Dashboard() {
         <StatCard label="未確認" value={data.unconfirmed} icon={<AlertCircle size={20} />} color="bg-amber-500" />
         <StatCard label="高スコア (A/B)" value={data.high_score} icon={<Star size={20} />} color="bg-emerald-500" />
         <StatCard label="問い合わせあり" value={data.with_contact} icon={<Phone size={20} />} color="bg-purple-500" />
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <p className="text-sm text-slate-500">API使用量</p>
-              <p className="text-2xl font-bold text-slate-800 mt-1">
-                {data.api_usage_today}<span className="text-sm font-normal text-slate-400">/{data.api_daily_limit}</span>
-              </p>
-            </div>
-            <div className="bg-cyan-500 text-white p-2 rounded-lg"><Zap size={20} /></div>
-          </div>
-          <div className="w-full bg-slate-200 rounded-full h-2">
-            <div
-              className={`h-2 rounded-full transition-all ${usagePercent >= 90 ? "bg-red-500" : usagePercent >= 70 ? "bg-amber-500" : "bg-cyan-500"}`}
-              style={{ width: `${usagePercent}%` }}
-            />
-          </div>
-          <p className="text-xs text-slate-400 mt-1">残り {data.api_daily_limit - data.api_usage_today} 回</p>
-        </div>
+        <ApiUsageCard usage={data.api_usage_today} limit={data.api_daily_limit} percent={usagePercent} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-          <h3 className="font-semibold text-slate-700 mb-3">カテゴリ別内訳</h3>
+        <ChartCard title="カテゴリ別内訳">
           {categoryData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
@@ -119,13 +70,10 @@ export default function Dashboard() {
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-          ) : (
-            <p className="text-sm text-slate-400 py-8 text-center">データなし</p>
-          )}
-        </div>
+          ) : <EmptyChart />}
+        </ChartCard>
 
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-          <h3 className="font-semibold text-slate-700 mb-3">スコアランク分布</h3>
+        <ChartCard title="スコアランク分布">
           {rankData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={rankData}>
@@ -139,15 +87,12 @@ export default function Dashboard() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          ) : (
-            <p className="text-sm text-slate-400 py-8 text-center">データなし</p>
-          )}
-        </div>
+          ) : <EmptyChart />}
+        </ChartCard>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-          <h3 className="font-semibold text-slate-700 mb-3">ステータス別</h3>
+        <ChartCard title="ステータス別">
           {statusData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={statusData} layout="vertical">
@@ -157,13 +102,10 @@ export default function Dashboard() {
                 <Bar dataKey="value" name="件数" fill="#6366f1" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          ) : (
-            <p className="text-sm text-slate-400 py-8 text-center">データなし</p>
-          )}
-        </div>
+          ) : <EmptyChart />}
+        </ChartCard>
 
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-          <h3 className="font-semibold text-slate-700 mb-3">都道府県別（上位10）</h3>
+        <ChartCard title="都道府県別（上位10）">
           {prefectureData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={prefectureData} layout="vertical">
@@ -173,10 +115,8 @@ export default function Dashboard() {
                 <Bar dataKey="value" name="件数" fill="#14b8a6" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          ) : (
-            <p className="text-sm text-slate-400 py-8 text-center">データなし</p>
-          )}
-        </div>
+          ) : <EmptyChart />}
+        </ChartCard>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
@@ -201,12 +141,7 @@ export default function Dashboard() {
                     <td className="px-3 py-2 text-slate-800">{c.company_name || c.domain}</td>
                     <td className="px-3 py-2 text-slate-600">{c.category_main || "-"}</td>
                     <td className="px-3 py-2 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
-                        c.score_rank === "A" ? "bg-emerald-100 text-emerald-800 border-emerald-200" :
-                        c.score_rank === "B" ? "bg-blue-100 text-blue-800 border-blue-200" :
-                        c.score_rank === "C" ? "bg-amber-100 text-amber-800 border-amber-200" :
-                        "bg-slate-100 text-slate-600 border-slate-200"
-                      }`}>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${SCORE_BADGE_COLORS[c.score_rank] || SCORE_BADGE_COLORS.D}`}>
                         {c.score_rank} {c.score_total}
                       </span>
                     </td>
@@ -226,26 +161,38 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-}: {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  color: string;
-}) {
+function ApiUsageCard({ usage, limit, percent }: { usage: number; limit: number; percent: number }) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <p className="text-sm text-slate-500">{label}</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">{value}</p>
+          <p className="text-sm text-slate-500">API使用量</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">
+            {usage}<span className="text-sm font-normal text-slate-400">/{limit}</span>
+          </p>
         </div>
-        <div className={`${color} text-white p-2 rounded-lg`}>{icon}</div>
+        <div className="bg-cyan-500 text-white p-2 rounded-lg"><Zap size={20} /></div>
       </div>
+      <div className="w-full bg-slate-200 rounded-full h-2">
+        <div
+          className={`h-2 rounded-full transition-all ${percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-amber-500" : "bg-cyan-500"}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <p className="text-xs text-slate-400 mt-1">残り {limit - usage} 回</p>
     </div>
   );
+}
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+      <h3 className="font-semibold text-slate-700 mb-3">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function EmptyChart() {
+  return <p className="text-sm text-slate-400 py-8 text-center">データなし</p>;
 }

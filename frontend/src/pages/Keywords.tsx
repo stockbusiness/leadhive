@@ -1,33 +1,11 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { Plus, Trash2, Search } from "lucide-react";
-
-interface Keyword {
-  id: number;
-  keyword: string;
-  category: string;
-  region: string;
-  exclude_keywords: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-const CATEGORIES = [
-  "Shopify支援", "EC制作", "ECコンサル", "EC運営代行",
-  "EC広告代理店", "Amazon支援", "楽天支援", "Web制作", "その他",
-];
-
-const DEFAULT_KEYWORDS = [
-  { keyword: "Shopify 制作会社", category: "Shopify支援" },
-  { keyword: "EC 制作会社", category: "EC制作" },
-  { keyword: "EC コンサル", category: "ECコンサル" },
-  { keyword: "EC 運営代行", category: "EC運営代行" },
-  { keyword: "Amazon 運用代行", category: "Amazon支援" },
-  { keyword: "楽天 運営代行", category: "楽天支援" },
-];
+import { api } from "../api";
+import { CATEGORIES, DEFAULT_KEYWORDS } from "../constants";
+import type { SearchKeyword } from "../types";
 
 export default function Keywords() {
-  const [keywords, setKeywords] = useState<Keyword[]>([]);
+  const [keywords, setKeywords] = useState<SearchKeyword[]>([]);
   const [form, setForm] = useState({
     keyword: "",
     category: "",
@@ -36,7 +14,7 @@ export default function Keywords() {
   });
 
   const fetchKeywords = () => {
-    axios.get("/api/keywords").then((res) => setKeywords(res.data.keywords));
+    api.keywords.list().then((data) => setKeywords(data.keywords));
   };
 
   useEffect(() => {
@@ -45,20 +23,18 @@ export default function Keywords() {
 
   const handleAdd = () => {
     if (!form.keyword.trim()) return;
-    axios.post("/api/keywords", form).then(() => {
+    api.keywords.create(form).then(() => {
       setForm({ keyword: "", category: "", region: "", exclude_keywords: "" });
       fetchKeywords();
     });
   };
 
   const handleDelete = (id: number) => {
-    axios.delete(`/api/keywords/${id}`).then(() => fetchKeywords());
+    api.keywords.delete(id).then(() => fetchKeywords());
   };
 
   const addDefaultKeywords = () => {
-    Promise.all(
-      DEFAULT_KEYWORDS.map((kw) => axios.post("/api/keywords", kw))
-    ).then(() => fetchKeywords());
+    Promise.all(DEFAULT_KEYWORDS.map((kw) => api.keywords.create(kw))).then(() => fetchKeywords());
   };
 
   return (
@@ -141,10 +117,7 @@ export default function Keywords() {
                   {kw.created_at ? new Date(kw.created_at).toLocaleDateString("ja-JP") : "-"}
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <button
-                    onClick={() => handleDelete(kw.id)}
-                    className="text-red-400 hover:text-red-600 p-1"
-                  >
+                  <button onClick={() => handleDelete(kw.id)} className="text-red-400 hover:text-red-600 p-1">
                     <Trash2 size={16} />
                   </button>
                 </td>

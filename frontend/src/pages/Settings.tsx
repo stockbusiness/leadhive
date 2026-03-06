@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { api } from "../api";
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState("");
@@ -12,8 +12,8 @@ export default function Settings() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    axios.get("/api/settings").then((res) => {
-      const s = res.data.settings;
+    api.settings.get().then((data) => {
+      const s = data.settings;
       if (s.google_api_key) {
         setApiKeySet(s.google_api_key.is_set);
         if (s.google_api_key.is_set) setApiKey(s.google_api_key.value);
@@ -39,11 +39,11 @@ export default function Settings() {
         return;
       }
 
-      await axios.put("/api/settings", data);
+      await api.settings.update(data);
       setMessage({ type: "success", text: "設定を保存しました" });
 
-      const res = await axios.get("/api/settings");
-      const s = res.data.settings;
+      const res = await api.settings.get();
+      const s = res.settings;
       setApiKeySet(s.google_api_key?.is_set || false);
       setCxSet(s.google_cx?.is_set || false);
       if (s.google_api_key?.is_set) setApiKey(s.google_api_key.value);
@@ -58,12 +58,12 @@ export default function Settings() {
     setTesting(true);
     setMessage(null);
     try {
-      const res = await axios.post("/api/settings/test");
+      const data = await api.settings.test();
       setMessage({
-        type: res.data.success ? "success" : "error",
-        text: res.data.message,
+        type: data.success ? "success" : "error",
+        text: data.message,
       });
-    } catch (err: any) {
+    } catch {
       setMessage({ type: "error", text: "接続テストに失敗しました" });
     }
     setTesting(false);

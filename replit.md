@@ -11,16 +11,17 @@ Google Custom Search APIによる自動収集、またはURLの手動入力で�
 - **Scraping**: BeautifulSoup4 + Requests
 - **Search API**: Google Custom Search API (APIキーは管理画面で設定)
 
-## Project Structure
+## Project Structure (Modular)
 ```
 server/
   main.py              - FastAPI app entry point (port 5000)
   database.py          - SQLAlchemy database connection
   models.py            - SQLAlchemy models (Company, SearchKeyword, AppSetting, RejectedUrl, ApiUsageLog, CollectionLog, StatusHistory, MemoTemplate)
+  schemas.py           - Shared serialization (company_to_dict)
   routes/
     companies.py       - CRUD + CSV export + status history for companies
     keywords.py        - CRUD for search keywords
-    dashboard.py       - Dashboard statistics (with API usage, recent companies, prefecture breakdown)
+    dashboard.py       - Dashboard statistics
     scraper.py         - URL scraping endpoints
     settings.py        - API key settings management
     rejected.py        - Rejected URL/domain management
@@ -30,20 +31,48 @@ server/
     scraper.py         - Web scraping logic (BeautifulSoup)
     scorer.py          - 100-point scoring system (with manual adjustment)
     categorizer.py     - Category classification + flag detection
-    collector.py       - Auto-collection logic (Google Search API + aggregator detection + API usage tracking + collection logging)
+    collector.py       - Auto-collection orchestration logic
+    aggregator.py      - Aggregator/matome site detection (domain lists, URL/title patterns)
+    google_search.py   - Google Custom Search API client + daily usage tracking
 frontend/
   src/
-    App.tsx            - Router + sidebar layout
+    types/index.ts     - Shared TypeScript interfaces (Company, ScrapeResult, etc.)
+    constants/index.ts - Shared constants (CATEGORIES, STATUSES, RANKS, colors)
+    api/index.ts       - Centralized API client with typed endpoints
+    components/
+      common/          - Reusable UI components
+        ScoreBadge.tsx  - Score/rank display badge
+        FlagBadge.tsx   - Platform flag badge (Shopify, Amazon, etc.)
+        StatCard.tsx    - Dashboard stat card
+        Pagination.tsx  - Reusable pagination controls
+        ResultRow.tsx   - Scrape result status row
+        index.ts        - Barrel export
+      companies/       - Company-specific components
+        CompanyFilterBar.tsx  - Filter bar (category, status, rank, contact)
+        CompanyEditModal.tsx  - Full detail edit modal with status history + templates
+        CompanyTable.tsx      - Company list table with inline actions
+        index.ts              - Barrel export
     pages/
-      Dashboard.tsx    - Stats overview with charts (Recharts), API usage counter, recent companies
-      Companies.tsx    - Company list with filters, detail edit modal, score adjustment, status history
+      Dashboard.tsx    - Stats overview with charts (Recharts)
+      Companies.tsx    - Company list (uses CompanyFilterBar + CompanyTable + CompanyEditModal)
       Keywords.tsx     - Search keyword management
       Scraper.tsx      - URL scraping + auto-collection interface
       Settings.tsx     - API key configuration
       RejectedList.tsx - Rejected domain management
       CollectionHistory.tsx - Collection log viewer
       Templates.tsx    - Memo template management
+    App.tsx            - Router + sidebar layout
   dist/                - Built frontend (served by FastAPI)
+```
+
+## Module Dependencies (Frontend)
+```
+types → constants → api → components/common → components/companies → pages
+```
+
+## Module Dependencies (Backend)
+```
+models → schemas → services/{aggregator,google_search,scorer,categorizer,scraper} → services/collector → routes
 ```
 
 ## Key Features
