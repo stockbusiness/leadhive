@@ -5,7 +5,7 @@ from server.models import AppSetting
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-SETTING_KEYS = ["google_api_key", "google_cx"]
+SETTING_KEYS = ["google_api_key", "google_cx", "auto_collect_enabled", "auto_collect_time"]
 
 
 def mask_value(key: str, value: str) -> str:
@@ -48,6 +48,12 @@ def update_settings(data: dict, db: Session = Depends(get_db)):
         updated.append(key)
     db.commit()
     return {"message": "設定を保存しました", "updated": updated}
+
+
+@router.get("/scheduler")
+def get_scheduler_status():
+    from server.services.scheduler import get_scheduler_status
+    return get_scheduler_status()
 
 
 @router.post("/test")

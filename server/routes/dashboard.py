@@ -5,12 +5,20 @@ from sqlalchemy import func, desc
 from server.database import get_db
 from server.models import Company, ApiUsageLog
 from server.schemas import company_to_dict
+from server.services.cache import cache_get, cache_set
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
 @router.get("")
 def get_dashboard(db: Session = Depends(get_db)):
+    cached = cache_get("dashboard", ttl=60)
+    if cached:
+        today = date.today()
+        usage_log = db.query(ApiUsageLog).filter(ApiUsageLog.usage_date == today).first()
+        cached["api_usage_today"] = usage_log.request_count if usage_log else 0
+        return cached
+
     total = db.query(func.count(Company.id)).scalar() or 0
 
     unique_domains = db.query(func.count(func.distinct(Company.domain))).scalar() or 0
@@ -59,7 +67,7 @@ def get_dashboard(db: Session = Depends(get_db)):
     usage_log = db.query(ApiUsageLog).filter(ApiUsageLog.usage_date == today).first()
     api_usage_today = usage_log.request_count if usage_log else 0
 
-    return {
+    result = {
         "total": total,
         "unique_domains": unique_domains,
         "unconfirmed": unconfirmed,
@@ -73,3 +81,6 @@ def get_dashboard(db: Session = Depends(get_db)):
         "api_usage_today": api_usage_today,
         "api_daily_limit": 100,
     }
+
+    cache_set("dashboard", result)
+    return result

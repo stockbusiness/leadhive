@@ -2,14 +2,18 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from server.database import get_db
 from server.models import SearchKeyword
+from server.services.cache import cache_get, cache_set, cache_invalidate
 
 router = APIRouter(prefix="/api/keywords", tags=["keywords"])
 
 
 @router.get("")
 def list_keywords(db: Session = Depends(get_db)):
+    cached = cache_get("keywords_list", ttl=30)
+    if cached:
+        return cached
     keywords = db.query(SearchKeyword).order_by(SearchKeyword.created_at.desc()).all()
-    return {
+    result = {
         "keywords": [
             {
                 "id": k.id,
@@ -23,6 +27,8 @@ def list_keywords(db: Session = Depends(get_db)):
             for k in keywords
         ]
     }
+    cache_set("keywords_list", result)
+    return result
 
 
 @router.post("")
@@ -37,6 +43,7 @@ def create_keyword(data: dict, db: Session = Depends(get_db)):
     db.add(keyword)
     db.commit()
     db.refresh(keyword)
+    cache_invalidate("keywords")
     return {
         "keyword": {
             "id": keyword.id,
@@ -62,6 +69,7 @@ def update_keyword(keyword_id: int, data: dict, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(keyword)
+    cache_invalidate("keywords")
     return {
         "keyword": {
             "id": keyword.id,
@@ -82,4 +90,5 @@ def delete_keyword(keyword_id: int, db: Session = Depends(get_db)):
         return {"error": "キーワードが見つかりません"}
     db.delete(keyword)
     db.commit()
+    cache_invalidate("keywords")
     return {"message": "削除しました"}

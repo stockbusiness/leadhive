@@ -1,7 +1,12 @@
-from server.models import Company
+from sqlalchemy.orm import Session
+from server.models import Company, CompanyTag
 
 
-def company_to_dict(c: Company) -> dict:
+def company_to_dict(c: Company, db: Session = None) -> dict:
+    tags = []
+    if db:
+        tag_rows = db.query(CompanyTag).filter(CompanyTag.company_id == c.id).all()
+        tags = [t.tag_name for t in tag_rows]
     return {
         "id": c.id,
         "company_name": c.company_name,
@@ -26,6 +31,7 @@ def company_to_dict(c: Company) -> dict:
         "score_rank": c.score_rank,
         "status": c.status,
         "notes": c.notes,
+        "tags": tags,
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
     }

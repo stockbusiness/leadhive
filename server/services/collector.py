@@ -1,7 +1,7 @@
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 from server.models import AppSetting, Company, RejectedUrl, SearchKeyword, CollectionLog
-from server.services.scraper import scrape_company_info
+from server.services.scraper import scrape_company_info, scrape_urls_parallel
 from server.services.categorizer import categorize_company, detect_flags
 from server.services.scorer import calculate_score
 from server.services.aggregator import normalize_domain, is_aggregator_site
@@ -84,6 +84,8 @@ def _process_search_results(
     existing_domains: set,
 ) -> list[dict]:
     results = []
+    urls_to_scrape = []
+    url_indices = []
 
     for sr in search_results:
         url = sr.get("url", "")
@@ -120,39 +122,50 @@ def _process_search_results(
             })
             continue
 
-        info = scrape_company_info(url)
-        if "error" in info:
-            results.append({
-                "url": url, "status": "error",
-                "message": info["error"],
-            })
-            continue
+        urls_to_scrape.append(url)
+        url_indices.append(len(results))
+        results.append(None)
 
-        full_text = info.pop("full_text", "")
-        category_main, category_sub = categorize_company(full_text)
-        flags = detect_flags(full_text)
+    if urls_to_scrape:
+        scraped_results = scrape_urls_parallel(urls_to_scrape, max_workers=5)
 
-        company_data = {
-            **info,
-            "category_main": category_main,
-            "category_sub": category_sub,
-            **flags,
-        }
+        for i, info in enumerate(scraped_results):
+            url = urls_to_scrape[i]
+            idx = url_indices[i]
+            domain = normalize_domain(urlparse(url).netloc)
 
-        score, rank = calculate_score(company_data)
-        company_data["score_total"] = score
-        company_data["score_rank"] = rank
+            if not info or "error" in info:
+                results[idx] = {
+                    "url": url, "status": "error",
+                    "message": info.get("error", "スクレイピング失敗") if info else "スクレイピング失敗",
+                }
+                continue
 
-        company = Company(**{k: v for k, v in company_data.items() if hasattr(Company, k)})
-        db.add(company)
-        db.commit()
-        db.refresh(company)
-        existing_domains.add(domain)
+            full_text = info.pop("full_text", "")
+            category_main, category_sub = categorize_company(full_text)
+            flags = detect_flags(full_text)
 
-        results.append({
-            "url": url, "status": "success",
-            "message": f"{company.company_name or domain} (スコア: {score})",
-            "company_id": company.id,
-        })
+            company_data = {
+                **info,
+                "category_main": category_main,
+                "category_sub": category_sub,
+                **flags,
+            }
 
-    return results
+            score, rank = calculate_score(company_data)
+            company_data["score_total"] = score
+            company_data["score_rank"] = rank
+
+            company = Company(**{k: v for k, v in company_data.items() if hasattr(Company, k)})
+            db.add(company)
+            db.commit()
+            db.refresh(company)
+            existing_domains.add(domain)
+
+            results[idx] = {
+                "url": url, "status": "success",
+                "message": f"{company.company_name or domain} (スコア: {score})",
+                "company_id": company.id,
+            }
+
+    return [r for r in results if r is not None]

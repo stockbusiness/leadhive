@@ -1,5 +1,6 @@
 import re
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
@@ -139,3 +140,19 @@ def find_contact_page(soup: BeautifulSoup, base_url: str) -> str:
                     return full_url
 
     return ""
+
+
+def scrape_urls_parallel(urls: list[str], max_workers: int = 5) -> list[dict]:
+    results = [None] * len(urls)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_index = {
+            executor.submit(scrape_company_info, url): i
+            for i, url in enumerate(urls)
+        }
+        for future in as_completed(future_to_index):
+            idx = future_to_index[future]
+            try:
+                results[idx] = future.result()
+            except Exception as e:
+                results[idx] = {"error": str(e), "website_url": urls[idx], "domain": urlparse(urls[idx]).netloc}
+    return results

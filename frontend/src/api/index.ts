@@ -1,7 +1,7 @@
 import axios from "axios";
 import type {
   Company, StatusHistoryEntry, MemoTemplate, SearchKeyword,
-  ScrapeResult, CollectionLog, RejectedItem, DashboardData,
+  ScrapeResult, CollectionLog, RejectedItem, DashboardData, ActivityLogEntry,
 } from "../types";
 
 export const api = {
@@ -27,8 +27,42 @@ export const api = {
     getHistory: (id: number) =>
       axios.get<{ history: StatusHistoryEntry[] }>(`/api/companies/${id}/history`).then(r => r.data),
 
+    bulkStatus: (companyIds: number[], newStatus: string) =>
+      axios.put("/api/companies/bulk-status", { company_ids: companyIds, new_status: newStatus }).then(r => r.data),
+
     exportCsvUrl: (params: URLSearchParams) =>
       `/api/companies/csv?${params.toString()}`,
+
+    getActivities: (id: number) =>
+      axios.get<{ activities: ActivityLogEntry[] }>(`/api/companies/${id}/activities`).then(r => r.data),
+
+    createActivity: (id: number, data: { action_type: string; description: string }) =>
+      axios.post<{ activity: ActivityLogEntry }>(`/api/companies/${id}/activities`, data).then(r => r.data),
+
+    rescrape: (id: number) =>
+      axios.post<{ company: Company }>(`/api/companies/${id}/rescrape`).then(r => r.data),
+
+    getTags: (id: number) =>
+      axios.get<{ tags: { id: number; tag_name: string; created_at: string }[] }>(`/api/companies/${id}/tags`).then(r => r.data),
+
+    addTag: (id: number, tagName: string) =>
+      axios.post(`/api/companies/${id}/tags`, { tag_name: tagName }).then(r => r.data),
+
+    deleteTag: (id: number, tagName: string) =>
+      axios.delete(`/api/companies/${id}/tags/${encodeURIComponent(tagName)}`).then(r => r.data),
+
+    getAllTags: () =>
+      axios.get<{ tags: string[] }>("/api/companies/tags/all").then(r => r.data),
+
+    getDuplicates: () =>
+      axios.get<{ duplicate_groups: { normalized_domain: string; companies: Company[] }[]; total_groups: number }>(
+        "/api/companies/duplicates"
+      ).then(r => r.data),
+
+    merge: (mainId: number, mergeIds: number[]) =>
+      axios.post<{ company: Company; merged_count: number }>(
+        "/api/companies/merge", { main_id: mainId, merge_ids: mergeIds }
+      ).then(r => r.data),
   },
 
   keywords: {
@@ -65,7 +99,7 @@ export const api = {
     list: () =>
       axios.get<{ templates: MemoTemplate[] }>("/api/templates").then(r => r.data),
 
-    create: (data: { title: string; content: string }) =>
+    create: (data: { title: string; content: string; is_email_template?: boolean }) =>
       axios.post<{ template: MemoTemplate }>("/api/templates", data).then(r => r.data),
 
     delete: (id: number) =>
@@ -92,5 +126,8 @@ export const api = {
 
     test: () =>
       axios.post("/api/settings/test").then(r => r.data),
+
+    getScheduler: () =>
+      axios.get("/api/settings/scheduler").then(r => r.data),
   },
 };

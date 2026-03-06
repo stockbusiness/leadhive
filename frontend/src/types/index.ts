@@ -22,6 +22,7 @@ export interface Company {
   score_rank: string;
   status: string;
   notes: string;
+  tags?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -37,7 +38,16 @@ export interface MemoTemplate {
   id: number;
   title: string;
   content: string;
+  is_email_template: boolean;
   created_at?: string;
+}
+
+export interface ActivityLogEntry {
+  id: number;
+  company_id: number;
+  action_type: string;
+  description: string;
+  created_at: string;
 }
 
 export interface SearchKeyword {

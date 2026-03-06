@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -8,8 +9,17 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates
+from server.services.scheduler import start_scheduler, stop_scheduler
 
-app = FastAPI(title="ESCMS Partner Collection Tool")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_scheduler()
+    yield
+    stop_scheduler()
+
+
+app = FastAPI(title="ESCMS Partner Collection Tool", lifespan=lifespan)
 
 app.include_router(companies.router)
 app.include_router(keywords.router)

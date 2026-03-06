@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, Date
+from sqlalchemy import Column, Index, Integer, String, Boolean, Text, DateTime, Date, ForeignKey
 from sqlalchemy.sql import func
 from server.database import Base
 
@@ -9,13 +9,13 @@ class Company(Base):
     id = Column(Integer, primary_key=True, index=True)
     company_name = Column(String(255))
     website_url = Column(Text, unique=True)
-    domain = Column(String(255))
+    domain = Column(String(255), index=True)
     contact_url = Column(Text)
     prefecture = Column(String(100))
     city = Column(String(100))
     phone = Column(String(50))
     email = Column(String(255))
-    category_main = Column(String(100))
+    category_main = Column(String(100), index=True)
     category_sub = Column(String(100))
     shopify_flag = Column(Boolean, default=False)
     ec_flag = Column(Boolean, default=False)
@@ -26,8 +26,8 @@ class Company(Base):
     production_flag = Column(Boolean, default=False)
     score_total = Column(Integer, default=0)
     score_adjustment = Column(Integer, default=0)
-    score_rank = Column(String(1), default="D")
-    status = Column(String(50), default="未確認")
+    score_rank = Column(String(1), default="D", index=True)
+    status = Column(String(50), default="未確認", index=True)
     notes = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -104,4 +104,28 @@ class MemoTemplate(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
+    is_email_template = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class CompanyTag(Base):
+    __tablename__ = "company_tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, nullable=False, index=True)
+    tag_name = Column(String(100), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_company_tags_company_tag", "company_id", "tag_name", unique=True),
+    )
+
+
+class ActivityLog(Base):
+    __tablename__ = "activity_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, nullable=False, index=True)
+    action_type = Column(String(50), nullable=False)
+    description = Column(Text)
     created_at = Column(DateTime, server_default=func.now())

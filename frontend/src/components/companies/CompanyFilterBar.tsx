@@ -1,4 +1,7 @@
+import { useState, useEffect } from "react";
 import { CATEGORIES, STATUSES, RANKS } from "../../constants";
+import { useDebounce } from "../../hooks/useDebounce";
+import { api } from "../../api";
 
 interface Filters {
   category: string;
@@ -6,6 +9,7 @@ interface Filters {
   score_rank: string;
   has_contact: string;
   search: string;
+  tag: string;
 }
 
 export default function CompanyFilterBar({
@@ -15,14 +19,32 @@ export default function CompanyFilterBar({
   filters: Filters;
   onFilterChange: (filters: Filters) => void;
 }) {
+  const [searchInput, setSearchInput] = useState(filters.search);
+  const debouncedSearch = useDebounce(searchInput, 300);
+  const [allTags, setAllTags] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.companies.getAllTags().then((data) => setAllTags(data.tags));
+  }, []);
+
+  useEffect(() => {
+    if (debouncedSearch !== filters.search) {
+      onFilterChange({ ...filters, search: debouncedSearch });
+    }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    setSearchInput(filters.search);
+  }, [filters.search]);
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
       <div className="flex flex-wrap gap-3">
         <input
           type="text"
           placeholder="会社名・URL検索..."
-          value={filters.search}
-          onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           className="border border-slate-300 rounded-md px-3 py-1.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <select
@@ -64,6 +86,18 @@ export default function CompanyFilterBar({
           <option value="true">あり</option>
           <option value="false">なし</option>
         </select>
+        {allTags.length > 0 && (
+          <select
+            value={filters.tag}
+            onChange={(e) => onFilterChange({ ...filters, tag: e.target.value })}
+            className="border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">全タグ</option>
+            {allTags.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        )}
       </div>
     </div>
   );

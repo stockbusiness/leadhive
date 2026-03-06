@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from urllib.parse import urlparse
 from server.database import get_db
 from server.models import Company
-from server.services.scraper import scrape_company_info
+from server.services.scraper import scrape_company_info, scrape_urls_parallel
 from server.services.categorizer import categorize_company, detect_flags
 from server.services.scorer import calculate_score
 
@@ -84,6 +84,9 @@ def scrape_bulk(data: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="URLリストを入力してください")
 
     results = []
+    valid_urls = []
+    valid_indices = []
+
     for url in urls:
         url = url.strip()
         if not url:
@@ -101,31 +104,41 @@ def scrape_bulk(data: dict, db: Session = Depends(get_db)):
             results.append({"url": url, "status": "duplicate", "message": "既に登録済み"})
             continue
 
-        info = scrape_company_info(url)
-        if "error" in info:
-            results.append({"url": url, "status": "error", "message": info["error"]})
-            continue
+        valid_urls.append(url)
+        valid_indices.append(len(results))
+        results.append(None)
 
-        full_text = info.pop("full_text", "")
-        category_main, category_sub = categorize_company(full_text)
-        flags = detect_flags(full_text)
+    if valid_urls:
+        scraped = scrape_urls_parallel(valid_urls, max_workers=5)
 
-        company_data = {
-            **info,
-            "category_main": category_main,
-            "category_sub": category_sub,
-            **flags,
-        }
+        for i, info in enumerate(scraped):
+            url = valid_urls[i]
+            idx = valid_indices[i]
 
-        score, rank = calculate_score(company_data)
-        company_data["score_total"] = score
-        company_data["score_rank"] = rank
+            if not info or "error" in info:
+                results[idx] = {"url": url, "status": "error", "message": info.get("error", "スクレイピング失敗") if info else "スクレイピング失敗"}
+                continue
 
-        company = Company(**{k: v for k, v in company_data.items() if hasattr(Company, k)})
-        db.add(company)
-        db.commit()
-        db.refresh(company)
+            full_text = info.pop("full_text", "")
+            category_main, category_sub = categorize_company(full_text)
+            flags = detect_flags(full_text)
 
-        results.append({"url": url, "status": "success", "company_id": company.id})
+            company_data = {
+                **info,
+                "category_main": category_main,
+                "category_sub": category_sub,
+                **flags,
+            }
 
-    return {"results": results}
+            score, rank = calculate_score(company_data)
+            company_data["score_total"] = score
+            company_data["score_rank"] = rank
+
+            company = Company(**{k: v for k, v in company_data.items() if hasattr(Company, k)})
+            db.add(company)
+            db.commit()
+            db.refresh(company)
+
+            results[idx] = {"url": url, "status": "success", "company_id": company.id}
+
+    return {"results": [r for r in results if r is not None]}

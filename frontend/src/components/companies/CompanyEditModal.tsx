@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Save, ExternalLink, History } from "lucide-react";
+import { X, Save, ExternalLink, History, Mail, RotateCw } from "lucide-react";
 import { CATEGORIES, STATUSES } from "../../constants";
 import { api } from "../../api";
 import type { Company, StatusHistoryEntry, MemoTemplate } from "../../types";
@@ -14,6 +14,25 @@ const FLAG_LABELS = [
   ["production_flag", "制作対応"],
 ] as const;
 
+function replaceTemplateVars(text: string, company: Company): string {
+  return text
+    .replace(/\{会社名\}/g, company.company_name || "")
+    .replace(/\{担当者名\}/g, "ご担当者")
+    .replace(/\{メールアドレス\}/g, company.email || "")
+    .replace(/\{電話番号\}/g, company.phone || "")
+    .replace(/\{都道府県\}/g, company.prefecture || "")
+    .replace(/\{市区町村\}/g, company.city || "")
+    .replace(/\{WebサイトURL\}/g, company.website_url || "");
+}
+
+function buildMailtoLink(to: string, subject: string, body: string): string {
+  const params = new URLSearchParams();
+  if (subject) params.set("subject", subject);
+  if (body) params.set("body", body);
+  const paramStr = params.toString();
+  return `mailto:${encodeURIComponent(to)}${paramStr ? "?" + paramStr : ""}`;
+}
+
 export default function CompanyEditModal({
   company,
   onClose,
@@ -27,6 +46,8 @@ export default function CompanyEditModal({
   const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
   const [templates, setTemplates] = useState<MemoTemplate[]>([]);
   const [saving, setSaving] = useState(false);
+  const [rescraping, setRescraping] = useState(false);
+  const [selectedEmailTemplate, setSelectedEmailTemplate] = useState<string>("");
 
   useEffect(() => {
     api.companies.getHistory(company.id).then((data) => setStatusHistory(data.history));
@@ -41,9 +62,35 @@ export default function CompanyEditModal({
     }).catch(() => setSaving(false));
   };
 
+  const handleRescrape = () => {
+    setRescraping(true);
+    api.companies.rescrape(company.id).then((data: any) => {
+      if (data.error) {
+        alert(data.error);
+      } else {
+        setEditData({ ...data.company });
+      }
+      setRescraping(false);
+    }).catch(() => {
+      alert("再スクレイピングに失敗しました");
+      setRescraping(false);
+    });
+  };
+
   const applyTemplate = (content: string) => {
     const current = editData.notes || "";
     setEditData({ ...editData, notes: current ? `${current}\n${content}` : content });
+  };
+
+  const memoTemplates = templates.filter((t) => !t.is_email_template);
+  const emailTemplates = templates.filter((t) => t.is_email_template);
+
+  const handleSendEmail = (template: MemoTemplate) => {
+    const subject = replaceTemplateVars(template.title, company as Company);
+    const body = replaceTemplateVars(template.content, company as Company);
+    const to = company.email || "";
+    const href = buildMailtoLink(to, subject, body);
+    window.open(href, "_blank");
   };
 
   return (
@@ -135,6 +182,41 @@ export default function CompanyEditModal({
           </div>
 
           <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2 flex items-center gap-1">
+              <Tag size={12} />
+              タグ
+            </label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {tags.map((t) => (
+                <span key={t} className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs">
+                  {t}
+                  <button onClick={() => handleDeleteTag(t)} className="hover:text-purple-900">
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="タグを入力..."
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(); } }}
+                className="flex-1 border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={handleAddTag}
+                disabled={!newTag.trim()}
+                className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-purple-700 transition-colors disabled:opacity-50"
+              >
+                <Plus size={14} />
+                追加
+              </button>
+            </div>
+          </div>
+
+          <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">スコア手動調整</label>
             <div className="flex items-center gap-3">
               <input
@@ -158,7 +240,7 @@ export default function CompanyEditModal({
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-medium text-slate-600">メモ</label>
-              {templates.length > 0 && (
+              {memoTemplates.length > 0 && (
                 <select
                   onChange={(e) => {
                     if (e.target.value) applyTemplate(e.target.value);
@@ -167,7 +249,7 @@ export default function CompanyEditModal({
                   className="text-xs border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="">テンプレート挿入...</option>
-                  {templates.map((t) => (
+                  {memoTemplates.map((t) => (
                     <option key={t.id} value={t.content}>{t.title}</option>
                   ))}
                 </select>
@@ -180,6 +262,53 @@ export default function CompanyEditModal({
               className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
+          {emailTemplates.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-2 flex items-center gap-1">
+                <Mail size={12} />
+                メール送信
+              </label>
+              <div className="bg-slate-50 rounded-md p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedEmailTemplate}
+                    onChange={(e) => setSelectedEmailTemplate(e.target.value)}
+                    className="flex-1 text-sm border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">メールテンプレートを選択...</option>
+                    {emailTemplates.map((t) => (
+                      <option key={t.id} value={String(t.id)}>{t.title}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      const tmpl = emailTemplates.find((t) => String(t.id) === selectedEmailTemplate);
+                      if (tmpl) handleSendEmail(tmpl);
+                    }}
+                    disabled={!selectedEmailTemplate}
+                    className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-md text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    <Mail size={14} />
+                    メール送信
+                  </button>
+                </div>
+                {selectedEmailTemplate && (() => {
+                  const tmpl = emailTemplates.find((t) => String(t.id) === selectedEmailTemplate);
+                  if (!tmpl) return null;
+                  const subject = replaceTemplateVars(tmpl.title, company as Company);
+                  const body = replaceTemplateVars(tmpl.content, company as Company);
+                  return (
+                    <div className="text-xs text-slate-500 bg-white rounded border border-slate-200 p-2 space-y-1">
+                      <p><span className="font-medium text-slate-600">宛先:</span> {company.email || "(未設定)"}</p>
+                      <p><span className="font-medium text-slate-600">件名:</span> {subject}</p>
+                      <p className="whitespace-pre-wrap"><span className="font-medium text-slate-600">本文:</span> {body}</p>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
 
           {statusHistory.length > 0 && (
             <div>
@@ -203,21 +332,31 @@ export default function CompanyEditModal({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200">
+        <div className="flex items-center justify-between p-5 border-t border-slate-200">
           <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 transition-colors"
+            onClick={handleRescrape}
+            disabled={rescraping}
+            className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 transition-colors disabled:opacity-50"
           >
-            キャンセル
+            <RotateCw size={14} className={rescraping ? "animate-spin" : ""} />
+            {rescraping ? "スクレイピング中..." : "再スクレイピング"}
           </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            <Save size={14} />
-            {saving ? "保存中..." : "保存"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 transition-colors"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              <Save size={14} />
+              {saving ? "保存中..." : "保存"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

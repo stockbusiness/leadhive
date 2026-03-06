@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -9,14 +10,23 @@ import {
   History,
   FileText,
 } from "lucide-react";
-import Dashboard from "./pages/Dashboard";
-import Companies from "./pages/Companies";
-import Keywords from "./pages/Keywords";
-import Scraper from "./pages/Scraper";
-import SettingsPage from "./pages/Settings";
-import RejectedList from "./pages/RejectedList";
-import CollectionHistory from "./pages/CollectionHistory";
-import Templates from "./pages/Templates";
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Companies = lazy(() => import("./pages/Companies"));
+const Keywords = lazy(() => import("./pages/Keywords"));
+const Scraper = lazy(() => import("./pages/Scraper"));
+const SettingsPage = lazy(() => import("./pages/Settings"));
+const RejectedList = lazy(() => import("./pages/RejectedList"));
+const CollectionHistory = lazy(() => import("./pages/CollectionHistory"));
+const Templates = lazy(() => import("./pages/Templates"));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -40,16 +50,18 @@ function App() {
         </div>
       </aside>
       <main className="flex-1 overflow-auto">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/companies" element={<Companies />} />
-          <Route path="/keywords" element={<Keywords />} />
-          <Route path="/scraper" element={<Scraper />} />
-          <Route path="/history" element={<CollectionHistory />} />
-          <Route path="/rejected" element={<RejectedList />} />
-          <Route path="/templates" element={<Templates />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/companies" element={<Companies />} />
+            <Route path="/keywords" element={<Keywords />} />
+            <Route path="/scraper" element={<Scraper />} />
+            <Route path="/history" element={<CollectionHistory />} />
+            <Route path="/rejected" element={<RejectedList />} />
+            <Route path="/templates" element={<Templates />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   );

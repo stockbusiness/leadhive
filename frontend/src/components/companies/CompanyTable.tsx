@@ -1,24 +1,62 @@
-import { ExternalLink, MessageSquare, Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, MessageSquare, Pencil, Trash2, RotateCw } from "lucide-react";
 import { STATUSES } from "../../constants";
 import { ScoreBadge, FlagBadge } from "../common";
 import type { Company } from "../../types";
 
 export default function CompanyTable({
   companies,
+  selectedIds,
+  onSelectionChange,
   onStatusChange,
   onEdit,
   onDelete,
+  onRescrape,
 }: {
   companies: Company[];
+  selectedIds: Set<number>;
+  onSelectionChange: (ids: Set<number>) => void;
   onStatusChange: (id: number, status: string) => void;
   onEdit: (company: Company) => void;
   onDelete: (id: number) => void;
+  onRescrape: (id: number) => void;
 }) {
+  const allSelected = companies.length > 0 && companies.every((c) => selectedIds.has(c.id));
+
+  const handleSelectAll = () => {
+    if (allSelected) {
+      const newSet = new Set(selectedIds);
+      companies.forEach((c) => newSet.delete(c.id));
+      onSelectionChange(newSet);
+    } else {
+      const newSet = new Set(selectedIds);
+      companies.forEach((c) => newSet.add(c.id));
+      onSelectionChange(newSet);
+    }
+  };
+
+  const handleSelectOne = (id: number) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    onSelectionChange(newSet);
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-200">
+            <th className="px-3 py-2 w-8">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={handleSelectAll}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+            </th>
             <th className="text-left px-3 py-2 font-medium text-slate-600">会社名</th>
             <th className="text-left px-3 py-2 font-medium text-slate-600">カテゴリ</th>
             <th className="text-center px-3 py-2 font-medium text-slate-600">スコア</th>
@@ -31,7 +69,15 @@ export default function CompanyTable({
         </thead>
         <tbody>
           {companies.map((c) => (
-            <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
+            <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${selectedIds.has(c.id) ? "bg-blue-50" : ""}`}>
+              <td className="px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(c.id)}
+                  onChange={() => handleSelectOne(c.id)}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+              </td>
               <td className="px-3 py-2">
                 <div className="font-medium text-slate-800">{c.company_name || c.domain}</div>
                 <a
@@ -42,10 +88,15 @@ export default function CompanyTable({
                 >
                   {c.domain} <ExternalLink size={10} />
                 </a>
-                <div className="flex gap-1 mt-1">
+                <div className="flex flex-wrap gap-1 mt-1">
                   {c.shopify_flag && <FlagBadge label="Shopify" color="bg-green-100 text-green-700" />}
                   {c.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
                   {c.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
+                  {c.tags && c.tags.map((tag) => (
+                    <span key={tag} className="inline-block bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[10px] leading-tight">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </td>
               <td className="px-3 py-2 text-slate-600">{c.category_main}</td>
@@ -89,6 +140,9 @@ export default function CompanyTable({
               </td>
               <td className="px-3 py-2 text-center">
                 <div className="flex items-center justify-center gap-1">
+                  <button onClick={() => onRescrape(c.id)} className="text-amber-500 hover:text-amber-700 p-1" title="再スクレイピング">
+                    <RotateCw size={14} />
+                  </button>
                   <button onClick={() => onEdit(c)} className="text-blue-500 hover:text-blue-700 p-1" title="詳細編集">
                     <Pencil size={14} />
                   </button>
@@ -101,7 +155,7 @@ export default function CompanyTable({
           ))}
           {companies.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-3 py-8 text-center text-slate-400">
+              <td colSpan={9} className="px-3 py-8 text-center text-slate-400">
                 企業データがありません。「URL収集」から企業を追加してください。
               </td>
             </tr>
