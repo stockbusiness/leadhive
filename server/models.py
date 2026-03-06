@@ -42,3 +42,23 @@ class SearchKeyword(Base):
     exclude_keywords = Column(Text)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    setting_key = Column(String(255), unique=True, nullable=False)
+    setting_value = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class RejectedUrl(Base):
+    __tablename__ = "rejected_urls"
+
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String(255), nullable=False)
+    url = Column(Text)
+    reason = Column(String(255), default="まとめサイト")
+    created_at = Column(DateTime, server_default=func.now())

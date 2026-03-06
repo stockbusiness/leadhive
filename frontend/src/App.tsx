@@ -4,11 +4,15 @@ import {
   Building2,
   Search,
   Globe,
+  Settings,
+  ShieldBan,
 } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Companies from "./pages/Companies";
 import Keywords from "./pages/Keywords";
 import Scraper from "./pages/Scraper";
+import SettingsPage from "./pages/Settings";
+import RejectedList from "./pages/RejectedList";
 
 function App() {
   return (
@@ -23,7 +27,11 @@ function App() {
           <SidebarLink to="/companies" icon={<Building2 size={18} />} label="候補企業一覧" />
           <SidebarLink to="/keywords" icon={<Search size={18} />} label="検索条件管理" />
           <SidebarLink to="/scraper" icon={<Globe size={18} />} label="URL収集" />
+          <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" />
         </nav>
+        <div className="p-2 border-t border-slate-700">
+          <SidebarLink to="/settings" icon={<Settings size={18} />} label="設定" />
+        </div>
       </aside>
       <main className="flex-1 overflow-auto">
         <Routes>
@@ -31,6 +39,8 @@ function App() {
           <Route path="/companies" element={<Companies />} />
           <Route path="/keywords" element={<Keywords />} />
           <Route path="/scraper" element={<Scraper />} />
+          <Route path="/rejected" element={<RejectedList />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
     </div>

@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from server.routes import companies, keywords, dashboard, scraper
+from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector
 
 app = FastAPI(title="ESCMS Partner Collection Tool")
 
@@ -15,6 +15,9 @@ app.include_router(companies.router)
 app.include_router(keywords.router)
 app.include_router(dashboard.router)
 app.include_router(scraper.router)
+app.include_router(settings.router)
+app.include_router(rejected.router)
+app.include_router(collector.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 

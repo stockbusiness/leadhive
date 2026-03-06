@@ -14,7 +14,8 @@ def scrape_company_info(url: str) -> dict:
         soup = BeautifulSoup(response.text, "html.parser")
         text_content = soup.get_text(separator=" ", strip=True)
 
-        domain = urlparse(url).netloc
+        raw_domain = urlparse(url).netloc.lower()
+        domain = raw_domain[4:] if raw_domain.startswith("www.") else raw_domain
         title = soup.title.string.strip() if soup.title and soup.title.string else ""
 
         meta_desc = ""
