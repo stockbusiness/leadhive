@@ -5,8 +5,10 @@ import { api } from "../api";
 export default function Settings() {
   const [apiKey, setApiKey] = useState("");
   const [cx, setCx] = useState("");
+  const [placesApiKey, setPlacesApiKey] = useState("");
   const [apiKeySet, setApiKeySet] = useState(false);
   const [cxSet, setCxSet] = useState(false);
+  const [placesApiKeySet, setPlacesApiKeySet] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -24,6 +26,10 @@ export default function Settings() {
       if (s.google_cx) {
         setCxSet(s.google_cx.is_set);
         if (s.google_cx.is_set) setCx(s.google_cx.value);
+      }
+      if (s.google_places_api_key) {
+        setPlacesApiKeySet(s.google_places_api_key.is_set);
+        if (s.google_places_api_key.is_set) setPlacesApiKey(s.google_places_api_key.value);
       }
       if (s.auto_collect_enabled) {
         setAutoCollectEnabled(s.auto_collect_enabled.value === "true");
@@ -44,6 +50,7 @@ export default function Settings() {
       const data: Record<string, string> = {};
       if (apiKey && !apiKey.includes("*")) data.google_api_key = apiKey;
       if (cx && !cx.includes("*")) data.google_cx = cx;
+      if (placesApiKey && !placesApiKey.includes("*")) data.google_places_api_key = placesApiKey;
       data.auto_collect_enabled = autoCollectEnabled ? "true" : "false";
       data.auto_collect_time = autoCollectTime;
 
@@ -54,8 +61,10 @@ export default function Settings() {
       const s = res.settings;
       setApiKeySet(s.google_api_key?.is_set || false);
       setCxSet(s.google_cx?.is_set || false);
+      setPlacesApiKeySet(s.google_places_api_key?.is_set || false);
       if (s.google_api_key?.is_set) setApiKey(s.google_api_key.value);
       if (s.google_cx?.is_set) setCx(s.google_cx.value);
+      if (s.google_places_api_key?.is_set) setPlacesApiKey(s.google_places_api_key.value);
     } catch (err: any) {
       setMessage({ type: "error", text: err.response?.data?.detail || "保存に失敗しました" });
     }
@@ -128,6 +137,21 @@ export default function Settings() {
               className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-slate-400 mt-1">Programmable Search Engineで作成したSearch Engine IDを入力してください</p>
+          </div>
+
+          <div className="border-t border-slate-200 pt-4">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Google Places API Key
+              {placesApiKeySet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}
+            </label>
+            <input
+              type="password"
+              value={placesApiKey}
+              onChange={(e) => setPlacesApiKey(e.target.value)}
+              placeholder="AIzaSy..."
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-slate-400 mt-1">Googleマップ収集に使用します。Google Cloud ConsoleでPlaces APIを有効にして取得してください</p>
           </div>
         </div>
 

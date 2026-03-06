@@ -38,6 +38,7 @@ server/
     google_scrape.py   - Google search results direct scraping (API-free)
     directory_scraper.py - Directory/listing page scraper with pagination
     shopify_partners.py  - Shopify partner directory scraper
+    google_places.py     - Google Places API client (Text Search + Place Details)
     cache.py           - Thread-safe in-memory TTL cache (cache_get, cache_set, cache_invalidate)
     scheduler.py       - Auto-collection scheduler (daily at configured time)
 frontend/
@@ -81,6 +82,7 @@ models → schemas → services/{aggregator,google_search,scorer,categorizer,scr
 - **Directory scraping**: 企業一覧ページ・ディレクトリサイトからの外部リンク収集（ページネーション対応）
 - **Google direct scraping**: Google検索結果の直接スクレイピングによる収集（API不要）
 - **Shopify partner collection**: Shopifyパートナーディレクトリおよび関連検索からの収集
+- **Google Maps collection**: Google Places APIによるGoogleマップ上の企業収集（住所・電話・レビュー情報の補完あり）
 - **Scheduled auto-collection**: 毎日指定時刻に自動収集実行（scheduler.py）
 - **Parallel scraping**: ThreadPoolExecutor による最大5並列のスクレイピング
 - **API response caching**: ダッシュボード60秒、キーワード/テンプレート30秒のTTLキャッシュ

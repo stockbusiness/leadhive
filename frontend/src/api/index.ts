@@ -102,6 +102,9 @@ export const api = {
 
     shopifyPartners: (maxResults: number = 20) =>
       axios.post("/api/collect/shopify-partners", { max_results: maxResults }).then(r => r.data),
+
+    googleMaps: (keyword: string, region: string = "東京", maxResults: number = 20) =>
+      axios.post("/api/collect/google-maps", { keyword, region, max_results: maxResults }).then(r => r.data),
   },
 
   templates: {

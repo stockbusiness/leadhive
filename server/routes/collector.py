@@ -132,3 +132,68 @@ def collect_shopify_partners(data: dict, db: Session = Depends(get_db)):
     result = process_urls_to_companies(partners, db, source="Shopifyパートナー")
     cache_invalidate("dashboard")
     return result
+
+
+@router.post("/google-maps")
+def collect_google_maps(data: dict, db: Session = Depends(get_db)):
+    keyword = data.get("keyword", "").strip()
+    region = data.get("region", "東京").strip()
+    max_results = min(data.get("max_results", 20), 60)
+    if not keyword:
+        return {"error": "検索キーワードを入力してください"}
+
+    from server.models import AppSetting
+    api_key_row = db.query(AppSetting).filter(AppSetting.setting_key == "google_places_api_key").first()
+    if not api_key_row or not api_key_row.setting_value:
+        return {"error": "Google Places APIキーが設定されていません。設定画面で登録してください。"}
+
+    from server.services.google_places import search_google_maps
+    places = search_google_maps(
+        keyword=keyword,
+        region=region,
+        api_key=api_key_row.setting_value,
+        max_results=max_results,
+    )
+    if not places:
+        return {"error": "Googleマップから結果が取得できませんでした。キーワードを変更して再試行してください。"}
+
+    result = process_urls_to_companies(places, db, source=f"Googleマップ: {keyword} {region}")
+
+    for r in result.get("results", []):
+        if r.get("status") == "success" and r.get("company_id"):
+            place_item = next((p for p in places if p["url"] == r.get("url")), None)
+            if place_item and place_item.get("places_data"):
+                pd = place_item["places_data"]
+                from server.models import Company
+                company = db.query(Company).filter(Company.id == r["company_id"]).first()
+                if company:
+                    if pd.get("phone") and not company.phone:
+                        company.phone = pd["phone"]
+                    if pd.get("address") and not company.prefecture:
+                        addr = pd["address"]
+                        for pref in _PREFECTURES:
+                            if pref in addr:
+                                company.prefecture = pref
+                                rest = addr.split(pref, 1)[1]
+                                if rest:
+                                    city_part = rest.split("区")[0] + "区" if "区" in rest else rest.split("市")[0] + "市" if "市" in rest else ""
+                                    if city_part:
+                                        company.city = city_part
+                                break
+                    if pd.get("rating") is not None:
+                        company.notes = (company.notes or "") + f"\nGoogleマップ評価: {pd['rating']}/5 ({pd.get('user_ratings_total', 0)}件)"
+                    db.commit()
+
+    cache_invalidate("dashboard")
+    return result
+
+
+_PREFECTURES = [
+    "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+    "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+    "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
+    "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県",
+    "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+    "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
+    "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
+]

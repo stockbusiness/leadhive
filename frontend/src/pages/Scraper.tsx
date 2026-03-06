@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, Search, List, ShoppingBag, AlertTriangle } from "lucide-react";
+import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, Search, List, ShoppingBag, AlertTriangle, MapPin } from "lucide-react";
 import { api } from "../api";
 import { ResultRow } from "../components/common";
 import type { SearchKeyword, ScrapeResult, CollectSummary } from "../types";
 
-type CollectTab = "google-api" | "directory" | "google-scrape" | "shopify";
+type CollectTab = "google-api" | "directory" | "google-scrape" | "shopify" | "google-maps";
 
 export default function Scraper() {
   const [singleUrl, setSingleUrl] = useState("");
@@ -26,6 +26,10 @@ export default function Scraper() {
   const [gsNum, setGsNum] = useState(10);
 
   const [spMaxResults, setSpMaxResults] = useState(20);
+
+  const [gmKeyword, setGmKeyword] = useState("");
+  const [gmRegion, setGmRegion] = useState("東京");
+  const [gmMaxResults, setGmMaxResults] = useState(20);
 
   useEffect(() => {
     api.keywords.list().then((data) => {
@@ -112,11 +116,25 @@ export default function Scraper() {
     setCollectLoading(false);
   };
 
+  const handleGoogleMapsCollect = async () => {
+    if (!gmKeyword.trim()) return;
+    setCollectLoading(true);
+    setCollectResults(null);
+    try {
+      const data = await api.collector.googleMaps(gmKeyword, gmRegion, gmMaxResults);
+      setCollectResults(data);
+    } catch (err: any) {
+      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
+    }
+    setCollectLoading(false);
+  };
+
   const tabs: { key: CollectTab; label: string; icon: typeof Zap }[] = [
     { key: "google-api", label: "Google API検索", icon: Zap },
     { key: "directory", label: "ディレクトリ収集", icon: List },
     { key: "google-scrape", label: "Google直接検索", icon: Search },
     { key: "shopify", label: "Shopifyパートナー", icon: ShoppingBag },
+    { key: "google-maps", label: "Googleマップ", icon: MapPin },
   ];
 
   return (
@@ -182,6 +200,19 @@ export default function Scraper() {
               onMaxResultsChange={setSpMaxResults}
               loading={collectLoading}
               onCollect={handleShopifyCollect}
+            />
+          )}
+
+          {activeTab === "google-maps" && (
+            <GoogleMapsSection
+              keyword={gmKeyword}
+              onKeywordChange={setGmKeyword}
+              region={gmRegion}
+              onRegionChange={setGmRegion}
+              maxResults={gmMaxResults}
+              onMaxResultsChange={setGmMaxResults}
+              loading={collectLoading}
+              onCollect={handleGoogleMapsCollect}
             />
           )}
 
@@ -406,6 +437,68 @@ function ShopifySection({
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
           Shopifyパートナー収集
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GoogleMapsSection({
+  keyword, onKeywordChange, region, onRegionChange, maxResults, onMaxResultsChange, loading, onCollect,
+}: {
+  keyword: string; onKeywordChange: (v: string) => void;
+  region: string; onRegionChange: (v: string) => void;
+  maxResults: number; onMaxResultsChange: (v: number) => void;
+  loading: boolean; onCollect: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-500">
+        Google Places APIを使ってGoogleマップ上の企業情報を収集します。
+        住所・電話番号・レビュー評価なども取得できます。APIキーが必要です（設定画面で登録）。
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-slate-600 mb-1">検索キーワード</label>
+          <input
+            type="text"
+            placeholder="Shopify 制作会社"
+            value={keyword}
+            onChange={(e) => onKeywordChange(e.target.value)}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">地域</label>
+            <input
+              type="text"
+              placeholder="東京"
+              value={region}
+              onChange={(e) => onRegionChange(e.target.value)}
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">件数</label>
+            <select
+              value={maxResults}
+              onChange={(e) => onMaxResultsChange(Number(e.target.value))}
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {[10, 20, 40, 60].map((n) => (
+                <option key={n} value={n}>{n}件</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button
+          onClick={onCollect}
+          disabled={loading || !keyword.trim()}
+          className="flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
+          マップ検索
         </button>
       </div>
     </div>
