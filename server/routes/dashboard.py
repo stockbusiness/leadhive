@@ -1,8 +1,10 @@
+from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from server.database import get_db
-from server.models import Company
+from server.models import Company, ApiUsageLog
+from server.routes.companies import company_to_dict
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -44,6 +46,19 @@ def get_dashboard(db: Session = Depends(get_db)):
         .all()
     )
 
+    by_prefecture = dict(
+        db.query(Company.prefecture, func.count(Company.id))
+        .filter(Company.prefecture.isnot(None), Company.prefecture != "")
+        .group_by(Company.prefecture)
+        .all()
+    )
+
+    recent_companies = db.query(Company).order_by(desc(Company.created_at)).limit(5).all()
+
+    today = date.today()
+    usage_log = db.query(ApiUsageLog).filter(ApiUsageLog.usage_date == today).first()
+    api_usage_today = usage_log.request_count if usage_log else 0
+
     return {
         "total": total,
         "unique_domains": unique_domains,
@@ -53,4 +68,8 @@ def get_dashboard(db: Session = Depends(get_db)):
         "by_category": by_category,
         "by_status": by_status,
         "by_rank": by_rank,
+        "by_prefecture": by_prefecture,
+        "recent_companies": [company_to_dict(c) for c in recent_companies],
+        "api_usage_today": api_usage_today,
+        "api_daily_limit": 100,
     }

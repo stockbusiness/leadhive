@@ -1,8 +1,9 @@
 import re
 import requests
+from datetime import date
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session
-from server.models import AppSetting, Company, RejectedUrl, SearchKeyword
+from server.models import AppSetting, Company, RejectedUrl, SearchKeyword, ApiUsageLog, CollectionLog
 from server.services.scraper import scrape_company_info
 from server.services.categorizer import categorize_company, detect_flags
 from server.services.scorer import calculate_score
@@ -67,8 +68,27 @@ def is_aggregator_site(url: str, title: str = "") -> tuple[bool, str]:
     return False, ""
 
 
-def search_google(api_key: str, cx: str, query: str, num: int = 10, start: int = 1) -> list[dict]:
+def increment_api_usage(db: Session):
+    today = date.today()
+    log = db.query(ApiUsageLog).filter(ApiUsageLog.usage_date == today).first()
+    if log:
+        log.request_count += 1
+    else:
+        log = ApiUsageLog(usage_date=today, request_count=1)
+        db.add(log)
+    db.commit()
+
+
+def get_api_usage_today(db: Session) -> int:
+    today = date.today()
+    log = db.query(ApiUsageLog).filter(ApiUsageLog.usage_date == today).first()
+    return log.request_count if log else 0
+
+
+def search_google(api_key: str, cx: str, query: str, db: Session, num: int = 10, start: int = 1) -> list[dict]:
     try:
+        increment_api_usage(db)
+
         resp = requests.get(
             "https://www.googleapis.com/customsearch/v1",
             params={
@@ -135,6 +155,7 @@ def collect_by_keyword(keyword_id: int, db: Session) -> dict:
         api_key_setting.setting_value,
         cx_setting.setting_value,
         query,
+        db,
         num=10,
     )
 
@@ -220,5 +241,17 @@ def collect_by_keyword(keyword_id: int, db: Session) -> dict:
         "rejected": sum(1 for r in results if r["status"] == "rejected"),
         "error": sum(1 for r in results if r["status"] == "error"),
     }
+
+    log = CollectionLog(
+        keyword_id=keyword.id,
+        keyword_text=keyword.keyword,
+        total_found=summary["total"],
+        success_count=summary["success"],
+        duplicate_count=summary["duplicate"],
+        rejected_count=summary["rejected"],
+        error_count=summary["error"],
+    )
+    db.add(log)
+    db.commit()
 
     return {"results": results, "summary": summary}

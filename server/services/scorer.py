@@ -42,6 +42,9 @@ def calculate_score(company_data: dict) -> tuple[int, str]:
     if not ec_related:
         score -= 20
 
+    adjustment = company_data.get("score_adjustment", 0) or 0
+    score += adjustment
+
     score = max(0, min(100, score))
 
     if score >= 80:

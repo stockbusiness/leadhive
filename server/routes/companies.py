@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
 from typing import Optional
 from server.database import get_db
-from server.models import Company
+from server.models import Company, StatusHistory, MemoTemplate
 from server.services.scorer import calculate_score
 
 router = APIRouter(prefix="/api/companies", tags=["companies"])
@@ -84,9 +84,20 @@ def update_company(company_id: int, data: dict, db: Session = Depends(get_db)):
     if not company:
         return {"error": "企業が見つかりません"}
 
+    old_status = company.status
+
     for key, value in data.items():
         if hasattr(company, key) and key not in ("id", "created_at"):
             setattr(company, key, value)
+
+    new_status = company.status
+    if old_status != new_status:
+        history = StatusHistory(
+            company_id=company.id,
+            old_status=old_status,
+            new_status=new_status,
+        )
+        db.add(history)
 
     company_dict = company_to_dict(company)
     score, rank = calculate_score(company_dict)
@@ -106,6 +117,27 @@ def delete_company(company_id: int, db: Session = Depends(get_db)):
     db.delete(company)
     db.commit()
     return {"message": "削除しました"}
+
+
+@router.get("/{company_id}/history")
+def get_status_history(company_id: int, db: Session = Depends(get_db)):
+    history = (
+        db.query(StatusHistory)
+        .filter(StatusHistory.company_id == company_id)
+        .order_by(desc(StatusHistory.changed_at))
+        .all()
+    )
+    return {
+        "history": [
+            {
+                "id": h.id,
+                "old_status": h.old_status,
+                "new_status": h.new_status,
+                "changed_at": h.changed_at.isoformat() if h.changed_at else None,
+            }
+            for h in history
+        ]
+    }
 
 
 @router.get("/csv")
@@ -185,6 +217,7 @@ def company_to_dict(c: Company) -> dict:
         "operation_flag": c.operation_flag,
         "production_flag": c.production_flag,
         "score_total": c.score_total,
+        "score_adjustment": c.score_adjustment,
         "score_rank": c.score_rank,
         "status": c.status,
         "notes": c.notes,

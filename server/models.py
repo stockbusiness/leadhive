@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, Date
 from sqlalchemy.sql import func
 from server.database import Base
 
@@ -25,6 +25,7 @@ class Company(Base):
     operation_flag = Column(Boolean, default=False)
     production_flag = Column(Boolean, default=False)
     score_total = Column(Integer, default=0)
+    score_adjustment = Column(Integer, default=0)
     score_rank = Column(String(1), default="D")
     status = Column(String(50), default="未確認")
     notes = Column(Text)
@@ -61,4 +62,46 @@ class RejectedUrl(Base):
     domain = Column(String(255), nullable=False)
     url = Column(Text)
     reason = Column(String(255), default="まとめサイト")
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class ApiUsageLog(Base):
+    __tablename__ = "api_usage_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usage_date = Column(Date, unique=True, nullable=False)
+    request_count = Column(Integer, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class CollectionLog(Base):
+    __tablename__ = "collection_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    keyword_id = Column(Integer)
+    keyword_text = Column(String(255))
+    total_found = Column(Integer, default=0)
+    success_count = Column(Integer, default=0)
+    duplicate_count = Column(Integer, default=0)
+    rejected_count = Column(Integer, default=0)
+    error_count = Column(Integer, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class StatusHistory(Base):
+    __tablename__ = "status_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, nullable=False)
+    old_status = Column(String(50))
+    new_status = Column(String(50))
+    changed_at = Column(DateTime, server_default=func.now())
+
+
+class MemoTemplate(Base):
+    __tablename__ = "memo_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
