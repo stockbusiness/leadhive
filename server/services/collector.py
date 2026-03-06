@@ -11,10 +11,13 @@ from server.services.google_search import search_google
 logger = logging.getLogger(__name__)
 
 
-def collect_by_keyword(keyword_id: int, db: Session) -> dict:
+def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> dict:
     keyword = db.query(SearchKeyword).filter(SearchKeyword.id == keyword_id).first()
     if not keyword:
         return {"error": "キーワードが見つかりません"}
+
+    if project_id is None:
+        project_id = keyword.project_id
 
     api_key_setting = db.query(AppSetting).filter(AppSetting.setting_key == "google_api_key").first()
     cx_setting = db.query(AppSetting).filter(AppSetting.setting_key == "google_cx").first()
@@ -28,13 +31,13 @@ def collect_by_keyword(keyword_id: int, db: Session) -> dict:
     if keyword.region:
         query += f" {keyword.region}"
 
-    rejected_domains = set(
-        r.domain for r in db.query(RejectedUrl.domain).all()
-    )
-
-    existing_domains = set(
-        c.domain for c in db.query(Company.domain).all()
-    )
+    rej_q = db.query(RejectedUrl.domain)
+    comp_q = db.query(Company.domain)
+    if project_id:
+        rej_q = rej_q.filter(RejectedUrl.project_id == project_id)
+        comp_q = comp_q.filter(Company.project_id == project_id)
+    rejected_domains = set(r.domain for r in rej_q.all())
+    existing_domains = set(c.domain for c in comp_q.all())
 
     exclude_list = []
     if keyword.exclude_keywords:
@@ -54,7 +57,7 @@ def collect_by_keyword(keyword_id: int, db: Session) -> dict:
     if search_results and "error" in search_results[0]:
         return {"error": f"検索APIエラー: {search_results[0]['error']}"}
 
-    results = _process_search_results(search_results, db, rejected_domains, existing_domains)
+    results = _process_search_results(search_results, db, rejected_domains, existing_domains, project_id=project_id)
 
     summary = {
         "keyword": keyword.keyword,
@@ -66,6 +69,7 @@ def collect_by_keyword(keyword_id: int, db: Session) -> dict:
     }
 
     log = CollectionLog(
+        project_id=project_id,
         keyword_id=keyword.id,
         keyword_text=keyword.keyword,
         total_found=summary["total"],
@@ -85,6 +89,7 @@ def _process_search_results(
     db: Session,
     rejected_domains: set,
     existing_domains: set,
+    project_id: int = None,
 ) -> list[dict]:
     results = []
     urls_to_scrape = []
@@ -159,7 +164,10 @@ def _process_search_results(
             company_data["score_total"] = score
             company_data["score_rank"] = rank
 
-            company = Company(**{k: v for k, v in company_data.items() if hasattr(Company, k)})
+            company_fields = {k: v for k, v in company_data.items() if hasattr(Company, k)}
+            if project_id:
+                company_fields["project_id"] = project_id
+            company = Company(**company_fields)
             db.add(company)
             db.commit()
             db.refresh(company)
@@ -178,16 +186,18 @@ def process_urls_to_companies(
     url_items: list[dict],
     db: Session,
     source: str = "scrape",
+    project_id: int = None,
 ) -> dict:
-    rejected_domains = set(
-        r.domain for r in db.query(RejectedUrl.domain).all()
-    )
-    existing_domains = set(
-        c.domain for c in db.query(Company.domain).all()
-    )
+    rej_q = db.query(RejectedUrl.domain)
+    comp_q = db.query(Company.domain)
+    if project_id:
+        rej_q = rej_q.filter(RejectedUrl.project_id == project_id)
+        comp_q = comp_q.filter(Company.project_id == project_id)
+    rejected_domains = set(r.domain for r in rej_q.all())
+    existing_domains = set(c.domain for c in comp_q.all())
 
     search_results = [{"url": item.get("url", ""), "title": item.get("title", "")} for item in url_items]
-    results = _process_search_results(search_results, db, rejected_domains, existing_domains)
+    results = _process_search_results(search_results, db, rejected_domains, existing_domains, project_id=project_id)
 
     summary = {
         "source": source,
@@ -199,6 +209,7 @@ def process_urls_to_companies(
     }
 
     log = CollectionLog(
+        project_id=project_id,
         keyword_text=f"[{source}]",
         total_found=summary["total"],
         success_count=summary["success"],

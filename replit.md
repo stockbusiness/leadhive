@@ -17,22 +17,23 @@ Google Custom Search APIによる自動収集、またはURLの手動入力で�
 server/
   main.py              - FastAPI app entry point (port 5000) + scheduler start
   database.py          - SQLAlchemy database connection
-  models.py            - SQLAlchemy models (Company, SearchKeyword, AppSetting, RejectedUrl, ApiUsageLog, CollectionLog, StatusHistory, MemoTemplate, CompanyTag, ActivityLog)
+  models.py            - SQLAlchemy models (Project, Company, SearchKeyword, AppSetting, RejectedUrl, ApiUsageLog, CollectionLog, StatusHistory, MemoTemplate, CompanyTag, ActivityLog)
   schemas.py           - Shared serialization (company_to_dict with tags)
   routes/
-    companies.py       - CRUD + CSV export + status history + bulk-status + duplicates + merge + tags + activities + rescrape
-    keywords.py        - CRUD for search keywords (with cache)
-    dashboard.py       - Dashboard statistics (with cache)
-    scraper.py         - URL scraping endpoints (single + parallel bulk)
+    projects.py        - Project CRUD API (list, get, create, update, delete)
+    companies.py       - CRUD + CSV export + status history + bulk-status + duplicates + merge + tags + activities + rescrape (project_id scoped)
+    keywords.py        - CRUD for search keywords (with cache, project_id scoped)
+    dashboard.py       - Dashboard statistics (with cache, project_id scoped)
+    scraper.py         - URL scraping endpoints (single + parallel bulk, project_id scoped)
     settings.py        - API key + auto-collect scheduler settings
-    rejected.py        - Rejected URL/domain management
-    collector.py       - Auto-collection endpoints + directory/Google scrape/Shopify partner collection + history
+    rejected.py        - Rejected URL/domain management (project_id scoped)
+    collector.py       - Auto-collection endpoints + directory/Google scrape/Shopify partner collection + history (project_id scoped)
     templates.py       - Memo + email template CRUD (with cache)
   services/
     scraper.py         - Web scraping logic (BeautifulSoup) + scrape_urls_parallel
-    scorer.py          - 100-point scoring system (with manual adjustment)
-    categorizer.py     - Category classification + flag detection
-    collector.py       - Auto-collection orchestration (parallel scraping)
+    scorer.py          - 100-point scoring system (with manual adjustment, supports custom scoring_rules per project)
+    categorizer.py     - Category classification + flag detection (supports custom category_keywords and flag_definitions per project)
+    collector.py       - Auto-collection orchestration (parallel scraping, project_id aware)
     aggregator.py      - Aggregator/matome site detection
     google_search.py   - Google Custom Search API client + daily usage tracking
     google_scrape.py   - Google search results direct scraping (API-free)
@@ -43,9 +44,11 @@ server/
     scheduler.py       - Auto-collection scheduler (daily at configured time)
 frontend/
   src/
-    types/index.ts     - Shared TypeScript interfaces (Company, ActivityLogEntry, etc.)
+    types/index.ts     - Shared TypeScript interfaces (Company, Project, ActivityLogEntry, etc.)
     constants/index.ts - Shared constants (CATEGORIES, STATUSES, RANKS, colors)
-    api/index.ts       - Centralized API client with typed endpoints
+    api/index.ts       - Centralized API client with typed endpoints (including projects CRUD)
+    contexts/
+      ProjectContext.tsx - Project context provider (current project state, axios interceptor for project_id injection)
     hooks/
       useDebounce.ts   - Search debounce hook (300ms)
     components/
@@ -58,12 +61,13 @@ frontend/
       Dashboard.tsx    - Stats overview with charts (Recharts)
       Companies.tsx    - Company list with bulk status, duplicate check/merge
       Keywords.tsx     - Search keyword management
-      Scraper.tsx      - URL scraping + multi-source collection (API/directory/Google scrape/Shopify)
-      Settings.tsx     - API key + auto-collect schedule configuration
+      Scraper.tsx      - URL scraping + multi-source collection (API/directory/Google scrape/Shopify/Google Maps)
+      Settings.tsx     - API key + auto-collect schedule configuration + Google Places API key
       RejectedList.tsx - Rejected domain management
       CollectionHistory.tsx - Collection log viewer
       Templates.tsx    - Memo + email template management (tabbed)
-    App.tsx            - Router + sidebar layout (lazy-loaded pages)
+      Projects.tsx     - Project management (create/edit/delete, category/flag/scoring customization)
+    App.tsx            - Router + sidebar layout (lazy-loaded pages) + ProjectProvider + project selector
   dist/                - Built frontend (served by FastAPI)
 ```
 
@@ -78,6 +82,7 @@ models → schemas → services/{aggregator,google_search,scorer,categorizer,scr
 ```
 
 ## Key Features
+- **Multi-project management**: プロジェクトごとに収集対象業種・カテゴリ・フラグ・スコアリング基準をカスタマイズ。サイドバーでプロジェクト切替可能
 - **Auto-collection**: Google Custom Search API で検索キーワードに基づく候補企業の自動収集
 - **Directory scraping**: 企業一覧ページ・ディレクトリサイトからの外部リンク収集（ページネーション対応）
 - **Google direct scraping**: Google検索結果の直接スクレイピングによる収集（API不要）
@@ -109,12 +114,13 @@ models → schemas → services/{aggregator,google_search,scorer,categorizer,scr
 - **Rejected URL management**: まとめサイト等の手動・自動拒否リスト管理
 
 ## Database Tables
-- `companies` - Company records with all business fields, flags, scores (indexes on domain, status, category_main, score_rank)
-- `search_keywords` - Search keyword management
+- `projects` - Project definitions with JSON fields: categories, category_keywords, flag_definitions, scoring_rules
+- `companies` - Company records with all business fields, flags, scores (indexes on domain, status, category_main, score_rank), project_id FK
+- `search_keywords` - Search keyword management, project_id FK
 - `app_settings` - API key storage + auto-collect settings
-- `rejected_urls` - Rejected domains for auto-collection filtering
+- `rejected_urls` - Rejected domains for auto-collection filtering, project_id FK
 - `api_usage_logs` - Daily API usage counter
-- `collection_logs` - Collection run history
+- `collection_logs` - Collection run history, project_id FK
 - `status_history` - Status change audit trail
 - `memo_templates` - Reusable memo/email templates (is_email_template flag)
 - `company_tags` - Tags/labels per company

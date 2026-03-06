@@ -39,9 +39,12 @@ def list_companies(
     sort_order: str = "desc",
     page: int = 1,
     per_page: int = 50,
+    project_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(Company)
+    if project_id:
+        query = query.filter(Company.project_id == project_id)
 
     if category:
         query = query.filter(Company.category_main == category)
@@ -100,8 +103,11 @@ def create_company(data: dict, db: Session = Depends(get_db)):
 
 
 @router.get("/duplicates")
-def find_duplicates(db: Session = Depends(get_db)):
-    companies = db.query(Company).all()
+def find_duplicates(project_id: Optional[int] = None, db: Session = Depends(get_db)):
+    q = db.query(Company)
+    if project_id:
+        q = q.filter(Company.project_id == project_id)
+    companies = q.all()
     domain_groups = defaultdict(list)
     for c in companies:
         normalized = _normalize_domain(c.domain or c.website_url or "")
@@ -333,9 +339,12 @@ def export_csv(
     status: Optional[str] = None,
     score_rank: Optional[str] = None,
     has_contact: Optional[bool] = None,
+    project_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(Company)
+    if project_id:
+        query = query.filter(Company.project_id == project_id)
     if category:
         query = query.filter(Company.category_main == category)
     if status:

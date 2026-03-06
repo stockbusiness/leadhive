@@ -45,7 +45,10 @@ def scrape_url(data: dict, db: Session = Depends(get_db)):
     url = validate_url(url)
 
     domain = urlparse(url).netloc
-    existing = db.query(Company).filter(Company.domain == domain).first()
+    dup_q = db.query(Company).filter(Company.domain == domain)
+    if data.get("project_id"):
+        dup_q = dup_q.filter(Company.project_id == data["project_id"])
+    existing = dup_q.first()
     if existing:
         raise HTTPException(status_code=409, detail="この企業は既に登録されています")
 
@@ -68,7 +71,10 @@ def scrape_url(data: dict, db: Session = Depends(get_db)):
     company_data["score_total"] = score
     company_data["score_rank"] = rank
 
-    company = Company(**{k: v for k, v in company_data.items() if hasattr(Company, k)})
+    company_fields = {k: v for k, v in company_data.items() if hasattr(Company, k)}
+    if data.get("project_id"):
+        company_fields["project_id"] = data["project_id"]
+    company = Company(**company_fields)
     db.add(company)
     db.commit()
     db.refresh(company)
@@ -99,7 +105,10 @@ def scrape_bulk(data: dict, db: Session = Depends(get_db)):
             continue
 
         domain = urlparse(url).netloc
-        existing = db.query(Company).filter(Company.domain == domain).first()
+        dup_q = db.query(Company).filter(Company.domain == domain)
+        if data.get("project_id"):
+            dup_q = dup_q.filter(Company.project_id == data["project_id"])
+        existing = dup_q.first()
         if existing:
             results.append({"url": url, "status": "duplicate", "message": "既に登録済み"})
             continue
@@ -134,7 +143,10 @@ def scrape_bulk(data: dict, db: Session = Depends(get_db)):
             company_data["score_total"] = score
             company_data["score_rank"] = rank
 
-            company = Company(**{k: v for k, v in company_data.items() if hasattr(Company, k)})
+            company_fields = {k: v for k, v in company_data.items() if hasattr(Company, k)}
+            if data.get("project_id"):
+                company_fields["project_id"] = data["project_id"]
+            company = Company(**company_fields)
             db.add(company)
             db.commit()
             db.refresh(company)

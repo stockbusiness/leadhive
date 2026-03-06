@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from server.database import get_db
@@ -8,11 +9,15 @@ router = APIRouter(prefix="/api/keywords", tags=["keywords"])
 
 
 @router.get("")
-def list_keywords(db: Session = Depends(get_db)):
-    cached = cache_get("keywords_list", ttl=30)
+def list_keywords(project_id: Optional[int] = None, db: Session = Depends(get_db)):
+    cache_key = f"keywords_list_{project_id}" if project_id else "keywords_list"
+    cached = cache_get(cache_key, ttl=30)
     if cached:
         return cached
-    keywords = db.query(SearchKeyword).order_by(SearchKeyword.created_at.desc()).all()
+    q = db.query(SearchKeyword)
+    if project_id:
+        q = q.filter(SearchKeyword.project_id == project_id)
+    keywords = q.order_by(SearchKeyword.created_at.desc()).all()
     result = {
         "keywords": [
             {
@@ -27,7 +32,7 @@ def list_keywords(db: Session = Depends(get_db)):
             for k in keywords
         ]
     }
-    cache_set("keywords_list", result)
+    cache_set(cache_key, result)
     return result
 
 
@@ -39,6 +44,7 @@ def create_keyword(data: dict, db: Session = Depends(get_db)):
         region=data.get("region", ""),
         exclude_keywords=data.get("exclude_keywords", ""),
         is_active=data.get("is_active", True),
+        project_id=data.get("project_id"),
     )
     db.add(keyword)
     db.commit()

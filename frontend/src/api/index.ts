@@ -1,7 +1,7 @@
 import axios from "axios";
 import type {
   Company, StatusHistoryEntry, MemoTemplate, SearchKeyword,
-  ScrapeResult, CollectionLog, RejectedItem, DashboardData, ActivityLogEntry,
+  ScrapeResult, CollectionLog, RejectedItem, DashboardData, ActivityLogEntry, Project,
 } from "../types";
 
 export const api = {
@@ -127,6 +127,23 @@ export const api = {
 
     delete: (id: number) =>
       axios.delete(`/api/rejected/${id}`).then(r => r.data),
+  },
+
+  projects: {
+    list: () =>
+      axios.get<{ projects: Project[] }>("/api/projects").then(r => r.data),
+
+    get: (id: number) =>
+      axios.get<Project>(`/api/projects/${id}`).then(r => r.data),
+
+    create: (data: Partial<Project>) =>
+      axios.post<Project>("/api/projects", data).then(r => r.data),
+
+    update: (id: number, data: Partial<Project>) =>
+      axios.put<Project>(`/api/projects/${id}`, data).then(r => r.data),
+
+    delete: (id: number) =>
+      axios.delete(`/api/projects/${id}`).then(r => r.data),
   },
 
   settings: {

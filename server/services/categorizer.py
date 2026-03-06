@@ -12,11 +12,12 @@ CATEGORY_KEYWORDS = {
 }
 
 
-def categorize_company(text: str) -> tuple[str, str]:
+def categorize_company(text: str, custom_keywords: dict = None) -> tuple[str, str]:
     text_lower = text.lower()
     matched_categories = []
 
-    for category, keywords in CATEGORY_KEYWORDS.items():
+    source = custom_keywords if custom_keywords else CATEGORY_KEYWORDS
+    for category, keywords in source.items():
         for kw in keywords:
             if kw.lower() in text_lower:
                 matched_categories.append(category)
@@ -30,14 +31,24 @@ def categorize_company(text: str) -> tuple[str, str]:
     return main, sub
 
 
-def detect_flags(text: str) -> dict:
+DEFAULT_FLAG_KEYWORDS = {
+    "shopify_flag": ["shopify", "ショッピファイ"],
+    "ec_flag": ["ec", "eコマース", "ネットショップ", "通販"],
+    "amazon_flag": ["amazon", "アマゾン"],
+    "rakuten_flag": ["楽天", "rakuten"],
+    "consulting_flag": ["コンサル", "支援", "戦略"],
+    "operation_flag": ["運営代行", "運用代行"],
+    "production_flag": ["制作", "構築", "開発"],
+}
+
+
+def detect_flags(text: str, custom_flags: dict = None) -> dict:
     text_lower = text.lower()
-    return {
-        "shopify_flag": any(kw in text_lower for kw in ["shopify", "ショッピファイ"]),
-        "ec_flag": any(kw in text_lower for kw in ["ec", "eコマース", "ネットショップ", "通販"]),
-        "amazon_flag": any(kw in text_lower for kw in ["amazon", "アマゾン"]),
-        "rakuten_flag": any(kw in text_lower for kw in ["楽天", "rakuten"]),
-        "consulting_flag": any(kw in text_lower for kw in ["コンサル", "支援", "戦略"]),
-        "operation_flag": any(kw in text_lower for kw in ["運営代行", "運用代行"]),
-        "production_flag": any(kw in text_lower for kw in ["制作", "構築", "開発"]),
-    }
+    source = custom_flags if custom_flags else DEFAULT_FLAG_KEYWORDS
+    result = {}
+    for flag_name, keywords in source.items():
+        result[flag_name] = any(kw.lower() in text_lower for kw in keywords)
+    for default_flag in DEFAULT_FLAG_KEYWORDS:
+        if default_flag not in result:
+            result[default_flag] = any(kw.lower() in text_lower for kw in DEFAULT_FLAG_KEYWORDS[default_flag])
+    return result

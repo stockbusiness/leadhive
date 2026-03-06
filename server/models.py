@@ -1,12 +1,29 @@
-from sqlalchemy import Column, Index, Integer, String, Boolean, Text, DateTime, Date, ForeignKey
+from sqlalchemy import Column, Index, Integer, String, Boolean, Text, DateTime, Date, ForeignKey, JSON
 from sqlalchemy.sql import func
 from server.database import Base
+
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, default="")
+    industry = Column(String(255), default="")
+    categories = Column(JSON, default=list)
+    category_keywords = Column(JSON, default=dict)
+    flag_definitions = Column(JSON, default=dict)
+    scoring_rules = Column(JSON, default=dict)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 class Company(Base):
     __tablename__ = "companies"
 
     id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), index=True)
     company_name = Column(String(255))
     website_url = Column(Text, unique=True)
     domain = Column(String(255), index=True)
@@ -37,6 +54,7 @@ class SearchKeyword(Base):
     __tablename__ = "search_keywords"
 
     id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), index=True)
     keyword = Column(String(255), nullable=False)
     category = Column(String(100))
     region = Column(String(100))
@@ -59,6 +77,7 @@ class RejectedUrl(Base):
     __tablename__ = "rejected_urls"
 
     id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), index=True)
     domain = Column(String(255), nullable=False)
     url = Column(Text)
     reason = Column(String(255), default="まとめサイト")
@@ -78,6 +97,7 @@ class CollectionLog(Base):
     __tablename__ = "collection_logs"
 
     id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), index=True)
     keyword_id = Column(Integer)
     keyword_text = Column(String(255))
     total_found = Column(Integer, default=0)

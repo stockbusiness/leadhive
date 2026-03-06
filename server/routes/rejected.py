@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from server.database import get_db
@@ -7,8 +8,11 @@ router = APIRouter(prefix="/api/rejected", tags=["rejected"])
 
 
 @router.get("")
-def list_rejected(db: Session = Depends(get_db)):
-    items = db.query(RejectedUrl).order_by(RejectedUrl.created_at.desc()).all()
+def list_rejected(project_id: Optional[int] = None, db: Session = Depends(get_db)):
+    q = db.query(RejectedUrl)
+    if project_id:
+        q = q.filter(RejectedUrl.project_id == project_id)
+    items = q.order_by(RejectedUrl.created_at.desc()).all()
     return {
         "rejected": [
             {
@@ -37,6 +41,7 @@ def add_rejected(data: dict, db: Session = Depends(get_db)):
         domain=domain,
         url=data.get("url", ""),
         reason=data.get("reason", "手動追加"),
+        project_id=data.get("project_id"),
     )
     db.add(item)
     db.commit()

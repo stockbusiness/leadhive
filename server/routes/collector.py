@@ -14,18 +14,22 @@ def collect_single(data: dict, db: Session = Depends(get_db)):
     keyword_id = data.get("keyword_id")
     if not keyword_id:
         return {"error": "キーワードIDを指定してください"}
-    return collect_by_keyword(keyword_id, db)
+    return collect_by_keyword(keyword_id, db, project_id=data.get("project_id"))
 
 
 @router.post("/all")
-def collect_all(db: Session = Depends(get_db)):
-    keywords = db.query(SearchKeyword).filter(SearchKeyword.is_active == True).all()
+def collect_all(data: dict = None, db: Session = Depends(get_db)):
+    pid = (data or {}).get("project_id")
+    q = db.query(SearchKeyword).filter(SearchKeyword.is_active == True)
+    if pid:
+        q = q.filter(SearchKeyword.project_id == pid)
+    keywords = q.all()
     if not keywords:
         return {"error": "アクティブなキーワードがありません"}
 
     all_results = []
     for kw in keywords:
-        result = collect_by_keyword(kw.id, db)
+        result = collect_by_keyword(kw.id, db, project_id=pid)
         if "error" in result:
             all_results.append({
                 "keyword": kw.keyword,
@@ -60,9 +64,13 @@ def collect_all(db: Session = Depends(get_db)):
 @router.get("/history")
 def get_collection_history(
     limit: int = 50,
+    project_id: int = None,
     db: Session = Depends(get_db),
 ):
-    logs = db.query(CollectionLog).order_by(desc(CollectionLog.created_at)).limit(limit).all()
+    q = db.query(CollectionLog)
+    if project_id:
+        q = q.filter(CollectionLog.project_id == project_id)
+    logs = q.order_by(desc(CollectionLog.created_at)).limit(limit).all()
     return {
         "logs": [
             {
@@ -93,7 +101,8 @@ def collect_from_directory(data: dict, db: Session = Depends(get_db)):
     if not links:
         return {"error": "リンクが見つかりませんでした。URLを確認してください。"}
 
-    result = process_urls_to_companies(links, db, source=f"ディレクトリ: {url}")
+    pid = data.get("project_id")
+    result = process_urls_to_companies(links, db, source=f"ディレクトリ: {url}", project_id=pid)
     cache_invalidate("dashboard")
     return result
 
@@ -115,7 +124,8 @@ def collect_google_scrape(data: dict, db: Session = Depends(get_db)):
     if not search_results:
         return {"error": "検索結果が取得できませんでした。時間をおいて再試行してください。"}
 
-    result = process_urls_to_companies(search_results, db, source=f"Google直接検索: {keyword}")
+    pid = data.get("project_id")
+    result = process_urls_to_companies(search_results, db, source=f"Google直接検索: {keyword}", project_id=pid)
     cache_invalidate("dashboard")
     return result
 
@@ -129,7 +139,8 @@ def collect_shopify_partners(data: dict, db: Session = Depends(get_db)):
     if not partners:
         return {"error": "Shopifyパートナー情報を取得できませんでした。"}
 
-    result = process_urls_to_companies(partners, db, source="Shopifyパートナー")
+    pid = data.get("project_id")
+    result = process_urls_to_companies(partners, db, source="Shopifyパートナー", project_id=pid)
     cache_invalidate("dashboard")
     return result
 
@@ -157,7 +168,8 @@ def collect_google_maps(data: dict, db: Session = Depends(get_db)):
     if not places:
         return {"error": "Googleマップから結果が取得できませんでした。キーワードを変更して再試行してください。"}
 
-    result = process_urls_to_companies(places, db, source=f"Googleマップ: {keyword} {region}")
+    pid = data.get("project_id")
+    result = process_urls_to_companies(places, db, source=f"Googleマップ: {keyword} {region}", project_id=pid)
 
     for r in result.get("results", []):
         if r.get("status") == "success" and r.get("company_id"):
