@@ -93,6 +93,15 @@ export const api = {
 
     history: (limit = 50) =>
       axios.get<{ logs: CollectionLog[] }>("/api/collect/history", { params: { limit } }).then(r => r.data),
+
+    directory: (url: string, maxPages: number = 3) =>
+      axios.post("/api/collect/directory", { url, max_pages: maxPages }).then(r => r.data),
+
+    googleScrape: (keyword: string, region: string = "", num: number = 10) =>
+      axios.post("/api/collect/google-scrape", { keyword, region, num }).then(r => r.data),
+
+    shopifyPartners: (maxResults: number = 20) =>
+      axios.post("/api/collect/shopify-partners", { max_results: maxResults }).then(r => r.data),
   },
 
   templates: {

@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from server.database import get_db
 from server.models import SearchKeyword, CollectionLog
-from server.services.collector import collect_by_keyword
+from server.services.collector import collect_by_keyword, process_urls_to_companies
+from server.services.cache import cache_invalidate
 
 router = APIRouter(prefix="/api/collect", tags=["collector"])
 
@@ -78,3 +79,56 @@ def get_collection_history(
             for log in logs
         ]
     }
+
+
+@router.post("/directory")
+def collect_from_directory(data: dict, db: Session = Depends(get_db)):
+    url = data.get("url", "").strip()
+    max_pages = min(data.get("max_pages", 3), 10)
+    if not url:
+        return {"error": "ディレクトリURLを入力してください"}
+
+    from server.services.directory_scraper import scrape_directory
+    links = scrape_directory(url, max_pages=max_pages)
+    if not links:
+        return {"error": "リンクが見つかりませんでした。URLを確認してください。"}
+
+    result = process_urls_to_companies(links, db, source=f"ディレクトリ: {url}")
+    cache_invalidate("dashboard")
+    return result
+
+
+@router.post("/google-scrape")
+def collect_google_scrape(data: dict, db: Session = Depends(get_db)):
+    keyword = data.get("keyword", "").strip()
+    region = data.get("region", "").strip()
+    num = min(data.get("num", 10), 30)
+    if not keyword:
+        return {"error": "検索キーワードを入力してください"}
+
+    query = keyword
+    if region:
+        query += f" {region}"
+
+    from server.services.google_scrape import scrape_google_search
+    search_results = scrape_google_search(query, num=num)
+    if not search_results:
+        return {"error": "検索結果が取得できませんでした。時間をおいて再試行してください。"}
+
+    result = process_urls_to_companies(search_results, db, source=f"Google直接検索: {keyword}")
+    cache_invalidate("dashboard")
+    return result
+
+
+@router.post("/shopify-partners")
+def collect_shopify_partners(data: dict, db: Session = Depends(get_db)):
+    max_results = min(data.get("max_results", 20), 50)
+
+    from server.services.shopify_partners import scrape_shopify_partners
+    partners = scrape_shopify_partners(max_results=max_results)
+    if not partners:
+        return {"error": "Shopifyパートナー情報を取得できませんでした。"}
+
+    result = process_urls_to_companies(partners, db, source="Shopifyパートナー")
+    cache_invalidate("dashboard")
+    return result

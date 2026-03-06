@@ -26,7 +26,7 @@ server/
     scraper.py         - URL scraping endpoints (single + parallel bulk)
     settings.py        - API key + auto-collect scheduler settings
     rejected.py        - Rejected URL/domain management
-    collector.py       - Auto-collection endpoints + collection history
+    collector.py       - Auto-collection endpoints + directory/Google scrape/Shopify partner collection + history
     templates.py       - Memo + email template CRUD (with cache)
   services/
     scraper.py         - Web scraping logic (BeautifulSoup) + scrape_urls_parallel
@@ -35,6 +35,9 @@ server/
     collector.py       - Auto-collection orchestration (parallel scraping)
     aggregator.py      - Aggregator/matome site detection
     google_search.py   - Google Custom Search API client + daily usage tracking
+    google_scrape.py   - Google search results direct scraping (API-free)
+    directory_scraper.py - Directory/listing page scraper with pagination
+    shopify_partners.py  - Shopify partner directory scraper
     cache.py           - Thread-safe in-memory TTL cache (cache_get, cache_set, cache_invalidate)
     scheduler.py       - Auto-collection scheduler (daily at configured time)
 frontend/
@@ -54,7 +57,7 @@ frontend/
       Dashboard.tsx    - Stats overview with charts (Recharts)
       Companies.tsx    - Company list with bulk status, duplicate check/merge
       Keywords.tsx     - Search keyword management
-      Scraper.tsx      - URL scraping + auto-collection interface
+      Scraper.tsx      - URL scraping + multi-source collection (API/directory/Google scrape/Shopify)
       Settings.tsx     - API key + auto-collect schedule configuration
       RejectedList.tsx - Rejected domain management
       CollectionHistory.tsx - Collection log viewer
@@ -75,6 +78,9 @@ models → schemas → services/{aggregator,google_search,scorer,categorizer,scr
 
 ## Key Features
 - **Auto-collection**: Google Custom Search API で検索キーワードに基づく候補企業の自動収集
+- **Directory scraping**: 企業一覧ページ・ディレクトリサイトからの外部リンク収集（ページネーション対応）
+- **Google direct scraping**: Google検索結果の直接スクレイピングによる収集（API不要）
+- **Shopify partner collection**: Shopifyパートナーディレクトリおよび関連検索からの収集
 - **Scheduled auto-collection**: 毎日指定時刻に自動収集実行（scheduler.py）
 - **Parallel scraping**: ThreadPoolExecutor による最大5並列のスクレイピング
 - **API response caching**: ダッシュボード60秒、キーワード/テンプレート30秒のTTLキャッシュ

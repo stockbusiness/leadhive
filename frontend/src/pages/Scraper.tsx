@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Globe, Loader2, CheckCircle, XCircle, Zap, Play } from "lucide-react";
+import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, Search, List, ShoppingBag, AlertTriangle } from "lucide-react";
 import { api } from "../api";
 import { ResultRow } from "../components/common";
 import type { SearchKeyword, ScrapeResult, CollectSummary } from "../types";
+
+type CollectTab = "google-api" | "directory" | "google-scrape" | "shopify";
 
 export default function Scraper() {
   const [singleUrl, setSingleUrl] = useState("");
@@ -14,6 +16,16 @@ export default function Scraper() {
   const [collectLoading, setCollectLoading] = useState(false);
   const [collectResults, setCollectResults] = useState<any>(null);
   const [selectedKeyword, setSelectedKeyword] = useState<number | "all">("all");
+  const [activeTab, setActiveTab] = useState<CollectTab>("google-api");
+
+  const [dirUrl, setDirUrl] = useState("");
+  const [dirMaxPages, setDirMaxPages] = useState(3);
+
+  const [gsKeyword, setGsKeyword] = useState("");
+  const [gsRegion, setGsRegion] = useState("");
+  const [gsNum, setGsNum] = useState(10);
+
+  const [spMaxResults, setSpMaxResults] = useState(20);
 
   useEffect(() => {
     api.keywords.list().then((data) => {
@@ -62,18 +74,120 @@ export default function Scraper() {
     setCollectLoading(false);
   };
 
+  const handleDirectoryCollect = async () => {
+    if (!dirUrl.trim()) return;
+    setCollectLoading(true);
+    setCollectResults(null);
+    try {
+      const data = await api.collector.directory(dirUrl, dirMaxPages);
+      setCollectResults(data);
+    } catch (err: any) {
+      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
+    }
+    setCollectLoading(false);
+  };
+
+  const handleGoogleScrape = async () => {
+    if (!gsKeyword.trim()) return;
+    setCollectLoading(true);
+    setCollectResults(null);
+    try {
+      const data = await api.collector.googleScrape(gsKeyword, gsRegion, gsNum);
+      setCollectResults(data);
+    } catch (err: any) {
+      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
+    }
+    setCollectLoading(false);
+  };
+
+  const handleShopifyCollect = async () => {
+    setCollectLoading(true);
+    setCollectResults(null);
+    try {
+      const data = await api.collector.shopifyPartners(spMaxResults);
+      setCollectResults(data);
+    } catch (err: any) {
+      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
+    }
+    setCollectLoading(false);
+  };
+
+  const tabs: { key: CollectTab; label: string; icon: typeof Zap }[] = [
+    { key: "google-api", label: "Google API検索", icon: Zap },
+    { key: "directory", label: "ディレクトリ収集", icon: List },
+    { key: "google-scrape", label: "Google直接検索", icon: Search },
+    { key: "shopify", label: "Shopifyパートナー", icon: ShoppingBag },
+  ];
+
   return (
     <div className="p-6 space-y-6">
       <h2 className="text-2xl font-bold text-slate-800">URL収集・スクレイピング</h2>
 
-      <AutoCollectSection
-        keywords={keywords}
-        selectedKeyword={selectedKeyword}
-        onSelectKeyword={setSelectedKeyword}
-        loading={collectLoading}
-        results={collectResults}
-        onCollect={handleAutoCollect}
-      />
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+        <div className="flex border-b border-slate-200 overflow-x-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => { setActiveTab(tab.key); setCollectResults(null); }}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-4 space-y-4">
+          {activeTab === "google-api" && (
+            <GoogleApiSection
+              keywords={keywords}
+              selectedKeyword={selectedKeyword}
+              onSelectKeyword={setSelectedKeyword}
+              loading={collectLoading}
+              onCollect={handleAutoCollect}
+            />
+          )}
+
+          {activeTab === "directory" && (
+            <DirectorySection
+              url={dirUrl}
+              onUrlChange={setDirUrl}
+              maxPages={dirMaxPages}
+              onMaxPagesChange={setDirMaxPages}
+              loading={collectLoading}
+              onCollect={handleDirectoryCollect}
+            />
+          )}
+
+          {activeTab === "google-scrape" && (
+            <GoogleScrapeSection
+              keyword={gsKeyword}
+              onKeywordChange={setGsKeyword}
+              region={gsRegion}
+              onRegionChange={setGsRegion}
+              num={gsNum}
+              onNumChange={setGsNum}
+              loading={collectLoading}
+              onCollect={handleGoogleScrape}
+            />
+          )}
+
+          {activeTab === "shopify" && (
+            <ShopifySection
+              maxResults={spMaxResults}
+              onMaxResultsChange={setSpMaxResults}
+              loading={collectLoading}
+              onCollect={handleShopifyCollect}
+            />
+          )}
+
+          <CollectResultsDisplay results={collectResults} />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SingleScrapeSection
@@ -95,25 +209,20 @@ export default function Scraper() {
   );
 }
 
-function AutoCollectSection({
-  keywords, selectedKeyword, onSelectKeyword, loading, results, onCollect,
+function GoogleApiSection({
+  keywords, selectedKeyword, onSelectKeyword, loading, onCollect,
 }: {
   keywords: SearchKeyword[];
   selectedKeyword: number | "all";
   onSelectKeyword: (v: number | "all") => void;
   loading: boolean;
-  results: any;
   onCollect: () => void;
 }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-blue-200 p-4 space-y-4">
-      <h3 className="font-semibold text-slate-700 flex items-center gap-2">
-        <Zap size={18} className="text-blue-600" />
-        自動収集（Google検索API）
-      </h3>
+    <div className="space-y-3">
       <p className="text-sm text-slate-500">
-        登録済みの検索キーワードを使ってGoogle検索を実行し、候補企業を自動で収集します。
-        まとめサイトは自動で除外・拒否リストに追加されます。
+        登録済みの検索キーワードを使ってGoogle Custom Search APIで候補企業を自動収集します。
+        APIキーが必要です（設定画面で登録）。
       </p>
       <div className="flex gap-3 items-end">
         <div className="flex-1">
@@ -140,59 +249,216 @@ function AutoCollectSection({
           収集開始
         </button>
       </div>
-
       {keywords.length === 0 && (
         <p className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
           キーワードが登録されていません。「検索条件管理」画面でキーワードを追加してください。
         </p>
       )}
+    </div>
+  );
+}
 
-      {results && (
-        <div className="mt-4 space-y-3">
-          {results.error ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-sm text-red-700 flex items-center gap-2">
-                <XCircle size={16} />
-                {results.error}
-              </p>
-            </div>
-          ) : (
-            <>
-              {results.summary && <CollectSummaryCard summary={results.summary} />}
-              {results.total_success !== undefined && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm font-medium text-blue-800">
-                    一括収集結果: {results.keywords_processed}キーワード処理
-                  </p>
-                  <div className="flex gap-4 mt-1 text-xs text-blue-600">
-                    <span>成功: {results.total_success}</span>
-                    <span>除外: {results.total_rejected}</span>
-                    <span>重複: {results.total_duplicate}</span>
-                  </div>
-                </div>
-              )}
-              {results.details?.map((d: any, i: number) => (
-                <div key={i} className="border border-slate-200 rounded-lg p-3">
-                  <p className="text-sm font-medium text-slate-700 mb-2">
-                    キーワード: {d.keyword}
-                    {d.error && <span className="text-red-600 ml-2">{d.error}</span>}
-                  </p>
-                  {d.results?.map((r: ScrapeResult, j: number) => (
-                    <ResultRow key={j} result={r} />
-                  ))}
-                  {d.summary && <CollectSummaryCard summary={d.summary} />}
-                </div>
-              ))}
-              {results.results && !results.details && (
-                <div className="space-y-1">
-                  {results.results.map((r: ScrapeResult, i: number) => (
-                    <ResultRow key={i} result={r} />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+function DirectorySection({
+  url, onUrlChange, maxPages, onMaxPagesChange, loading, onCollect,
+}: {
+  url: string; onUrlChange: (v: string) => void;
+  maxPages: number; onMaxPagesChange: (v: number) => void;
+  loading: boolean; onCollect: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-500">
+        企業一覧ページ・ディレクトリサイトのURLを指定すると、掲載されている外部リンクから企業情報を自動収集します。
+        ページネーションにも対応しています。
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-slate-600 mb-1">ディレクトリページURL</label>
+          <input
+            type="text"
+            placeholder="https://example.com/company-list"
+            value={url}
+            onChange={(e) => onUrlChange(e.target.value)}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">最大ページ数</label>
+          <select
+            value={maxPages}
+            onChange={(e) => onMaxPagesChange(Number(e.target.value))}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {[1, 2, 3, 5, 10].map((n) => (
+              <option key={n} value={n}>{n}ページ</option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={onCollect}
+          disabled={loading || !url.trim()}
+          className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <List size={16} />}
+          収集開始
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GoogleScrapeSection({
+  keyword, onKeywordChange, region, onRegionChange, num, onNumChange, loading, onCollect,
+}: {
+  keyword: string; onKeywordChange: (v: string) => void;
+  region: string; onRegionChange: (v: string) => void;
+  num: number; onNumChange: (v: number) => void;
+  loading: boolean; onCollect: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-500">
+        Google検索結果ページを直接スクレイピングして企業を収集します。APIキー不要・無料で利用できます。
+      </p>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+        <AlertTriangle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+        <p className="text-xs text-amber-700">
+          Google検索結果の直接スクレイピングはGoogleの利用規約に抵触する可能性があります。
+          過度なアクセスはIPブロックの原因になります。適度な間隔で利用してください。
+        </p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-slate-600 mb-1">検索キーワード</label>
+          <input
+            type="text"
+            placeholder="Shopify 制作会社"
+            value={keyword}
+            onChange={(e) => onKeywordChange(e.target.value)}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">地域</label>
+            <input
+              type="text"
+              placeholder="東京"
+              value={region}
+              onChange={(e) => onRegionChange(e.target.value)}
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">件数</label>
+            <select
+              value={num}
+              onChange={(e) => onNumChange(Number(e.target.value))}
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {[5, 10, 15, 20, 30].map((n) => (
+                <option key={n} value={n}>{n}件</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button
+          onClick={onCollect}
+          disabled={loading || !keyword.trim()}
+          className="flex items-center gap-2 bg-purple-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-purple-700 transition-colors disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+          検索収集
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ShopifySection({
+  maxResults, onMaxResultsChange, loading, onCollect,
+}: {
+  maxResults: number; onMaxResultsChange: (v: number) => void;
+  loading: boolean; onCollect: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-500">
+        Shopifyパートナーディレクトリおよび関連検索結果から、日本のShopifyパートナー企業を自動収集します。
+      </p>
+      <div className="flex gap-3 items-end">
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">最大取得件数</label>
+          <select
+            value={maxResults}
+            onChange={(e) => onMaxResultsChange(Number(e.target.value))}
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {[10, 20, 30, 50].map((n) => (
+              <option key={n} value={n}>{n}件</option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={onCollect}
+          disabled={loading}
+          className="flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
+          Shopifyパートナー収集
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CollectResultsDisplay({ results }: { results: any }) {
+  if (!results) return null;
+
+  return (
+    <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+      {results.error ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          <p className="text-sm text-red-700 flex items-center gap-2">
+            <XCircle size={16} />
+            {results.error}
+          </p>
+        </div>
+      ) : (
+        <>
+          {results.summary && <CollectSummaryCard summary={results.summary} />}
+          {results.total_success !== undefined && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm font-medium text-blue-800">
+                一括収集結果: {results.keywords_processed}キーワード処理
+              </p>
+              <div className="flex gap-4 mt-1 text-xs text-blue-600">
+                <span>成功: {results.total_success}</span>
+                <span>除外: {results.total_rejected}</span>
+                <span>重複: {results.total_duplicate}</span>
+              </div>
+            </div>
+          )}
+          {results.details?.map((d: any, i: number) => (
+            <div key={i} className="border border-slate-200 rounded-lg p-3">
+              <p className="text-sm font-medium text-slate-700 mb-2">
+                キーワード: {d.keyword}
+                {d.error && <span className="text-red-600 ml-2">{d.error}</span>}
+              </p>
+              {d.results?.map((r: ScrapeResult, j: number) => (
+                <ResultRow key={j} result={r} />
+              ))}
+              {d.summary && <CollectSummaryCard summary={d.summary} />}
+            </div>
+          ))}
+          {results.results && !results.details && (
+            <div className="space-y-1">
+              {results.results.map((r: ScrapeResult, i: number) => (
+                <ResultRow key={i} result={r} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -300,10 +566,12 @@ function BulkScrapeSection({
   );
 }
 
-function CollectSummaryCard({ summary }: { summary: CollectSummary }) {
+function CollectSummaryCard({ summary }: { summary: any }) {
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-      <p className="text-sm font-medium text-slate-700">「{summary.keyword}」の収集結果</p>
+      <p className="text-sm font-medium text-slate-700">
+        {summary.keyword ? `「${summary.keyword}」の収集結果` : `収集結果（${summary.source || ""}）`}
+      </p>
       <div className="flex gap-4 mt-1 text-xs">
         <span className="text-slate-500">検索結果: {summary.total}</span>
         <span className="text-emerald-600">成功: {summary.success}</span>

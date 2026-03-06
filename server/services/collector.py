@@ -1,3 +1,4 @@
+import logging
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 from server.models import AppSetting, Company, RejectedUrl, SearchKeyword, CollectionLog
@@ -6,6 +7,8 @@ from server.services.categorizer import categorize_company, detect_flags
 from server.services.scorer import calculate_score
 from server.services.aggregator import normalize_domain, is_aggregator_site
 from server.services.google_search import search_google
+
+logger = logging.getLogger(__name__)
 
 
 def collect_by_keyword(keyword_id: int, db: Session) -> dict:
@@ -169,3 +172,41 @@ def _process_search_results(
             }
 
     return [r for r in results if r is not None]
+
+
+def process_urls_to_companies(
+    url_items: list[dict],
+    db: Session,
+    source: str = "scrape",
+) -> dict:
+    rejected_domains = set(
+        r.domain for r in db.query(RejectedUrl.domain).all()
+    )
+    existing_domains = set(
+        c.domain for c in db.query(Company.domain).all()
+    )
+
+    search_results = [{"url": item.get("url", ""), "title": item.get("title", "")} for item in url_items]
+    results = _process_search_results(search_results, db, rejected_domains, existing_domains)
+
+    summary = {
+        "source": source,
+        "total": len(results),
+        "success": sum(1 for r in results if r["status"] == "success"),
+        "duplicate": sum(1 for r in results if r["status"] == "duplicate"),
+        "rejected": sum(1 for r in results if r["status"] == "rejected"),
+        "error": sum(1 for r in results if r["status"] == "error"),
+    }
+
+    log = CollectionLog(
+        keyword_text=f"[{source}]",
+        total_found=summary["total"],
+        success_count=summary["success"],
+        duplicate_count=summary["duplicate"],
+        rejected_count=summary["rejected"],
+        error_count=summary["error"],
+    )
+    db.add(log)
+    db.commit()
+
+    return {"results": results, "summary": summary}
