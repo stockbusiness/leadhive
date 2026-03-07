@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, Response, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
 from typing import Optional, List
+from datetime import date, timedelta
 from server.database import get_db
 from server.models import Company, StatusHistory, MemoTemplate, ActivityLog, CompanyTag, User
 from server.services.scorer import calculate_score
@@ -42,6 +43,7 @@ def list_companies(
     search: Optional[str] = None,
     tag: Optional[str] = None,
     assignee_id: Optional[int] = None,
+    follow_up_filter: Optional[str] = None,
     sort_by: str = "score_total",
     sort_order: str = "desc",
     page: int = 1,
@@ -73,6 +75,7 @@ def list_companies(
             Company.company_name.ilike(f"%{search}%")
             | Company.website_url.ilike(f"%{search}%")
             | Company.domain.ilike(f"%{search}%")
+            | Company.memo.ilike(f"%{search}%")
         )
     if tag:
         tagged_ids = db.query(CompanyTag.company_id).filter(CompanyTag.tag_name == tag).subquery()
@@ -82,6 +85,18 @@ def list_companies(
             query = query.filter(Company.assignee_id.is_(None))
         else:
             query = query.filter(Company.assignee_id == assignee_id)
+    if follow_up_filter:
+        today = date.today()
+        if follow_up_filter == "overdue":
+            query = query.filter(Company.follow_up_date.isnot(None), Company.follow_up_date < today)
+        elif follow_up_filter == "today":
+            query = query.filter(Company.follow_up_date == today)
+        elif follow_up_filter == "week":
+            query = query.filter(
+                Company.follow_up_date.isnot(None),
+                Company.follow_up_date >= today,
+                Company.follow_up_date <= today + timedelta(days=7),
+            )
 
     sort_col = getattr(Company, sort_by, Company.score_total)
     if sort_order == "asc":

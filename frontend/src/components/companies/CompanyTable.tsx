@@ -71,8 +71,10 @@ export default function CompanyTable({
           </tr>
         </thead>
         <tbody>
-          {companies.map((c) => (
-            <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${selectedIds.has(c.id) ? "bg-blue-50" : ""}`}>
+          {companies.map((c) => {
+            const isOverdue = c.follow_up_date && new Date(c.follow_up_date) < new Date(new Date().toDateString());
+            return (
+            <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${selectedIds.has(c.id) ? "bg-blue-50" : isOverdue ? "bg-red-50" : ""}`}>
               <td className="px-3 py-2">
                 <input
                   type="checkbox"
@@ -171,7 +173,8 @@ export default function CompanyTable({
                 </div>
               </td>
             </tr>
-          ))}
+          );
+          })}
           {companies.length === 0 && (
             <tr>
               <td colSpan={10} className="px-3 py-8 text-center text-slate-400">

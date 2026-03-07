@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown } from "lucide-react";
 import { api } from "../api";
 import { Pagination } from "../components/common";
@@ -17,17 +18,19 @@ type ViewMode = "list" | "kanban";
 
 export default function Companies() {
   const { projects, currentProject } = useProject();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
-    category: "",
-    status: "",
-    score_rank: "",
-    has_contact: "",
-    search: "",
-    tag: "",
-    assignee_id: "",
+    category: searchParams.get("category") || "",
+    status: searchParams.get("status") || "",
+    score_rank: searchParams.get("score_rank") || "",
+    has_contact: searchParams.get("has_contact") || "",
+    search: searchParams.get("search") || "",
+    tag: searchParams.get("tag") || "",
+    assignee_id: searchParams.get("assignee_id") || "",
+    follow_up_filter: searchParams.get("follow_up_filter") || "",
   });
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem("leadhive_view_mode") as ViewMode) || "list";
@@ -48,6 +51,16 @@ export default function Companies() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null);
 
+  const handleFilterChange = useCallback((newFilters: typeof filters) => {
+    setFilters(newFilters);
+    setPage(1);
+    const params = new URLSearchParams();
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    setSearchParams(params, { replace: true });
+  }, [setSearchParams]);
+
   const fetchCompanies = useCallback(() => {
     const params: Record<string, string | number | boolean> = {
       page: viewMode === "kanban" ? 1 : page,
@@ -61,6 +74,7 @@ export default function Companies() {
     if (filters.tag) params.tag = filters.tag;
     if (filters.assignee_id === "unassigned") params.assignee_id = 0;
     else if (filters.assignee_id) params.assignee_id = Number(filters.assignee_id);
+    if (filters.follow_up_filter) params.follow_up_filter = filters.follow_up_filter;
 
     api.companies.list(params).then((data) => {
       setCompanies(data.companies);
@@ -236,7 +250,7 @@ export default function Companies() {
         </div>
       </div>
 
-      <CompanyFilterBar filters={filters} onFilterChange={setFilters} />
+      <CompanyFilterBar filters={filters} onFilterChange={handleFilterChange} />
 
       {selectedIds.size > 0 && viewMode === "list" && (
         <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">

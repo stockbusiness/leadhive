@@ -11,6 +11,7 @@ interface Filters {
   search: string;
   tag: string;
   assignee_id: string;
+  follow_up_filter: string;
 }
 
 export default function CompanyFilterBar({
@@ -45,7 +46,7 @@ export default function CompanyFilterBar({
       <div className="flex flex-wrap gap-3">
         <input
           type="text"
-          placeholder="会社名・URL検索..."
+          placeholder="会社名・URL・メモ検索..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="border border-slate-300 rounded-md px-3 py-1.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -114,6 +115,22 @@ export default function CompanyFilterBar({
             ))}
           </select>
         )}
+        <select
+          value={filters.follow_up_filter}
+          onChange={(e) => onFilterChange({ ...filters, follow_up_filter: e.target.value })}
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            filters.follow_up_filter === "overdue"
+              ? "border-red-400 bg-red-50 text-red-700"
+              : filters.follow_up_filter
+              ? "border-amber-400 bg-amber-50 text-amber-700"
+              : "border-slate-300"
+          }`}
+        >
+          <option value="">フォローアップ</option>
+          <option value="overdue">⚠ 期限超過</option>
+          <option value="today">今日が期限</option>
+          <option value="week">7日以内</option>
+        </select>
       </div>
     </div>
   );

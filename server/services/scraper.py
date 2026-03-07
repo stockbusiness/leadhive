@@ -1,57 +1,92 @@
 import re
+import time
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
+RETRYABLE_EXCEPTIONS = (
+    requests.exceptions.Timeout,
+    requests.exceptions.ConnectionError,
+    requests.exceptions.ChunkedEncodingError,
+)
 
-def scrape_company_info(url: str) -> dict:
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-        response = requests.get(url, headers=headers, timeout=15)
-        response.encoding = response.apparent_encoding
-        soup = BeautifulSoup(response.text, "html.parser")
-        text_content = soup.get_text(separator=" ", strip=True)
+KNOWN_ENCODINGS = {"utf-8", "shift_jis", "shift-jis", "euc-jp", "iso-2022-jp", "cp932", "ascii"}
 
-        raw_domain = urlparse(url).netloc.lower()
-        domain = raw_domain[4:] if raw_domain.startswith("www.") else raw_domain
-        title = soup.title.string.strip() if soup.title and soup.title.string else ""
 
-        meta_desc = ""
-        meta_tag = soup.find("meta", attrs={"name": "description"})
-        if meta_tag and meta_tag.get("content"):
-            meta_desc = meta_tag["content"]
+def _detect_encoding(response: requests.Response) -> str:
+    content_type = response.headers.get("content-type", "")
+    charset_match = re.search(r"charset=([^\s;\"']+)", content_type, re.IGNORECASE)
+    if charset_match:
+        return charset_match.group(1).strip("\"'").lower()
+    apparent = (response.apparent_encoding or "").lower()
+    if apparent in KNOWN_ENCODINGS:
+        return apparent
+    return "utf-8"
 
-        h1_texts = [h.get_text(strip=True) for h in soup.find_all("h1")]
-        h2_texts = [h.get_text(strip=True) for h in soup.find_all("h2")]
 
-        company_name = extract_company_name(soup, title, text_content)
-        phone = extract_phone(text_content)
-        email = extract_email(text_content)
-        prefecture, city = extract_location(text_content)
-        contact_url = find_contact_page(soup, url)
+def scrape_company_info(url: str, max_retries: int = 3) -> dict:
+    last_error = ""
+    for attempt in range(max_retries):
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            response = requests.get(url, headers=headers, timeout=15)
+            response.encoding = _detect_encoding(response)
+            soup = BeautifulSoup(response.text, "html.parser")
+            text_content = soup.get_text(separator=" ", strip=True)
 
-        full_text = f"{title} {meta_desc} {' '.join(h1_texts)} {' '.join(h2_texts)} {text_content[:3000]}"
+            raw_domain = urlparse(url).netloc.lower()
+            domain = raw_domain[4:] if raw_domain.startswith("www.") else raw_domain
+            title = soup.title.string.strip() if soup.title and soup.title.string else ""
 
-        return {
-            "company_name": company_name,
-            "website_url": url,
-            "domain": domain,
-            "contact_url": contact_url,
-            "prefecture": prefecture,
-            "city": city,
-            "phone": phone,
-            "email": email,
-            "full_text": full_text,
-        }
-    except Exception as e:
-        return {
-            "error": str(e),
-            "website_url": url,
-            "domain": urlparse(url).netloc,
-        }
+            meta_desc = ""
+            meta_tag = soup.find("meta", attrs={"name": "description"})
+            if meta_tag and meta_tag.get("content"):
+                meta_desc = meta_tag["content"]
+
+            h1_texts = [h.get_text(strip=True) for h in soup.find_all("h1")]
+            h2_texts = [h.get_text(strip=True) for h in soup.find_all("h2")]
+
+            company_name = extract_company_name(soup, title, text_content)
+            phone = extract_phone(text_content)
+            email = extract_email(text_content)
+            prefecture, city = extract_location(text_content)
+            contact_url = find_contact_page(soup, url)
+
+            full_text = f"{title} {meta_desc} {' '.join(h1_texts)} {' '.join(h2_texts)} {text_content[:3000]}"
+
+            return {
+                "company_name": company_name,
+                "website_url": url,
+                "domain": domain,
+                "contact_url": contact_url,
+                "prefecture": prefecture,
+                "city": city,
+                "phone": phone,
+                "email": email,
+                "full_text": full_text,
+            }
+        except RETRYABLE_EXCEPTIONS as e:
+            last_error = f"{type(e).__name__}: {str(e)}"
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+        except Exception as e:
+            return {
+                "error": str(e),
+                "error_type": "parse_error",
+                "website_url": url,
+                "domain": urlparse(url).netloc,
+            }
+
+    return {
+        "error": last_error,
+        "error_type": "network_error",
+        "retries": max_retries,
+        "website_url": url,
+        "domain": urlparse(url).netloc,
+    }
 
 
 def extract_company_name(soup: BeautifulSoup, title: str, text: str) -> str:
@@ -154,5 +189,5 @@ def scrape_urls_parallel(urls: list[str], max_workers: int = 5) -> list[dict]:
             try:
                 results[idx] = future.result()
             except Exception as e:
-                results[idx] = {"error": str(e), "website_url": urls[idx], "domain": urlparse(urls[idx]).netloc}
+                results[idx] = {"error": str(e), "error_type": "executor_error", "website_url": urls[idx], "domain": urlparse(urls[idx]).netloc}
     return results
