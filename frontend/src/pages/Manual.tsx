@@ -4,6 +4,7 @@ import {
   Building2, Database, LayoutDashboard, FileText, Star,
   AlertTriangle, HelpCircle, Zap, Search, Bell,
   Brain, BarChart2, Crown, Mail, Copy, Sparkles,
+  Users, ShieldBan, CreditCard, Key,
 } from "lucide-react";
 
 interface Section {
@@ -22,10 +23,12 @@ const SECTIONS: Section[] = [
   { id: "master", title: "マスターDB", icon: <Database size={16} /> },
   { id: "dashboard", title: "ダッシュボードの見方", icon: <LayoutDashboard size={16} /> },
   { id: "activities", title: "営業活動の記録", icon: <FileText size={16} /> },
+  { id: "team", title: "チーム管理", icon: <Users size={16} /> },
   { id: "notifications", title: "Slack通知・自動収集", icon: <Bell size={16} /> },
   { id: "ai", title: "AI機能（企業分析・メール）", icon: <Brain size={16} /> },
   { id: "keywords_analytics", title: "キーワード分析", icon: <BarChart2 size={16} /> },
   { id: "plans", title: "プラン管理・上限", icon: <Crown size={16} /> },
+  { id: "admin_settings", title: "管理者設定", icon: <ShieldBan size={16} /> },
   { id: "tips", title: "便利な機能", icon: <Zap size={16} /> },
   { id: "faq", title: "よくある質問", icon: <HelpCircle size={16} /> },
 ];
@@ -267,6 +270,7 @@ export default function Manual() {
                 ["Google 直接検索", "Google検索結果を直接スクレイピング", <Badge color="bg-emerald-100 text-emerald-800">不要</Badge>],
                 ["Shopify パートナー", "Shopifyパートナーディレクトリから収集", <Badge color="bg-emerald-100 text-emerald-800">不要</Badge>],
                 ["Google マップ", "Google Places APIでマップ上の企業を収集", <Badge color="bg-blue-100 text-blue-800">必要</Badge>],
+                ["法人DB（gBizINFO）", "経済産業省の約400万社法人DBから会社名・住所・URLを収集", <Badge color="bg-indigo-100 text-indigo-800">管理者設定</Badge>],
               ]}
             />
 
@@ -297,6 +301,21 @@ export default function Manual() {
 
             <SubTitle>URLを直接入力して取得</SubTitle>
             <p className="text-sm text-slate-600">特定の企業サイトを手動で追加したい場合は「URL収集」画面下部の「単一URL取得」または「一括URL取得」を使用します。</p>
+
+            <SubTitle>gBizINFO 法人DB収集</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              経済産業省が提供する<strong>gBizINFO</strong>（法人情報データベース）から約400万社の会社名・住所・企業URLを取得します。
+              URL未登録の法人はGoogle直接検索でホームページを特定し、通常の収集パイプライン（スクレイピング→スコアリング）と同じ処理で登録されます。
+            </p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>「URL収集」を開き <strong>「法人DB」</strong> タブを選択</Step>
+              <Step number={2}>都道府県・検索キーワード・最大件数を設定</Step>
+              <Step number={3}><strong>「収集開始」</strong> → プログレスバーで進捗確認</Step>
+            </div>
+            <InfoBox color="amber">
+              この機能を利用するには、管理者が <strong>「システムAPI設定」</strong>（/admin/api-keys）から gBizINFO APIトークンを登録する必要があります。
+              トークンは <a href="https://info.gbiz.go.jp/api/index.html" target="_blank" rel="noreferrer" className="underline">gBizINFO のサイト</a>から無料・即時発行されます。
+            </InfoBox>
 
             <SubTitle>自動収集スケジュール</SubTitle>
             <div className="space-y-2">
@@ -384,6 +403,18 @@ export default function Manual() {
 
             <SubTitle>再スクレイピング</SubTitle>
             <p className="text-sm text-slate-600">企業行の「回転矢印アイコン」をクリックすると、WebサイトをFetch し直して情報を最新に更新します。手動で調整したスコアは保持されます。</p>
+
+            <SubTitle>CSVインポート</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">既存の企業リスト（スプレッドシート等）を CSV ファイルで一括登録できます。</p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>候補企業一覧右上の <strong>「CSVインポート」</strong> ボタンをクリック</Step>
+              <Step number={2}>CSVファイルを選択してアップロード</Step>
+              <Step number={3}>インポート件数と結果が表示される</Step>
+            </div>
+            <InfoBox color="blue">
+              推奨列：<code className="bg-slate-100 px-1 rounded text-xs">会社名</code>・<code className="bg-slate-100 px-1 rounded text-xs">URL</code>・<code className="bg-slate-100 px-1 rounded text-xs">電話番号</code>・<code className="bg-slate-100 px-1 rounded text-xs">メール</code>・<code className="bg-slate-100 px-1 rounded text-xs">都道府県</code>。
+              同一ドメインが既に登録済みの場合は自動スキップされます。
+            </InfoBox>
 
             <SubTitle>CSVエクスポート</SubTitle>
             <p className="text-sm text-slate-600">フィルターで絞り込んだ状態で右上の「CSV出力」ボタンを押すと、現在の表示条件のデータが出力されます。全件出力する場合はフィルターをリセットしてから実行してください。</p>
@@ -532,6 +563,40 @@ export default function Manual() {
             </div>
           </section>
 
+          {/* ========== チーム管理 ========== */}
+          <section>
+            <SectionTitle id="team" icon={<Users size={20} />} title="チーム管理" />
+            <p className="text-slate-600 mb-4">
+              組織のメンバーを招待し、同じリスト・プロジェクトをチームで共有できます。メンバーはロール（権限）によって利用できる機能が異なります。
+            </p>
+
+            <SubTitle>メンバーの招待（管理者のみ）</SubTitle>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>サイドバーの <strong>「ユーザー管理」</strong> を開く</Step>
+              <Step number={2}><strong>「メンバーを招待」</strong> ボタンをクリック</Step>
+              <Step number={3}>招待したいメールアドレスとロールを選択して送信</Step>
+              <Step number={4}>相手の受信ボックスに招待メールが届き、リンクから登録してログイン</Step>
+            </div>
+            <InfoBox color="blue">
+              招待メールの送信にはSMTP設定が必要です。設定画面の「メール通知設定（SMTP）」から設定してください。
+            </InfoBox>
+
+            <SubTitle>ロールの違い</SubTitle>
+            <Table
+              headers={["ロール", "できること"]}
+              rows={[
+                ["admin（管理者）", "全機能利用可能 + メンバー管理 + 設定変更 + 管理者専用ページ（プラン管理・Stripe設定・API設定）"],
+                ["member（メンバー）", "企業収集・管理・AI機能・マスターDB参照などの通常機能。設定変更・メンバー管理は不可"],
+              ]}
+            />
+
+            <SubTitle>メンバーの削除</SubTitle>
+            <p className="text-sm text-slate-600">「ユーザー管理」一覧から対象メンバーの削除ボタンをクリックします。削除すると即座にログインできなくなります。</p>
+            <InfoBox color="amber">
+              メンバー数の上限はプランによって異なります。設定画面の「プラン・使用量」セクションで残り枠を確認できます。
+            </InfoBox>
+          </section>
+
           {/* ========== Slack通知・自動収集 ========== */}
           <section>
             <SectionTitle id="notifications" icon={<Bell size={20} />} title="Slack通知・自動収集" />
@@ -548,6 +613,27 @@ export default function Manual() {
 
             <SubTitle>自動収集スケジュール</SubTitle>
             <p className="text-sm text-slate-600">設定画面で「自動収集を有効にする」をONにして実行時刻を設定すると、毎日その時刻にアクティブなキーワードを自動収集します。</p>
+
+            <SubTitle>フォローアップ通知</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              企業ごとにフォローアップ期限を設定でき、期限当日・超過の企業を毎朝9時に自動通知します。
+            </p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>候補企業の編集モーダルを開き <strong>「フォローアップ日」</strong> を設定</Step>
+              <Step number={2}>設定画面「フォローアップ通知」で <strong>通知をON</strong> にし、通知チャンネル（メール or Slack）を選択して保存</Step>
+              <Step number={3}>期限当日・超過の企業が毎朝9時にメール or Slackで通知される</Step>
+            </div>
+            <Table
+              headers={["フィルター", "対象"]}
+              rows={[
+                ["期限超過", "フォローアップ日が過去の企業（要即対応）"],
+                ["今日", "本日がフォローアップ日の企業"],
+                ["今週", "今後7日以内にフォローアップ期限が来る企業"],
+              ]}
+            />
+            <InfoBox color="blue">
+              候補企業一覧の「フォローアップ」フィルターで「期限超過 / 今日 / 今週」に絞り込んで確認できます。
+            </InfoBox>
           </section>
 
           {/* ========== AI機能 ========== */}
@@ -707,11 +793,26 @@ export default function Manual() {
                 <ul className="space-y-1 text-xs">
                   <li>• 何の上限に達したかのエラーメッセージ</li>
                   <li>• フリー→スターター→プロのプラン比較表</li>
-                  <li>• 管理者：「プラン管理へ」ボタン（/admin/plansに遷移）</li>
-                  <li>• メンバー：「管理者にご相談ください」案内</li>
+                  <li>• <strong>「今すぐアップグレード」</strong>ボタン：クレジットカードで即時セルフアップグレード（Stripe決済）</li>
+                  <li>• 管理者：「プラン管理へ」ボタン（/admin/plansに遷移）も表示</li>
+                  <li>• Stripe未設定 / 最上位プランの場合：「管理者にご相談ください」を表示</li>
                 </ul>
               </div>
             </div>
+
+            <SubTitle>マスターDB 利用制限</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">マスターDBへのアクセスはプランによって制限されています。</p>
+            <Table
+              headers={["プラン", "マスターDB"]}
+              rows={[
+                ["フリー", "検索・インポート不可（ロック表示）"],
+                ["スターター", "月100件までインポート可能（残り件数バッジを画面上部に表示）"],
+                ["プロ / エンタープライズ", "無制限"],
+              ]}
+            />
+            <InfoBox color="blue">
+              スターターの月次インポート件数は毎月1日にリセットされます。残り件数はマスターDB画面上部のバッジで確認できます。
+            </InfoBox>
 
             <SubTitle>プランの変更（管理者のみ）</SubTitle>
             <div className="space-y-2">
@@ -722,6 +823,60 @@ export default function Manual() {
             <InfoBox color="blue">
               ダッシュボード右上にも現在のプラン名がバッジで表示されます。
             </InfoBox>
+          </section>
+
+          {/* ========== 管理者設定 ========== */}
+          <section>
+            <SectionTitle id="admin_settings" icon={<ShieldBan size={20} />} title="管理者設定" />
+            <InfoBox color="amber">
+              このセクションの機能は <strong>管理者（admin）ロール</strong> のみサイドバーに表示されます。
+            </InfoBox>
+
+            <SubTitle>Stripe 決済設定（/admin/stripe）</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              Stripe を使った自己アップグレード機能を有効化します。設定すると、ユーザーがプラン上限に達した際にクレジットカードで即時アップグレードできるようになります。
+            </p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>サイドバーの <strong>「Stripe設定」</strong> を開く</Step>
+              <Step number={2}>Stripe ダッシュボードから <strong>シークレットキー・公開鍵・Webhookシークレット</strong> を取得して入力</Step>
+              <Step number={3}><strong>テスト or 本番モード</strong> を選択して保存</Step>
+              <Step number={4}>「接続テスト」ボタンで疎通確認</Step>
+              <Step number={5}>プラン管理画面（/admin/plans）で各プランに <strong>Stripe Price ID</strong> を設定</Step>
+            </div>
+            <InfoBox color="blue">
+              Price ID を設定したプランにはアップグレードモーダルに「今すぐアップグレード」ボタンが表示されます。
+              未設定のプランは「管理者にご相談ください」が表示されます。
+            </InfoBox>
+
+            <SubTitle>システムAPI設定（/admin/api-keys）</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              gBizINFO など、全組織で共有するシステムレベルの API キーを管理します。
+            </p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>サイドバーの <strong>「システムAPI設定」</strong> を開く</Step>
+              <Step number={2}><a href="https://info.gbiz.go.jp/api/index.html" target="_blank" rel="noreferrer" className="underline text-blue-600">gBizINFO のページ</a>からAPIトークンを取得（無料・即時発行）</Step>
+              <Step number={3}>「gBizINFO APIトークン」欄に入力して <strong>「保存」</strong></Step>
+            </div>
+            <InfoBox color="blue">
+              システムAPI設定のキーは全組織共有です。1回設定すれば全ユーザーが法人DB収集機能を利用できます。
+            </InfoBox>
+
+            <SubTitle>プラン管理（/admin/plans）</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              プランの作成・編集・削除と、各組織へのプラン割り当てを行います。
+            </p>
+            <Table
+              headers={["設定項目", "説明"]}
+              rows={[
+                ["プラン名・説明・月額", "プランの基本情報"],
+                ["メンバー数上限", "組織に招待できる最大メンバー数"],
+                ["プロジェクト数上限", "作成できる最大プロジェクト数"],
+                ["企業数上限", "登録できる最大企業数（全プロジェクト合計）"],
+                ["月次AI分析回数", "1ヶ月のAI分析・メール生成の合計上限"],
+                ["マスターDBインポート上限", "月間のマスターDBインポート件数（0=アクセス不可）"],
+                ["Stripe Price ID", "Stripe決済との連携用ID。設定するとセルフアップグレードが有効になる"],
+              ]}
+            />
           </section>
 
           {/* ========== 便利な機能 ========== */}
