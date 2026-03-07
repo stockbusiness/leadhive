@@ -170,8 +170,8 @@ function AppContent() {
     <div className="flex h-screen bg-slate-50">
       <aside className="w-60 bg-slate-900 text-white flex flex-col">
         <div className="p-4 border-b border-slate-700">
-          <h1 className="text-lg font-bold">ESCMS</h1>
-          <p className="text-xs text-slate-400">代理店候補収集ツール</p>
+          <h1 className="text-lg font-bold">LeadHive</h1>
+          <p className="text-xs text-slate-400">営業先リスト自動化ツール</p>
         </div>
         <div className="px-3 py-2 border-b border-slate-700">
           <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">プロジェクト</label>

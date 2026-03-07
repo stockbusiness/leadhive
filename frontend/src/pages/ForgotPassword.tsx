@@ -26,8 +26,8 @@ export default function ForgotPassword() {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-800">ESCMS</h1>
-          <p className="text-sm text-slate-500 mt-1">代理店候補収集ツール</p>
+          <h1 className="text-2xl font-bold text-slate-800">LeadHive</h1>
+          <p className="text-sm text-slate-500 mt-1">営業先リスト自動化ツール</p>
         </div>
 
         {sent ? (

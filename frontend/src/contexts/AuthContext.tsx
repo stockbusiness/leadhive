@@ -37,12 +37,12 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("escms_token"));
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem("leadhive_token"));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const interceptor = axios.interceptors.request.use((config) => {
-      const t = localStorage.getItem("escms_token");
+      const t = localStorage.getItem("leadhive_token");
       if (t) {
         config.headers = config.headers || {};
         config.headers["Authorization"] = `Bearer ${t}`;
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem("escms_token");
+    const savedToken = localStorage.getItem("leadhive_token");
     if (!savedToken) {
       setLoading(false);
       return;
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(savedToken);
       })
       .catch(() => {
-        localStorage.removeItem("escms_token");
+        localStorage.removeItem("leadhive_token");
         setToken(null);
         setUser(null);
       })
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const res = await axios.post("/api/auth/login", { email, password });
     const { access_token, user: userData } = res.data;
-    localStorage.setItem("escms_token", access_token);
+    localStorage.setItem("leadhive_token", access_token);
     setToken(access_token);
     setUser({ ...userData, display_name: userData.display_name || "" });
   }, []);
@@ -82,14 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (orgName: string, email: string, password: string) => {
     const res = await axios.post("/api/auth/register", { org_name: orgName, email, password });
     const { access_token, user: userData } = res.data;
-    localStorage.setItem("escms_token", access_token);
+    localStorage.setItem("leadhive_token", access_token);
     setToken(access_token);
     setUser({ ...userData, display_name: userData.display_name || "" });
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("escms_token");
-    localStorage.removeItem("escms_project_id");
+    localStorage.removeItem("leadhive_token");
+    localStorage.removeItem("leadhive_project_id");
     setToken(null);
     setUser(null);
   }, []);

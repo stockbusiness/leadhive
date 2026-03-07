@@ -60,7 +60,7 @@ export default function Settings() {
   const [smtpUser, setSmtpUser] = useState("");
   const [smtpPassword, setSmtpPassword] = useState("");
   const [smtpFromEmail, setSmtpFromEmail] = useState("");
-  const [smtpFromName, setSmtpFromName] = useState("ESCMS");
+  const [smtpFromName, setSmtpFromName] = useState("LeadHive");
   const [smtpUseTls, setSmtpUseTls] = useState(true);
   const [smtpPasswordSet, setSmtpPasswordSet] = useState(false);
   const [smtpTesting, setSmtpTesting] = useState(false);
@@ -244,7 +244,7 @@ export default function Settings() {
           </div>
           <div className="col-span-2 sm:col-span-1">
             <label className={labelClass}>送信元名</label>
-            <input type="text" value={smtpFromName} onChange={e => setSmtpFromName(e.target.value)} placeholder="ESCMS" className={inputClass} />
+            <input type="text" value={smtpFromName} onChange={e => setSmtpFromName(e.target.value)} placeholder="LeadHive" className={inputClass} />
           </div>
         </div>
         <div className="flex items-center gap-3">

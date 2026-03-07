@@ -30,7 +30,7 @@ export default function Companies() {
     assignee_id: "",
   });
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    return (localStorage.getItem("escms_view_mode") as ViewMode) || "list";
+    return (localStorage.getItem("leadhive_view_mode") as ViewMode) || "list";
   });
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -78,7 +78,7 @@ export default function Companies() {
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
-    localStorage.setItem("escms_view_mode", mode);
+    localStorage.setItem("leadhive_view_mode", mode);
   };
 
   const handleExportCSV = () => {

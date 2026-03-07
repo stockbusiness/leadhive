@@ -35,7 +35,7 @@ export default function AcceptInvite() {
     setSubmitting(true);
     try {
       const res = await api.auth.acceptInvite(token!, { display_name: displayName, password });
-      localStorage.setItem("escms_token", res.access_token);
+      localStorage.setItem("leadhive_token", res.access_token);
       updateUser(res.user);
       navigate("/");
     } catch (err: any) {

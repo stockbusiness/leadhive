@@ -28,8 +28,8 @@ export default function Login() {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-800">ESCMS</h1>
-          <p className="text-sm text-slate-500 mt-1">代理店候補収集ツール</p>
+          <h1 className="text-2xl font-bold text-slate-800">LeadHive</h1>
+          <p className="text-sm text-slate-500 mt-1">営業先リスト自動化ツール</p>
         </div>
         <h2 className="text-xl font-semibold text-slate-700 mb-6">ログイン</h2>
         {error && (

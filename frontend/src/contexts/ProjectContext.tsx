@@ -26,7 +26,7 @@ export function useProject() {
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProjectId, setCurrentProjectIdState] = useState<number>(() => {
-    const saved = localStorage.getItem("escms_project_id");
+    const saved = localStorage.getItem("leadhive_project_id");
     return saved ? Number(saved) : 0;
   });
   const [loading, setLoading] = useState(true);
@@ -38,7 +38,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (res.data.projects.length > 0 && !currentProjectId) {
         const firstId = res.data.projects[0].id;
         setCurrentProjectIdState(firstId);
-        localStorage.setItem("escms_project_id", String(firstId));
+        localStorage.setItem("leadhive_project_id", String(firstId));
       }
     } catch {
     } finally {
@@ -74,7 +74,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const setCurrentProjectId = useCallback((id: number) => {
     setCurrentProjectIdState(id);
-    localStorage.setItem("escms_project_id", String(id));
+    localStorage.setItem("leadhive_project_id", String(id));
   }, []);
 
   const currentProject = projects.find((p) => p.id === currentProjectId) || null;

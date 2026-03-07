@@ -1,8 +1,8 @@
-# ESCMS 代理店候補収集ツール
+# LeadHive — 営業先リスト自動化ツール
 
 ## Overview
-EC/Shopify制作会社などの代理店候補企業を収集・評価・管理するWebアプリケーション。
-Google Custom Search APIによる自動収集、またはURLの手動入力でスクレイピングし、会社情報を自動抽出。スコアリング・カテゴリ分類を行い、営業活動に活用できる状態に整理する。
+BtoB営業先の収集・スコアリング・進捗管理・チーム共有を一元化したWebアプリケーション。
+Google Custom Search API / Googleマップなどから営業先を全自動収集し、スコアリング・カテゴリ分類・カンバン管理で営業活動を効率化する。製品名: **LeadHive**。
 
 ## Architecture
 - **Frontend**: React + TypeScript + Tailwind CSS + Recharts (Vite build, served as static files)
