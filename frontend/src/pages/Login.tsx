@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,13 +16,19 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate("/");
     } catch (err: any) {
       setError(err?.response?.data?.detail || "ログインに失敗しました");
-    } finally {
       setLoading(false);
+      return;
     }
+    setLoading(false);
   };
+
+  useEffect(() => {
+    if (user) {
+      navigate(user.onboarding_completed ? "/" : "/onboarding");
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">

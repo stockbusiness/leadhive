@@ -400,4 +400,14 @@ export const api = {
     get: () => axios.get<Record<string, boolean>>("/api/admin/feature-flags").then(r => r.data),
     save: (flags: Record<string, boolean>) => axios.put("/api/admin/feature-flags", { flags }).then(r => r.data),
   },
+
+  onboarding: {
+    complete: () => axios.post("/api/onboarding/complete").then(r => r.data),
+    updateOrgName: (orgName: string) =>
+      axios.patch("/api/onboarding/org-name", { org_name: orgName }).then(r => r.data),
+    testGoogleApi: (apiKey: string, cx: string) =>
+      axios.post("/api/settings/test", { api_key: apiKey, cx }).then(r => r.data),
+    saveSettings: (data: Record<string, string>) =>
+      axios.put("/api/settings/", data).then(r => r.data),
+  },
 };

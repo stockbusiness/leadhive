@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect } from "react";
-import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
+import { Routes, Route, NavLink, useNavigate, Navigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Building2,
@@ -62,6 +62,7 @@ const AdminBilling = lazy(() => import("./pages/AdminBilling"));
 const AdminSmtp = lazy(() => import("./pages/AdminSmtp"));
 const AdminFeatures = lazy(() => import("./pages/AdminFeatures"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
@@ -372,6 +373,10 @@ function HomeRoute() {
     return <LandingPage />;
   }
 
+  if (!user.onboarding_completed) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return (
     <ProjectProvider>
       <AppContent />
@@ -386,6 +391,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/accept-invite/:token" element={<AcceptInvite />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />

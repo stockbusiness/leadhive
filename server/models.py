@@ -32,6 +32,7 @@ class Organization(Base):
     plan_id = Column(Integer, ForeignKey("plans.id"), nullable=True)
     master_db_import_count = Column(Integer, default=0)
     master_db_import_month = Column(String(7), nullable=True)
+    onboarding_completed = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
 
 

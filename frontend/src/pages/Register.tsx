@@ -21,7 +21,7 @@ export default function Register() {
     setLoading(true);
     try {
       await register(orgName, email, password);
-      navigate("/");
+      navigate("/onboarding");
     } catch (err: any) {
       setError(err?.response?.data?.detail || "登録に失敗しました");
     } finally {

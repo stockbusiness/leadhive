@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates, projects, master
-from server.routes import auth, users, plans, payments
+from server.routes import auth, users, plans, payments, onboarding
 from server.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -155,6 +155,7 @@ app.include_router(projects.router)
 app.include_router(master.router)
 app.include_router(plans.router)
 app.include_router(payments.router)
+app.include_router(onboarding.router, prefix="/api/onboarding", tags=["onboarding"])
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 

@@ -9,6 +9,7 @@ interface AuthUser {
   org_id: number;
   org_name: string;
   display_name: string;
+  onboarding_completed: boolean;
 }
 
 interface AuthContextType {

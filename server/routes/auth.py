@@ -50,6 +50,7 @@ def _user_response(user: User, org: Organization) -> dict:
         "org_id": user.org_id,
         "org_name": org.name if org else "",
         "display_name": user.display_name or "",
+        "onboarding_completed": org.onboarding_completed if org else False,
     }
 
 
