@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { ExternalLink, MessageSquare, Pencil, Trash2, RotateCw, CalendarClock } from "lucide-react";
 import { STATUSES } from "../../constants";
 import { ScoreBadge, FlagBadge } from "../common";
@@ -20,6 +21,7 @@ export default function CompanyTable({
   onDelete: (id: number) => void;
   onRescrape: (id: number) => void;
 }) {
+  const navigate = useNavigate();
   const allSelected = companies.length > 0 && companies.every((c) => selectedIds.has(c.id));
 
   const handleSelectAll = () => {
@@ -62,6 +64,7 @@ export default function CompanyTable({
             <th className="text-center px-3 py-2 font-medium text-slate-600">スコア</th>
             <th className="text-left px-3 py-2 font-medium text-slate-600">所在地</th>
             <th className="text-left px-3 py-2 font-medium text-slate-600">問い合わせ</th>
+            <th className="text-left px-3 py-2 font-medium text-slate-600">担当者</th>
             <th className="text-left px-3 py-2 font-medium text-slate-600">ステータス</th>
             <th className="text-left px-3 py-2 font-medium text-slate-600">メモ</th>
             <th className="text-center px-3 py-2 font-medium text-slate-600">操作</th>
@@ -79,12 +82,18 @@ export default function CompanyTable({
                 />
               </td>
               <td className="px-3 py-2">
-                <div className="font-medium text-slate-800">{c.company_name || c.domain}</div>
+                <button
+                  onClick={() => navigate(`/companies/${c.id}`)}
+                  className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left leading-snug"
+                >
+                  {c.company_name || c.domain}
+                </button>
                 <a
                   href={c.website_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-500 hover:underline flex items-center gap-1"
+                  className="text-xs text-slate-400 hover:underline flex items-center gap-1"
+                  onClick={e => e.stopPropagation()}
                 >
                   {c.domain} <ExternalLink size={10} />
                 </a>
@@ -123,6 +132,15 @@ export default function CompanyTable({
                 )}
               </td>
               <td className="px-3 py-2">
+                {c.assignee ? (
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                    {c.assignee.display_name || c.assignee.email}
+                  </span>
+                ) : (
+                  <span className="text-xs text-slate-400">—</span>
+                )}
+              </td>
+              <td className="px-3 py-2">
                 <select
                   value={c.status}
                   onChange={(e) => onStatusChange(c.id, e.target.value)}
@@ -156,7 +174,7 @@ export default function CompanyTable({
           ))}
           {companies.length === 0 && (
             <tr>
-              <td colSpan={9} className="px-3 py-8 text-center text-slate-400">
+              <td colSpan={10} className="px-3 py-8 text-center text-slate-400">
                 企業データがありません。「URL収集」から企業を追加してください。
               </td>
             </tr>

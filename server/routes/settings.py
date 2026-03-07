@@ -6,13 +6,20 @@ from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-SETTING_KEYS = ["google_api_key", "google_cx", "auto_collect_enabled", "auto_collect_time", "google_places_api_key", "slack_webhook_url"]
+SETTING_KEYS = [
+    "google_api_key", "google_cx", "auto_collect_enabled", "auto_collect_time",
+    "google_places_api_key", "slack_webhook_url",
+    "smtp_host", "smtp_port", "smtp_user", "smtp_password",
+    "smtp_from_email", "smtp_from_name", "smtp_use_tls",
+]
+
+MASKED_KEYS = {"api_key", "secret", "webhook", "password"}
 
 
 def mask_value(key: str, value: str) -> str:
     if not value:
         return ""
-    if "api_key" in key or "secret" in key or "webhook" in key:
+    if any(k in key for k in MASKED_KEYS):
         if len(value) <= 8:
             return "****"
         return value[:4] + "*" * (len(value) - 8) + value[-4:]
@@ -86,6 +93,25 @@ def test_slack(
     if ok:
         return {"success": True, "message": "Slack通知を送信しました"}
     return {"success": False, "message": "送信に失敗しました。Webhook URLを確認してください"}
+
+
+@router.post("/smtp-test")
+def test_smtp(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.services.mailer import get_smtp_settings, send_email
+    smtp_cfg = get_smtp_settings(db, current_user.org_id)
+    test_to = data.get("test_to", current_user.email)
+    ok, msg = send_email(
+        to=test_to,
+        subject="ESCMSテストメール",
+        html_body="<p>ESCMSからのテストメールです。SMTP設定が正常に動作しています。</p>",
+        smtp_settings=smtp_cfg,
+        text_body="ESCMSからのテストメールです。SMTP設定が正常に動作しています。",
+    )
+    return {"success": ok, "message": msg}
 
 
 @router.post("/test")

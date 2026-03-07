@@ -20,6 +20,32 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), default="admin")
+    display_name = Column(String(255), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class OrgInvitation(Base):
+    __tablename__ = "org_invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    email = Column(String(255), nullable=False)
+    token = Column(String(255), nullable=False, unique=True, index=True)
+    role = Column(String(50), default="member")
+    invited_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    accepted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(255), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -45,6 +71,7 @@ class Company(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
+    assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     company_name = Column(String(255))
     website_url = Column(Text)
     domain = Column(String(255), index=True)

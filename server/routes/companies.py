@@ -2,7 +2,7 @@ import io
 import csv
 import re
 from collections import defaultdict
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Response, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
 from typing import Optional, List
@@ -41,6 +41,7 @@ def list_companies(
     has_contact: Optional[bool] = None,
     search: Optional[str] = None,
     tag: Optional[str] = None,
+    assignee_id: Optional[int] = None,
     sort_by: str = "score_total",
     sort_order: str = "desc",
     page: int = 1,
@@ -76,6 +77,11 @@ def list_companies(
     if tag:
         tagged_ids = db.query(CompanyTag.company_id).filter(CompanyTag.tag_name == tag).subquery()
         query = query.filter(Company.id.in_(tagged_ids))
+    if assignee_id is not None:
+        if assignee_id == 0:
+            query = query.filter(Company.assignee_id.is_(None))
+        else:
+            query = query.filter(Company.assignee_id == assignee_id)
 
     sort_col = getattr(Company, sort_by, Company.score_total)
     if sort_order == "asc":
@@ -448,6 +454,139 @@ def export_csv(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=companies_export.csv"},
     )
+
+
+@router.get("/csv/template")
+def download_csv_template(
+    current_user: User = Depends(get_current_user),
+):
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["name", "website_url", "email", "phone", "prefecture", "city", "memo", "status", "category_main", "rank"])
+    writer.writerow(["株式会社サンプル", "https://example.com", "info@example.com", "03-1234-5678", "東京都", "渋谷区", "サンプルメモ", "未確認", "EC制作", "A"])
+    content = output.getvalue()
+    output.close()
+    return Response(
+        content=content.encode("utf-8-sig"),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=companies_import_template.csv"},
+    )
+
+
+@router.post("/import-csv")
+async def import_csv(
+    file: UploadFile = File(...),
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not project_id:
+        return {"error": "project_id は必須です"}
+
+    project_ids = _owned_projects(current_user, db)
+    if project_id not in project_ids:
+        return {"error": "プロジェクトへのアクセス権限がありません"}
+
+    content = await file.read()
+    try:
+        try:
+            text = content.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = content.decode("shift_jis", errors="replace")
+    except Exception:
+        return {"error": "ファイルの読み込みに失敗しました"}
+
+    reader = csv.DictReader(io.StringIO(text))
+    added = 0
+    skipped = 0
+    errors = []
+
+    COLUMN_MAP = {
+        "name": "company_name",
+        "会社名": "company_name",
+        "website_url": "website_url",
+        "URL": "website_url",
+        "url": "website_url",
+        "email": "email",
+        "メール": "email",
+        "phone": "phone",
+        "電話番号": "phone",
+        "prefecture": "prefecture",
+        "都道府県": "prefecture",
+        "city": "city",
+        "市区町村": "city",
+        "memo": "notes",
+        "メモ": "notes",
+        "status": "status",
+        "ステータス": "status",
+        "category_main": "category_main",
+        "カテゴリ": "category_main",
+        "rank": "score_rank",
+        "ランク": "score_rank",
+    }
+
+    VALID_STATUSES = ["未確認", "確認済み", "コンタクト済み", "返信あり", "商談中", "提案済み", "契約交渉中", "代理店化", "不採用"]
+    VALID_RANKS = ["A", "B", "C", "D"]
+
+    for i, row in enumerate(reader, start=2):
+        try:
+            mapped = {}
+            for col, val in row.items():
+                field = COLUMN_MAP.get(col.strip(), col.strip())
+                mapped[field] = val.strip() if val else ""
+
+            url = mapped.get("website_url", "")
+            if not url:
+                skipped += 1
+                continue
+
+            existing = db.query(Company).filter(
+                Company.website_url == url,
+                Company.project_id == project_id,
+            ).first()
+            if existing:
+                skipped += 1
+                continue
+
+            status_val = mapped.get("status", "未確認")
+            if status_val not in VALID_STATUSES:
+                status_val = "未確認"
+
+            rank_val = mapped.get("score_rank", "").upper()
+            if rank_val not in VALID_RANKS:
+                rank_val = "D"
+
+            domain_match = re.sub(r'^(https?://)', '', url.lower().strip()).split('/')[0]
+            domain_match = re.sub(r'^(www\.)', '', domain_match)
+
+            company = Company(
+                project_id=project_id,
+                company_name=mapped.get("company_name", ""),
+                website_url=url,
+                domain=domain_match,
+                email=mapped.get("email", ""),
+                phone=mapped.get("phone", ""),
+                prefecture=mapped.get("prefecture", ""),
+                city=mapped.get("city", ""),
+                notes=mapped.get("notes", ""),
+                status=status_val,
+                category_main=mapped.get("category_main", ""),
+                score_rank=rank_val,
+            )
+            db.add(company)
+            db.flush()
+            added += 1
+        except Exception as e:
+            errors.append(f"行{i}: {str(e)}")
+
+    db.commit()
+    cache_invalidate("dashboard")
+    return {
+        "added": added,
+        "skipped": skipped,
+        "errors": errors,
+        "message": f"{added}件を追加しました（スキップ: {skipped}件）",
+    }
 
 
 @router.get("/{company_id}/tags")

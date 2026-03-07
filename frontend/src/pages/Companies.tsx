@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
-import { Download, CheckSquare, Copy, X, GitMerge, MoveRight } from "lucide-react";
+import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown } from "lucide-react";
 import { api } from "../api";
 import { Pagination } from "../components/common";
 import { CompanyFilterBar, CompanyTable, CompanyEditModal } from "../components/companies";
+import CompanyKanban from "../components/companies/CompanyKanban";
 import { STATUSES } from "../constants";
 import type { Company, Project } from "../types";
 import { useProject } from "../contexts/ProjectContext";
@@ -11,6 +12,8 @@ interface DuplicateGroup {
   normalized_domain: string;
   companies: Company[];
 }
+
+type ViewMode = "list" | "kanban";
 
 export default function Companies() {
   const { projects, currentProject } = useProject();
@@ -24,6 +27,10 @@ export default function Companies() {
     has_contact: "",
     search: "",
     tag: "",
+    assignee_id: "",
+  });
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    return (localStorage.getItem("escms_view_mode") as ViewMode) || "list";
   });
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -36,21 +43,30 @@ export default function Companies() {
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [moveTargetProjectId, setMoveTargetProjectId] = useState<number | "">("");
   const [moveLoading, setMoveLoading] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null);
 
   const fetchCompanies = useCallback(() => {
-    const params: Record<string, string | number | boolean> = { page, per_page: 50 };
+    const params: Record<string, string | number | boolean> = {
+      page: viewMode === "kanban" ? 1 : page,
+      per_page: viewMode === "kanban" ? 500 : 50,
+    };
     if (filters.category) params.category = filters.category;
     if (filters.status) params.status = filters.status;
     if (filters.score_rank) params.score_rank = filters.score_rank;
     if (filters.has_contact) params.has_contact = filters.has_contact === "true";
     if (filters.search) params.search = filters.search;
     if (filters.tag) params.tag = filters.tag;
+    if (filters.assignee_id === "unassigned") params.assignee_id = 0;
+    else if (filters.assignee_id) params.assignee_id = Number(filters.assignee_id);
 
     api.companies.list(params).then((data) => {
       setCompanies(data.companies);
       setTotal(data.total);
     });
-  }, [page, filters]);
+  }, [page, filters, viewMode]);
 
   useEffect(() => {
     fetchCompanies();
@@ -59,6 +75,11 @@ export default function Companies() {
   useEffect(() => {
     setSelectedIds(new Set());
   }, [page, filters]);
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("escms_view_mode", mode);
+  };
 
   const handleExportCSV = () => {
     const params = new URLSearchParams();
@@ -152,6 +173,21 @@ export default function Companies() {
       .catch(() => alert("マージに失敗しました"));
   };
 
+  const handleImport = async () => {
+    if (!importFile || !currentProject) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const result = await api.companies.importCsv(importFile, currentProject.id);
+      setImportResult({ added: result.added, skipped: result.skipped, errors: result.errors });
+      fetchCompanies();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || "インポートに失敗しました");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / 50);
 
   return (
@@ -159,6 +195,22 @@ export default function Companies() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-800">候補企業一覧</h2>
         <div className="flex items-center gap-2">
+          <div className="flex items-center bg-slate-100 rounded-lg p-1">
+            <button
+              onClick={() => handleViewModeChange("list")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-slate-800 font-medium" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <LayoutList size={15} />
+              リスト
+            </button>
+            <button
+              onClick={() => handleViewModeChange("kanban")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${viewMode === "kanban" ? "bg-white shadow-sm text-slate-800 font-medium" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <Kanban size={15} />
+              カンバン
+            </button>
+          </div>
           <button
             onClick={handleDuplicateCheck}
             disabled={duplicateLoading}
@@ -166,6 +218,13 @@ export default function Companies() {
           >
             <Copy size={16} />
             {duplicateLoading ? "チェック中..." : "重複チェック"}
+          </button>
+          <button
+            onClick={() => { setShowImportModal(true); setImportResult(null); setImportFile(null); }}
+            className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-violet-700 transition-colors"
+          >
+            <Upload size={16} />
+            CSVインポート
           </button>
           <button
             onClick={handleExportCSV}
@@ -179,7 +238,7 @@ export default function Companies() {
 
       <CompanyFilterBar filters={filters} onFilterChange={setFilters} />
 
-      {selectedIds.size > 0 && (
+      {selectedIds.size > 0 && viewMode === "list" && (
         <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
           <CheckSquare size={18} className="text-blue-600" />
           <span className="text-sm font-medium text-blue-800">
@@ -218,24 +277,30 @@ export default function Companies() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <CompanyTable
-          companies={companies}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          onStatusChange={handleStatusChange}
-          onEdit={setEditingCompany}
-          onDelete={handleDelete}
-          onRescrape={handleRescrape}
-        />
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          total={total}
-          perPage={50}
-          onPageChange={setPage}
-        />
-      </div>
+      {viewMode === "list" ? (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <CompanyTable
+            companies={companies}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            onStatusChange={handleStatusChange}
+            onEdit={setEditingCompany}
+            onDelete={handleDelete}
+            onRescrape={handleRescrape}
+          />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            perPage={50}
+            onPageChange={setPage}
+          />
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+          <CompanyKanban companies={companies} onStatusChange={async (id, status) => { await api.companies.update(id, { status }); fetchCompanies(); }} />
+        </div>
+      )}
 
       {editingCompany && (
         <CompanyEditModal
@@ -246,6 +311,83 @@ export default function Companies() {
             fetchCompanies();
           }}
         />
+      )}
+
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Upload size={18} />
+                CSVインポート
+              </h3>
+              <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <FileDown size={14} className="text-violet-600 flex-shrink-0" />
+                <span>CSVのフォーマットを確認するには</span>
+                <a
+                  href={api.companies.csvTemplateUrl()}
+                  download
+                  className="text-violet-600 hover:underline font-medium"
+                >
+                  テンプレートをダウンロード
+                </a>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">CSVファイルを選択</label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={e => setImportFile(e.target.files?.[0] || null)}
+                  className="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 border border-slate-300 rounded-lg p-1"
+                />
+              </div>
+              <div className="text-xs text-slate-500 space-y-1">
+                <p>対応カラム: <code className="bg-slate-100 px-1 rounded">name</code>, <code className="bg-slate-100 px-1 rounded">website_url</code>, <code className="bg-slate-100 px-1 rounded">email</code>, <code className="bg-slate-100 px-1 rounded">phone</code>, <code className="bg-slate-100 px-1 rounded">prefecture</code>, <code className="bg-slate-100 px-1 rounded">city</code>, <code className="bg-slate-100 px-1 rounded">memo</code>, <code className="bg-slate-100 px-1 rounded">status</code>, <code className="bg-slate-100 px-1 rounded">category_main</code>, <code className="bg-slate-100 px-1 rounded">rank</code></p>
+                <p>重複するURLは自動的にスキップされます。</p>
+              </div>
+              {importResult && (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
+                  <p className="text-sm font-semibold text-slate-700">インポート結果</p>
+                  <div className="flex gap-4 text-sm">
+                    <span className="text-emerald-700">追加: <strong>{importResult.added}件</strong></span>
+                    <span className="text-amber-600">スキップ: <strong>{importResult.skipped}件</strong></span>
+                    {importResult.errors.length > 0 && (
+                      <span className="text-red-600">エラー: <strong>{importResult.errors.length}件</strong></span>
+                    )}
+                  </div>
+                  {importResult.errors.length > 0 && (
+                    <div className="text-xs text-red-600 bg-red-50 rounded p-2 max-h-24 overflow-y-auto">
+                      {importResult.errors.map((e, i) => <p key={i}>{e}</p>)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                {importResult ? "閉じる" : "キャンセル"}
+              </button>
+              {!importResult && (
+                <button
+                  onClick={handleImport}
+                  disabled={!importFile || importing}
+                  className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-violet-700 disabled:opacity-50"
+                >
+                  <Upload size={14} />
+                  {importing ? "インポート中..." : "インポート実行"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {showMoveModal && (
@@ -346,7 +488,6 @@ export default function Companies() {
                         マージ実行
                       </button>
                     </div>
-
                     <div className="space-y-2">
                       {group.companies.map((c) => (
                         <label
@@ -373,9 +514,7 @@ export default function Companies() {
                             <div className="font-medium text-sm text-slate-800 truncate">
                               {c.company_name || "名称未設定"}
                             </div>
-                            <div className="text-xs text-slate-500 truncate">
-                              {c.website_url}
-                            </div>
+                            <div className="text-xs text-slate-500 truncate">{c.website_url}</div>
                             <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
                               <span>ID: {c.id}</span>
                               <span>スコア: {c.score_total}</span>
@@ -386,9 +525,7 @@ export default function Companies() {
                             </div>
                           </div>
                           {mergeSelections[group.normalized_domain] === c.id && (
-                            <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
-                              メイン
-                            </span>
+                            <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">メイン</span>
                           )}
                         </label>
                       ))}

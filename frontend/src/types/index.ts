@@ -1,5 +1,8 @@
 export interface Company {
   id: number;
+  project_id?: number;
+  assignee_id?: number | null;
+  assignee?: { id: number; email: string; display_name: string } | null;
   company_name: string;
   website_url: string;
   domain: string;

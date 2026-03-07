@@ -69,12 +69,19 @@ export default function Login() {
             {loading ? "ログイン中..." : "ログイン"}
           </button>
         </form>
-        <p className="text-center text-sm text-slate-500 mt-6">
-          アカウントをお持ちでない方は{" "}
-          <Link to="/register" className="text-blue-600 hover:underline font-medium">
-            新規登録
-          </Link>
-        </p>
+        <div className="mt-6 space-y-2 text-center">
+          <p className="text-sm text-slate-500">
+            <Link to="/forgot-password" className="text-blue-600 hover:underline">
+              パスワードを忘れた方
+            </Link>
+          </p>
+          <p className="text-sm text-slate-500">
+            アカウントをお持ちでない方は{" "}
+            <Link to="/register" className="text-blue-600 hover:underline font-medium">
+              新規登録
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

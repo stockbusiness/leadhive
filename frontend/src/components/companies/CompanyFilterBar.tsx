@@ -10,6 +10,7 @@ interface Filters {
   has_contact: string;
   search: string;
   tag: string;
+  assignee_id: string;
 }
 
 export default function CompanyFilterBar({
@@ -22,9 +23,11 @@ export default function CompanyFilterBar({
   const [searchInput, setSearchInput] = useState(filters.search);
   const debouncedSearch = useDebounce(searchInput, 300);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [members, setMembers] = useState<{ id: number; email: string; display_name: string }[]>([]);
 
   useEffect(() => {
     api.companies.getAllTags().then((data) => setAllTags(data.tags));
+    api.users.list().then((data) => setMembers(data.users.map(u => ({ id: u.id, email: u.email, display_name: u.display_name }))));
   }, []);
 
   useEffect(() => {
@@ -86,6 +89,19 @@ export default function CompanyFilterBar({
           <option value="true">あり</option>
           <option value="false">なし</option>
         </select>
+        {members.length > 0 && (
+          <select
+            value={filters.assignee_id}
+            onChange={(e) => onFilterChange({ ...filters, assignee_id: e.target.value })}
+            className="border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">全担当者</option>
+            <option value="unassigned">未割り当て</option>
+            {members.map((m) => (
+              <option key={m.id} value={String(m.id)}>{m.display_name || m.email}</option>
+            ))}
+          </select>
+        )}
         {allTags.length > 0 && (
           <select
             value={filters.tag}

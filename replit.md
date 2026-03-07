@@ -58,21 +58,27 @@ frontend/
     components/
       common/          - Reusable UI components (ScoreBadge, FlagBadge, StatCard, Pagination, ResultRow)
       companies/       - Company-specific components
-        CompanyFilterBar.tsx  - Filter bar (category, status, rank, contact, tag)
-        CompanyEditModal.tsx  - Full detail edit modal with status history, templates, tags, activities, email, rescrape
-        CompanyTable.tsx      - Company list table with checkbox, inline actions, rescrape
+        CompanyFilterBar.tsx  - Filter bar (category, status, rank, contact, tag, assignee)
+        CompanyEditModal.tsx  - Full detail edit modal with status history, templates, tags, activities, email, rescrape, assignee
+        CompanyTable.tsx      - Company list table with checkbox, inline actions, rescrape, assignee column, click-to-detail
+        CompanyKanban.tsx     - Kanban board view with dnd-kit drag-and-drop by status
     pages/
       Dashboard.tsx    - Stats overview with charts (Recharts) + 30-day trend LineChart
-      Companies.tsx    - Company list with bulk status, duplicate check/merge, project move modal
+      Companies.tsx    - Company list with list/kanban toggle, CSV import modal, bulk status, duplicate check/merge, project move modal
+      CompanyDetail.tsx - Company detail page (/companies/:id) with full info, flag badges, tags, assignee, activity log, status history
       Keywords.tsx     - Search keyword management
       Scraper.tsx      - URL scraping + multi-source collection (API w/ SSE real-time progress/directory/Google scrape/Shopify/Google Maps)
-      Settings.tsx     - API key + auto-collect schedule + Google Places API key + Slack Webhook URL
+      Settings.tsx     - API key + SMTP settings + auto-collect schedule + Google Places API key + Slack Webhook URL
       RejectedList.tsx - Rejected domain management
       CollectionHistory.tsx - Collection log viewer
       Templates.tsx    - Memo + email template management (tabbed)
       Projects.tsx     - Project management (create/edit/delete, category/flag/scoring customization)
       MasterDB.tsx     - Cross-project company master DB search + import to current project
-    App.tsx            - Router + sidebar layout (lazy-loaded pages) + ProjectProvider + project selector
+      UserManagement.tsx - Member list + invite + role management (admin only)
+      AcceptInvite.tsx  - Accept invitation and set password
+      ForgotPassword.tsx - Password reset request via email
+      ResetPassword.tsx  - Reset password with token
+    App.tsx            - Router + sidebar layout (lazy-loaded pages) + ProjectProvider + project selector + profile edit modal
   dist/                - Built frontend (served by FastAPI)
 ```
 
@@ -119,16 +125,24 @@ models → schemas → services/{aggregator,google_search,scorer,categorizer,scr
 - **Sales status management**: 9 statuses from 未確認 to 代理店化
 - **Dashboard charts**: Category pie chart, rank bar chart, status breakdown, prefecture distribution
 - **CSV export** with filters
+- **CSV import**: CSVファイルからの企業一括インポート（テンプレートDL付き、重複スキップ、結果サマリー）
+- **Kanban view**: ステータスを列としたカンバンボード（@dnd-kit ドラッグ&ドロップでステータス変更）
+- **Company detail page**: /companies/:id で個別URL、全フィールド表示、ステータス履歴タイムライン、アクティビティログ
+- **Assignee tracking**: 企業に担当ユーザーを割り当て。テーブル列表示・フィルタリング対応
+- **Multi-user management**: 組織メンバーの招待（SMTP email）、一覧、ロール変更（admin/member）、削除
+- **Password reset**: SMTPメール経由のパスワードリセットフロー（forgot/reset）
+- **Profile editing**: サイドバーのユーザー表示クリックでプロフィール編集モーダル（表示名・パスワード変更）
+- **SMTP settings**: 管理画面でSMTPサーバー設定（接続テスト付き）
 - **Search debounce**: 300ms debounce on filter search input
 - **Code splitting**: React.lazy + Suspense for page-level code splitting
 - **Rejected URL management**: まとめサイト等の手動・自動拒否リスト管理
 
 ## Database Tables
 - `projects` - Project definitions with JSON fields: categories, category_keywords, flag_definitions, scoring_rules
-- `companies` - Company records with all business fields, flags, scores (composite UNIQUE: website_url+project_id, compound indexes: project_id+status/rank/category), project_id FK
+- `companies` - Company records with all business fields, flags, scores (composite UNIQUE: website_url+project_id, compound indexes: project_id+status/rank/category), project_id FK, assignee_id FK
 - `company_master` - Cross-project company pool (domain UNIQUE, indexes on category_main/score_rank/prefecture). Auto-UPSERTed on collection.
 - `search_keywords` - Search keyword management, project_id FK
-- `app_settings` - API key storage + auto-collect settings
+- `app_settings` - API key storage + auto-collect settings + SMTP settings
 - `rejected_urls` - Rejected domains for auto-collection filtering, project_id FK
 - `api_usage_logs` - Daily API usage counter
 - `collection_logs` - Collection run history, project_id FK
@@ -136,6 +150,9 @@ models → schemas → services/{aggregator,google_search,scorer,categorizer,scr
 - `memo_templates` - Reusable memo/email templates (is_email_template flag)
 - `company_tags` - Tags/labels per company
 - `activity_logs` - Sales activity log per company
+- `users` - User accounts with display_name, role (admin/member), org_id FK
+- `org_invitations` - Organization invite tokens with email, role, expiry
+- `password_reset_tokens` - Password reset tokens with expiry
 
 ## Workflow
 - `Start application` - `python server/main.py` (port 5000, webview)

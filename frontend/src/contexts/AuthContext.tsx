@@ -8,6 +8,7 @@ interface AuthUser {
   role: string;
   org_id: number;
   org_name: string;
+  display_name: string;
 }
 
 interface AuthContextType {
@@ -17,6 +18,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (orgName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (updates: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   register: async () => {},
   logout: () => {},
+  updateUser: () => {},
 });
 
 export function useAuth() {
@@ -57,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     axios.get("/api/auth/me")
       .then((res) => {
-        setUser(res.data);
+        setUser({ ...res.data, display_name: res.data.display_name || "" });
         setToken(savedToken);
       })
       .catch(() => {
@@ -73,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { access_token, user: userData } = res.data;
     localStorage.setItem("escms_token", access_token);
     setToken(access_token);
-    setUser(userData);
+    setUser({ ...userData, display_name: userData.display_name || "" });
   }, []);
 
   const register = useCallback(async (orgName: string, email: string, password: string) => {
@@ -81,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { access_token, user: userData } = res.data;
     localStorage.setItem("escms_token", access_token);
     setToken(access_token);
-    setUser(userData);
+    setUser({ ...userData, display_name: userData.display_name || "" });
   }, []);
 
   const logout = useCallback(() => {
@@ -91,8 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((updates: Partial<AuthUser>) => {
+    setUser(prev => prev ? { ...prev, ...updates } : null);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

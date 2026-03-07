@@ -1,0 +1,283 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import {
+  ArrowLeft, Building2, Globe, Phone, Mail, MapPin, Tag, ExternalLink,
+  Edit2, Loader2, Clock, ChevronRight, Activity, FileText, User
+} from "lucide-react";
+import { api } from "../api";
+import type { Company, StatusHistoryEntry, ActivityLogEntry } from "../types";
+import ScoreBadge from "../components/common/ScoreBadge";
+import FlagBadge from "../components/common/FlagBadge";
+import CompanyEditModal from "../components/companies/CompanyEditModal";
+import { STATUSES } from "../constants";
+
+const STATUS_COLORS: Record<string, string> = {
+  "未確認": "bg-slate-100 text-slate-700",
+  "確認済み": "bg-blue-100 text-blue-700",
+  "コンタクト済み": "bg-indigo-100 text-indigo-700",
+  "返信あり": "bg-violet-100 text-violet-700",
+  "商談中": "bg-yellow-100 text-yellow-700",
+  "提案済み": "bg-orange-100 text-orange-700",
+  "契約交渉中": "bg-amber-100 text-amber-700",
+  "代理店化": "bg-emerald-100 text-emerald-700",
+  "不採用": "bg-red-100 text-red-700",
+};
+
+const ACTION_ICONS: Record<string, string> = {
+  "電話": "📞",
+  "メール": "✉️",
+  "フォーム送信": "📝",
+  "面談": "🤝",
+  "その他": "📌",
+};
+
+export default function CompanyDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [company, setCompany] = useState<Company | null>(null);
+  const [history, setHistory] = useState<StatusHistoryEntry[]>([]);
+  const [activities, setActivities] = useState<ActivityLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"info" | "history" | "activities">("info");
+
+  const companyId = Number(id);
+
+  const load = async () => {
+    try {
+      const [listData, histData, actData] = await Promise.all([
+        api.companies.list({ search: "", page: 1, per_page: 1000 }),
+        api.companies.getHistory(companyId),
+        api.companies.getActivities(companyId),
+      ]);
+      const found = listData.companies.find(c => c.id === companyId);
+      if (found) setCompany(found);
+      setHistory(histData.history);
+      setActivities(actData.activities);
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [companyId]);
+
+  const handleSaved = async () => {
+    await load();
+    setEditOpen(false);
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-blue-600" size={32} /></div>;
+  }
+
+  if (!company) {
+    return (
+      <div className="p-6">
+        <p className="text-slate-500">企業が見つかりません</p>
+        <button onClick={() => navigate("/companies")} className="mt-2 text-blue-600 hover:underline text-sm">一覧へ戻る</button>
+      </div>
+    );
+  }
+
+  const hasFollowUp = company.follow_up_date && new Date(company.follow_up_date) <= new Date();
+
+  return (
+    <div className="p-6 space-y-6 max-w-4xl">
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate("/companies")} className="text-slate-400 hover:text-slate-700">
+          <ArrowLeft size={20} />
+        </button>
+        <nav className="flex items-center gap-1 text-sm text-slate-500">
+          <Link to="/companies" className="hover:text-blue-600">候補企業一覧</Link>
+          <ChevronRight size={14} />
+          <span className="text-slate-800 font-medium">{company.company_name || company.domain}</span>
+        </nav>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="bg-slate-100 rounded-lg p-3">
+              <Building2 size={28} className="text-slate-600" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-800">{company.company_name || "（名称未設定）"}</h1>
+              {company.website_url && (
+                <a href={company.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-blue-600 hover:underline mt-1">
+                  <Globe size={14} />
+                  {company.domain || company.website_url}
+                  <ExternalLink size={12} />
+                </a>
+              )}
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[company.status] || "bg-slate-100 text-slate-700"}`}>
+                  {company.status}
+                </span>
+                {hasFollowUp && (
+                  <span className="flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                    <Clock size={10} />
+                    期限: {company.follow_up_date}
+                  </span>
+                )}
+                {company.follow_up_date && !hasFollowUp && (
+                  <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                    <Clock size={10} />
+                    フォローアップ: {company.follow_up_date}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <ScoreBadge score={company.score_total} rank={company.score_rank} />
+            <button
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+            >
+              <Edit2 size={14} />
+              編集
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-4 border-t border-slate-100">
+          <InfoItem icon={<MapPin size={14} />} label="所在地" value={[company.prefecture, company.city].filter(Boolean).join(" ") || "—"} />
+          <InfoItem icon={<Phone size={14} />} label="電話" value={company.phone || "—"} />
+          <InfoItem icon={<Mail size={14} />} label="メール" value={company.email || "—"} />
+          <InfoItem icon={<Tag size={14} />} label="カテゴリ" value={company.category_main || "—"} />
+        </div>
+
+        {company.contact_url && (
+          <div className="mt-4">
+            <a href={company.contact_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
+              <ExternalLink size={14} />
+              問い合わせページを開く
+            </a>
+          </div>
+        )}
+
+        <div className="flex gap-2 mt-4 flex-wrap">
+          {company.shopify_flag && <FlagBadge label="Shopify" color="bg-green-100 text-green-700" />}
+          {company.ec_flag && <FlagBadge label="EC" color="bg-blue-100 text-blue-700" />}
+          {company.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
+          {company.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
+          {company.consulting_flag && <FlagBadge label="コンサル" color="bg-indigo-100 text-indigo-700" />}
+          {company.operation_flag && <FlagBadge label="運営代行" color="bg-teal-100 text-teal-700" />}
+          {company.production_flag && <FlagBadge label="制作" color="bg-violet-100 text-violet-700" />}
+        </div>
+
+        {company.assignee && (
+          <div className="flex items-center gap-2 mt-4 p-3 bg-slate-50 rounded-lg">
+            <User size={14} className="text-slate-500" />
+            <span className="text-sm text-slate-600">担当者:</span>
+            <span className="text-sm font-medium text-slate-800">{company.assignee.display_name || company.assignee.email}</span>
+          </div>
+        )}
+
+        {company.tags && company.tags.length > 0 && (
+          <div className="flex gap-2 mt-4 flex-wrap">
+            {company.tags.map(t => (
+              <span key={t} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{t}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+        <div className="flex border-b border-slate-200">
+          {[
+            { key: "info", label: "メモ", icon: <FileText size={14} /> },
+            { key: "activities", label: `アクティビティ (${activities.length})`, icon: <Activity size={14} /> },
+            { key: "history", label: `ステータス履歴 (${history.length})`, icon: <Clock size={14} /> },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-5">
+          {activeTab === "info" && (
+            <div>
+              {company.notes ? (
+                <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans">{company.notes}</pre>
+              ) : (
+                <p className="text-slate-400 text-sm">メモはありません</p>
+              )}
+            </div>
+          )}
+
+          {activeTab === "activities" && (
+            <div className="space-y-3">
+              {activities.length === 0 ? (
+                <p className="text-slate-400 text-sm">アクティビティログはありません</p>
+              ) : (
+                activities.map(a => (
+                  <div key={a.id} className="flex gap-3">
+                    <span className="text-lg">{ACTION_ICONS[a.action_type] || "📌"}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-slate-700">{a.action_type}</span>
+                        <span className="text-xs text-slate-400">{new Date(a.created_at).toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                      </div>
+                      {a.description && <p className="text-sm text-slate-600 mt-0.5">{a.description}</p>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === "history" && (
+            <div className="space-y-3">
+              {history.length === 0 ? (
+                <p className="text-slate-400 text-sm">変更履歴はありません</p>
+              ) : (
+                history.map(h => (
+                  <div key={h.id} className="flex items-center gap-3 text-sm">
+                    <span className="text-slate-400 text-xs w-36 flex-shrink-0">
+                      {new Date(h.changed_at).toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[h.old_status] || "bg-slate-100 text-slate-700"}`}>{h.old_status || "—"}</span>
+                    <ChevronRight size={14} className="text-slate-400" />
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[h.new_status] || "bg-slate-100 text-slate-700"}`}>{h.new_status}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {editOpen && company && (
+        <CompanyEditModal
+          company={company}
+          onClose={() => setEditOpen(false)}
+          onSaved={handleSaved}
+        />
+      )}
+    </div>
+  );
+}
+
+function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div>
+      <div className="flex items-center gap-1 text-xs text-slate-500 mb-0.5">
+        {icon}
+        {label}
+      </div>
+      <p className="text-sm font-medium text-slate-800 truncate">{value}</p>
+    </div>
+  );
+}

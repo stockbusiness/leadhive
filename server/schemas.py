@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from server.models import Company, CompanyTag
+from server.models import Company, CompanyTag, User
 
 
 def company_to_dict(c: Company, db: Session = None) -> dict:
@@ -7,8 +7,22 @@ def company_to_dict(c: Company, db: Session = None) -> dict:
     if db:
         tag_rows = db.query(CompanyTag).filter(CompanyTag.company_id == c.id).all()
         tags = [t.tag_name for t in tag_rows]
+
+    assignee = None
+    if db and c.assignee_id:
+        u = db.query(User).filter(User.id == c.assignee_id).first()
+        if u:
+            assignee = {
+                "id": u.id,
+                "email": u.email,
+                "display_name": u.display_name or "",
+            }
+
     return {
         "id": c.id,
+        "project_id": c.project_id,
+        "assignee_id": c.assignee_id,
+        "assignee": assignee,
         "company_name": c.company_name,
         "website_url": c.website_url,
         "domain": c.domain,

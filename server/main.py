@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates, projects, master
-from server.routes import auth
+from server.routes import auth, users
 from server.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -32,6 +32,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(users.router)
 app.include_router(companies.router)
 app.include_router(keywords.router)
 app.include_router(dashboard.router)

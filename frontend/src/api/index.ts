@@ -10,7 +10,7 @@ export const api = {
   },
 
   companies: {
-    list: (params: Record<string, string | number | boolean>) =>
+    list: (params: Record<string, string | number | boolean | undefined>) =>
       axios.get<{ total: number; page: number; per_page: number; companies: Company[] }>(
         "/api/companies", { params }
       ).then(r => r.data),
@@ -18,7 +18,7 @@ export const api = {
     create: (data: Partial<Company>) =>
       axios.post<{ company: Company }>("/api/companies", data).then(r => r.data),
 
-    update: (id: number, data: Partial<Company>) =>
+    update: (id: number, data: Partial<Company> & { assignee_id?: number | null }) =>
       axios.put<{ company: Company }>(`/api/companies/${id}`, data).then(r => r.data),
 
     delete: (id: number) =>
@@ -32,6 +32,17 @@ export const api = {
 
     exportCsvUrl: (params: URLSearchParams) =>
       `/api/companies/csv?${params.toString()}`,
+
+    csvTemplateUrl: () => `/api/companies/csv/template`,
+
+    importCsv: (file: File, projectId: number) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return axios.post<{ added: number; skipped: number; errors: string[]; message: string }>(
+        `/api/companies/import-csv?project_id=${projectId}`, formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      ).then(r => r.data);
+    },
 
     getActivities: (id: number) =>
       axios.get<{ activities: ActivityLogEntry[] }>(`/api/companies/${id}/activities`).then(r => r.data),
@@ -165,6 +176,9 @@ export const api = {
     slackTest: () =>
       axios.post("/api/settings/slack-test").then(r => r.data),
 
+    smtpTest: (testTo?: string) =>
+      axios.post("/api/settings/smtp-test", { test_to: testTo }).then(r => r.data),
+
     getScheduler: () =>
       axios.get("/api/settings/scheduler").then(r => r.data),
   },
@@ -178,5 +192,51 @@ export const api = {
 
     import: (domainList: string[], projectId: number) =>
       axios.post<{ success: number; duplicate: number; error: number }>("/api/master/import", { domain_list: domainList, project_id: projectId }).then(r => r.data),
+  },
+
+  users: {
+    list: () =>
+      axios.get<{
+        users: { id: number; email: string; display_name: string; role: string; org_id: number; created_at: string }[];
+        pending_invitations: { id: number; email: string; role: string; expires_at: string; created_at: string }[];
+      }>("/api/users").then(r => r.data),
+
+    invite: (email: string, role: string = "member") =>
+      axios.post<{ message: string; invite_url: string; token: string; smtp_configured: boolean }>(
+        "/api/users/invite", { email, role }
+      ).then(r => r.data),
+
+    cancelInvitation: (invitationId: number) =>
+      axios.delete(`/api/users/invitations/${invitationId}`).then(r => r.data),
+
+    updateRole: (userId: number, role: string) =>
+      axios.put(`/api/users/${userId}/role`, { role }).then(r => r.data),
+
+    delete: (userId: number) =>
+      axios.delete(`/api/users/${userId}`).then(r => r.data),
+  },
+
+  auth: {
+    me: () =>
+      axios.get("/api/auth/me").then(r => r.data),
+
+    updateProfile: (data: { display_name?: string; email?: string; current_password?: string; new_password?: string }) =>
+      axios.put<{ message: string; user: any }>("/api/auth/profile", data).then(r => r.data),
+
+    forgotPassword: (email: string) =>
+      axios.post("/api/auth/forgot-password", { email }).then(r => r.data),
+
+    resetPassword: (token: string, new_password: string) =>
+      axios.post("/api/auth/reset-password", { token, new_password }).then(r => r.data),
+
+    getInvite: (token: string) =>
+      axios.get<{ email: string; org_name: string; role: string; expires_at: string }>(
+        `/api/auth/invite/${token}`
+      ).then(r => r.data),
+
+    acceptInvite: (token: string, data: { display_name: string; password: string }) =>
+      axios.post<{ access_token: string; token_type: string; user: any }>(
+        `/api/auth/invite/${token}/accept`, data
+      ).then(r => r.data),
   },
 };

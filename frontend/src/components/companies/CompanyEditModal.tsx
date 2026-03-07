@@ -45,6 +45,7 @@ export default function CompanyEditModal({
   const [editData, setEditData] = useState<Partial<Company>>({ ...company });
   const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
   const [templates, setTemplates] = useState<MemoTemplate[]>([]);
+  const [members, setMembers] = useState<{ id: number; email: string; display_name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [rescraping, setRescraping] = useState(false);
   const [selectedEmailTemplate, setSelectedEmailTemplate] = useState<string>("");
@@ -61,6 +62,7 @@ export default function CompanyEditModal({
     api.companies.getHistory(company.id).then((data) => setStatusHistory(data.history));
     api.templates.list().then((data) => setTemplates(data.templates));
     api.companies.getTags(company.id).then((data) => setTags(data.tags.map((t) => t.tag_name)));
+    api.users.list().then((data) => setMembers(data.users.map(u => ({ id: u.id, email: u.email, display_name: u.display_name })))).catch(() => {});
   }, [company.id]);
 
   const handleSave = () => {
@@ -220,6 +222,21 @@ export default function CompanyEditModal({
                 ))}
               </select>
             </div>
+            {members.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">担当者</label>
+                <select
+                  value={editData.assignee_id != null ? String(editData.assignee_id) : ""}
+                  onChange={(e) => setEditData({ ...editData, assignee_id: e.target.value ? Number(e.target.value) : null })}
+                  className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">未割り当て</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={String(m.id)}>{m.display_name || m.email}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
                 <CalendarClock size={12} />
