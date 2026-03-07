@@ -17,10 +17,6 @@ axios.interceptors.response.use(
 );
 
 export const api = {
-  dashboard: {
-    get: () => axios.get<DashboardData>("/api/dashboard").then(r => r.data),
-  },
-
   companies: {
     list: (params: Record<string, string | number | boolean | undefined>) =>
       axios.get<{ total: number; page: number; per_page: number; companies: Company[] }>(
@@ -354,7 +350,9 @@ export const api = {
     list: () =>
       axios.get<{ tenants: Array<{
         id: number; name: string; plan_id: number | null; plan_name: string | null;
-        member_count: number; company_count: number; project_count: number; created_at: string | null;
+        member_count: number; company_count: number; project_count: number;
+        collections_this_month: number; last_login_at: string | null;
+        is_churn_risk: boolean; created_at: string | null;
       }> }>("/api/admin/tenants").then(r => r.data),
     update: (orgId: number, data: { plan_id?: number; name?: string }) =>
       axios.patch(`/api/admin/tenants/${orgId}`, data).then(r => r.data),
@@ -362,6 +360,30 @@ export const api = {
 
   adminDashboard: {
     get: () => axios.get("/api/admin/dashboard").then(r => r.data),
+    aiCosts: () => axios.get<{ costs: Array<{
+      org_id: number; org_name: string; month: string;
+      total_input_tokens: number; total_output_tokens: number;
+      call_count: number; cost_usd: number;
+    }> }>("/api/admin/ai-costs").then(r => r.data),
+  },
+
+  dashboard: {
+    get: (projectId?: number) =>
+      axios.get("/api/dashboard", { params: projectId ? { project_id: projectId } : {} }).then(r => r.data),
+    team: (projectId?: number) =>
+      axios.get<{
+        members: Array<{
+          user_id: number; display_name: string; email: string;
+          assigned_count: number; status_breakdown: Record<string, number>;
+          activity_count_this_week: number; overdue_followups: number;
+        }>;
+        team_summary: {
+          total_collected_this_month: number;
+          approached_count: number;
+          meeting_count: number;
+          overdue_count: number;
+        };
+      }>("/api/dashboard/team", { params: projectId ? { project_id: projectId } : {} }).then(r => r.data),
   },
 
   adminAllUsers: {

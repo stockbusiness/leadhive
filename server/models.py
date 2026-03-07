@@ -45,6 +45,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), default="admin")
     display_name = Column(String(255), nullable=True)
+    last_login_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -261,6 +262,19 @@ class ActivityLog(Base):
     action_type = Column(String(50), nullable=False)
     description = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class AiUsageLog(Base):
+    __tablename__ = "ai_usage_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action_type = Column(String(50), nullable=False)
+    token_input = Column(Integer, default=0)
+    token_output = Column(Integer, default=0)
+    model = Column(String(50), default="gpt-4o-mini")
+    created_at = Column(DateTime, server_default=func.now(), index=True)
 
 
 class EmailSendLog(Base):

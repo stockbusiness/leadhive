@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle, Crown } from "lucide-react";
+import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle, Crown, Users, AlertTriangle } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
@@ -23,14 +23,34 @@ function formatFollowUpDate(dateStr: string): { label: string; overdue: boolean 
   return { label: `${diff}日後`, overdue: false };
 }
 
+type TeamMember = {
+  user_id: number; display_name: string; email: string;
+  assigned_count: number; status_breakdown: Record<string, number>;
+  activity_count_this_week: number; overdue_followups: number;
+};
+type TeamData = {
+  members: TeamMember[];
+  team_summary: { total_collected_this_month: number; approached_count: number; meeting_count: number; overdue_count: number };
+};
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [currentPlan, setCurrentPlan] = useState<PlanData | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "team">("overview");
+  const [teamData, setTeamData] = useState<TeamData | null>(null);
+  const [teamLoading, setTeamLoading] = useState(false);
 
   useEffect(() => {
     api.dashboard.get().then(setData);
     api.plans.current().then((d) => setCurrentPlan(d.plan ?? null)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "team" && !teamData) {
+      setTeamLoading(true);
+      api.dashboard.team().then(setTeamData).catch(() => {}).finally(() => setTeamLoading(false));
+    }
+  }, [activeTab, teamData]);
 
   if (!data) {
     return (
@@ -73,16 +93,151 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="text-2xl font-bold text-slate-800">ダッシュボード</h2>
-        {currentPlan && (
-          <span className="flex items-center gap-1.5 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
-            <Crown size={12} />
-            {currentPlan.name}
-          </span>
-        )}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-2xl font-bold text-slate-800">ダッシュボード</h2>
+          {currentPlan && (
+            <span className="flex items-center gap-1.5 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+              <Crown size={12} />
+              {currentPlan.name}
+            </span>
+          )}
+        </div>
+        <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeTab === "overview" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <TrendingUp size={14} />
+            概要
+          </button>
+          <button
+            onClick={() => setActiveTab("team")}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeTab === "team" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Users size={14} />
+            チーム
+          </button>
+        </div>
       </div>
 
+      {/* ===== チーム進捗タブ ===== */}
+      {activeTab === "team" && (
+        <div className="space-y-5">
+          {teamLoading ? (
+            <div className="flex items-center justify-center h-48 text-slate-400">読み込み中...</div>
+          ) : teamData ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard icon={<TrendingUp size={18} className="text-blue-600" />} label="今月の新規収集" value={teamData.team_summary.total_collected_this_month} color="bg-blue-50" />
+                <StatCard icon={<Phone size={18} className="text-indigo-600" />} label="アプローチ済み" value={teamData.team_summary.approached_count} color="bg-indigo-50" />
+                <StatCard icon={<Users size={18} className="text-green-600" />} label="面談・商談化" value={teamData.team_summary.meeting_count} color="bg-green-50" />
+                <StatCard icon={<AlertTriangle size={18} className="text-red-600" />} label="期限超過" value={teamData.team_summary.overdue_count} color="bg-red-50" />
+              </div>
+
+              {teamData.members.length > 0 && (
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 bg-slate-50">
+                    <Users size={16} className="text-slate-500" />
+                    <h3 className="font-semibold text-slate-700">担当者別進捗</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50">
+                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">担当者</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">担当企業</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">今週の活動</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">期限超過</th>
+                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 min-w-[200px]">ステータス内訳</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamData.members.map((m) => {
+                          const approached = Object.entries(m.status_breakdown)
+                            .filter(([s]) => ["フォーム送信済","コンタクト済み","返信あり","面談化","商談中","代理店化"].includes(s))
+                            .reduce((sum, [, c]) => sum + c, 0);
+                          return (
+                            <tr key={m.user_id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
+                                    {m.display_name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div className="font-medium text-slate-800 text-sm">{m.display_name}</div>
+                                    <div className="text-xs text-slate-400">{m.email}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold text-slate-700">{m.assigned_count}</td>
+                              <td className="px-4 py-3 text-right text-slate-600">{m.activity_count_this_week}</td>
+                              <td className="px-4 py-3 text-right">
+                                {m.overdue_followups > 0 ? (
+                                  <span className="inline-flex items-center gap-1 text-red-600 font-medium">
+                                    <AlertTriangle size={12} />
+                                    {m.overdue_followups}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                {m.assigned_count > 0 ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 bg-slate-100 rounded-full h-2 min-w-[80px]">
+                                      <div
+                                        className="h-2 rounded-full bg-blue-500 transition-all"
+                                        style={{ width: `${Math.min(100, (approached / m.assigned_count) * 100)}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-xs text-slate-500 whitespace-nowrap">
+                                      {approached}/{m.assigned_count} アプローチ済
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-slate-400">未割当</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {teamData.members.some(m => m.assigned_count > 0) && (
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                    <Users size={14} className="text-blue-500" />
+                    担当企業数（担当者別）
+                  </h3>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={teamData.members.map(m => ({ name: m.display_name, 担当: m.assigned_count, アプローチ: Object.entries(m.status_breakdown).filter(([s]) => ["フォーム送信済","コンタクト済み","返信あり","面談化","商談中","代理店化"].includes(s)).reduce((s,[,c]) => s+c, 0) }))} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                      <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} allowDecimals={false} />
+                      <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+                      <Bar dataKey="担当" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="アプローチ" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-16 text-slate-400">データを取得できませんでした</div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "overview" && <>
       {/* ===== 今日のアクション ===== */}
       {hasActions && (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
@@ -306,6 +461,7 @@ export default function Dashboard() {
           <p className="text-sm text-slate-400 text-center py-4">まだ企業が追加されていません</p>
         )}
       </div>
+      </>}
     </div>
   );
 }

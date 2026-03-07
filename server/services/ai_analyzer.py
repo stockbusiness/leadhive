@@ -22,7 +22,24 @@ URL: {url}
 情報が不足している場合は「情報なし」と記載してください。JSON以外は出力しないでください。"""
 
 
-def analyze_company(company_name: str, url: str, full_text: str, api_key: str) -> dict:
+def _save_usage_log(db, org_id: int, user_id: int | None, action_type: str, usage, model: str = "gpt-4o-mini"):
+    try:
+        from server.models import AiUsageLog
+        log = AiUsageLog(
+            org_id=org_id,
+            user_id=user_id,
+            action_type=action_type,
+            token_input=usage.prompt_tokens if usage else 0,
+            token_output=usage.completion_tokens if usage else 0,
+            model=model,
+        )
+        db.add(log)
+        db.commit()
+    except Exception as e:
+        logger.warning(f"Failed to save AI usage log: {e}")
+
+
+def analyze_company(company_name: str, url: str, full_text: str, api_key: str, db=None, org_id: int = None, user_id: int = None) -> dict:
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
@@ -42,6 +59,9 @@ def analyze_company(company_name: str, url: str, full_text: str, api_key: str) -
             max_tokens=800,
             response_format={"type": "json_object"},
         )
+
+        if db and org_id:
+            _save_usage_log(db, org_id, user_id, "analyze", response.usage)
 
         import json
         content = response.choices[0].message.content
@@ -80,6 +100,9 @@ def generate_outreach_email(
     tone: str,
     custom_note: str,
     api_key: str,
+    db=None,
+    org_id: int = None,
+    user_id: int = None,
 ) -> dict:
     try:
         from openai import OpenAI
@@ -114,6 +137,9 @@ def generate_outreach_email(
             max_tokens=600,
             response_format={"type": "json_object"},
         )
+
+        if db and org_id:
+            _save_usage_log(db, org_id, user_id, "generate_email", response.usage)
 
         import json
         content = response.choices[0].message.content

@@ -90,6 +90,9 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="メールアドレスまたはパスワードが正しくありません")
 
+    user.last_login_at = datetime.utcnow()
+    db.commit()
+
     org = db.query(Organization).filter(Organization.id == user.org_id).first()
     token = create_access_token({"sub": str(user.id)})
     return {

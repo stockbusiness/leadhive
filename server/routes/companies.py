@@ -826,6 +826,9 @@ def ai_analyze_company(
         url=company.website_url or "",
         full_text=full_text,
         api_key=api_key,
+        db=db,
+        org_id=current_user.org_id,
+        user_id=current_user.id,
     )
 
     if not result.get("success"):
@@ -865,6 +868,9 @@ def generate_company_email(
         tone=tone,
         custom_note=custom_note,
         api_key=api_key,
+        db=db,
+        org_id=current_user.org_id,
+        user_id=current_user.id,
     )
 
     if not result.get("success"):

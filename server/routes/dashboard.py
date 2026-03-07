@@ -1,10 +1,10 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from server.database import get_db
-from server.models import Company, ApiUsageLog, CollectionLog, User, Project
+from server.models import Company, ApiUsageLog, CollectionLog, User, Project, ActivityLog
 from server.schemas import company_to_dict
 from server.services.cache import cache_get, cache_set
 from server.auth import get_current_user
@@ -155,3 +155,99 @@ def _get_replied(project_id, db):
         q = q.filter(Company.project_id == project_id)
     companies = q.order_by(desc(Company.updated_at)).limit(5).all()
     return [company_to_dict(c) for c in companies]
+
+
+@router.get("/team")
+def get_team_dashboard(
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    org_projects = db.query(Project).filter(Project.org_id == current_user.org_id).all()
+    org_project_ids = [p.id for p in org_projects]
+    if project_id and project_id in org_project_ids:
+        scoped_project_ids = [project_id]
+    else:
+        scoped_project_ids = org_project_ids
+
+    members = db.query(User).filter(User.org_id == current_user.org_id).all()
+
+    today = date.today()
+    this_month_start = today.replace(day=1)
+    week_start = today - timedelta(days=today.weekday())
+
+    approached_statuses = ["フォーム送信済", "コンタクト済み", "返信あり", "面談化", "商談中", "代理店化"]
+    meeting_statuses = ["面談化", "商談中", "代理店化"]
+
+    total_collected_this_month = db.query(func.count(Company.id)).filter(
+        Company.project_id.in_(scoped_project_ids),
+        func.date(Company.created_at) >= this_month_start,
+    ).scalar() or 0
+
+    approached_count = db.query(func.count(Company.id)).filter(
+        Company.project_id.in_(scoped_project_ids),
+        Company.status.in_(approached_statuses),
+    ).scalar() or 0
+
+    meeting_count = db.query(func.count(Company.id)).filter(
+        Company.project_id.in_(scoped_project_ids),
+        Company.status.in_(meeting_statuses),
+    ).scalar() or 0
+
+    overdue_total = db.query(func.count(Company.id)).filter(
+        Company.project_id.in_(scoped_project_ids),
+        Company.follow_up_date.isnot(None),
+        Company.follow_up_date < today,
+        Company.status.notin_(["代理店化", "失注", "除外"]),
+    ).scalar() or 0
+
+    member_stats = []
+    for member in members:
+        assigned = db.query(func.count(Company.id)).filter(
+            Company.assignee_id == member.id,
+            Company.project_id.in_(scoped_project_ids),
+        ).scalar() or 0
+
+        status_rows = db.query(Company.status, func.count(Company.id)).filter(
+            Company.assignee_id == member.id,
+            Company.project_id.in_(scoped_project_ids),
+        ).group_by(Company.status).all()
+        status_breakdown = {row[0]: row[1] for row in status_rows}
+
+        activity_count = db.query(func.count(ActivityLog.id)).filter(
+            ActivityLog.company_id.in_(
+                db.query(Company.id).filter(
+                    Company.assignee_id == member.id,
+                    Company.project_id.in_(scoped_project_ids),
+                ).subquery()
+            ),
+            func.date(ActivityLog.created_at) >= week_start,
+        ).scalar() or 0
+
+        overdue_count = db.query(func.count(Company.id)).filter(
+            Company.assignee_id == member.id,
+            Company.project_id.in_(scoped_project_ids),
+            Company.follow_up_date.isnot(None),
+            Company.follow_up_date < today,
+            Company.status.notin_(["代理店化", "失注", "除外"]),
+        ).scalar() or 0
+
+        member_stats.append({
+            "user_id": member.id,
+            "display_name": member.display_name or member.email,
+            "email": member.email,
+            "assigned_count": assigned,
+            "status_breakdown": status_breakdown,
+            "activity_count_this_week": activity_count,
+            "overdue_followups": overdue_count,
+        })
+
+    return {
+        "members": member_stats,
+        "team_summary": {
+            "total_collected_this_month": total_collected_this_month,
+            "approached_count": approached_count,
+            "meeting_count": meeting_count,
+            "overdue_count": overdue_total,
+        },
+    }

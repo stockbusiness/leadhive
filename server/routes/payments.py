@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func as sa_func, desc
 from pydantic import BaseModel
 from server.database import get_db
-from server.models import SystemSettings, Plan, Organization, User, Company, Project, SystemLog, Announcement, CollectionLog, ApiUsageLog
+from server.models import SystemSettings, Plan, Organization, User, Company, Project, SystemLog, Announcement, CollectionLog, ApiUsageLog, AiUsageLog
 from server.auth import get_current_user, require_admin
 
 router = APIRouter(tags=["payments"])
@@ -243,16 +243,40 @@ def list_tenants(
 ):
     orgs = db.query(Organization).order_by(Organization.id).all()
     plans = {p.id: p for p in db.query(Plan).all()}
+    today = date.today()
+    this_month_start = today.replace(day=1)
+    churn_threshold = datetime.utcnow() - timedelta(days=30)
+
     result = []
     for org in orgs:
         member_count = db.query(User).filter(User.org_id == org.id).count()
         project_count = db.query(Project).filter(Project.org_id == org.id).count()
+        org_project_ids = [p.id for p in db.query(Project.id).filter(Project.org_id == org.id).all()]
         company_count = (
             db.query(Company)
-            .join(Project, Company.project_id == Project.id)
-            .filter(Project.org_id == org.id)
+            .filter(Company.project_id.in_(org_project_ids))
             .count()
+        ) if org_project_ids else 0
+
+        collections_this_month = (
+            db.query(Company)
+            .filter(
+                Company.project_id.in_(org_project_ids),
+                sa_func.date(Company.created_at) >= this_month_start,
+            )
+            .count()
+        ) if org_project_ids else 0
+
+        last_login_row = db.query(sa_func.max(User.last_login_at)).filter(
+            User.org_id == org.id,
+            User.last_login_at.isnot(None),
+        ).scalar()
+
+        is_churn_risk = (
+            member_count > 0
+            and (last_login_row is None or last_login_row < churn_threshold)
         )
+
         plan = plans.get(org.plan_id) if org.plan_id else None
         result.append({
             "id": org.id,
@@ -262,9 +286,51 @@ def list_tenants(
             "member_count": member_count,
             "company_count": company_count,
             "project_count": project_count,
+            "collections_this_month": collections_this_month,
+            "last_login_at": last_login_row.isoformat() if last_login_row else None,
+            "is_churn_risk": is_churn_risk,
             "created_at": org.created_at.isoformat() if org.created_at else None,
         })
     return {"tenants": result}
+
+
+@router.get("/api/admin/ai-costs")
+def admin_ai_costs(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(
+            AiUsageLog.org_id,
+            sa_func.date_trunc("month", AiUsageLog.created_at).label("month"),
+            sa_func.sum(AiUsageLog.token_input).label("total_input"),
+            sa_func.sum(AiUsageLog.token_output).label("total_output"),
+            sa_func.count(AiUsageLog.id).label("call_count"),
+        )
+        .group_by(AiUsageLog.org_id, sa_func.date_trunc("month", AiUsageLog.created_at))
+        .order_by(sa_func.date_trunc("month", AiUsageLog.created_at).desc())
+        .limit(200)
+        .all()
+    )
+    orgs = {o.id: o.name for o in db.query(Organization.id, Organization.name).all()}
+    INPUT_PRICE_PER_M = 0.15
+    OUTPUT_PRICE_PER_M = 0.60
+
+    result = []
+    for row in rows:
+        input_tokens = int(row.total_input or 0)
+        output_tokens = int(row.total_output or 0)
+        cost_usd = (input_tokens * INPUT_PRICE_PER_M + output_tokens * OUTPUT_PRICE_PER_M) / 1_000_000
+        result.append({
+            "org_id": row.org_id,
+            "org_name": orgs.get(row.org_id, f"Org {row.org_id}"),
+            "month": row.month.strftime("%Y-%m") if row.month else None,
+            "total_input_tokens": input_tokens,
+            "total_output_tokens": output_tokens,
+            "call_count": int(row.call_count or 0),
+            "cost_usd": round(cost_usd, 4),
+        })
+    return {"costs": result}
 
 
 @router.patch("/api/admin/tenants/{org_id}")
