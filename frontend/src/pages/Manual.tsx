@@ -206,22 +206,44 @@ export default function Manual() {
           <section>
             <SectionTitle id="setup" icon={<Settings size={20} />} title="初期セットアップ" />
 
-            <SubTitle>Google Custom Search API の設定（推奨）</SubTitle>
-            <div className="space-y-2">
-              <Step number={1}>サイドバー下部の <strong>「設定」</strong> を開く</Step>
-              <Step number={2}>「Google Custom Search API 設定」に <strong>API Key</strong> と <strong>Search Engine ID (cx)</strong> を入力</Step>
-              <Step number={3}><strong>「保存」</strong> → <strong>「接続テスト」</strong> で動作確認</Step>
+            <SubTitle>① Google API Key の取得</SubTitle>
+            <div className="space-y-2 mb-3">
+              <Step number={1}><a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer" className="text-blue-600 underline">Google Cloud Console</a> を開き、Googleアカウントでログイン</Step>
+              <Step number={2}>上部「プロジェクトを選択」→「新しいプロジェクト」で任意の名前でプロジェクトを作成</Step>
+              <Step number={3}>左メニュー「APIとサービス」→「ライブラリ」→ <strong>「Custom Search API」</strong> を検索して有効化</Step>
+              <Step number={4}>左メニュー「APIとサービス」→「認証情報」→「認証情報を作成」→「APIキー」をクリック</Step>
+              <Step number={5}>生成された <code className="bg-slate-100 px-1 rounded text-xs">AIzaSy...</code> から始まるキーをコピー → 設定画面の「Google API Key」に貼り付け</Step>
             </div>
             <InfoBox color="blue">
               Google Custom Search API は <strong>1日100回まで無料</strong>です。ダッシュボードのAPI使用量カードで残り回数を確認できます。
             </InfoBox>
+
+            <SubTitle>② Search Engine ID (cx) の取得</SubTitle>
+            <div className="space-y-2 mb-3">
+              <Step number={1}><a href="https://programmablesearchengine.google.com/controlpanel/create" target="_blank" rel="noreferrer" className="text-blue-600 underline">Programmable Search Engine</a> を開く</Step>
+              <Step number={2}>「検索エンジン名」に任意の名前を入力（例：LeadHive）</Step>
+              <Step number={3}>「検索対象」で <strong>「ウェブ全体を検索する」</strong> を選択して「作成」をクリック</Step>
+              <Step number={4}>作成完了後、「コントロールパネルへ」→「基本」タブを開く</Step>
+              <Step number={5}>「検索エンジン ID」欄の <code className="bg-slate-100 px-1 rounded text-xs">a1b2c3...</code> 形式のIDをコピー → 設定画面の「Search Engine ID (cx)」に貼り付け</Step>
+            </div>
             <InfoBox color="amber">
-              API Key は <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer" className="underline">Google Cloud Console</a> で、
-              Search Engine ID は <a href="https://programmablesearchengine.google.com/" target="_blank" rel="noreferrer" className="underline">Programmable Search Engine</a> で取得できます。
+              コントロールパネルで「<strong>ウェブ全体を検索</strong>」が有効になっていることを確認してください。OFFのままだと収集範囲が極端に狭くなります。
             </InfoBox>
 
-            <SubTitle>Google Places API（Googleマップ収集用）</SubTitle>
-            <p className="text-sm text-slate-600">設定画面の「Google Places API Key」フィールドに入力・保存します。Google Custom Search API とは別のキーです。</p>
+            <div className="space-y-2">
+              <Step number={6}>設定画面で両方入力後 <strong>「保存」</strong> → <strong>「接続テスト」</strong> で動作確認</Step>
+            </div>
+
+            <SubTitle>③ Google Places API Key の取得（Googleマップ収集用）</SubTitle>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>Google Cloud Console で同じプロジェクトを選択</Step>
+              <Step number={2}>「APIとサービス」→「ライブラリ」→ <strong>「Places API」</strong> を検索して有効化</Step>
+              <Step number={3}>「認証情報」→「認証情報を作成」→「APIキー」で新しいキーを作成</Step>
+              <Step number={4}>生成されたキーを設定画面の「Google Places API Key」に貼り付けて保存</Step>
+            </div>
+            <InfoBox color="blue">
+              Custom Search API と同じAPIキーをPlacesでも使用できますが、用途別に分けて管理することを推奨します。
+            </InfoBox>
 
             <SubTitle>Slack 通知の設定（任意）</SubTitle>
             <div className="space-y-2">
