@@ -1,0 +1,632 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  BookOpen, ChevronRight, Settings, FolderKanban, Globe,
+  Building2, Database, LayoutDashboard, FileText, Star,
+  AlertTriangle, HelpCircle, Zap, Search, Bell,
+} from "lucide-react";
+
+interface Section {
+  id: string;
+  title: string;
+  icon: React.ReactNode;
+}
+
+const SECTIONS: Section[] = [
+  { id: "overview", title: "はじめに・基本フロー", icon: <BookOpen size={16} /> },
+  { id: "setup", title: "初期セットアップ", icon: <Settings size={16} /> },
+  { id: "projects", title: "プロジェクト管理", icon: <FolderKanban size={16} /> },
+  { id: "collection", title: "企業の収集", icon: <Globe size={16} /> },
+  { id: "companies", title: "候補企業の管理・評価", icon: <Building2 size={16} /> },
+  { id: "scoring", title: "スコアリングの仕組み", icon: <Star size={16} /> },
+  { id: "master", title: "マスターDB", icon: <Database size={16} /> },
+  { id: "dashboard", title: "ダッシュボードの見方", icon: <LayoutDashboard size={16} /> },
+  { id: "activities", title: "営業活動の記録", icon: <FileText size={16} /> },
+  { id: "notifications", title: "Slack通知・自動収集", icon: <Bell size={16} /> },
+  { id: "tips", title: "便利な機能", icon: <Zap size={16} /> },
+  { id: "faq", title: "よくある質問", icon: <HelpCircle size={16} /> },
+];
+
+function Badge({ color, children }: { color: string; children: React.ReactNode }) {
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${color}`}>
+      {children}
+    </span>
+  );
+}
+
+function Step({ number, children }: { number: number; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3 items-start">
+      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+        {number}
+      </div>
+      <div className="flex-1 text-slate-700">{children}</div>
+    </div>
+  );
+}
+
+function Table({ headers, rows }: { headers: string[]; rows: (string | React.ReactNode)[][] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="bg-slate-100">
+            {headers.map((h, i) => (
+              <th key={i} className="text-left px-3 py-2 border border-slate-200 font-semibold text-slate-700">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="even:bg-slate-50 hover:bg-blue-50 transition-colors">
+              {row.map((cell, j) => (
+                <td key={j} className="px-3 py-2 border border-slate-200 text-slate-700">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SectionTitle({ id, icon, title }: { id: string; icon: React.ReactNode; title: string }) {
+  return (
+    <h2 id={id} className="flex items-center gap-2 text-xl font-bold text-slate-800 mb-4 scroll-mt-6">
+      <span className="text-blue-600">{icon}</span>
+      {title}
+    </h2>
+  );
+}
+
+function SubTitle({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-base font-bold text-slate-700 mt-6 mb-3 flex items-center gap-1.5"><ChevronRight size={16} className="text-blue-500" />{children}</h3>;
+}
+
+function InfoBox({ color = "blue", children }: { color?: "blue" | "amber" | "green" | "red"; children: React.ReactNode }) {
+  const styles = {
+    blue: "bg-blue-50 border-blue-300 text-blue-800",
+    amber: "bg-amber-50 border-amber-300 text-amber-800",
+    green: "bg-emerald-50 border-emerald-300 text-emerald-800",
+    red: "bg-red-50 border-red-300 text-red-800",
+  };
+  return (
+    <div className={`border-l-4 rounded-r px-4 py-3 text-sm my-3 ${styles[color]}`}>
+      {children}
+    </div>
+  );
+}
+
+function FlowDiagram({ steps }: { steps: string[] }) {
+  return (
+    <div className="flex flex-col gap-1 my-4">
+      {steps.map((step, i) => (
+        <div key={i} className="flex flex-col items-start">
+          <div className="bg-white border border-slate-300 rounded px-4 py-2 text-sm text-slate-700 w-full shadow-sm">
+            {step}
+          </div>
+          {i < steps.length - 1 && (
+            <div className="text-slate-400 text-lg leading-none ml-4">↓</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function Manual() {
+  const [activeId, setActiveId] = useState("overview");
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const handler = () => {
+      const sectionEls = SECTIONS.map(s => document.getElementById(s.id)).filter(Boolean) as HTMLElement[];
+      for (let i = sectionEls.length - 1; i >= 0; i--) {
+        if (sectionEls[i].getBoundingClientRect().top <= 80) {
+          setActiveId(sectionEls[i].id);
+          return;
+        }
+      }
+      setActiveId("overview");
+    };
+    el.addEventListener("scroll", handler, { passive: true });
+    return () => el.removeEventListener("scroll", handler);
+  }, []);
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (el && contentRef.current) {
+      contentRef.current.scrollTo({ top: el.offsetTop - 24, behavior: "smooth" });
+    }
+  };
+
+  return (
+    <div className="flex h-full bg-slate-50">
+      <aside className="w-56 flex-shrink-0 bg-white border-r border-slate-200 overflow-y-auto">
+        <div className="px-4 py-4 border-b border-slate-200">
+          <div className="flex items-center gap-2 text-slate-800">
+            <BookOpen size={18} className="text-blue-600" />
+            <span className="font-bold text-sm">ユーザーマニュアル</span>
+          </div>
+        </div>
+        <nav className="p-2">
+          {SECTIONS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => scrollTo(s.id)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded text-left text-xs transition-colors ${
+                activeId === s.id
+                  ? "bg-blue-50 text-blue-700 font-semibold"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <span className={activeId === s.id ? "text-blue-600" : "text-slate-400"}>{s.icon}</span>
+              {s.title}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <div ref={contentRef} className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-8 py-8 space-y-14">
+
+          {/* ========== はじめに ========== */}
+          <section>
+            <SectionTitle id="overview" icon={<BookOpen size={20} />} title="はじめに・基本フロー" />
+            <p className="text-slate-600 mb-6">
+              このツールは EC・Shopify 支援会社などの<strong>代理店候補企業を自動収集・評価・管理</strong>するシステムです。
+              複数の収集方法でWebから企業情報を取得し、スコアリング・ステータス管理を通じて営業活動を支援します。
+            </p>
+            <SubTitle>基本的な運用フロー</SubTitle>
+            <FlowDiagram steps={[
+              "① プロジェクトを作成（目的別に管理）",
+              "② Google APIキーを設定（Google検索収集を使う場合）",
+              "③ 検索キーワードを登録",
+              "④ 企業を自動収集（複数の収集方法から選択）",
+              "⑤ 収集した企業をスコアで絞り込み・内容確認",
+              "⑥ ステータスを更新しながら営業活動を記録",
+              "⑦ 定期的に収集を回してリストを拡充し続ける",
+            ]} />
+          </section>
+
+          {/* ========== 初期セットアップ ========== */}
+          <section>
+            <SectionTitle id="setup" icon={<Settings size={20} />} title="初期セットアップ" />
+
+            <SubTitle>Google Custom Search API の設定（推奨）</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>サイドバー下部の <strong>「設定」</strong> を開く</Step>
+              <Step number={2}>「Google Custom Search API 設定」に <strong>API Key</strong> と <strong>Search Engine ID (cx)</strong> を入力</Step>
+              <Step number={3}><strong>「保存」</strong> → <strong>「接続テスト」</strong> で動作確認</Step>
+            </div>
+            <InfoBox color="blue">
+              Google Custom Search API は <strong>1日100回まで無料</strong>です。ダッシュボードのAPI使用量カードで残り回数を確認できます。
+            </InfoBox>
+            <InfoBox color="amber">
+              API Key は <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer" className="underline">Google Cloud Console</a> で、
+              Search Engine ID は <a href="https://programmablesearchengine.google.com/" target="_blank" rel="noreferrer" className="underline">Programmable Search Engine</a> で取得できます。
+            </InfoBox>
+
+            <SubTitle>Google Places API（Googleマップ収集用）</SubTitle>
+            <p className="text-sm text-slate-600">設定画面の「Google Places API Key」フィールドに入力・保存します。Google Custom Search API とは別のキーです。</p>
+
+            <SubTitle>Slack 通知の設定（任意）</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>設定画面「Slack通知設定」に Webhook URL を入力・保存</Step>
+              <Step number={2}><strong>「テスト送信」</strong> ボタンで疎通確認</Step>
+            </div>
+          </section>
+
+          {/* ========== プロジェクト管理 ========== */}
+          <section>
+            <SectionTitle id="projects" icon={<FolderKanban size={20} />} title="プロジェクト管理" />
+            <p className="text-slate-600 mb-4">
+              「Shopify代理店候補」「EC運営代行候補」「関西エリア限定」のように、<strong>目的・条件ごとにデータを分けて管理</strong>するための単位です。
+            </p>
+
+            <SubTitle>プロジェクトの作成</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>サイドバーの <strong>「プロジェクト管理」</strong> を開く</Step>
+              <Step number={2}><strong>「新規プロジェクト」</strong> ボタンをクリック</Step>
+              <Step number={3}>名前・説明・業種を入力して <strong>「作成」</strong></Step>
+            </div>
+
+            <SubTitle>プロジェクトの切り替え</SubTitle>
+            <p className="text-sm text-slate-600">サイドバー上部のドロップダウンから切り替えます。切り替えると全画面のデータが選択プロジェクトに絞り込まれます。</p>
+
+            <SubTitle>カスタマイズ（上級）</SubTitle>
+            <Table
+              headers={["設定項目", "説明"]}
+              rows={[
+                ["カテゴリ定義", "どのキーワードがヒットしたらどのカテゴリに分類するかを設定"],
+                ["フラグ定義", "Shopify判定・EC判定などの検出キーワードをカスタマイズ"],
+                ["スコアリングルール", "各フラグの点数をプロジェクトの目的に合わせて調整"],
+              ]}
+            />
+          </section>
+
+          {/* ========== 企業の収集 ========== */}
+          <section>
+            <SectionTitle id="collection" icon={<Globe size={20} />} title="企業の収集" />
+
+            <Table
+              headers={["収集方法", "説明", "APIキー"]}
+              rows={[
+                ["Google API 検索", "Google Custom Search APIで指定キーワードを検索", <Badge color="bg-blue-100 text-blue-800">必要</Badge>],
+                ["ディレクトリ収集", "企業一覧ページのリンクから一括収集", <Badge color="bg-emerald-100 text-emerald-800">不要</Badge>],
+                ["Google 直接検索", "Google検索結果を直接スクレイピング", <Badge color="bg-emerald-100 text-emerald-800">不要</Badge>],
+                ["Shopify パートナー", "Shopifyパートナーディレクトリから収集", <Badge color="bg-emerald-100 text-emerald-800">不要</Badge>],
+                ["Google マップ", "Google Places APIでマップ上の企業を収集", <Badge color="bg-blue-100 text-blue-800">必要</Badge>],
+              ]}
+            />
+
+            <SubTitle>Google API 検索（最も精度が高い方法）</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>サイドバーの <strong>「URL収集」</strong> を開き「Google API検索」タブを選択</Step>
+              <Step number={2}>収集したいキーワードを選択（「全キーワード一括収集」も可）</Step>
+              <Step number={3}><strong>「収集開始」</strong> → プログレスバーでリアルタイム進捗を確認</Step>
+            </div>
+            <InfoBox color="blue">
+              キーワードが未登録の場合は <strong>「検索条件管理」</strong> 画面で先に追加してください。
+            </InfoBox>
+
+            <SubTitle>検索キーワードの登録</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>サイドバーの <strong>「検索条件管理」</strong> を開く</Step>
+              <Step number={2}><strong>「キーワードを追加」</strong> をクリック</Step>
+              <Step number={3}>キーワード（例: <code className="bg-slate-100 px-1 rounded text-xs">Shopify 制作会社</code>）、カテゴリ、地域、除外キーワードを入力して保存</Step>
+            </div>
+
+            <SubTitle>ディレクトリ収集</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">業界団体の会員一覧や比較サイトの掲載企業リストなどのURLを入力すると、リンク先の企業をまとめて収集できます。</p>
+            <div className="space-y-2">
+              <Step number={1}>「URL収集」→「ディレクトリ収集」タブ</Step>
+              <Step number={2}>企業一覧ページのURLを入力し、最大ページ数を設定</Step>
+              <Step number={3}><strong>「収集開始」</strong></Step>
+            </div>
+
+            <SubTitle>URLを直接入力して取得</SubTitle>
+            <p className="text-sm text-slate-600">特定の企業サイトを手動で追加したい場合は「URL収集」画面下部の「単一URL取得」または「一括URL取得」を使用します。</p>
+
+            <SubTitle>自動収集スケジュール</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>設定画面の「自動収集スケジュール」で <strong>「有効にする」</strong> をON</Step>
+              <Step number={2}>実行時刻を設定して保存</Step>
+            </div>
+            <InfoBox color="amber">
+              自動収集はサーバーが起動中の場合のみ実行されます。アクティブなキーワードが対象になります。
+            </InfoBox>
+          </section>
+
+          {/* ========== 候補企業の管理・評価 ========== */}
+          <section>
+            <SectionTitle id="companies" icon={<Building2 size={20} />} title="候補企業の管理・評価" />
+
+            <SubTitle>一覧の見方</SubTitle>
+            <Table
+              headers={["列", "説明"]}
+              rows={[
+                ["会社名", "会社名とドメイン。Shopify/Amazon/楽天フラグのバッジも表示"],
+                ["カテゴリ", "自動分類されたカテゴリ（EC制作、Shopify支援など）"],
+                ["スコア", "0〜100点のスコアとランク（A/B/C/D）"],
+                ["所在地", "都道府県・市区町村・電話番号"],
+                ["問い合わせ", "問い合わせページへのリンク"],
+                ["ステータス", "現在の営業ステータス"],
+              ]}
+            />
+
+            <SubTitle>絞り込みフィルター</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">画面上部のフィルターバーで以下の条件を組み合わせられます：</p>
+            <div className="flex flex-wrap gap-2">
+              {["カテゴリ", "ステータス", "スコアランク A/B/C/D", "問い合わせあり/なし", "フリーワード検索", "タグ"].map(f => (
+                <Badge key={f} color="bg-slate-100 text-slate-700">{f}</Badge>
+              ))}
+            </div>
+
+            <SubTitle>ステータス管理</SubTitle>
+            <Table
+              headers={["ステータス", "意味"]}
+              rows={[
+                [<Badge color="bg-slate-100 text-slate-700">未確認</Badge>, "収集直後。まだ内容を確認していない"],
+                [<Badge color="bg-blue-100 text-blue-800">対象候補</Badge>, "確認してアプローチ対象と判断した"],
+                [<Badge color="bg-red-100 text-red-800">除外</Badge>, "業種不一致等でアプローチ不要と判断"],
+                [<Badge color="bg-indigo-100 text-indigo-800">アプローチ前</Badge>, "アプローチ準備完了"],
+                [<Badge color="bg-amber-100 text-amber-800">フォーム送信済</Badge>, "問い合わせフォームからコンタクト済み"],
+                [<Badge color="bg-orange-100 text-orange-800">返信あり</Badge>, "先方から返信が来た"],
+                [<Badge color="bg-purple-100 text-purple-800">面談化</Badge>, "面談の約束が取れた"],
+                [<Badge color="bg-emerald-100 text-emerald-800">代理店化</Badge>, "代理店契約が完了した"],
+                [<Badge color="bg-gray-100 text-gray-600">失注</Badge>, "断られた・見込みなし"],
+              ]}
+            />
+
+            <SubTitle>詳細編集モーダル</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">企業行の「鉛筆アイコン」をクリックして開きます。</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                "基本情報（会社名・URL・電話・メール・所在地）",
+                "カテゴリ・フラグ（Shopify/EC/Amazon/楽天等）",
+                "スコア手動調整（-30〜+30点）",
+                "メモ・内部ノート",
+                "タグの付与・削除",
+                "ステータス変更履歴の閲覧",
+                "営業活動ログの記録",
+                "メールテンプレートの呼び出し",
+              ].map(item => (
+                <div key={item} className="flex items-start gap-1.5 text-sm text-slate-700">
+                  <span className="text-blue-500 mt-0.5 flex-shrink-0">✓</span>
+                  {item}
+                </div>
+              ))}
+            </div>
+
+            <SubTitle>一括操作（複数選択）</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">チェックボックスで複数企業を選択するとバルクアクションバーが表示されます：</p>
+            <div className="space-y-3">
+              <div className="bg-slate-50 border border-slate-200 rounded p-3">
+                <p className="text-sm font-semibold text-slate-700 mb-1">一括ステータス変更</p>
+                <p className="text-xs text-slate-600">複数の企業のステータスをドロップダウンで選択してまとめて変更します。</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded p-3">
+                <p className="text-sm font-semibold text-slate-700 mb-1">プロジェクト間移動</p>
+                <p className="text-xs text-slate-600">選択した企業を別のプロジェクトに移動します。移動先に同ドメインが既にある場合は自動スキップされます。</p>
+              </div>
+            </div>
+
+            <SubTitle>再スクレイピング</SubTitle>
+            <p className="text-sm text-slate-600">企業行の「回転矢印アイコン」をクリックすると、WebサイトをFetch し直して情報を最新に更新します。手動で調整したスコアは保持されます。</p>
+
+            <SubTitle>CSVエクスポート</SubTitle>
+            <p className="text-sm text-slate-600">フィルターで絞り込んだ状態で右上の「CSV出力」ボタンを押すと、現在の表示条件のデータが出力されます。全件出力する場合はフィルターをリセットしてから実行してください。</p>
+          </section>
+
+          {/* ========== スコアリング ========== */}
+          <section>
+            <SectionTitle id="scoring" icon={<Star size={20} />} title="スコアリングの仕組み" />
+            <p className="text-slate-600 mb-4">収集した企業は <strong>0〜100点</strong> で自動採点されます。スコアに応じてA〜Dのランクが付与されます。</p>
+
+            <SubTitle>スコアランク</SubTitle>
+            <div className="grid grid-cols-4 gap-3 mb-4">
+              {[
+                { rank: "A", range: "80〜100点", color: "bg-emerald-50 border-emerald-300", badge: "bg-emerald-100 text-emerald-800", note: "優先アプローチ" },
+                { rank: "B", range: "60〜79点", color: "bg-blue-50 border-blue-300", badge: "bg-blue-100 text-blue-800", note: "積極検討" },
+                { rank: "C", range: "40〜59点", color: "bg-amber-50 border-amber-300", badge: "bg-amber-100 text-amber-800", note: "要確認" },
+                { rank: "D", range: "0〜39点", color: "bg-slate-50 border-slate-300", badge: "bg-slate-100 text-slate-600", note: "優先度低" },
+              ].map(r => (
+                <div key={r.rank} className={`border rounded p-3 text-center ${r.color}`}>
+                  <Badge color={r.badge}>ランク {r.rank}</Badge>
+                  <p className="text-xs text-slate-600 mt-1">{r.range}</p>
+                  <p className="text-xs font-semibold text-slate-700 mt-0.5">{r.note}</p>
+                </div>
+              ))}
+            </div>
+
+            <SubTitle>採点ルール（デフォルト）</SubTitle>
+            <Table
+              headers={["条件", "点数"]}
+              rows={[
+                ["Shopify フラグあり", <span className="font-semibold text-emerald-700">+20点</span>],
+                ["制作フラグあり", <span className="font-semibold text-emerald-700">+15点</span>],
+                ["コンサルフラグあり", <span className="font-semibold text-emerald-700">+15点</span>],
+                ["運営代行フラグあり", <span className="font-semibold text-emerald-700">+15点</span>],
+                ["問い合わせURLあり", <span className="font-semibold text-emerald-700">+10点</span>],
+                ["Amazon + 楽天の両フラグあり", <span className="font-semibold text-emerald-700">+10点</span>],
+                ["電話番号あり", <span className="font-semibold text-emerald-700">+5点</span>],
+                ["所在地（都道府県/市区町村）あり", <span className="font-semibold text-emerald-700">+5点</span>],
+                ["情報が2項目未満（会社名/電話/メール/所在地）", <span className="font-semibold text-red-600">-10点</span>],
+                ["問い合わせURLなし", <span className="font-semibold text-red-600">-15点</span>],
+                ["EC関連フラグが一つもなし", <span className="font-semibold text-red-600">-20点</span>],
+              ]}
+            />
+
+            <SubTitle>手動スコア調整</SubTitle>
+            <p className="text-sm text-slate-600">企業の詳細編集モーダルから <strong>-30〜+30点</strong> の手動調整が可能です。再スクレイピング後も調整値は保持されます。</p>
+
+            <SubTitle>プロジェクト別カスタマイズ</SubTitle>
+            <p className="text-sm text-slate-600">プロジェクト設定画面でスコアリングルール（各フラグの点数）をプロジェクトの目的に合わせて上書きできます。</p>
+          </section>
+
+          {/* ========== マスターDB ========== */}
+          <section>
+            <SectionTitle id="master" icon={<Database size={20} />} title="マスターDB" />
+            <p className="text-slate-600 mb-4">
+              マスターDBは<strong>全プロジェクト共通の企業プール</strong>です。どのプロジェクトで収集した企業も、収集と同時にマスターDBに自動登録されます。
+            </p>
+
+            <SubTitle>活用シーン</SubTitle>
+            <div className="space-y-2">
+              {[
+                "別プロジェクトの成果を再利用したい（「東京特化」で収集した企業を「全国」プロジェクトでも使う）",
+                "過去に収集した企業を新しいプロジェクトで再活用したい",
+                "まとめて大量の企業を素早くインポートしたい",
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                  <span className="text-blue-500 flex-shrink-0 mt-0.5">●</span>
+                  {item}
+                </div>
+              ))}
+            </div>
+
+            <SubTitle>プロジェクトへのインポート手順</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>サイドバーで対象プロジェクトに切り替えておく</Step>
+              <Step number={2}>サイドバーの <strong>「マスターDB」</strong> を開く</Step>
+              <Step number={3}>キーワード・カテゴリ・都道府県・最低スコアで検索</Step>
+              <Step number={4}><Badge color="bg-emerald-100 text-emerald-800">登録済み</Badge> バッジのない企業にチェックを入れる</Step>
+              <Step number={5}><strong>「現在のプロジェクトにインポート」</strong> → 完了メッセージで件数を確認</Step>
+            </div>
+            <InfoBox color="blue">
+              「登録済み」バッジの企業は現プロジェクトに既に存在するためインポート対象外です。
+            </InfoBox>
+          </section>
+
+          {/* ========== ダッシュボード ========== */}
+          <section>
+            <SectionTitle id="dashboard" icon={<LayoutDashboard size={20} />} title="ダッシュボードの見方" />
+
+            <SubTitle>統計カード</SubTitle>
+            <Table
+              headers={["カード", "説明"]}
+              rows={[
+                ["総収集件数", "プロジェクト内の全企業数"],
+                ["重複除外後", "ユニークドメイン数（実質的な企業数）"],
+                ["未確認", "まだステータスが「未確認」の企業数"],
+                ["高スコア（A/B）", "ランクA・Bの企業数（優先アプローチ対象）"],
+                ["問い合わせあり", "問い合わせURLを持つ企業数"],
+                ["API使用量", "本日のGoogle API使用回数（上限100回/日）"],
+              ]}
+            />
+
+            <SubTitle>グラフ一覧</SubTitle>
+            <Table
+              headers={["グラフ", "種類", "説明"]}
+              rows={[
+                ["カテゴリ別内訳", "円グラフ", "企業のカテゴリ分布"],
+                ["スコアランク分布", "棒グラフ", "A〜Dランクの件数"],
+                ["ステータス別", "横棒グラフ", "各営業ステータスの件数"],
+                ["都道府県別（上位10）", "横棒グラフ", "所在地の分布"],
+                ["直近30日の収集件数推移", "折れ線グラフ", "日別の収集実績・トレンド"],
+              ]}
+            />
+            <InfoBox color="blue">全グラフは現在選択中のプロジェクトのデータのみを表示します。</InfoBox>
+          </section>
+
+          {/* ========== 営業活動の記録 ========== */}
+          <section>
+            <SectionTitle id="activities" icon={<FileText size={20} />} title="営業活動の記録" />
+
+            <SubTitle>活動ログの種別</SubTitle>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {["電話", "メール", "フォーム送信", "面談", "その他"].map(t => (
+                <Badge key={t} color="bg-slate-100 text-slate-700">{t}</Badge>
+              ))}
+            </div>
+            <p className="text-sm text-slate-600">企業の詳細編集モーダル → 「活動ログ」タブから記録します。日時・種別・内容を入力して保存すると一覧に追加されます。</p>
+
+            <SubTitle>メモテンプレート</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>サイドバーの <strong>「メモテンプレート」</strong> を開く</Step>
+              <Step number={2}><strong>「テンプレートを追加」</strong> で雛形テキストを作成・保存</Step>
+              <Step number={3}>企業詳細モーダルのメモ欄から「テンプレートを挿入」で呼び出す</Step>
+            </div>
+
+            <SubTitle>メールテンプレート</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">「メモテンプレート」ページの「メールテンプレート」タブでメール本文の雛形を管理します。</p>
+            <div className="bg-slate-50 border border-slate-200 rounded p-3 text-sm">
+              <p className="font-semibold text-slate-700 mb-1">使える変数</p>
+              <div className="flex gap-3 flex-wrap">
+                {["{{company_name}}", "{{website_url}}", "{{contact_url}}"].map(v => (
+                  <code key={v} className="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs text-slate-700">{v}</code>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500 mt-2">企業詳細モーダルから呼び出すと変数が自動展開され、mailto:リンクも生成されます。</p>
+            </div>
+          </section>
+
+          {/* ========== Slack通知・自動収集 ========== */}
+          <section>
+            <SectionTitle id="notifications" icon={<Bell size={20} />} title="Slack通知・自動収集" />
+
+            <SubTitle>Slack 通知</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">収集が完了し、新規収集件数が1件以上の場合に自動送信されます。</p>
+            <div className="bg-slate-800 rounded p-3 text-xs text-green-300 font-mono">
+              ✅ 収集完了: [プロジェクト名] / [キーワード]<br />
+              新規 12件　除外 3件　重複 5件
+            </div>
+            <InfoBox color="amber">
+              Webhook URL は <a href="https://api.slack.com/apps" target="_blank" rel="noreferrer" className="underline">Slack API</a> でAppを作成 → Incoming Webhooks を有効化して取得します。
+            </InfoBox>
+
+            <SubTitle>自動収集スケジュール</SubTitle>
+            <p className="text-sm text-slate-600">設定画面で「自動収集を有効にする」をONにして実行時刻を設定すると、毎日その時刻にアクティブなキーワードを自動収集します。</p>
+          </section>
+
+          {/* ========== 便利な機能 ========== */}
+          <section>
+            <SectionTitle id="tips" icon={<Zap size={20} />} title="便利な機能" />
+
+            <SubTitle>重複検出・マージ</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>「候補企業一覧」右上の <strong>「重複チェック」</strong> をクリック</Step>
+              <Step number={2}>重複グループが表示される（ドメイン正規化による検出）</Step>
+              <Step number={3}>各グループで残したい「メイン企業」をラジオボタンで選択</Step>
+              <Step number={4}><strong>「マージ実行」</strong> → 他の企業の情報がメインに統合されて削除される</Step>
+            </div>
+
+            <SubTitle>拒否リスト</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">まとめサイト・競合・無関係なサイトなど収集から除外したいドメインを管理します。拒否リストに登録されたドメインは以降の収集で自動スキップされます。</p>
+            <InfoBox color="blue">まとめサイトや比較サイトは収集時に自動判定されて拒否リストに登録されます。手動でも追加可能です。</InfoBox>
+
+            <SubTitle>収集履歴</SubTitle>
+            <p className="text-sm text-slate-600">サイドバーの「収集履歴」では、いつ・どのキーワードで・何件収集/除外/重複したかの記録を確認できます。</p>
+
+            <SubTitle>タグ管理</SubTitle>
+            <p className="text-sm text-slate-600">企業ごとに自由なタグを付与でき、一覧画面でタグフィルタリングができます。詳細編集モーダルの「タグ」セクションから追加・削除できます。</p>
+          </section>
+
+          {/* ========== FAQ ========== */}
+          <section>
+            <SectionTitle id="faq" icon={<HelpCircle size={20} />} title="よくある質問" />
+            <div className="space-y-4">
+              {[
+                {
+                  q: "収集しても企業が0件のまま",
+                  a: "設定画面でGoogle API KeyとSearch Engine ID (cx) が正しく保存されているか確認してください。「接続テスト」ボタンで疎通確認できます。またAPI使用量が上限（100回/日）に達していないかもダッシュボードで確認してください。",
+                },
+                {
+                  q: "同じ企業が何度も収集される",
+                  a: "同一プロジェクト内では同一ドメインの重複収集は自動スキップされます。もし重複している場合は「重複チェック」機能でマージしてください。",
+                },
+                {
+                  q: "スコアが低い企業を非表示にしたい",
+                  a: "「候補企業一覧」のフィルターバーで「スコアランク」をA・Bのみに設定すると、高スコア企業だけ表示できます。",
+                },
+                {
+                  q: "収集した企業を別のプロジェクトでも使いたい",
+                  a: "2つの方法があります：① 候補企業一覧でチェックして「プロジェクト移動」を実行する。② マスターDB画面で検索して「インポート」する。",
+                },
+                {
+                  q: "Googleマップ収集で「APIキーが設定されていません」と表示される",
+                  a: "設定画面の「Google Places API Key」フィールドに入力・保存してください。Google Custom Search APIとは別のキーです。",
+                },
+                {
+                  q: "自動収集が実行されない",
+                  a: "設定画面で「自動収集を有効にする」がONか、「検索条件管理」でアクティブなキーワードが1件以上あるか、スケジューラ状態が「稼働中」かを確認してください。",
+                },
+                {
+                  q: "Slack通知が届かない",
+                  a: "設定画面でWebhook URLが正しく保存されているか「テスト送信」で確認してください。また収集の成功件数が0件の場合は通知されません。",
+                },
+                {
+                  q: "企業情報が不完全（会社名や電話番号がない）",
+                  a: "Webサイトの構造によっては自動抽出できない場合があります。詳細編集モーダルから手動で補完してください。情報を入力・保存するとスコアが自動再計算されます。",
+                },
+              ].map((item, i) => (
+                <div key={i} className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="flex items-start gap-2 bg-slate-50 px-4 py-3 border-b border-slate-200">
+                    <Search size={15} className="text-slate-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm font-semibold text-slate-800">{item.q}</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-sm text-slate-700">{item.a}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 bg-slate-100 rounded-lg p-4 text-center">
+              <AlertTriangle size={18} className="text-amber-500 mx-auto mb-2" />
+              <p className="text-xs text-slate-600">その他ご不明な点はシステム担当者までお問い合わせください。</p>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  );
+}

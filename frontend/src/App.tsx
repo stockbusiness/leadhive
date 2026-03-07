@@ -12,6 +12,7 @@ import {
   FolderKanban,
   ChevronDown,
   Database,
+  BookOpen,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 
@@ -25,6 +26,7 @@ const CollectionHistory = lazy(() => import("./pages/CollectionHistory"));
 const Templates = lazy(() => import("./pages/Templates"));
 const Projects = lazy(() => import("./pages/Projects"));
 const MasterDB = lazy(() => import("./pages/MasterDB"));
+const Manual = lazy(() => import("./pages/Manual"));
 
 function PageLoader() {
   return (
@@ -70,7 +72,8 @@ function AppContent() {
           <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" />
           <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" />
         </nav>
-        <div className="p-2 border-t border-slate-700">
+        <div className="p-2 border-t border-slate-700 space-y-1">
+          <SidebarLink to="/manual" icon={<BookOpen size={18} />} label="マニュアル" />
           <SidebarLink to="/settings" icon={<Settings size={18} />} label="設定" />
         </div>
       </aside>
@@ -86,6 +89,7 @@ function AppContent() {
             <Route path="/templates" element={<Templates />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/master" element={<MasterDB />} />
+            <Route path="/manual" element={<Manual />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </Suspense>
