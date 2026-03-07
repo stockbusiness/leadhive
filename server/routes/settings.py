@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from server.database import get_db
-from server.models import AppSetting
+from server.models import AppSetting, User
+from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -19,8 +20,14 @@ def mask_value(key: str, value: str) -> str:
 
 
 @router.get("")
-def get_settings(db: Session = Depends(get_db)):
-    settings = db.query(AppSetting).filter(AppSetting.setting_key.in_(SETTING_KEYS)).all()
+def get_settings(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    settings = db.query(AppSetting).filter(
+        AppSetting.setting_key.in_(SETTING_KEYS),
+        AppSetting.org_id == current_user.org_id,
+    ).all()
     result = {}
     for s in settings:
         result[s.setting_key] = {
@@ -34,16 +41,23 @@ def get_settings(db: Session = Depends(get_db)):
 
 
 @router.put("")
-def update_settings(data: dict, db: Session = Depends(get_db)):
+def update_settings(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     updated = []
     for key, value in data.items():
         if key not in SETTING_KEYS:
             continue
-        setting = db.query(AppSetting).filter(AppSetting.setting_key == key).first()
+        setting = db.query(AppSetting).filter(
+            AppSetting.setting_key == key,
+            AppSetting.org_id == current_user.org_id,
+        ).first()
         if setting:
             setting.setting_value = value
         else:
-            setting = AppSetting(setting_key=key, setting_value=value)
+            setting = AppSetting(setting_key=key, setting_value=value, org_id=current_user.org_id)
             db.add(setting)
         updated.append(key)
     db.commit()
@@ -51,15 +65,21 @@ def update_settings(data: dict, db: Session = Depends(get_db)):
 
 
 @router.get("/scheduler")
-def get_scheduler_status():
+def get_scheduler_status(current_user: User = Depends(get_current_user)):
     from server.services.scheduler import get_scheduler_status
     return get_scheduler_status()
 
 
 @router.post("/slack-test")
-def test_slack(db: Session = Depends(get_db)):
+def test_slack(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     from server.services.slack import send_slack_notification
-    webhook = db.query(AppSetting).filter(AppSetting.setting_key == "slack_webhook_url").first()
+    webhook = db.query(AppSetting).filter(
+        AppSetting.setting_key == "slack_webhook_url",
+        AppSetting.org_id == current_user.org_id,
+    ).first()
     if not webhook or not webhook.setting_value:
         return {"success": False, "message": "Slack Webhook URLが設定されていません"}
     ok = send_slack_notification("🔔 ESCMSからのテスト通知です。Slack連携が正常に動作しています！", webhook.setting_value)
@@ -69,11 +89,20 @@ def test_slack(db: Session = Depends(get_db)):
 
 
 @router.post("/test")
-def test_connection(db: Session = Depends(get_db)):
+def test_connection(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     import requests
 
-    api_key_setting = db.query(AppSetting).filter(AppSetting.setting_key == "google_api_key").first()
-    cx_setting = db.query(AppSetting).filter(AppSetting.setting_key == "google_cx").first()
+    api_key_setting = db.query(AppSetting).filter(
+        AppSetting.setting_key == "google_api_key",
+        AppSetting.org_id == current_user.org_id,
+    ).first()
+    cx_setting = db.query(AppSetting).filter(
+        AppSetting.setting_key == "google_cx",
+        AppSetting.org_id == current_user.org_id,
+    ).first()
 
     if not api_key_setting or not api_key_setting.setting_value:
         return {"success": False, "message": "Google API Keyが設定されていません"}

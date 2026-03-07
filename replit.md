@@ -8,6 +8,8 @@ Google Custom Search APIによる自動収集、またはURLの手動入力で�
 - **Frontend**: React + TypeScript + Tailwind CSS + Recharts (Vite build, served as static files)
 - **Backend**: FastAPI (Python) on port 5000
 - **Database**: PostgreSQL (Replit built-in)
+- **Auth**: JWT (python-jose) + sha256_crypt (passlib) — Bearer token in Authorization header
+- **Multi-tenancy**: Organization-based — each org has isolated projects, companies, settings, templates
 - **Scraping**: BeautifulSoup4 + Requests (parallel via ThreadPoolExecutor)
 - **Search API**: Google Custom Search API (APIキーは管理画面で設定)
 - **Caching**: In-memory TTL cache for API responses

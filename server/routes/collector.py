@@ -7,9 +7,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from server.database import get_db, SessionLocal
-from server.models import SearchKeyword, CollectionLog
+from server.models import SearchKeyword, CollectionLog, User
 from server.services.collector import collect_by_keyword, process_urls_to_companies, job_update, job_get, job_cleanup
 from server.services.cache import cache_invalidate
+from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/collect", tags=["collector"])
 
@@ -42,7 +43,10 @@ async def collect_progress(job_id: str):
 
 
 @router.post("/async")
-def collect_async(data: dict):
+def collect_async(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+):
     job_id = str(uuid.uuid4())
     job_update(job_id, type="progress", current=0, total=0, message="収集を開始しています...", status="running")
 
@@ -88,7 +92,11 @@ def collect_async(data: dict):
 
 
 @router.post("")
-def collect_single(data: dict, db: Session = Depends(get_db)):
+def collect_single(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     keyword_id = data.get("keyword_id")
     if not keyword_id:
         return {"error": "キーワードIDを指定してください"}
@@ -96,7 +104,11 @@ def collect_single(data: dict, db: Session = Depends(get_db)):
 
 
 @router.post("/all")
-def collect_all(data: dict = None, db: Session = Depends(get_db)):
+def collect_all(
+    data: dict = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     pid = (data or {}).get("project_id")
     q = db.query(SearchKeyword).filter(SearchKeyword.is_active == True)
     if pid:
@@ -109,26 +121,13 @@ def collect_all(data: dict = None, db: Session = Depends(get_db)):
     for kw in keywords:
         result = collect_by_keyword(kw.id, db, project_id=pid)
         if "error" in result:
-            all_results.append({
-                "keyword": kw.keyword,
-                "error": result["error"],
-            })
+            all_results.append({"keyword": kw.keyword, "error": result["error"]})
         else:
-            all_results.append({
-                "keyword": kw.keyword,
-                "summary": result["summary"],
-                "results": result["results"],
-            })
+            all_results.append({"keyword": kw.keyword, "summary": result["summary"], "results": result["results"]})
 
-    total_success = sum(
-        r.get("summary", {}).get("success", 0) for r in all_results if "summary" in r
-    )
-    total_rejected = sum(
-        r.get("summary", {}).get("rejected", 0) for r in all_results if "summary" in r
-    )
-    total_duplicate = sum(
-        r.get("summary", {}).get("duplicate", 0) for r in all_results if "summary" in r
-    )
+    total_success = sum(r.get("summary", {}).get("success", 0) for r in all_results if "summary" in r)
+    total_rejected = sum(r.get("summary", {}).get("rejected", 0) for r in all_results if "summary" in r)
+    total_duplicate = sum(r.get("summary", {}).get("duplicate", 0) for r in all_results if "summary" in r)
 
     return {
         "keywords_processed": len(all_results),
@@ -143,6 +142,7 @@ def collect_all(data: dict = None, db: Session = Depends(get_db)):
 def get_collection_history(
     limit: int = 50,
     project_id: int = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     q = db.query(CollectionLog)
@@ -168,7 +168,11 @@ def get_collection_history(
 
 
 @router.post("/directory")
-def collect_from_directory(data: dict, db: Session = Depends(get_db)):
+def collect_from_directory(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     url = data.get("url", "").strip()
     max_pages = min(data.get("max_pages", 3), 10)
     if not url:
@@ -186,7 +190,11 @@ def collect_from_directory(data: dict, db: Session = Depends(get_db)):
 
 
 @router.post("/google-scrape")
-def collect_google_scrape(data: dict, db: Session = Depends(get_db)):
+def collect_google_scrape(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     keyword = data.get("keyword", "").strip()
     region = data.get("region", "").strip()
     num = min(data.get("num", 10), 30)
@@ -209,7 +217,11 @@ def collect_google_scrape(data: dict, db: Session = Depends(get_db)):
 
 
 @router.post("/shopify-partners")
-def collect_shopify_partners(data: dict, db: Session = Depends(get_db)):
+def collect_shopify_partners(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     max_results = min(data.get("max_results", 20), 50)
 
     from server.services.shopify_partners import scrape_shopify_partners
@@ -224,7 +236,11 @@ def collect_shopify_partners(data: dict, db: Session = Depends(get_db)):
 
 
 @router.post("/google-maps")
-def collect_google_maps(data: dict, db: Session = Depends(get_db)):
+def collect_google_maps(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     keyword = data.get("keyword", "").strip()
     region = data.get("region", "東京").strip()
     max_results = min(data.get("max_results", 20), 60)
@@ -232,7 +248,10 @@ def collect_google_maps(data: dict, db: Session = Depends(get_db)):
         return {"error": "検索キーワードを入力してください"}
 
     from server.models import AppSetting
-    api_key_row = db.query(AppSetting).filter(AppSetting.setting_key == "google_places_api_key").first()
+    api_key_row = db.query(AppSetting).filter(
+        AppSetting.setting_key == "google_places_api_key",
+        AppSetting.org_id == current_user.org_id,
+    ).first()
     if not api_key_row or not api_key_row.setting_value:
         return {"error": "Google Places APIキーが設定されていません。設定画面で登録してください。"}
 

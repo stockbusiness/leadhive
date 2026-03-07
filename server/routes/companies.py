@@ -7,12 +7,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
 from typing import Optional, List
 from server.database import get_db
-from server.models import Company, StatusHistory, MemoTemplate, ActivityLog, CompanyTag
+from server.models import Company, StatusHistory, MemoTemplate, ActivityLog, CompanyTag, User
 from server.services.scorer import calculate_score
 from server.services.scraper import scrape_company_info
 from server.services.categorizer import categorize_company, detect_flags
 from server.schemas import company_to_dict
 from server.services.cache import cache_invalidate
+from server.auth import get_current_user
 
 
 def _normalize_domain(domain: str) -> str:
@@ -25,6 +26,11 @@ def _normalize_domain(domain: str) -> str:
     return d
 
 router = APIRouter(prefix="/api/companies", tags=["companies"])
+
+
+def _owned_projects(current_user: User, db: Session):
+    from server.models import Project
+    return [p.id for p in db.query(Project.id).filter(Project.org_id == current_user.org_id).all()]
 
 
 @router.get("")
@@ -40,11 +46,15 @@ def list_companies(
     page: int = 1,
     per_page: int = 50,
     project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(Company)
     if project_id:
         query = query.filter(Company.project_id == project_id)
+    else:
+        project_ids = _owned_projects(current_user, db)
+        query = query.filter(Company.project_id.in_(project_ids))
 
     if category:
         query = query.filter(Company.category_main == category)
@@ -85,7 +95,11 @@ def list_companies(
 
 
 @router.post("")
-def create_company(data: dict, db: Session = Depends(get_db)):
+def create_company(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     existing = db.query(Company).filter(Company.website_url == data.get("website_url")).first()
     if existing:
         return {"error": "この企業URLは既に登録されています", "company": company_to_dict(existing, db)}
@@ -103,10 +117,17 @@ def create_company(data: dict, db: Session = Depends(get_db)):
 
 
 @router.get("/duplicates")
-def find_duplicates(project_id: Optional[int] = None, db: Session = Depends(get_db)):
+def find_duplicates(
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     q = db.query(Company)
     if project_id:
         q = q.filter(Company.project_id == project_id)
+    else:
+        project_ids = _owned_projects(current_user, db)
+        q = q.filter(Company.project_id.in_(project_ids))
     companies = q.all()
     domain_groups = defaultdict(list)
     for c in companies:
@@ -126,7 +147,11 @@ def find_duplicates(project_id: Optional[int] = None, db: Session = Depends(get_
 
 
 @router.post("/merge")
-def merge_companies(data: dict, db: Session = Depends(get_db)):
+def merge_companies(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     main_id = data.get("main_id")
     merge_ids = data.get("merge_ids", [])
     if not main_id or not merge_ids:
@@ -191,13 +216,21 @@ def merge_companies(data: dict, db: Session = Depends(get_db)):
 
 
 @router.get("/tags/all")
-def get_all_tags(db: Session = Depends(get_db)):
+def get_all_tags(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     tags = db.query(CompanyTag.tag_name).distinct().order_by(CompanyTag.tag_name).all()
     return {"tags": [t[0] for t in tags]}
 
 
 @router.put("/{company_id}")
-def update_company(company_id: int, data: dict, db: Session = Depends(get_db)):
+def update_company(
+    company_id: int,
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         return {"error": "企業が見つかりません"}
@@ -229,7 +262,11 @@ def update_company(company_id: int, data: dict, db: Session = Depends(get_db)):
 
 
 @router.delete("/{company_id}")
-def delete_company(company_id: int, db: Session = Depends(get_db)):
+def delete_company(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         return {"error": "企業が見つかりません"}
@@ -240,7 +277,11 @@ def delete_company(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/bulk-status")
-def bulk_update_status(data: dict, db: Session = Depends(get_db)):
+def bulk_update_status(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     company_ids = data.get("company_ids", [])
     new_status = data.get("new_status", "")
     if not company_ids or not new_status:
@@ -266,7 +307,11 @@ def bulk_update_status(data: dict, db: Session = Depends(get_db)):
 
 
 @router.get("/{company_id}/history")
-def get_status_history(company_id: int, db: Session = Depends(get_db)):
+def get_status_history(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     history = (
         db.query(StatusHistory)
         .filter(StatusHistory.company_id == company_id)
@@ -287,7 +332,11 @@ def get_status_history(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{company_id}/activities")
-def get_activities(company_id: int, db: Session = Depends(get_db)):
+def get_activities(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     activities = (
         db.query(ActivityLog)
         .filter(ActivityLog.company_id == company_id)
@@ -309,7 +358,12 @@ def get_activities(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{company_id}/activities")
-def create_activity(company_id: int, data: dict, db: Session = Depends(get_db)):
+def create_activity(
+    company_id: int,
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         return {"error": "企業が見つかりません"}
@@ -340,11 +394,15 @@ def export_csv(
     score_rank: Optional[str] = None,
     has_contact: Optional[bool] = None,
     project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(Company)
     if project_id:
         query = query.filter(Company.project_id == project_id)
+    else:
+        project_ids = _owned_projects(current_user, db)
+        query = query.filter(Company.project_id.in_(project_ids))
     if category:
         query = query.filter(Company.category_main == category)
     if status:
@@ -393,13 +451,22 @@ def export_csv(
 
 
 @router.get("/{company_id}/tags")
-def get_company_tags(company_id: int, db: Session = Depends(get_db)):
+def get_company_tags(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     tags = db.query(CompanyTag).filter(CompanyTag.company_id == company_id).all()
     return {"tags": [{"id": t.id, "tag_name": t.tag_name, "created_at": t.created_at.isoformat() if t.created_at else None} for t in tags]}
 
 
 @router.post("/{company_id}/tags")
-def add_company_tag(company_id: int, data: dict, db: Session = Depends(get_db)):
+def add_company_tag(
+    company_id: int,
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         return {"error": "企業が見つかりません"}
@@ -423,7 +490,12 @@ def add_company_tag(company_id: int, data: dict, db: Session = Depends(get_db)):
 
 
 @router.delete("/{company_id}/tags/{tag_name}")
-def delete_company_tag(company_id: int, tag_name: str, db: Session = Depends(get_db)):
+def delete_company_tag(
+    company_id: int,
+    tag_name: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     tag = db.query(CompanyTag).filter(
         CompanyTag.company_id == company_id,
         CompanyTag.tag_name == tag_name
@@ -436,7 +508,11 @@ def delete_company_tag(company_id: int, tag_name: str, db: Session = Depends(get
 
 
 @router.post("/{company_id}/rescrape")
-def rescrape_company(company_id: int, db: Session = Depends(get_db)):
+def rescrape_company(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         return {"error": "企業が見つかりません"}
@@ -487,7 +563,11 @@ def rescrape_company(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/move-project")
-def move_project(data: dict, db: Session = Depends(get_db)):
+def move_project(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     company_ids = data.get("company_ids", [])
     target_project_id = data.get("target_project_id")
     if not company_ids or not target_project_id:

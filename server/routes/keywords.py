@@ -2,14 +2,19 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from server.database import get_db
-from server.models import SearchKeyword
+from server.models import SearchKeyword, User
+from server.auth import get_current_user
 from server.services.cache import cache_get, cache_set, cache_invalidate
 
 router = APIRouter(prefix="/api/keywords", tags=["keywords"])
 
 
 @router.get("")
-def list_keywords(project_id: Optional[int] = None, db: Session = Depends(get_db)):
+def list_keywords(
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     cache_key = f"keywords_list_{project_id}" if project_id else "keywords_list"
     cached = cache_get(cache_key, ttl=30)
     if cached:
@@ -37,7 +42,11 @@ def list_keywords(project_id: Optional[int] = None, db: Session = Depends(get_db
 
 
 @router.post("")
-def create_keyword(data: dict, db: Session = Depends(get_db)):
+def create_keyword(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     keyword = SearchKeyword(
         keyword=data["keyword"],
         category=data.get("category", ""),
@@ -64,7 +73,12 @@ def create_keyword(data: dict, db: Session = Depends(get_db)):
 
 
 @router.put("/{keyword_id}")
-def update_keyword(keyword_id: int, data: dict, db: Session = Depends(get_db)):
+def update_keyword(
+    keyword_id: int,
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     keyword = db.query(SearchKeyword).filter(SearchKeyword.id == keyword_id).first()
     if not keyword:
         return {"error": "キーワードが見つかりません"}
@@ -90,7 +104,11 @@ def update_keyword(keyword_id: int, data: dict, db: Session = Depends(get_db)):
 
 
 @router.delete("/{keyword_id}")
-def delete_keyword(keyword_id: int, db: Session = Depends(get_db)):
+def delete_keyword(
+    keyword_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     keyword = db.query(SearchKeyword).filter(SearchKeyword.id == keyword_id).first()
     if not keyword:
         return {"error": "キーワードが見つかりません"}

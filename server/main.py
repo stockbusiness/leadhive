@@ -8,7 +8,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates, projects, master
+from server.routes import auth
 from server.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -21,6 +23,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="ESCMS Partner Collection Tool", lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(keywords.router)
 app.include_router(dashboard.router)

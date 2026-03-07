@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from urllib.parse import urlparse
 from server.database import get_db
-from server.models import Company
+from server.models import Company, User
 from server.services.scraper import scrape_company_info, scrape_urls_parallel
 from server.services.categorizer import categorize_company, detect_flags
 from server.services.scorer import calculate_score
+from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/scrape", tags=["scraper"])
 
@@ -37,7 +38,11 @@ def validate_url(url: str) -> str:
 
 
 @router.post("")
-def scrape_url(data: dict, db: Session = Depends(get_db)):
+def scrape_url(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     url = data.get("url", "").strip()
     if not url:
         raise HTTPException(status_code=400, detail="URLを入力してください")
@@ -84,7 +89,11 @@ def scrape_url(data: dict, db: Session = Depends(get_db)):
 
 
 @router.post("/bulk")
-def scrape_bulk(data: dict, db: Session = Depends(get_db)):
+def scrape_bulk(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     urls = data.get("urls", [])
     if not urls:
         raise HTTPException(status_code=400, detail="URLリストを入力してください")

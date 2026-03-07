@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from server.database import get_db
-from server.models import Project, Company
+from server.models import Project, Company, User
+from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -65,8 +66,11 @@ def _project_to_dict(project, company_count=None):
 
 
 @router.get("")
-def list_projects(db: Session = Depends(get_db)):
-    projects = db.query(Project).order_by(desc(Project.created_at)).all()
+def list_projects(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    projects = db.query(Project).filter(Project.org_id == current_user.org_id).order_by(desc(Project.created_at)).all()
     result = []
     for p in projects:
         count = db.query(func.count(Company.id)).filter(Company.project_id == p.id).scalar()
@@ -75,8 +79,12 @@ def list_projects(db: Session = Depends(get_db)):
 
 
 @router.get("/{project_id}")
-def get_project(project_id: int, db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == project_id).first()
+def get_project(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project = db.query(Project).filter(Project.id == project_id, Project.org_id == current_user.org_id).first()
     if not project:
         return {"error": "プロジェクトが見つかりません"}
     count = db.query(func.count(Company.id)).filter(Company.project_id == project.id).scalar()
@@ -84,12 +92,17 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("")
-def create_project(data: dict, db: Session = Depends(get_db)):
+def create_project(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     name = data.get("name", "").strip()
     if not name:
         return {"error": "プロジェクト名を入力してください"}
 
     project = Project(
+        org_id=current_user.org_id,
         name=name,
         description=data.get("description", ""),
         industry=data.get("industry", ""),
@@ -105,8 +118,13 @@ def create_project(data: dict, db: Session = Depends(get_db)):
 
 
 @router.put("/{project_id}")
-def update_project(project_id: int, data: dict, db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == project_id).first()
+def update_project(
+    project_id: int,
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project = db.query(Project).filter(Project.id == project_id, Project.org_id == current_user.org_id).first()
     if not project:
         return {"error": "プロジェクトが見つかりません"}
 
@@ -121,8 +139,12 @@ def update_project(project_id: int, data: dict, db: Session = Depends(get_db)):
 
 
 @router.delete("/{project_id}")
-def delete_project(project_id: int, db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == project_id).first()
+def delete_project(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project = db.query(Project).filter(Project.id == project_id, Project.org_id == current_user.org_id).first()
     if not project:
         return {"error": "プロジェクトが見つかりません"}
 

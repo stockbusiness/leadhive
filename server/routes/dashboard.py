@@ -4,15 +4,20 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from server.database import get_db
-from server.models import Company, ApiUsageLog, CollectionLog
+from server.models import Company, ApiUsageLog, CollectionLog, User, Project
 from server.schemas import company_to_dict
 from server.services.cache import cache_get, cache_set
+from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
 @router.get("")
-def get_dashboard(project_id: Optional[int] = None, db: Session = Depends(get_db)):
+def get_dashboard(
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     cache_key = f"dashboard_{project_id}" if project_id else "dashboard"
     cached = cache_get(cache_key, ttl=60)
     if cached:
@@ -24,10 +29,12 @@ def get_dashboard(project_id: Optional[int] = None, db: Session = Depends(get_db
         cached["replied_companies"] = _get_replied(project_id, db)
         return cached
 
+    org_project_ids = [p.id for p in db.query(Project.id).filter(Project.org_id == current_user.org_id).all()]
+
     def scoped(q):
         if project_id:
             return q.filter(Company.project_id == project_id)
-        return q
+        return q.filter(Company.project_id.in_(org_project_ids))
 
     total = scoped(db.query(func.count(Company.id))).scalar() or 0
     unique_domains = scoped(db.query(func.count(func.distinct(Company.domain)))).scalar() or 0

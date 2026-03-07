@@ -4,10 +4,30 @@ from sqlalchemy.sql import func
 from server.database import Base
 
 
+class Organization(Base):
+    __tablename__ = "organizations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(50), default="admin")
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, default="")
     industry = Column(String(255), default="")
@@ -103,7 +123,8 @@ class AppSetting(Base):
     __tablename__ = "app_settings"
 
     id = Column(Integer, primary_key=True, index=True)
-    setting_key = Column(String(255), unique=True, nullable=False)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    setting_key = Column(String(255), nullable=False)
     setting_value = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -158,6 +179,7 @@ class MemoTemplate(Base):
     __tablename__ = "memo_templates"
 
     id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
     is_email_template = Column(Boolean, default=False)

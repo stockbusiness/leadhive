@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, NavLink } from "react-router-dom";
+import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Building2,
@@ -13,8 +13,12 @@ import {
   ChevronDown,
   Database,
   BookOpen,
+  LogOut,
+  User,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Companies = lazy(() => import("./pages/Companies"));
@@ -27,6 +31,8 @@ const Templates = lazy(() => import("./pages/Templates"));
 const Projects = lazy(() => import("./pages/Projects"));
 const MasterDB = lazy(() => import("./pages/MasterDB"));
 const Manual = lazy(() => import("./pages/Manual"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
 
 function PageLoader() {
   return (
@@ -38,6 +44,13 @@ function PageLoader() {
 
 function AppContent() {
   const { projects, currentProject, setCurrentProjectId } = useProject();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <div className="flex h-screen bg-slate-50">
@@ -76,6 +89,26 @@ function AppContent() {
           <SidebarLink to="/manual" icon={<BookOpen size={18} />} label="マニュアル" />
           <SidebarLink to="/settings" icon={<Settings size={18} />} label="設定" />
         </div>
+        {user && (
+          <div className="px-3 py-3 border-t border-slate-700 bg-slate-950">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="bg-blue-600 rounded-full p-1.5 flex-shrink-0">
+                <User size={12} />
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-xs text-white font-medium truncate">{user.org_name}</p>
+                <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
+            >
+              <LogOut size={12} />
+              ログアウト
+            </button>
+          </div>
+        )}
       </aside>
       <main className="flex-1 overflow-auto">
         <Suspense fallback={<PageLoader />}>
@@ -100,9 +133,24 @@ function AppContent() {
 
 function App() {
   return (
-    <ProjectProvider>
-      <AppContent />
-    </ProjectProvider>
+    <AuthProvider>
+      <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div></div>}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <ProjectProvider>
+                  <AppContent />
+                </ProjectProvider>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Suspense>
+    </AuthProvider>
   );
 }
 

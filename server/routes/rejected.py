@@ -2,13 +2,18 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from server.database import get_db
-from server.models import RejectedUrl
+from server.models import RejectedUrl, User
+from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/rejected", tags=["rejected"])
 
 
 @router.get("")
-def list_rejected(project_id: Optional[int] = None, db: Session = Depends(get_db)):
+def list_rejected(
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     q = db.query(RejectedUrl)
     if project_id:
         q = q.filter(RejectedUrl.project_id == project_id)
@@ -28,7 +33,11 @@ def list_rejected(project_id: Optional[int] = None, db: Session = Depends(get_db
 
 
 @router.post("")
-def add_rejected(data: dict, db: Session = Depends(get_db)):
+def add_rejected(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     domain = data.get("domain", "").strip()
     if not domain:
         raise HTTPException(status_code=400, detail="ドメインを入力してください")
@@ -58,7 +67,11 @@ def add_rejected(data: dict, db: Session = Depends(get_db)):
 
 
 @router.delete("/{item_id}")
-def delete_rejected(item_id: int, db: Session = Depends(get_db)):
+def delete_rejected(
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     item = db.query(RejectedUrl).filter(RejectedUrl.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="見つかりません")

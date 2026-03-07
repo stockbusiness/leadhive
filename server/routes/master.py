@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from server.database import get_db
-from server.models import CompanyMaster, Company
+from server.models import CompanyMaster, Company, User
+from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/master", tags=["master"])
 
@@ -38,7 +39,10 @@ def _master_to_dict(m: CompanyMaster, already_in_project: bool = False) -> dict:
 
 
 @router.get("/stats")
-def get_master_stats(db: Session = Depends(get_db)):
+def get_master_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     total = db.query(func.count(CompanyMaster.id)).scalar() or 0
     by_category = dict(
         db.query(CompanyMaster.category_main, func.count(CompanyMaster.id))
@@ -63,6 +67,7 @@ def search_master(
     min_score: Optional[int] = None,
     project_id: Optional[int] = None,
     limit: int = 50,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(CompanyMaster)
@@ -100,7 +105,11 @@ def search_master(
 
 
 @router.post("/import")
-def import_from_master(data: dict, db: Session = Depends(get_db)):
+def import_from_master(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     domain_list = data.get("domain_list", [])
     project_id = data.get("project_id")
 
