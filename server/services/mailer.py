@@ -28,7 +28,7 @@ def send_email(
     user = smtp_settings.get("smtp_user", "")
     password = smtp_settings.get("smtp_password", "")
     from_email = smtp_settings.get("smtp_from_email", "") or user
-    from_name = smtp_settings.get("smtp_from_name", "ESCMS")
+    from_name = smtp_settings.get("smtp_from_name", "LeadHive")
     use_tls = smtp_settings.get("smtp_use_tls", "true")
     use_tls = str(use_tls).lower() not in ("false", "0", "no")
 

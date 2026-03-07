@@ -75,7 +75,7 @@ def list_companies(
             Company.company_name.ilike(f"%{search}%")
             | Company.website_url.ilike(f"%{search}%")
             | Company.domain.ilike(f"%{search}%")
-            | Company.memo.ilike(f"%{search}%")
+            | Company.notes.ilike(f"%{search}%")
         )
     if tag:
         tagged_ids = db.query(CompanyTag.company_id).filter(CompanyTag.tag_name == tag).subquery()
@@ -243,6 +243,23 @@ def get_all_tags(
 ):
     tags = db.query(CompanyTag.tag_name).distinct().order_by(CompanyTag.tag_name).all()
     return {"tags": [t[0] for t in tags]}
+
+
+@router.get("/{company_id}")
+def get_company(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project_ids = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id,
+        Company.project_id.in_(project_ids),
+    ).first()
+    if not company:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="企業が見つかりません")
+    return {"company": company_to_dict(company, db)}
 
 
 @router.put("/{company_id}")
@@ -714,6 +731,44 @@ def rescrape_company(
     db.commit()
     db.refresh(company)
     return {"company": company_to_dict(company, db)}
+
+
+@router.post("/{company_id}/ai-analyze")
+def ai_analyze_company(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.services.ai_analyzer import analyze_company, get_openai_key
+    from server.services.scraper import scrape_company_info
+
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        return {"error": "企業が見つかりません"}
+
+    api_key = get_openai_key(db, current_user.org_id)
+    if not api_key:
+        return {"error": "OpenAI APIキーが設定されていません。設定画面からAPIキーを登録してください。"}
+
+    full_text = ""
+    if company.website_url:
+        scraped = scrape_company_info(company.website_url)
+        full_text = scraped.get("full_text", "")
+
+    result = analyze_company(
+        company_name=company.company_name or company.domain or "",
+        url=company.website_url or "",
+        full_text=full_text,
+        api_key=api_key,
+    )
+
+    if not result.get("success"):
+        return {"error": f"AI分析に失敗しました: {result.get('error', '不明なエラー')}"}
+
+    company.ai_summary = result["summary"]
+    db.commit()
+    db.refresh(company)
+    return {"company": company_to_dict(company, db), "summary": result["summary"]}
 
 
 @router.post("/move-project")

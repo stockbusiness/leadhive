@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft, Building2, Globe, Phone, Mail, MapPin, Tag, ExternalLink,
-  Edit2, Loader2, Clock, ChevronRight, Activity, FileText, User
+  Edit2, Loader2, Clock, ChevronRight, Activity, FileText, User, Sparkles
 } from "lucide-react";
 import { api } from "../api";
 import type { Company, StatusHistoryEntry, ActivityLogEntry } from "../types";
@@ -39,19 +39,20 @@ export default function CompanyDetail() {
   const [activities, setActivities] = useState<ActivityLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"info" | "history" | "activities">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "history" | "activities" | "ai">("info");
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const companyId = Number(id);
 
   const load = async () => {
     try {
-      const [listData, histData, actData] = await Promise.all([
-        api.companies.list({ search: "", page: 1, per_page: 1000 }),
+      const [companyData, histData, actData] = await Promise.all([
+        api.companies.get(companyId),
         api.companies.getHistory(companyId),
         api.companies.getActivities(companyId),
       ]);
-      const found = listData.companies.find(c => c.id === companyId);
-      if (found) setCompany(found);
+      setCompany(companyData.company);
       setHistory(histData.history);
       setActivities(actData.activities);
     } catch {
@@ -65,6 +66,23 @@ export default function CompanyDetail() {
   const handleSaved = async () => {
     await load();
     setEditOpen(false);
+  };
+
+  const handleAiAnalyze = async () => {
+    if (!company) return;
+    setAiAnalyzing(true);
+    setAiError(null);
+    try {
+      const data = await api.companies.aiAnalyze(company.id);
+      if (data.error) {
+        setAiError(data.error);
+      } else {
+        await load();
+      }
+    } catch (err: any) {
+      setAiError(err.response?.data?.detail || "AI分析に失敗しました");
+    }
+    setAiAnalyzing(false);
   };
 
   if (loading) {
@@ -185,9 +203,10 @@ export default function CompanyDetail() {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200">
-        <div className="flex border-b border-slate-200">
+        <div className="flex border-b border-slate-200 overflow-x-auto">
           {[
             { key: "info", label: "メモ", icon: <FileText size={14} /> },
+            { key: "ai", label: "AIサマリー", icon: <Sparkles size={14} /> },
             { key: "activities", label: `アクティビティ (${activities.length})`, icon: <Activity size={14} /> },
             { key: "history", label: `ステータス履歴 (${history.length})`, icon: <Clock size={14} /> },
           ].map(tab => (
@@ -213,6 +232,74 @@ export default function CompanyDetail() {
                 <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans">{company.notes}</pre>
               ) : (
                 <p className="text-slate-400 text-sm">メモはありません</p>
+              )}
+            </div>
+          )}
+
+          {activeTab === "ai" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">企業のウェブサイトをAIが分析し、営業に役立つサマリーを生成します。</p>
+                  {company.ai_summary?.generated_at && (
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      最終生成: {new Date(company.ai_summary.generated_at).toLocaleString("ja-JP")}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={handleAiAnalyze}
+                  disabled={aiAnalyzing || !company.website_url}
+                  className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-violet-700 transition-colors disabled:opacity-50 flex-shrink-0"
+                >
+                  {aiAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  {company.ai_summary ? "再生成" : "AIサマリーを生成"}
+                </button>
+              </div>
+
+              {aiError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{aiError}</div>
+              )}
+
+              {aiAnalyzing && (
+                <div className="flex items-center gap-3 p-4 bg-violet-50 rounded-lg">
+                  <Loader2 size={18} className="animate-spin text-violet-600" />
+                  <span className="text-sm text-violet-700">AIがウェブサイトを分析中...</span>
+                </div>
+              )}
+
+              {!aiAnalyzing && company.ai_summary && (
+                <div className="grid gap-3">
+                  {[
+                    { key: "事業内容", icon: "🏢" },
+                    { key: "顧客層", icon: "👥" },
+                    { key: "強み", icon: "⭐" },
+                    { key: "サービス", icon: "📦" },
+                    { key: "価格帯", icon: "💰" },
+                  ].map(({ key, icon }) => {
+                    const val = (company.ai_summary as any)?.[key];
+                    if (!val || val === "情報なし") return null;
+                    return (
+                      <div key={key} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-base">{icon}</span>
+                          <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{key}</span>
+                        </div>
+                        <p className="text-sm text-slate-700">{val}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!aiAnalyzing && !company.ai_summary && !aiError && (
+                <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                  <Sparkles size={32} className="mb-3 text-slate-300" />
+                  <p className="text-sm">「AIサマリーを生成」ボタンで分析を開始できます</p>
+                  {!company.website_url && (
+                    <p className="text-xs text-red-400 mt-1">※ WebサイトURLが必要です</p>
+                  )}
+                </div>
               )}
             </div>
           )}

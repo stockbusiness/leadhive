@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin } from "lucide-react";
+import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles } from "lucide-react";
 import { api } from "../api";
 
 interface MessageState {
@@ -76,6 +76,12 @@ export default function Settings() {
   const [autoCollectTime, setAutoCollectTime] = useState("09:00");
   const [schedulerRunning, setSchedulerRunning] = useState(false);
 
+  const [followupNotifyEnabled, setFollowupNotifyEnabled] = useState(false);
+  const [followupNotifyChannel, setFollowupNotifyChannel] = useState("email");
+
+  const [openaiApiKey, setOpenaiApiKey] = useState("");
+  const [openaiApiKeySet, setOpenaiApiKeySet] = useState(false);
+
   useEffect(() => {
     api.settings.get().then((data) => {
       const s = data.settings;
@@ -92,6 +98,9 @@ export default function Settings() {
       if (s.smtp_from_email?.is_set) setSmtpFromEmail(s.smtp_from_email.value);
       if (s.smtp_from_name?.is_set) setSmtpFromName(s.smtp_from_name.value);
       if (s.smtp_use_tls?.is_set) setSmtpUseTls(s.smtp_use_tls.value !== "false");
+      if (s.followup_notify_enabled) setFollowupNotifyEnabled(s.followup_notify_enabled.value === "true");
+      if (s.followup_notify_channel?.is_set) setFollowupNotifyChannel(s.followup_notify_channel.value);
+      if (s.openai_api_key) { setOpenaiApiKeySet(s.openai_api_key.is_set); if (s.openai_api_key.is_set) setOpenaiApiKey(s.openai_api_key.value); }
     });
     api.settings.getScheduler().then((data) => setSchedulerRunning(data.running)).catch(() => {});
   }, []);
@@ -111,6 +120,9 @@ export default function Settings() {
     data.smtp_use_tls = smtpUseTls ? "true" : "false";
     data.auto_collect_enabled = autoCollectEnabled ? "true" : "false";
     data.auto_collect_time = autoCollectTime;
+    data.followup_notify_enabled = followupNotifyEnabled ? "true" : "false";
+    data.followup_notify_channel = followupNotifyChannel;
+    if (openaiApiKey && !openaiApiKey.includes("*")) data.openai_api_key = openaiApiKey;
     return data;
   };
 
@@ -309,6 +321,57 @@ export default function Settings() {
             <label className={labelClass}><Clock size={14} className="inline mr-1" />実行時刻</label>
             <input type="time" value={autoCollectTime} onChange={e => setAutoCollectTime(e.target.value)} disabled={!autoCollectEnabled} className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-slate-100" />
           </div>
+        </div>
+        <SaveButton saving={saving} onClick={handleSave} />
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
+        <SectionHeader icon={<Bell size={20} className="text-slate-600" />} title="フォローアップ通知設定" />
+        <p className="text-sm text-slate-500">
+          有効にすると、毎朝9時にフォローアップ期限が当日または超過している企業を管理者へ通知します。
+          通知にはSlack Webhook URLまたはSMTPメールの設定が必要です。
+        </p>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" checked={followupNotifyEnabled} onChange={e => setFollowupNotifyEnabled(e.target.checked)} className="sr-only peer" />
+              <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+            </label>
+            <span className="text-sm font-medium text-slate-700">フォローアップ通知を有効にする</span>
+          </div>
+          <div>
+            <label className={labelClass}>通知チャンネル</label>
+            <select
+              value={followupNotifyChannel}
+              onChange={e => setFollowupNotifyChannel(e.target.value)}
+              disabled={!followupNotifyEnabled}
+              className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-slate-100"
+            >
+              <option value="email">メールのみ</option>
+              <option value="slack">Slackのみ</option>
+              <option value="both">メール + Slack</option>
+            </select>
+          </div>
+        </div>
+        <SaveButton saving={saving} onClick={handleSave} />
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
+        <SectionHeader icon={<Sparkles size={20} className="text-violet-600" />} title="AI企業分析 設定（OpenAI）" />
+        <p className="text-sm text-slate-500">
+          OpenAI APIキーを設定すると、企業詳細ページでAIによる企業サマリーの自動生成が利用できます。
+          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-1">APIキーの取得</a>
+        </p>
+        <div>
+          <label className={labelClass}>OpenAI APIキー {openaiApiKeySet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}</label>
+          <input
+            type="password"
+            value={openaiApiKey}
+            onChange={e => setOpenaiApiKey(e.target.value)}
+            placeholder="sk-..."
+            className={inputClass}
+          />
+          <p className="text-xs text-slate-400 mt-1">GPT-4o-miniを使用します。1回の分析で約0.01〜0.03ドルの費用がかかります。</p>
         </div>
         <SaveButton saving={saving} onClick={handleSave} />
       </div>

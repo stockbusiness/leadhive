@@ -31,10 +31,13 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
     - **Templates**: メモテンプレートとメールテンプレート（変数展開機能付き）を管理します。
     - **User Management**: 組織メンバーの招待、一覧、ロール管理（admin/member）、削除機能を提供します。
 - **Performance**: APIレスポンス（ダッシュボード、キーワード、テンプレートなど）にはインメモリTTLキャッシュが適用されます。
+- **AI Analysis**: 企業URLをスクレイピングし、OpenAI GPT-4o-miniで事業内容・顧客層・強み・サービス・価格帯を自動生成します。結果はDBに保存（`ai_summary` JSONカラム）し、企業詳細ページの「AIサマリー」タブに表示します。
+- **Follow-up Notifications**: 毎朝9時にスケジューラが起動し、期限当日・超過のフォローアップ企業を管理者にメール/Slackで通知します。通知のON/OFFとチャンネルは設定画面から変更できます。
 
 ## External Dependencies
 - **Google Custom Search API**: 営業先の自動収集に利用します。APIキーは管理画面で設定します。
 - **Google Places API**: Googleマップからの企業情報収集および住所、電話、レビュー情報の補完に利用します。
 - **PostgreSQL**: データベースとして利用します（Replit内蔵）。
-- **Slack Incoming Webhook**: 収集完了通知のために利用します。
-- **SMTPサービス**: ユーザー招待やパスワードリセットのためのメール送信に利用します。SMTPサーバー設定は管理画面から行います。
+- **Slack Incoming Webhook**: 収集完了通知・フォローアップ通知のために利用します。
+- **SMTPサービス**: ユーザー招待・パスワードリセット・フォローアップ通知のメール送信に利用します。SMTPサーバー設定は管理画面から行います。
+- **OpenAI API (GPT-4o-mini)**: AI企業分析機能に利用します。APIキーは管理画面から設定します。

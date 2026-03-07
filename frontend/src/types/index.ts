@@ -27,6 +27,14 @@ export interface Company {
   notes: string;
   follow_up_date?: string | null;
   tags?: string[];
+  ai_summary?: {
+    事業内容?: string;
+    顧客層?: string;
+    強み?: string;
+    サービス?: string;
+    価格帯?: string;
+    generated_at?: string;
+  } | null;
   created_at?: string;
   updated_at?: string;
 }

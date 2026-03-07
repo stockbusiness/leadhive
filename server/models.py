@@ -95,6 +95,7 @@ class Company(Base):
     status = Column(String(50), default="未確認", index=True)
     notes = Column(Text)
     follow_up_date = Column(Date, nullable=True, index=True)
+    ai_summary = Column(JSON, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

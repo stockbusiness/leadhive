@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     stop_scheduler()
 
 
-app = FastAPI(title="ESCMS Partner Collection Tool", lifespan=lifespan)
+app = FastAPI(title="LeadHive", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

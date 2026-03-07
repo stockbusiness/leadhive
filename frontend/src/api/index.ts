@@ -15,6 +15,9 @@ export const api = {
         "/api/companies", { params }
       ).then(r => r.data),
 
+    get: (id: number) =>
+      axios.get<{ company: Company }>(`/api/companies/${id}`).then(r => r.data),
+
     create: (data: Partial<Company>) =>
       axios.post<{ company: Company }>("/api/companies", data).then(r => r.data),
 
@@ -77,6 +80,9 @@ export const api = {
 
     moveProject: (companyIds: number[], targetProjectId: number) =>
       axios.post("/api/companies/move-project", { company_ids: companyIds, target_project_id: targetProjectId }).then(r => r.data),
+
+    aiAnalyze: (id: number) =>
+      axios.post<{ company: Company; summary: Record<string, string>; error?: string }>(`/api/companies/${id}/ai-analyze`).then(r => r.data),
   },
 
   keywords: {
