@@ -43,7 +43,14 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
 - **gBizINFO 法人DB収集**: URL収集ページに「法人DB」タブを追加。経済産業省の gBizINFO API（約400万社）から会社名・住所・企業URLを取得し、URL未登録の法人はGoogle直接検索でホームページを特定してスクレイピング。既存パイプライン（スコアリング・マスターDB書き込み）に接続。APIトークンは管理者専用の「システムAPI設定」ページ（`/admin/api-keys`）から登録（SystemSettingsテーブルで全組織共有）。収集フローはGoogle APIタブと同じSSE進捗バーで可視化。都道府県・最大件数選択対応。実装ファイル: `server/services/gbiz_collector.py`、`server/routes/collector.py`（`/api/collect/gbiz`）、`frontend/src/pages/Scraper.tsx`、`frontend/src/pages/AdminApiKeys.tsx`
 - **システムAPI設定ページ** (`/admin/api-keys`): 管理者専用ページ。gBizINFO等のシステム全体で共有するAPIキーを管理。バックエンドは `GET/PUT /api/admin/api-settings`（`server/routes/payments.py`）、SystemSettingsテーブルに保存。
 - **テナント管理ページ** (`/admin/tenants`): 管理者専用。全Organizationを一覧表示し、メンバー数・企業数・プロジェクト数・割当プランを確認・変更できる。バックエンドは `GET /api/admin/tenants`・`PATCH /api/admin/tenants/{id}`（`server/routes/payments.py`）。実装ファイル: `frontend/src/pages/AdminTenants.tsx`。
-- **サイドバー分離**: 通常機能メニューとシステム管理メニューを「システム管理」セクションヘッダーで分離。管理者にのみ表示されるセクション（テナント管理・プラン管理・Stripe設定・システムAPI設定）を視覚的に区別。
+- **サイドバー分離**: 通常機能メニューとシステム管理メニューを「システム管理」セクションヘッダーで分離。管理者にのみ表示されるセクションを視覚的に区別。
+- **管理ダッシュボード** (`/admin/dashboard`): テナント数・ユーザー数・プロジェクト数・企業数・今月の収集数・本日のAPI使用量の統計カード + 過去7日間の日別収集件数グラフ + プラン別テナント分布円グラフ。
+- **全ユーザー管理** (`/admin/users`): 全テナントのユーザーを横断管理。メール/名前検索・ロールフィルタ・組織フィルタに対応。インラインでロール変更・削除が可能。バックエンド: `GET/PATCH/DELETE /api/admin/all-users` in `payments.py`。
+- **システムログ** (`/admin/logs`): 管理者操作の監査ログ。`SystemLog` モデル（`server/models.py`）に記録。操作種別フィルタ・キーワード検索・ページネーション対応。`write_system_log()` ヘルパーで主要操作に自動記録。
+- **お知らせ配信** (`/admin/announcements`): `Announcement` モデルで管理。全体配信またはテナント個別配信に対応。`AnnouncementBanner` コンポーネントがログイン後の全ページ上部に表示（セッション単位で非表示可）。バックエンド: `GET/POST/PATCH/DELETE /api/admin/announcements` + `GET /api/announcements`。
+- **請求・履歴管理** (`/admin/billing`): Stripe PaymentIntents一覧を表示。成功/失敗サマリーカード付き。Stripe未設定時は設定ページへのリンクを表示。バックエンド: `GET /api/admin/billing`。
+- **SMTP設定** (`/admin/smtp`): Gmail/SendGrid/Amazon SES/Mailgunのプリセット付きSMTP設定UI。テスト送信機能（管理者自身のメールアドレスへ）。バックエンド: `GET/PUT /api/admin/smtp-settings` + `POST /api/admin/smtp-settings/test`。SystemSettingsテーブルに保存。
+- **機能フラグ** (`/admin/features`): AI分析・CSVエクスポート・マスターDB・gBizINFO・Googleマップ・Slack通知・セルフアップグレードの有効/無効をトグルスイッチで管理。カテゴリ別グループ表示。バックエンド: `GET/PUT /api/admin/feature-flags`。SystemSettingsテーブルに保存。
 
 ## External Dependencies
 - **Google Custom Search API**: 営業先の自動収集に利用します。APIキーは管理画面で設定します。

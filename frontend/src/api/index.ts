@@ -345,4 +345,51 @@ export const api = {
     update: (orgId: number, data: { plan_id?: number; name?: string }) =>
       axios.patch(`/api/admin/tenants/${orgId}`, data).then(r => r.data),
   },
+
+  adminDashboard: {
+    get: () => axios.get("/api/admin/dashboard").then(r => r.data),
+  },
+
+  adminAllUsers: {
+    list: (params?: { search?: string; role?: string; org_id?: number }) =>
+      axios.get<{ users: any[] }>("/api/admin/all-users", { params }).then(r => r.data),
+    updateRole: (userId: number, role: string) =>
+      axios.patch(`/api/admin/all-users/${userId}`, { role }).then(r => r.data),
+    delete: (userId: number) =>
+      axios.delete(`/api/admin/all-users/${userId}`).then(r => r.data),
+  },
+
+  adminLogs: {
+    list: (params?: { page?: number; limit?: number; search?: string; action?: string }) =>
+      axios.get<{ total: number; page: number; limit: number; logs: any[] }>("/api/admin/logs", { params }).then(r => r.data),
+  },
+
+  adminAnnouncements: {
+    list: () => axios.get<{ announcements: any[] }>("/api/admin/announcements").then(r => r.data),
+    create: (data: { title: string; content: string; target_org_id?: number | null; is_active: boolean }) =>
+      axios.post("/api/admin/announcements", data).then(r => r.data),
+    update: (id: number, data: { title: string; content: string; target_org_id?: number | null; is_active: boolean }) =>
+      axios.patch(`/api/admin/announcements/${id}`, data).then(r => r.data),
+    delete: (id: number) =>
+      axios.delete(`/api/admin/announcements/${id}`).then(r => r.data),
+  },
+
+  announcements: {
+    list: () => axios.get<{ announcements: any[] }>("/api/announcements").then(r => r.data),
+  },
+
+  adminBilling: {
+    list: () => axios.get("/api/admin/billing").then(r => r.data),
+  },
+
+  adminSmtp: {
+    get: () => axios.get("/api/admin/smtp-settings").then(r => r.data),
+    save: (data: Record<string, string>) => axios.put("/api/admin/smtp-settings", data).then(r => r.data),
+    test: () => axios.post("/api/admin/smtp-settings/test").then(r => r.data),
+  },
+
+  adminFeatures: {
+    get: () => axios.get<Record<string, boolean>>("/api/admin/feature-flags").then(r => r.data),
+    save: (flags: Record<string, boolean>) => axios.put("/api/admin/feature-flags", { flags }).then(r => r.data),
+  },
 };

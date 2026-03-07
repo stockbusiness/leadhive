@@ -260,6 +260,29 @@ class ActivityLog(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class SystemLog(Base):
+    __tablename__ = "system_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action = Column(String(50), nullable=False, index=True)
+    actor_email = Column(String(255), nullable=True)
+    actor_org = Column(String(255), nullable=True)
+    target = Column(String(255), nullable=True)
+    detail = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+
+
+class Announcement(Base):
+    __tablename__ = "announcements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    target_org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class SystemSettings(Base):
     __tablename__ = "system_settings"
 

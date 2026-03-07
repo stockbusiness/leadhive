@@ -23,11 +23,17 @@ import {
   Crown,
   CreditCard,
   Key,
+  ScrollText,
+  Megaphone,
+  Mail,
+  Sliders,
+  BarChart2,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { api } from "./api";
 import PlanLimitModal from "./components/common/PlanLimitModal";
+import AnnouncementBanner from "./components/common/AnnouncementBanner";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Companies = lazy(() => import("./pages/Companies"));
@@ -48,6 +54,13 @@ const AdminPlans = lazy(() => import("./pages/AdminPlans"));
 const AdminStripe = lazy(() => import("./pages/AdminStripe"));
 const AdminApiKeys = lazy(() => import("./pages/AdminApiKeys"));
 const AdminTenants = lazy(() => import("./pages/AdminTenants"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+const AdminLogs = lazy(() => import("./pages/AdminLogs"));
+const AdminAnnouncements = lazy(() => import("./pages/AdminAnnouncements"));
+const AdminBilling = lazy(() => import("./pages/AdminBilling"));
+const AdminSmtp = lazy(() => import("./pages/AdminSmtp"));
+const AdminFeatures = lazy(() => import("./pages/AdminFeatures"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -229,10 +242,17 @@ function AppContent() {
                 <div className="h-px flex-1 bg-slate-700" />
               </div>
               <div className="space-y-1 mt-1">
+                <SidebarLink to="/admin/dashboard" icon={<BarChart2 size={18} />} label="管理ダッシュボード" onClick={closeSidebar} />
                 <SidebarLink to="/admin/tenants" icon={<Building2 size={18} />} label="テナント管理" onClick={closeSidebar} />
+                <SidebarLink to="/admin/users" icon={<Users size={18} />} label="全ユーザー管理" onClick={closeSidebar} />
+                <SidebarLink to="/admin/announcements" icon={<Megaphone size={18} />} label="お知らせ配信" onClick={closeSidebar} />
                 <SidebarLink to="/admin/plans" icon={<Crown size={18} />} label="プラン管理" onClick={closeSidebar} />
+                <SidebarLink to="/admin/billing" icon={<CreditCard size={18} />} label="請求・履歴" onClick={closeSidebar} />
                 <SidebarLink to="/admin/stripe" icon={<CreditCard size={18} />} label="Stripe設定" onClick={closeSidebar} />
+                <SidebarLink to="/admin/smtp" icon={<Mail size={18} />} label="SMTP設定" onClick={closeSidebar} />
+                <SidebarLink to="/admin/features" icon={<Sliders size={18} />} label="機能フラグ" onClick={closeSidebar} />
                 <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
+                <SidebarLink to="/admin/logs" icon={<ScrollText size={18} />} label="システムログ" onClick={closeSidebar} />
               </div>
             </div>
           )}
@@ -294,6 +314,7 @@ function AppContent() {
         </header>
 
         <main className="flex-1 overflow-auto">
+          <AnnouncementBanner />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
@@ -309,7 +330,14 @@ function AppContent() {
               <Route path="/manual" element={<Manual />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/users" element={<UserManagement />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/tenants" element={<AdminTenants />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/announcements" element={<AdminAnnouncements />} />
+              <Route path="/admin/billing" element={<AdminBilling />} />
+              <Route path="/admin/smtp" element={<AdminSmtp />} />
+              <Route path="/admin/features" element={<AdminFeatures />} />
+              <Route path="/admin/logs" element={<AdminLogs />} />
               <Route path="/admin/plans" element={<AdminPlans />} />
               <Route path="/admin/stripe" element={<AdminStripe />} />
               <Route path="/admin/api-keys" element={<AdminApiKeys />} />
