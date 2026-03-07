@@ -167,6 +167,8 @@ def get_collection_history(
     }
 
 
+
+
 @router.post("/directory")
 def collect_from_directory(
     data: dict,
@@ -185,33 +187,6 @@ def collect_from_directory(
 
     pid = data.get("project_id")
     result = process_urls_to_companies(links, db, source=f"ディレクトリ: {url}", project_id=pid)
-    cache_invalidate("dashboard")
-    return result
-
-
-@router.post("/google-scrape")
-def collect_google_scrape(
-    data: dict,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    keyword = data.get("keyword", "").strip()
-    region = data.get("region", "").strip()
-    num = min(data.get("num", 10), 30)
-    if not keyword:
-        return {"error": "検索キーワードを入力してください"}
-
-    query = keyword
-    if region:
-        query += f" {region}"
-
-    from server.services.google_scrape import scrape_google_search
-    search_results = scrape_google_search(query, num=num)
-    if not search_results:
-        return {"error": "検索結果が取得できませんでした。時間をおいて再試行してください。"}
-
-    pid = data.get("project_id")
-    result = process_urls_to_companies(search_results, db, source=f"Google直接検索: {keyword}", project_id=pid)
     cache_invalidate("dashboard")
     return result
 

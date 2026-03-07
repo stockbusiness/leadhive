@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, Search, List, ShoppingBag, AlertTriangle, MapPin, Building2 } from "lucide-react";
+import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2 } from "lucide-react";
 import { api } from "../api";
 import { ResultRow } from "../components/common";
 import { useProject } from "../contexts/ProjectContext";
 import type { SearchKeyword, ScrapeResult, CollectSummary } from "../types";
 
-type CollectTab = "google-api" | "directory" | "google-scrape" | "shopify" | "google-maps" | "houjin-db";
+type CollectTab = "google-api" | "directory" | "shopify" | "google-maps" | "houjin-db";
 
 export default function Scraper() {
   const { currentProject } = useProject();
@@ -26,10 +26,6 @@ export default function Scraper() {
 
   const [dirUrl, setDirUrl] = useState("");
   const [dirMaxPages, setDirMaxPages] = useState(3);
-
-  const [gsKeyword, setGsKeyword] = useState("");
-  const [gsRegion, setGsRegion] = useState("");
-  const [gsNum, setGsNum] = useState(10);
 
   const [spMaxResults, setSpMaxResults] = useState(20);
 
@@ -140,19 +136,6 @@ export default function Scraper() {
     setCollectLoading(false);
   };
 
-  const handleGoogleScrape = async () => {
-    if (!gsKeyword.trim()) return;
-    setCollectLoading(true);
-    setCollectResults(null);
-    try {
-      const data = await api.collector.googleScrape(gsKeyword, gsRegion, gsNum);
-      setCollectResults(data);
-    } catch (err: any) {
-      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
-    }
-    setCollectLoading(false);
-  };
-
   const handleShopifyCollect = async () => {
     setCollectLoading(true);
     setCollectResults(null);
@@ -229,7 +212,6 @@ export default function Scraper() {
   const tabs: { key: CollectTab; label: string; icon: typeof Zap }[] = [
     { key: "google-api", label: "Google API検索", icon: Zap },
     { key: "directory", label: "ディレクトリ収集", icon: List },
-    { key: "google-scrape", label: "Google直接検索", icon: Search },
     { key: "shopify", label: "Shopifyパートナー", icon: ShoppingBag },
     { key: "google-maps", label: "Googleマップ", icon: MapPin },
     { key: "houjin-db", label: "法人DB", icon: Building2 },
@@ -279,19 +261,6 @@ export default function Scraper() {
               onMaxPagesChange={setDirMaxPages}
               loading={collectLoading}
               onCollect={handleDirectoryCollect}
-            />
-          )}
-
-          {activeTab === "google-scrape" && (
-            <GoogleScrapeSection
-              keyword={gsKeyword}
-              onKeywordChange={setGsKeyword}
-              region={gsRegion}
-              onRegionChange={setGsRegion}
-              num={gsNum}
-              onNumChange={setGsNum}
-              loading={collectLoading}
-              onCollect={handleGoogleScrape}
             />
           )}
 
@@ -475,73 +444,6 @@ function DirectorySection({
   );
 }
 
-function GoogleScrapeSection({
-  keyword, onKeywordChange, region, onRegionChange, num, onNumChange, loading, onCollect,
-}: {
-  keyword: string; onKeywordChange: (v: string) => void;
-  region: string; onRegionChange: (v: string) => void;
-  num: number; onNumChange: (v: number) => void;
-  loading: boolean; onCollect: () => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-slate-500">
-        Google検索結果ページを直接スクレイピングして企業を収集します。APIキー不要・無料で利用できます。
-      </p>
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-        <AlertTriangle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-amber-700">
-          Google検索結果の直接スクレイピングはGoogleの利用規約に抵触する可能性があります。
-          過度なアクセスはIPブロックの原因になります。適度な間隔で利用してください。
-        </p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-        <div className="md:col-span-2">
-          <label className="block text-xs font-medium text-slate-600 mb-1">検索キーワード</label>
-          <input
-            type="text"
-            placeholder="Shopify 制作会社"
-            value={keyword}
-            onChange={(e) => onKeywordChange(e.target.value)}
-            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">地域</label>
-            <input
-              type="text"
-              placeholder="東京"
-              value={region}
-              onChange={(e) => onRegionChange(e.target.value)}
-              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">件数</label>
-            <select
-              value={num}
-              onChange={(e) => onNumChange(Number(e.target.value))}
-              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {[5, 10, 15, 20, 30].map((n) => (
-                <option key={n} value={n}>{n}件</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <button
-          onClick={onCollect}
-          disabled={loading || !keyword.trim()}
-          className="flex items-center gap-2 bg-purple-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-purple-700 transition-colors disabled:opacity-50"
-        >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-          検索収集
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function ShopifySection({
   maxResults, onMaxResultsChange, loading, onCollect,
