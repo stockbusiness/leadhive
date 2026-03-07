@@ -669,11 +669,6 @@ function GbizSection({
       <p className="text-sm text-slate-500">
         経済産業省の <strong>gBizINFO</strong>（約400万社）から法人リストを取得し、
         各社のホームページを探索してスクレイピングします。ゴミデータが混入しない高品質な収集が可能です。
-        APIトークンが必要です（
-        <a href="https://info.gbiz.go.jp/api/index.html" target="_blank" rel="noreferrer" className="text-blue-600 underline">
-          無料・即時発行
-        </a>
-        。取得後は設定画面で登録してください）。
       </p>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
         <div className="md:col-span-2">

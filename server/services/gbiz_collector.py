@@ -5,7 +5,7 @@ import logging
 import requests
 from sqlalchemy.orm import Session
 
-from server.models import Company, RejectedUrl
+from server.models import Company, RejectedUrl, AppSetting
 from server.services.scraper import scrape_company_info
 from server.services.aggregator import normalize_domain, is_aggregator_site
 from server.services.categorizer import categorize_company, detect_flags
@@ -63,8 +63,7 @@ def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: 
     }
 
 
-def find_website_for_company(company_name: str, location: str = "") -> str | None:
-    from server.services.google_scrape import scrape_google_search
+def find_website_for_company(company_name: str, location: str = "", db: Session = None, org_id: int = None) -> str | None:
     city = ""
     for pref in PREFECTURES:
         if location.startswith(pref):
@@ -74,7 +73,31 @@ def find_website_for_company(company_name: str, location: str = "") -> str | Non
             break
 
     query = f'"{company_name}" {city} 公式サイト'.strip()
+
+    # Google Custom Search API を優先使用
+    if db and org_id:
+        try:
+            from server.services.google_search import search_google
+            api_key_row = db.query(AppSetting).filter(
+                AppSetting.org_id == org_id, AppSetting.setting_key == "google_api_key"
+            ).first()
+            cx_row = db.query(AppSetting).filter(
+                AppSetting.org_id == org_id, AppSetting.setting_key == "google_cx"
+            ).first()
+            if api_key_row and api_key_row.setting_value and cx_row and cx_row.setting_value:
+                results = search_google(api_key_row.setting_value, cx_row.setting_value, query, db, num=3)
+                for r in results:
+                    url = r.get("url", "")
+                    domain = normalize_domain(url)
+                    if domain and not is_aggregator_site(domain):
+                        return url
+                return None
+        except Exception as e:
+            logger.warning(f"Google API search failed for {company_name}: {e}")
+
+    # フォールバック: 直接スクレイピング
     try:
+        from server.services.google_scrape import scrape_google_search
         results = scrape_google_search(query, num=3)
         for r in results:
             url = r.get("url", "")
@@ -82,7 +105,7 @@ def find_website_for_company(company_name: str, location: str = "") -> str | Non
             if domain and not is_aggregator_site(domain):
                 return url
     except Exception as e:
-        logger.warning(f"Website search failed for {company_name}: {e}")
+        logger.warning(f"Website scrape search failed for {company_name}: {e}")
     return None
 
 
@@ -167,17 +190,38 @@ def collect_from_gbiz(
         try:
             url = company["company_url"]
             if not url:
-                url = find_website_for_company(company["name"], company["location"])
+                url = find_website_for_company(company["name"], company["location"], db=db, org_id=org_id)
                 if url:
                     time.sleep(random.uniform(1.0, 2.0))
 
+            pref, city = _parse_location(company["location"])
+
             if not url:
+                # URLが見つからなくても企業情報をDBに保存
+                info = {
+                    "company_name": company["name"],
+                    "website_url": None,
+                    "domain": None,
+                    "prefecture": pref or None,
+                    "city": city or None,
+                    "project_id": project_id,
+                }
+                if company.get("corporate_number"):
+                    info["corporate_number"] = company["corporate_number"]
+                score, rank = calculate_score(info)
+                info["score_total"] = score
+                info["score_rank"] = rank
+                allowed_fields = {c.name for c in Company.__table__.columns}
+                company_kwargs = {k: v for k, v in info.items() if k in allowed_fields}
+                new_company = Company(**company_kwargs)
+                db.add(new_company)
+                db.commit()
                 skipped += 1
                 results.append({
                     "url": "",
                     "name": company["name"],
                     "status": "skipped",
-                    "message": "URLが見つかりませんでした",
+                    "message": "URLなし・企業情報のみ保存",
                 })
                 continue
 
@@ -203,7 +247,6 @@ def collect_from_gbiz(
                 results.append({"url": url, "name": company["name"], "status": "error", "message": "スクレイピング失敗"})
                 continue
 
-            pref, city = _parse_location(company["location"])
             scraped["company_name"] = company["name"] or scraped.get("company_name", "")
             if pref:
                 scraped["prefecture"] = pref
