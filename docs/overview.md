@@ -28,13 +28,17 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
 ### 主な特徴
 
 - 複数プロジェクト・複数組織によるマルチテナント構成
-- Google API / スクレイピング / Googleマップなど複数の収集手法
+- 6種類の収集手法（Google Custom Search API / ディレクトリ収集 / Google直接検索 / Shopifyパートナー / Googleマップ / gBizINFO法人DB）
 - 0〜100点のスコアリングとA〜Dランク自動付与
-- OpenAI GPT-4o-miniによるAI企業分析・アウトリーチメール生成
+- OpenAI GPT-4o-miniによるAI企業分析・アウトリーチメール生成（AIトークン使用量ログ付き）
 - キーワード別の収集効率分析
 - サブスクリプションプラン管理（フリー/スターター/プロ/エンタープライズ）
 - チームメンバー招待・ロール管理（admin/member）
+- チーム進捗ダッシュボード（担当者別活動・期限超過一覧）
+- SMTPサーバー経由でのメール直接送信と送信履歴管理
 - Slack通知・メール通知・フォローアップアラート
+- オンボーディングウィザード（6ステップ初期設定フロー）
+- 管理者向けテナント監視（解約リスク検出・AIコスト管理）
 - モバイル対応（レスポンシブUI）
 
 ---
@@ -63,6 +67,7 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
 
 ### ダッシュボード (`/`)
 
+**概要タブ（デフォルト）**:
 - 総収集件数・重複除外後件数・未確認数・高スコア数・問い合わせあり件数の統計カード
 - API使用量（残り回数）表示（無料枠100回/日）
 - カテゴリ別円グラフ、スコアランク分布棒グラフ、ステータス別棒グラフ、都道府県別棒グラフ
@@ -70,6 +75,12 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
 - 最近追加された企業リスト（直近10件）
 - 現在のプランバッジ（右上エリア）
 - 全データは選択中プロジェクトにスコープ
+
+**チームタブ**:
+- 今月の収集件数・アプローチ済み件数・面談化件数・期限超過件数のサマリーカード
+- メンバー別テーブル：担当企業数・今週のアクティビティ・期限超過件数・アプローチ進捗バー
+- 担当者別アプローチ件数の棒グラフ（Recharts）
+- エンドポイント: `GET /api/dashboard/team`
 
 ### 候補企業一覧 (`/companies`)
 
@@ -87,7 +98,7 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
 
 ### 企業詳細ページ (`/companies/:id`)
 
-- 基本情報の閲覧・編集
+- 基本情報の閲覧・編集（コンタクト担当者名 `contact_name` / 役職 `contact_title` を含む）
 - ステータス変更履歴タブ
 - 活動ログタブ（電話/メール/フォーム/面談/その他）
 - メモ・タグ管理
@@ -95,6 +106,10 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
   - AI企業分析（事業内容・顧客層・強み・サービス・価格帯）
   - アウトリーチメール生成（フォーマル/カジュアル、追加指示対応）
 - フォローアップ日時設定
+- SMTPメール直接送信タブ
+  - メールテンプレート選択・変数展開
+  - 宛先・件名・本文の編集・送信
+  - 送信履歴を `email_send_logs` テーブルに保存・活動ログにも自動記録
 
 ### 検索条件管理 (`/keywords`)
 
@@ -107,7 +122,7 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
 
 ### URL収集 (`/scraper`)
 
-収集方法を5つのタブで切り替え：
+収集方法を6つのタブで切り替え：
 
 | タブ | 手法 | APIキー |
 |------|------|---------|
@@ -116,6 +131,7 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
 | Google直接検索 | Google検索結果をスクレイピング | 不要 |
 | Shopifyパートナー | Shopifyパートナーディレクトリ | 不要 |
 | Googleマップ | Google Places API | 必要（Places API） |
+| 法人DB | gBizINFO API（経済産業省、約400万社） | システム設定のAPIキー |
 
 - Google API検索のみSSEリアルタイム進捗表示
 - 単一URL取得・複数URL一括取得も提供
@@ -344,7 +360,30 @@ OpenAI GPT-4o-mini に以下のJSON構造で回答を要求：
 結果をcompanies.ai_summary (JSON) に保存
     ↓
 organizations.ai_analysis_count をインクリメント（月次カウンタ）
+    ↓
+ai_usage_logs テーブルに入力/出力トークン数・モデル名・USD概算コストを記録
 ```
+
+### AIトークン使用量ログ
+
+**テーブル**: `ai_usage_logs`
+
+AIが呼び出されるたびに以下を記録する：
+
+| カラム | 内容 |
+|--------|------|
+| `organization_id` | 組織ID |
+| `feature` | `analysis`（企業分析）/ `email`（メール生成） |
+| `model` | 使用したモデル名（例: `gpt-4o-mini`） |
+| `prompt_tokens` | 入力トークン数 |
+| `completion_tokens` | 出力トークン数 |
+| `total_tokens` | 合計トークン数 |
+| `estimated_cost_usd` | USD概算コスト |
+| `created_at` | 実行日時 |
+
+**コスト計算レート（GPT-4o-mini）**:
+- 入力: $0.15 / 1M tokens
+- 出力: $0.60 / 1M tokens
 
 **ai_summary JSONスキーマ**:
 ```json
@@ -565,15 +604,17 @@ APScheduler 毎朝9時起動
 | テーブル名 | 用途 | 主なカラム |
 |-----------|------|-----------|
 | `organizations` | テナント（組織）定義 | name, plan_id, ai_analysis_count |
-| `users` | ユーザー | organization_id, email, display_name, role, password_hash, invite_token |
+| `users` | ユーザー | organization_id, email, display_name, role, password_hash, invite_token, last_login_at |
 | `plans` | サブスクリプションプラン | name, description, price_monthly, max_members, max_projects, max_companies, max_ai_analyses_monthly, api_daily_limit, is_active |
 | `projects` | プロジェクト定義 | organization_id, name, categories(JSON), category_keywords(JSON), flag_definitions(JSON), scoring_rules(JSON) |
-| `companies` | 企業レコード（プロジェクト別） | project_id, domain, company_name, website_url, contact_url, prefecture, flags×7, score_total, score_rank, status, ai_summary(JSON), follow_up_date |
+| `companies` | 企業レコード（プロジェクト別） | project_id, domain, company_name, website_url, contact_url, prefecture, contact_name, contact_title, flags×7, score_total, score_rank, status, ai_summary(JSON), follow_up_date |
 | `company_master` | 全プロジェクト横断企業プール | domain(UNIQUE), company_name, website_url, source, search_text, last_scraped_at |
 | `search_keywords` | 検索キーワード | project_id, keyword, category, region, exclude_keywords, is_active |
 | `app_settings` | 設定値（APIキー等） | organization_id, setting_key, setting_value |
 | `rejected_urls` | 拒否ドメイン | organization_id, domain, reason |
 | `api_usage_logs` | API使用量（日次） | organization_id, usage_date, request_count |
+| `ai_usage_logs` | AIトークン使用量ログ | organization_id, feature, model, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, created_at |
+| `email_send_logs` | SMTPメール送信履歴 | organization_id, company_id, to_address, subject, sent_at, status |
 | `collection_logs` | 収集実行ログ | project_id, keyword_text, success_count, duplicate_count, rejected_count, error_count |
 | `status_history` | ステータス変更履歴 | company_id, old_status, new_status, changed_at |
 | `memo_templates` | メモ・メールテンプレート | organization_id, title, content, is_email_template |
@@ -630,6 +671,7 @@ APScheduler 毎朝9時起動
 | メソッド | パス | 説明 |
 |---------|------|------|
 | GET | `/api/dashboard` | 統計データ（daily_collection_trendを含む） |
+| GET | `/api/dashboard/team` | チーム進捗データ（メンバー別活動・期限超過・サマリーカード） |
 
 ### 企業
 
@@ -656,6 +698,8 @@ APScheduler 毎朝9時起動
 | POST | `/api/companies/{id}/rescrape` | 再スクレイピング |
 | POST | `/api/companies/{id}/analyze` | AI企業分析実行 |
 | POST | `/api/companies/{id}/generate-email` | アウトリーチメール生成 |
+| POST | `/api/companies/{id}/send-email` | SMTPメール直接送信（履歴保存） |
+| GET | `/api/companies/{id}/email-logs` | メール送信履歴取得 |
 
 ### キーワード
 
@@ -698,6 +742,23 @@ APScheduler 毎朝9時起動
 | POST | `/api/settings/test` | Google API接続テスト |
 | POST | `/api/settings/slack-test` | Slackテスト通知 |
 | GET | `/api/settings/scheduler` | スケジューラ状態取得 |
+
+### システム管理者（スーパーアドミン）
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/api/admin/tenants` | 全テナント一覧（last_login_at, collections_this_month, is_churn_risk 含む） |
+| GET | `/api/admin/users` | 全ユーザー一覧 |
+| GET | `/api/admin/stats` | システム全体統計 |
+| GET | `/api/admin/logs` | 管理者操作監査ログ |
+| GET | `/api/admin/announcements` | お知らせ一覧 |
+| POST | `/api/admin/announcements` | お知らせ作成 |
+| GET | `/api/admin/billing` | Stripe PaymentIntents一覧 |
+| GET | `/api/admin/system-settings` | システム設定取得 |
+| PUT | `/api/admin/system-settings` | システム設定更新 |
+| GET | `/api/admin/feature-flags` | フィーチャーフラグ取得 |
+| PUT | `/api/admin/feature-flags` | フィーチャーフラグ更新 |
+| GET | `/api/admin/ai-costs` | AI使用コスト集計（組織別・月別・詳細テーブル） |
 
 ---
 
