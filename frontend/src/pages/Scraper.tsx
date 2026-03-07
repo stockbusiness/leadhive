@@ -552,7 +552,8 @@ function ShopifySection({
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-500">
-        Shopifyパートナーディレクトリおよび関連検索結果から、日本のShopifyパートナー企業を自動収集します。
+        Google Custom Search APIを使い、日本のShopifyパートナー・EC制作会社を自動収集します。
+        事前に設定画面でGoogle APIキーとSearch Engine IDの登録が必要です。
       </p>
       <div className="flex gap-3 items-end">
         <div>

@@ -224,10 +224,14 @@ def collect_shopify_partners(
 ):
     max_results = min(data.get("max_results", 20), 50)
 
-    from server.services.shopify_partners import scrape_shopify_partners
-    partners = scrape_shopify_partners(max_results=max_results)
+    from server.services.shopify_partners import collect_shopify_partners_via_google
+    partners = collect_shopify_partners_via_google(
+        max_results=max_results,
+        db=db,
+        org_id=current_user.org_id,
+    )
     if not partners:
-        return {"error": "Shopifyパートナー情報を取得できませんでした。"}
+        return {"error": "Shopifyパートナー情報を取得できませんでした。Google APIキーが設定画面で登録済みか確認してください。"}
 
     pid = data.get("project_id")
     result = process_urls_to_companies(partners, db, source="Shopifyパートナー", project_id=pid)
