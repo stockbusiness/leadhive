@@ -1,0 +1,269 @@
+import re
+import time
+import random
+import logging
+import requests
+from sqlalchemy.orm import Session
+
+from server.models import AppSetting, Company, RejectedUrl
+from server.services.scraper import scrape_company_info
+from server.services.aggregator import normalize_domain, is_aggregator_site
+from server.services.categorizer import categorize_company, detect_flags
+from server.services.scorer import calculate_score
+
+logger = logging.getLogger(__name__)
+
+GBIZ_BASE_URL = "https://info.gbiz.go.jp/hojin/v1/hojin"
+
+PREFECTURES = [
+    "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+    "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+    "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
+    "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県",
+    "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+    "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
+    "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
+]
+
+
+def get_gbiz_token(org_id: int, db: Session) -> str | None:
+    setting = db.query(AppSetting).filter(
+        AppSetting.setting_key == "gbizinfo_api_token",
+        AppSetting.org_id == org_id,
+    ).first()
+    return setting.setting_value if setting and setting.setting_value else None
+
+
+def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: int = 1) -> dict:
+    headers = {
+        "X-hojinInfo-api-token": token,
+        "Accept": "application/json",
+    }
+    params = {"page": page}
+    if name_keyword:
+        params["name"] = name_keyword
+    if prefecture:
+        params["prefecture"] = prefecture
+
+    resp = requests.get(GBIZ_BASE_URL, headers=headers, params=params, timeout=15)
+    resp.raise_for_status()
+    data = resp.json()
+
+    companies = []
+    for item in data.get("hojin-infos", []):
+        companies.append({
+            "name": item.get("name", ""),
+            "location": item.get("location", "") or "",
+            "company_url": item.get("company_url", "") or "",
+            "business_summary": item.get("business_summary", "") or "",
+            "corporate_number": item.get("corporate_number", "") or "",
+        })
+
+    return {
+        "companies": companies,
+        "total_page_count": int(data.get("total_page_count", 1)),
+    }
+
+
+def find_website_for_company(company_name: str, location: str = "") -> str | None:
+    from server.services.google_scrape import scrape_google_search
+    city = ""
+    for pref in PREFECTURES:
+        if location.startswith(pref):
+            rest = location[len(pref):]
+            m = re.match(r'^([^\s]+?[市区町村郡])', rest)
+            city = m.group(1) if m else rest[:6]
+            break
+
+    query = f'"{company_name}" {city} 公式サイト'.strip()
+    try:
+        results = scrape_google_search(query, num=3)
+        for r in results:
+            url = r.get("url", "")
+            domain = normalize_domain(url)
+            if domain and not is_aggregator_site(domain):
+                return url
+    except Exception as e:
+        logger.warning(f"Website search failed for {company_name}: {e}")
+    return None
+
+
+def _parse_location(location: str) -> tuple[str, str]:
+    prefecture = ""
+    city = ""
+    for pref in PREFECTURES:
+        if location.startswith(pref):
+            prefecture = pref
+            rest = location[len(pref):]
+            m = re.match(r'^([^\s]+?[市区町村郡])', rest)
+            city = m.group(1) if m else rest[:6]
+            break
+    return prefecture, city
+
+
+def collect_from_gbiz(
+    job_id: str,
+    project_id: int,
+    org_id: int,
+    keyword: str,
+    prefecture: str,
+    max_results: int,
+    db: Session,
+) -> dict:
+    from server.services.collector import _upsert_company_master, job_update
+
+    token = get_gbiz_token(org_id, db)
+    if not token:
+        raise ValueError("gBizINFO APIトークンが設定されていません")
+
+    existing_domains = set(
+        c.domain for c in db.query(Company).filter(Company.project_id == project_id).all()
+        if c.domain
+    )
+    rejected_domains = set(
+        r.domain for r in db.query(RejectedUrl).filter(RejectedUrl.project_id == project_id).all()
+        if r.domain
+    )
+
+    job_update(job_id, message="gBizINFO から法人リストを取得中...")
+
+    all_candidates = []
+    page = 1
+    max_pages = 10
+    while len(all_candidates) < max_results * 3 and page <= max_pages:
+        try:
+            result = search_gbiz(token, name_keyword=keyword, prefecture=prefecture, page=page)
+        except requests.HTTPError as e:
+            status = e.response.status_code if hasattr(e, "response") else "?"
+            raise ValueError(f"gBizINFO API エラー (HTTP {status}): APIトークンを確認してください")
+        except Exception as e:
+            raise ValueError(f"gBizINFO 接続エラー: {str(e)}")
+
+        all_candidates.extend(result["companies"])
+        if page >= result["total_page_count"]:
+            break
+        page += 1
+        time.sleep(0.3)
+
+    job_update(job_id, message=f"gBizINFOから {len(all_candidates)} 件取得。ホームページを探索中...")
+
+    success = 0
+    duplicate = 0
+    skipped = 0
+    errors = 0
+    results = []
+
+    targets = all_candidates[: max_results * 2]
+
+    for i, company in enumerate(targets):
+        if success >= max_results:
+            break
+
+        job_update(
+            job_id,
+            current=i + 1,
+            total=min(len(targets), max_results * 2),
+            message=f"({i + 1}/{len(targets)}) 「{company['name']}」を処理中...",
+        )
+
+        try:
+            url = company["company_url"]
+            if not url:
+                url = find_website_for_company(company["name"], company["location"])
+                if url:
+                    time.sleep(random.uniform(1.0, 2.0))
+
+            if not url:
+                skipped += 1
+                results.append({
+                    "url": "",
+                    "name": company["name"],
+                    "status": "skipped",
+                    "message": "URLが見つかりませんでした",
+                })
+                continue
+
+            domain = normalize_domain(url)
+            if not domain:
+                skipped += 1
+                continue
+
+            if domain in existing_domains or domain in rejected_domains:
+                duplicate += 1
+                results.append({"url": url, "name": company["name"], "status": "duplicate", "message": "重複"})
+                continue
+
+            if is_aggregator_site(domain):
+                rejected_domains.add(domain)
+                skipped += 1
+                results.append({"url": url, "name": company["name"], "status": "rejected", "message": "アグリゲーターサイト"})
+                continue
+
+            scraped = scrape_company_info(url)
+            if not scraped:
+                errors += 1
+                results.append({"url": url, "name": company["name"], "status": "error", "message": "スクレイピング失敗"})
+                continue
+
+            pref, city = _parse_location(company["location"])
+            scraped["company_name"] = company["name"] or scraped.get("company_name", "")
+            if pref:
+                scraped["prefecture"] = pref
+            if city:
+                scraped["city"] = city
+            scraped["website_url"] = url
+            scraped["domain"] = domain
+
+            full_text = scraped.get("full_text", "")
+            category_main, category_sub = categorize_company(full_text)
+            flags = detect_flags(full_text)
+            scraped.update({
+                "category_main": category_main,
+                "category_sub": category_sub,
+                **flags,
+            })
+            score, rank = calculate_score(scraped)
+            scraped["score_total"] = score
+            scraped["score_rank"] = rank
+
+            allowed_fields = {c.name for c in Company.__table__.columns}
+            company_kwargs = {k: v for k, v in scraped.items() if k in allowed_fields}
+            company_kwargs["project_id"] = project_id
+
+            new_company = Company(**company_kwargs)
+            db.add(new_company)
+            db.commit()
+            db.refresh(new_company)
+
+            existing_domains.add(domain)
+            _upsert_company_master(db, scraped, domain, source="gbiz")
+
+            success += 1
+            results.append({
+                "url": url,
+                "name": company["name"],
+                "status": "success",
+                "message": f"ランク{rank} / スコア{score}",
+                "score_rank": rank,
+                "score_total": score,
+            })
+
+        except Exception as e:
+            logger.warning(f"gbiz collect error for {company.get('name', '')}: {e}")
+            errors += 1
+            results.append({
+                "url": "",
+                "name": company.get("name", ""),
+                "status": "error",
+                "message": str(e),
+            })
+
+    summary = {
+        "success": success,
+        "duplicate": duplicate,
+        "skipped": skipped,
+        "error": errors,
+        "keyword": keyword,
+        "prefecture": prefecture,
+    }
+    return {"results": results, "summary": summary}

@@ -159,6 +159,9 @@ export const api = {
 
     googleMaps: (keyword: string, region: string = "東京", maxResults: number = 20) =>
       axios.post("/api/collect/google-maps", { keyword, region, max_results: maxResults }).then(r => r.data),
+
+    startGbiz: (params: { project_id?: number; keyword: string; prefecture: string; max_results: number }) =>
+      axios.post<{ job_id: string }>("/api/collect/gbiz", params).then(r => r.data),
   },
 
   templates: {

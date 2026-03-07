@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, Search, List, ShoppingBag, AlertTriangle, MapPin } from "lucide-react";
+import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, Search, List, ShoppingBag, AlertTriangle, MapPin, Building2 } from "lucide-react";
 import { api } from "../api";
 import { ResultRow } from "../components/common";
 import { useProject } from "../contexts/ProjectContext";
 import type { SearchKeyword, ScrapeResult, CollectSummary } from "../types";
 
-type CollectTab = "google-api" | "directory" | "google-scrape" | "shopify" | "google-maps";
+type CollectTab = "google-api" | "directory" | "google-scrape" | "shopify" | "google-maps" | "houjin-db";
 
 export default function Scraper() {
   const { currentProject } = useProject();
@@ -36,6 +36,10 @@ export default function Scraper() {
   const [gmKeyword, setGmKeyword] = useState("");
   const [gmRegion, setGmRegion] = useState("東京");
   const [gmMaxResults, setGmMaxResults] = useState(20);
+
+  const [gbizKeyword, setGbizKeyword] = useState("");
+  const [gbizPrefecture, setGbizPrefecture] = useState("");
+  const [gbizMaxResults, setGbizMaxResults] = useState(20);
 
   useEffect(() => {
     api.keywords.list().then((data) => {
@@ -174,12 +178,61 @@ export default function Scraper() {
     setCollectLoading(false);
   };
 
+  const handleGbizCollect = async () => {
+    if (!gbizKeyword.trim()) return;
+    setCollectLoading(true);
+    setCollectResults(null);
+    setProgressMsg("");
+    setProgressCurrent(0);
+    setProgressTotal(0);
+    try {
+      const { job_id } = await api.collector.startGbiz({
+        project_id: currentProject?.id,
+        keyword: gbizKeyword,
+        prefecture: gbizPrefecture,
+        max_results: gbizMaxResults,
+      });
+      const es = new EventSource(`/api/collect/progress/${job_id}`);
+      esRef.current = es;
+      es.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.message) setProgressMsg(msg.message);
+          if (msg.current !== undefined) setProgressCurrent(msg.current);
+          if (msg.total !== undefined) setProgressTotal(msg.total);
+          if (msg.type === "done") {
+            setCollectResults(msg.result);
+            setProgressMsg("");
+            setCollectLoading(false);
+            es.close();
+          } else if (msg.type === "error") {
+            setCollectResults({ error: msg.message });
+            setProgressMsg("");
+            setCollectLoading(false);
+            es.close();
+          }
+        } catch {}
+      };
+      es.onerror = () => {
+        setCollectResults({ error: "接続エラーが発生しました" });
+        setProgressMsg("");
+        setCollectLoading(false);
+        es.close();
+      };
+    } catch (err: any) {
+      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
+      setProgressMsg("");
+      setCollectLoading(false);
+    }
+  };
+
   const tabs: { key: CollectTab; label: string; icon: typeof Zap }[] = [
     { key: "google-api", label: "Google API検索", icon: Zap },
     { key: "directory", label: "ディレクトリ収集", icon: List },
     { key: "google-scrape", label: "Google直接検索", icon: Search },
     { key: "shopify", label: "Shopifyパートナー", icon: ShoppingBag },
     { key: "google-maps", label: "Googleマップ", icon: MapPin },
+    { key: "houjin-db", label: "法人DB", icon: Building2 },
   ];
 
   return (
@@ -261,6 +314,22 @@ export default function Scraper() {
               onMaxResultsChange={setGmMaxResults}
               loading={collectLoading}
               onCollect={handleGoogleMapsCollect}
+            />
+          )}
+
+          {activeTab === "houjin-db" && (
+            <GbizSection
+              keyword={gbizKeyword}
+              onKeywordChange={setGbizKeyword}
+              prefecture={gbizPrefecture}
+              onPrefectureChange={setGbizPrefecture}
+              maxResults={gbizMaxResults}
+              onMaxResultsChange={setGbizMaxResults}
+              loading={collectLoading}
+              onCollect={handleGbizCollect}
+              progressMsg={progressMsg}
+              progressCurrent={progressCurrent}
+              progressTotal={progressTotal}
             />
           )}
 
@@ -569,6 +638,104 @@ function GoogleMapsSection({
           マップ検索
         </button>
       </div>
+    </div>
+  );
+}
+
+const PREFECTURES_JP = [
+  "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+  "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+  "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
+  "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県",
+  "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+  "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
+  "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
+];
+
+function GbizSection({
+  keyword, onKeywordChange, prefecture, onPrefectureChange,
+  maxResults, onMaxResultsChange, loading, onCollect,
+  progressMsg, progressCurrent, progressTotal,
+}: {
+  keyword: string; onKeywordChange: (v: string) => void;
+  prefecture: string; onPrefectureChange: (v: string) => void;
+  maxResults: number; onMaxResultsChange: (v: number) => void;
+  loading: boolean; onCollect: () => void;
+  progressMsg?: string; progressCurrent?: number; progressTotal?: number;
+}) {
+  const pct = progressTotal && progressTotal > 0 ? Math.round((progressCurrent! / progressTotal) * 100) : 0;
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-500">
+        経済産業省の <strong>gBizINFO</strong>（約400万社）から法人リストを取得し、
+        各社のホームページを探索してスクレイピングします。ゴミデータが混入しない高品質な収集が可能です。
+        APIトークンが必要です（
+        <a href="https://info.gbiz.go.jp/api/index.html" target="_blank" rel="noreferrer" className="text-blue-600 underline">
+          無料・即時発行
+        </a>
+        。取得後は設定画面で登録してください）。
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-slate-600 mb-1">会社名キーワード（部分一致）</label>
+          <input
+            type="text"
+            placeholder="例: コンサルティング、EC、デジタル"
+            value={keyword}
+            onChange={(e) => onKeywordChange(e.target.value)}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">都道府県</label>
+          <select
+            value={prefecture}
+            onChange={(e) => onPrefectureChange(e.target.value)}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">全国</option>
+            {PREFECTURES_JP.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">最大件数</label>
+          <select
+            value={maxResults}
+            onChange={(e) => onMaxResultsChange(Number(e.target.value))}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {[10, 20, 50, 100].map((n) => (
+              <option key={n} value={n}>{n}件</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <button
+        onClick={onCollect}
+        disabled={loading || !keyword.trim()}
+        className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
+      >
+        {loading ? <Loader2 size={16} className="animate-spin" /> : <Building2 size={16} />}
+        法人DB収集開始
+      </button>
+      {loading && progressMsg && (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-slate-500">
+            <span>{progressMsg}</span>
+            {progressTotal && progressTotal > 0 && (
+              <span>{progressCurrent}/{progressTotal}</span>
+            )}
+          </div>
+          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-2 bg-indigo-500 rounded-full transition-all duration-300"
+              style={{ width: progressTotal && progressTotal > 0 ? `${pct}%` : "100%" }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

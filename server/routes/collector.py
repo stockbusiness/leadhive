@@ -297,6 +297,54 @@ def collect_google_maps(
     return result
 
 
+@router.post("/gbiz")
+def collect_gbiz(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.services.gbiz_collector import get_gbiz_token
+
+    project_id = data.get("project_id")
+    keyword = data.get("keyword", "")
+    prefecture = data.get("prefecture", "")
+    max_results = min(int(data.get("max_results", 20)), 100)
+
+    token = get_gbiz_token(current_user.org_id, db)
+    if not token:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400,
+            detail="gBizINFO APIトークンが設定されていません。設定画面から登録してください。",
+        )
+
+    job_id = str(uuid.uuid4())
+    job_update(job_id, type="progress", current=0, total=0, message="gBizINFO 収集を開始しています...", status="running")
+
+    def run():
+        new_db = SessionLocal()
+        try:
+            from server.services.gbiz_collector import collect_from_gbiz
+            result = collect_from_gbiz(
+                job_id=job_id,
+                project_id=project_id,
+                org_id=current_user.org_id,
+                keyword=keyword,
+                prefecture=prefecture,
+                max_results=max_results,
+                db=new_db,
+            )
+            cache_invalidate("dashboard")
+            job_update(job_id, type="done", result=result, message="収集完了")
+        except Exception as e:
+            job_update(job_id, type="error", message=str(e))
+        finally:
+            new_db.close()
+
+    threading.Thread(target=run, daemon=True).start()
+    return {"job_id": job_id}
+
+
 _PREFECTURES = [
     "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
     "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
