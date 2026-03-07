@@ -124,4 +124,32 @@ export interface DashboardData {
   recent_companies: Company[];
   api_usage_today: number;
   api_daily_limit: number;
+  daily_collection_trend?: { date: string; count: number }[];
+}
+
+export interface CompanyMaster {
+  id: number;
+  domain: string;
+  company_name: string;
+  website_url: string;
+  contact_url: string;
+  phone: string;
+  email: string;
+  prefecture: string;
+  city: string;
+  category_main: string;
+  category_sub: string;
+  shopify_flag: boolean;
+  ec_flag: boolean;
+  amazon_flag: boolean;
+  rakuten_flag: boolean;
+  consulting_flag: boolean;
+  operation_flag: boolean;
+  production_flag: boolean;
+  score_total: number;
+  score_rank: string;
+  source: string;
+  last_scraped_at: string | null;
+  created_at: string | null;
+  already_in_project: boolean;
 }

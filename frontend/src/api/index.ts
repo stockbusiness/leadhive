@@ -1,7 +1,7 @@
 import axios from "axios";
 import type {
   Company, StatusHistoryEntry, MemoTemplate, SearchKeyword,
-  ScrapeResult, CollectionLog, RejectedItem, DashboardData, ActivityLogEntry, Project,
+  ScrapeResult, CollectionLog, RejectedItem, DashboardData, ActivityLogEntry, Project, CompanyMaster,
 } from "../types";
 
 export const api = {
@@ -63,6 +63,9 @@ export const api = {
       axios.post<{ company: Company; merged_count: number }>(
         "/api/companies/merge", { main_id: mainId, merge_ids: mergeIds }
       ).then(r => r.data),
+
+    moveProject: (companyIds: number[], targetProjectId: number) =>
+      axios.post("/api/companies/move-project", { company_ids: companyIds, target_project_id: targetProjectId }).then(r => r.data),
   },
 
   keywords: {
@@ -90,6 +93,9 @@ export const api = {
 
     all: () =>
       axios.post("/api/collect/all").then(r => r.data),
+
+    startAsync: (params: { keyword_id?: number; project_id?: number }) =>
+      axios.post<{ job_id: string }>("/api/collect/async", params).then(r => r.data),
 
     history: (limit = 50) =>
       axios.get<{ logs: CollectionLog[] }>("/api/collect/history", { params: { limit } }).then(r => r.data),
@@ -156,7 +162,21 @@ export const api = {
     test: () =>
       axios.post("/api/settings/test").then(r => r.data),
 
+    slackTest: () =>
+      axios.post("/api/settings/slack-test").then(r => r.data),
+
     getScheduler: () =>
       axios.get("/api/settings/scheduler").then(r => r.data),
+  },
+
+  master: {
+    stats: () =>
+      axios.get<{ total: number; by_category: Record<string, number>; by_source: Record<string, number> }>("/api/master/stats").then(r => r.data),
+
+    search: (params: { q?: string; category?: string; prefecture?: string; min_score?: number; project_id?: number; limit?: number }) =>
+      axios.get<{ items: CompanyMaster[]; total: number }>("/api/master/search", { params }).then(r => r.data),
+
+    import: (domainList: string[], projectId: number) =>
+      axios.post<{ success: number; duplicate: number; error: number }>("/api/master/import", { domain_list: domainList, project_id: projectId }).then(r => r.data),
   },
 };

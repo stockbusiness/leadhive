@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Index, Integer, String, Boolean, Text, DateTime, Date, ForeignKey, JSON
+from sqlalchemy import Column, Index, Integer, String, Boolean, Text, DateTime, Date, ForeignKey, JSON, UniqueConstraint
 from sqlalchemy.sql import func
 from server.database import Base
 
@@ -25,7 +25,7 @@ class Company(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
     company_name = Column(String(255))
-    website_url = Column(Text, unique=True)
+    website_url = Column(Text)
     domain = Column(String(255), index=True)
     contact_url = Column(Text)
     prefecture = Column(String(100))
@@ -46,6 +46,40 @@ class Company(Base):
     score_rank = Column(String(1), default="D", index=True)
     status = Column(String(50), default="未確認", index=True)
     notes = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("website_url", "project_id", name="uq_company_url_project"),
+    )
+
+
+class CompanyMaster(Base):
+    __tablename__ = "company_master"
+
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String(255), unique=True, nullable=False, index=True)
+    company_name = Column(String(255))
+    website_url = Column(Text)
+    contact_url = Column(Text)
+    phone = Column(String(50))
+    email = Column(String(255))
+    prefecture = Column(String(100), index=True)
+    city = Column(String(100))
+    category_main = Column(String(100), index=True)
+    category_sub = Column(String(100))
+    shopify_flag = Column(Boolean, default=False)
+    ec_flag = Column(Boolean, default=False)
+    amazon_flag = Column(Boolean, default=False)
+    rakuten_flag = Column(Boolean, default=False)
+    consulting_flag = Column(Boolean, default=False)
+    operation_flag = Column(Boolean, default=False)
+    production_flag = Column(Boolean, default=False)
+    score_total = Column(Integer, default=0)
+    score_rank = Column(String(1), default="D", index=True)
+    source = Column(String(100))
+    search_text = Column(Text)
+    last_scraped_at = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

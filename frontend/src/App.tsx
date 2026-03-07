@@ -11,6 +11,7 @@ import {
   FileText,
   FolderKanban,
   ChevronDown,
+  Database,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 
@@ -23,6 +24,7 @@ const RejectedList = lazy(() => import("./pages/RejectedList"));
 const CollectionHistory = lazy(() => import("./pages/CollectionHistory"));
 const Templates = lazy(() => import("./pages/Templates"));
 const Projects = lazy(() => import("./pages/Projects"));
+const MasterDB = lazy(() => import("./pages/MasterDB"));
 
 function PageLoader() {
   return (
@@ -65,6 +67,7 @@ function AppContent() {
           <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" />
           <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" />
           <SidebarLink to="/templates" icon={<FileText size={18} />} label="メモテンプレート" />
+          <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" />
           <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" />
         </nav>
         <div className="p-2 border-t border-slate-700">
@@ -82,6 +85,7 @@ function AppContent() {
             <Route path="/rejected" element={<RejectedList />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/master" element={<MasterDB />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </Suspense>

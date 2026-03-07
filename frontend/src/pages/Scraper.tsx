@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, Search, List, ShoppingBag, AlertTriangle, MapPin } from "lucide-react";
 import { api } from "../api";
 import { ResultRow } from "../components/common";
+import { useProject } from "../contexts/ProjectContext";
 import type { SearchKeyword, ScrapeResult, CollectSummary } from "../types";
 
 type CollectTab = "google-api" | "directory" | "google-scrape" | "shopify" | "google-maps";
 
 export default function Scraper() {
+  const { currentProject } = useProject();
   const [singleUrl, setSingleUrl] = useState("");
   const [bulkUrls, setBulkUrls] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,6 +19,10 @@ export default function Scraper() {
   const [collectResults, setCollectResults] = useState<any>(null);
   const [selectedKeyword, setSelectedKeyword] = useState<number | "all">("all");
   const [activeTab, setActiveTab] = useState<CollectTab>("google-api");
+  const [progressMsg, setProgressMsg] = useState("");
+  const [progressCurrent, setProgressCurrent] = useState(0);
+  const [progressTotal, setProgressTotal] = useState(0);
+  const esRef = useRef<EventSource | null>(null);
 
   const [dirUrl, setDirUrl] = useState("");
   const [dirMaxPages, setDirMaxPages] = useState(3);
@@ -67,15 +73,54 @@ export default function Scraper() {
   const handleAutoCollect = async () => {
     setCollectLoading(true);
     setCollectResults(null);
+    setProgressMsg("収集を開始しています...");
+    setProgressCurrent(0);
+    setProgressTotal(0);
+
+    if (esRef.current) {
+      esRef.current.close();
+      esRef.current = null;
+    }
+
     try {
-      const data = selectedKeyword === "all"
-        ? await api.collector.all()
-        : await api.collector.single(selectedKeyword);
-      setCollectResults(data);
+      const params: { keyword_id?: number; project_id?: number } = {};
+      if (selectedKeyword !== "all") params.keyword_id = selectedKeyword;
+      if (currentProject?.id) params.project_id = currentProject.id;
+      const { job_id } = await api.collector.startAsync(params);
+
+      const es = new EventSource(`/api/collect/progress/${job_id}`);
+      esRef.current = es;
+
+      es.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.message) setProgressMsg(msg.message);
+          if (msg.current !== undefined) setProgressCurrent(msg.current);
+          if (msg.total !== undefined) setProgressTotal(msg.total);
+          if (msg.type === "done") {
+            setCollectResults(msg.result);
+            setProgressMsg("");
+            setCollectLoading(false);
+            es.close();
+          } else if (msg.type === "error") {
+            setCollectResults({ error: msg.message });
+            setProgressMsg("");
+            setCollectLoading(false);
+            es.close();
+          }
+        } catch {}
+      };
+      es.onerror = () => {
+        setCollectResults({ error: "接続エラーが発生しました" });
+        setProgressMsg("");
+        setCollectLoading(false);
+        es.close();
+      };
     } catch (err: any) {
       setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
+      setProgressMsg("");
+      setCollectLoading(false);
     }
-    setCollectLoading(false);
   };
 
   const handleDirectoryCollect = async () => {
@@ -167,6 +212,9 @@ export default function Scraper() {
               onSelectKeyword={setSelectedKeyword}
               loading={collectLoading}
               onCollect={handleAutoCollect}
+              progressMsg={progressMsg}
+              progressCurrent={progressCurrent}
+              progressTotal={progressTotal}
             />
           )}
 
@@ -241,14 +289,18 @@ export default function Scraper() {
 }
 
 function GoogleApiSection({
-  keywords, selectedKeyword, onSelectKeyword, loading, onCollect,
+  keywords, selectedKeyword, onSelectKeyword, loading, onCollect, progressMsg, progressCurrent, progressTotal,
 }: {
   keywords: SearchKeyword[];
   selectedKeyword: number | "all";
   onSelectKeyword: (v: number | "all") => void;
   loading: boolean;
   onCollect: () => void;
+  progressMsg?: string;
+  progressCurrent?: number;
+  progressTotal?: number;
 }) {
+  const pct = progressTotal && progressTotal > 0 ? Math.round((progressCurrent! / progressTotal) * 100) : 0;
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-500">
@@ -280,6 +332,22 @@ function GoogleApiSection({
           収集開始
         </button>
       </div>
+      {loading && progressMsg && (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-slate-500">
+            <span>{progressMsg}</span>
+            {progressTotal && progressTotal > 0 && (
+              <span>{progressCurrent}/{progressTotal}</span>
+            )}
+          </div>
+          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-2 bg-blue-500 rounded-full transition-all duration-300"
+              style={{ width: progressTotal && progressTotal > 0 ? `${pct}%` : "100%" }}
+            />
+          </div>
+        </div>
+      )}
       {keywords.length === 0 && (
         <p className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
           キーワードが登録されていません。「検索条件管理」画面でキーワードを追加してください。

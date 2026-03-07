@@ -1,10 +1,10 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from server.database import get_db
-from server.models import Company, ApiUsageLog
+from server.models import Company, ApiUsageLog, CollectionLog
 from server.schemas import company_to_dict
 from server.services.cache import cache_get, cache_set
 
@@ -74,6 +74,23 @@ def get_dashboard(project_id: Optional[int] = None, db: Session = Depends(get_db
     usage_log = db.query(ApiUsageLog).filter(ApiUsageLog.usage_date == today).first()
     api_usage_today = usage_log.request_count if usage_log else 0
 
+    thirty_days_ago = date.today() - timedelta(days=29)
+    trend_q = (
+        db.query(
+            func.date(CollectionLog.created_at).label("day"),
+            func.sum(CollectionLog.success_count).label("count"),
+        )
+        .filter(func.date(CollectionLog.created_at) >= thirty_days_ago)
+    )
+    if project_id:
+        trend_q = trend_q.filter(CollectionLog.project_id == project_id)
+    trend_rows = trend_q.group_by(func.date(CollectionLog.created_at)).order_by(func.date(CollectionLog.created_at)).all()
+    trend_map = {str(row.day): int(row.count or 0) for row in trend_rows}
+    daily_trend = []
+    for i in range(30):
+        d = (thirty_days_ago + timedelta(days=i)).isoformat()
+        daily_trend.append({"date": d, "count": trend_map.get(d, 0)})
+
     result = {
         "total": total,
         "unique_domains": unique_domains,
@@ -87,6 +104,7 @@ def get_dashboard(project_id: Optional[int] = None, db: Session = Depends(get_db
         "recent_companies": [company_to_dict(c) for c in recent_companies],
         "api_usage_today": api_usage_today,
         "api_daily_limit": 100,
+        "daily_collection_trend": daily_trend,
     }
 
     cache_set(cache_key, result)

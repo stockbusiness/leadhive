@@ -484,3 +484,31 @@ def rescrape_company(company_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(company)
     return {"company": company_to_dict(company, db)}
+
+
+@router.post("/move-project")
+def move_project(data: dict, db: Session = Depends(get_db)):
+    company_ids = data.get("company_ids", [])
+    target_project_id = data.get("target_project_id")
+    if not company_ids or not target_project_id:
+        return {"error": "企業IDと移動先プロジェクトIDを指定してください"}
+
+    existing_domains = set(
+        c.domain for c in db.query(Company.domain).filter(Company.project_id == target_project_id).all()
+    )
+
+    moved = 0
+    skipped = 0
+    for cid in company_ids:
+        company = db.query(Company).filter(Company.id == cid).first()
+        if not company:
+            continue
+        if company.domain in existing_domains:
+            skipped += 1
+            continue
+        company.project_id = target_project_id
+        existing_domains.add(company.domain)
+        moved += 1
+
+    db.commit()
+    return {"moved": moved, "skipped": skipped}

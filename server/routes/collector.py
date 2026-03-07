@@ -1,12 +1,90 @@
+import asyncio
+import json
+import uuid
+import threading
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from server.database import get_db
+from server.database import get_db, SessionLocal
 from server.models import SearchKeyword, CollectionLog
-from server.services.collector import collect_by_keyword, process_urls_to_companies
+from server.services.collector import collect_by_keyword, process_urls_to_companies, job_update, job_get, job_cleanup
 from server.services.cache import cache_invalidate
 
 router = APIRouter(prefix="/api/collect", tags=["collector"])
+
+
+@router.get("/progress/{job_id}")
+async def collect_progress(job_id: str):
+    async def event_stream():
+        max_wait = 300
+        waited = 0
+        interval = 0.5
+        sent_done = False
+        while waited < max_wait:
+            state = job_get(job_id)
+            if not state:
+                await asyncio.sleep(interval)
+                waited += interval
+                continue
+            data = json.dumps(state, ensure_ascii=False)
+            yield f"data: {data}\n\n"
+            if state.get("type") in ("done", "error"):
+                sent_done = True
+                break
+            await asyncio.sleep(interval)
+            waited += interval
+        if not sent_done:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'タイムアウト'})}\n\n"
+        job_cleanup(job_id)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/async")
+def collect_async(data: dict):
+    job_id = str(uuid.uuid4())
+    job_update(job_id, type="progress", current=0, total=0, message="収集を開始しています...", status="running")
+
+    def run():
+        db = SessionLocal()
+        try:
+            pid = data.get("project_id")
+            if data.get("keyword_id"):
+                keyword_id = data["keyword_id"]
+                kw = db.query(SearchKeyword).filter(SearchKeyword.id == keyword_id).first()
+                if kw:
+                    job_update(job_id, message=f"キーワード「{kw.keyword}」で収集中...")
+                result = collect_by_keyword(keyword_id, db, project_id=pid)
+            else:
+                q = db.query(SearchKeyword).filter(SearchKeyword.is_active == True)
+                if pid:
+                    q = q.filter(SearchKeyword.project_id == pid)
+                keywords = q.all()
+                all_results = []
+                for i, kw in enumerate(keywords):
+                    job_update(job_id, current=i, total=len(keywords), message=f"({i+1}/{len(keywords)}) 「{kw.keyword}」を処理中...")
+                    r = collect_by_keyword(kw.id, db, project_id=pid)
+                    all_results.append({"keyword": kw.keyword, **r})
+                total_success = sum(r.get("summary", {}).get("success", 0) for r in all_results if "summary" in r)
+                total_duplicate = sum(r.get("summary", {}).get("duplicate", 0) for r in all_results if "summary" in r)
+                total_rejected = sum(r.get("summary", {}).get("rejected", 0) for r in all_results if "summary" in r)
+                result = {
+                    "keywords_processed": len(all_results),
+                    "total_success": total_success,
+                    "total_duplicate": total_duplicate,
+                    "total_rejected": total_rejected,
+                    "details": all_results,
+                }
+            cache_invalidate("dashboard")
+            job_update(job_id, type="done", result=result, message="収集完了")
+        except Exception as e:
+            job_update(job_id, type="error", message=str(e))
+        finally:
+            db.close()
+
+    threading.Thread(target=run, daemon=True).start()
+    return {"job_id": job_id}
 
 
 @router.post("")

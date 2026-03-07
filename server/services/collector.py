@@ -1,7 +1,9 @@
 import logging
+import threading
+from datetime import datetime
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session
-from server.models import AppSetting, Company, RejectedUrl, SearchKeyword, CollectionLog
+from server.models import AppSetting, Company, CompanyMaster, RejectedUrl, SearchKeyword, CollectionLog
 from server.services.scraper import scrape_company_info, scrape_urls_parallel
 from server.services.categorizer import categorize_company, detect_flags
 from server.services.scorer import calculate_score
@@ -9,6 +11,66 @@ from server.services.aggregator import normalize_domain, is_aggregator_site
 from server.services.google_search import search_google
 
 logger = logging.getLogger(__name__)
+
+_job_store: dict[str, dict] = {}
+_job_store_lock = threading.Lock()
+
+
+def job_update(job_id: str, **kwargs):
+    with _job_store_lock:
+        if job_id not in _job_store:
+            _job_store[job_id] = {}
+        _job_store[job_id].update(kwargs)
+
+
+def job_get(job_id: str) -> dict | None:
+    with _job_store_lock:
+        return dict(_job_store.get(job_id, {}))
+
+
+def job_cleanup(job_id: str):
+    with _job_store_lock:
+        _job_store.pop(job_id, None)
+
+
+def _upsert_company_master(db: Session, company_data: dict, domain: str, source: str = "unknown"):
+    try:
+        search_parts = [
+            company_data.get("company_name") or "",
+            domain,
+            company_data.get("category_main") or "",
+            company_data.get("prefecture") or "",
+        ]
+        search_text = " ".join(p for p in search_parts if p).lower()
+
+        existing = db.query(CompanyMaster).filter(CompanyMaster.domain == domain).first()
+        if existing:
+            for field in ["company_name", "website_url", "contact_url", "phone", "email",
+                          "prefecture", "city", "category_main", "category_sub",
+                          "shopify_flag", "ec_flag", "amazon_flag", "rakuten_flag",
+                          "consulting_flag", "operation_flag", "production_flag",
+                          "score_total", "score_rank"]:
+                val = company_data.get(field)
+                if val is not None:
+                    setattr(existing, field, val)
+            existing.search_text = search_text
+            existing.last_scraped_at = datetime.utcnow()
+        else:
+            master_fields = {k: v for k, v in company_data.items() if hasattr(CompanyMaster, k)}
+            master_fields["domain"] = domain
+            master_fields["source"] = source
+            master_fields["search_text"] = search_text
+            master_fields["last_scraped_at"] = datetime.utcnow()
+            master_fields.pop("id", None)
+            master_fields.pop("project_id", None)
+            master_fields.pop("status", None)
+            master_fields.pop("notes", None)
+            master_fields.pop("score_adjustment", None)
+            db.add(CompanyMaster(**master_fields))
+        db.commit()
+    except Exception as e:
+        logger.warning(f"CompanyMaster upsert failed for {domain}: {e}")
+        db.rollback()
 
 
 def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> dict:
@@ -81,7 +143,33 @@ def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> 
     db.add(log)
     db.commit()
 
+    if summary["success"] >= 1:
+        _send_collection_slack(db, project_id, keyword.keyword, summary, results)
+
     return {"results": results, "summary": summary}
+
+
+def _send_collection_slack(db: Session, project_id, source: str, summary: dict, results: list):
+    try:
+        webhook_row = db.query(AppSetting).filter(AppSetting.setting_key == "slack_webhook_url").first()
+        if not webhook_row or not webhook_row.setting_value:
+            return
+        from server.services.slack import send_slack_notification
+        from server.models import Project
+        project_name = "不明"
+        if project_id:
+            p = db.query(Project).filter(Project.id == project_id).first()
+            if p:
+                project_name = p.name
+        rank_a = sum(1 for r in results if r.get("status") == "success" and "A" in r.get("message", ""))
+        rank_b = sum(1 for r in results if r.get("status") == "success" and "B" in r.get("message", ""))
+        msg = (
+            f"✅ 収集完了: {project_name} / {source}\n"
+            f"新規 {summary['success']}件  除外 {summary['rejected']}件  重複 {summary['duplicate']}件"
+        )
+        send_slack_notification(msg, webhook_row.setting_value)
+    except Exception as e:
+        logger.warning(f"Slack通知エラー: {e}")
 
 
 def _process_search_results(
@@ -173,6 +261,8 @@ def _process_search_results(
             db.refresh(company)
             existing_domains.add(domain)
 
+            _upsert_company_master(db, company_data, domain, source="auto")
+
             results[idx] = {
                 "url": url, "status": "success",
                 "message": f"{company.company_name or domain} (スコア: {score})",
@@ -219,5 +309,8 @@ def process_urls_to_companies(
     )
     db.add(log)
     db.commit()
+
+    if summary["success"] >= 1:
+        _send_collection_slack(db, project_id, source, summary, results)
 
     return {"results": results, "summary": summary}

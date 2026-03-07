@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock } from "lucide-react";
+import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
 } from "recharts";
 import { api } from "../api";
 import { RANK_COLORS, PIE_COLORS, SCORE_BADGE_COLORS } from "../constants";
@@ -118,6 +118,28 @@ export default function Dashboard() {
           ) : <EmptyChart />}
         </ChartCard>
       </div>
+
+      {data.daily_collection_trend && data.daily_collection_trend.length > 0 && (
+        <ChartCard title="直近30日の収集件数推移">
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={data.daily_collection_trend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v) => v.slice(5)}
+                interval="preserveStartEnd"
+              />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip
+                labelFormatter={(v) => `${v}`}
+                formatter={(v: any) => [`${v}件`, "収集件数"]}
+              />
+              <Line type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2} dot={false} name="収集件数" />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
         <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">

@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
-import { Download, CheckSquare, Copy, X, GitMerge } from "lucide-react";
+import { Download, CheckSquare, Copy, X, GitMerge, MoveRight } from "lucide-react";
 import { api } from "../api";
 import { Pagination } from "../components/common";
 import { CompanyFilterBar, CompanyTable, CompanyEditModal } from "../components/companies";
 import { STATUSES } from "../constants";
-import type { Company } from "../types";
+import type { Company, Project } from "../types";
+import { useProject } from "../contexts/ProjectContext";
 
 interface DuplicateGroup {
   normalized_domain: string;
@@ -12,6 +13,7 @@ interface DuplicateGroup {
 }
 
 export default function Companies() {
+  const { projects, currentProject } = useProject();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -31,6 +33,9 @@ export default function Companies() {
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateLoading, setDuplicateLoading] = useState(false);
   const [mergeSelections, setMergeSelections] = useState<Record<string, number>>({});
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [moveTargetProjectId, setMoveTargetProjectId] = useState<number | "">("");
+  const [moveLoading, setMoveLoading] = useState(false);
 
   const fetchCompanies = useCallback(() => {
     const params: Record<string, string | number | boolean> = { page, per_page: 50 };
@@ -95,6 +100,22 @@ export default function Companies() {
         fetchCompanies();
       })
       .finally(() => setBulkLoading(false));
+  };
+
+  const handleMoveProject = async () => {
+    if (!moveTargetProjectId || selectedIds.size === 0) return;
+    setMoveLoading(true);
+    try {
+      const result = await api.companies.moveProject(Array.from(selectedIds), moveTargetProjectId as number);
+      alert(`移動完了: ${result.moved}件移動、${result.skipped}件スキップ（重複）`);
+      setShowMoveModal(false);
+      setSelectedIds(new Set());
+      setMoveTargetProjectId("");
+      fetchCompanies();
+    } catch {
+      alert("移動に失敗しました");
+    }
+    setMoveLoading(false);
   };
 
   const handleDuplicateCheck = () => {
@@ -182,6 +203,13 @@ export default function Companies() {
             {bulkLoading ? "処理中..." : "一括変更"}
           </button>
           <button
+            onClick={() => setShowMoveModal(true)}
+            className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 transition-colors"
+          >
+            <MoveRight size={14} />
+            プロジェクト移動
+          </button>
+          <button
             onClick={() => setSelectedIds(new Set())}
             className="text-sm text-slate-500 hover:text-slate-700 ml-auto"
           >
@@ -218,6 +246,59 @@ export default function Companies() {
             fetchCompanies();
           }}
         />
+      )}
+
+      {showMoveModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <MoveRight size={20} />
+                プロジェクト間移動
+              </h3>
+              <button onClick={() => setShowMoveModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-600">
+                <strong>{selectedIds.size}件</strong>の企業を別のプロジェクトに移動します。
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">移動先プロジェクト</label>
+                <select
+                  value={moveTargetProjectId}
+                  onChange={(e) => setMoveTargetProjectId(Number(e.target.value))}
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">プロジェクトを選択...</option>
+                  {projects.filter((p) => p.id !== currentProject?.id).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs text-slate-400">
+                移動先に同じドメインの企業が既に存在する場合はスキップされます。
+              </p>
+            </div>
+            <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowMoveModal(false)}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleMoveProject}
+                disabled={!moveTargetProjectId || moveLoading}
+                className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50"
+              >
+                <MoveRight size={15} />
+                {moveLoading ? "移動中..." : "移動実行"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showDuplicateModal && (

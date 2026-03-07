@@ -5,13 +5,13 @@ from server.models import AppSetting
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-SETTING_KEYS = ["google_api_key", "google_cx", "auto_collect_enabled", "auto_collect_time"]
+SETTING_KEYS = ["google_api_key", "google_cx", "auto_collect_enabled", "auto_collect_time", "google_places_api_key", "slack_webhook_url"]
 
 
 def mask_value(key: str, value: str) -> str:
     if not value:
         return ""
-    if "api_key" in key or "secret" in key:
+    if "api_key" in key or "secret" in key or "webhook" in key:
         if len(value) <= 8:
             return "****"
         return value[:4] + "*" * (len(value) - 8) + value[-4:]
@@ -54,6 +54,18 @@ def update_settings(data: dict, db: Session = Depends(get_db)):
 def get_scheduler_status():
     from server.services.scheduler import get_scheduler_status
     return get_scheduler_status()
+
+
+@router.post("/slack-test")
+def test_slack(db: Session = Depends(get_db)):
+    from server.services.slack import send_slack_notification
+    webhook = db.query(AppSetting).filter(AppSetting.setting_key == "slack_webhook_url").first()
+    if not webhook or not webhook.setting_value:
+        return {"success": False, "message": "Slack Webhook URLが設定されていません"}
+    ok = send_slack_notification("🔔 ESCMSからのテスト通知です。Slack連携が正常に動作しています！", webhook.setting_value)
+    if ok:
+        return {"success": True, "message": "Slack通知を送信しました"}
+    return {"success": False, "message": "送信に失敗しました。Webhook URLを確認してください"}
 
 
 @router.post("/test")

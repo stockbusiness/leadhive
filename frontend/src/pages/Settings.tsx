@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer } from "lucide-react";
+import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare } from "lucide-react";
 import { api } from "../api";
 
 export default function Settings() {
@@ -15,6 +15,10 @@ export default function Settings() {
   const [autoCollectEnabled, setAutoCollectEnabled] = useState(false);
   const [autoCollectTime, setAutoCollectTime] = useState("09:00");
   const [schedulerRunning, setSchedulerRunning] = useState(false);
+  const [slackWebhookUrl, setSlackWebhookUrl] = useState("");
+  const [slackWebhookSet, setSlackWebhookSet] = useState(false);
+  const [slackTesting, setSlackTesting] = useState(false);
+  const [slackMessage, setSlackMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     api.settings.get().then((data) => {
@@ -37,6 +41,10 @@ export default function Settings() {
       if (s.auto_collect_time?.is_set) {
         setAutoCollectTime(s.auto_collect_time.value);
       }
+      if (s.slack_webhook_url) {
+        setSlackWebhookSet(s.slack_webhook_url.is_set);
+        if (s.slack_webhook_url.is_set) setSlackWebhookUrl(s.slack_webhook_url.value);
+      }
     });
     api.settings.getScheduler().then((data) => {
       setSchedulerRunning(data.running);
@@ -51,6 +59,7 @@ export default function Settings() {
       if (apiKey && !apiKey.includes("*")) data.google_api_key = apiKey;
       if (cx && !cx.includes("*")) data.google_cx = cx;
       if (placesApiKey && !placesApiKey.includes("*")) data.google_places_api_key = placesApiKey;
+      if (slackWebhookUrl && !slackWebhookUrl.includes("*")) data.slack_webhook_url = slackWebhookUrl;
       data.auto_collect_enabled = autoCollectEnabled ? "true" : "false";
       data.auto_collect_time = autoCollectTime;
 
@@ -65,10 +74,23 @@ export default function Settings() {
       if (s.google_api_key?.is_set) setApiKey(s.google_api_key.value);
       if (s.google_cx?.is_set) setCx(s.google_cx.value);
       if (s.google_places_api_key?.is_set) setPlacesApiKey(s.google_places_api_key.value);
+      if (s.slack_webhook_url?.is_set) { setSlackWebhookSet(true); setSlackWebhookUrl(s.slack_webhook_url.value); }
     } catch (err: any) {
       setMessage({ type: "error", text: err.response?.data?.detail || "保存に失敗しました" });
     }
     setSaving(false);
+  };
+
+  const handleSlackTest = async () => {
+    setSlackTesting(true);
+    setSlackMessage(null);
+    try {
+      const data = await api.settings.slackTest();
+      setSlackMessage({ type: data.success ? "success" : "error", text: data.message });
+    } catch {
+      setSlackMessage({ type: "error", text: "Slackテスト送信に失敗しました" });
+    }
+    setSlackTesting(false);
   };
 
   const handleTest = async () => {
@@ -184,6 +206,62 @@ export default function Settings() {
           >
             {message.type === "success" ? <CheckCircle size={16} /> : <XCircle size={16} />}
             {message.text}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 max-w-2xl space-y-6">
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+          <MessageSquare size={20} className="text-slate-600" />
+          <h3 className="font-semibold text-slate-700">Slack通知設定</h3>
+        </div>
+
+        <p className="text-sm text-slate-500">
+          Slack Incoming Webhook URLを設定すると、収集完了時にSlackへ通知を送信します。
+          <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-1">Webhook URLの取得方法</a>
+        </p>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Slack Webhook URL
+            {slackWebhookSet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}
+          </label>
+          <input
+            type="password"
+            value={slackWebhookUrl}
+            onChange={(e) => setSlackWebhookUrl(e.target.value)}
+            placeholder="https://hooks.slack.com/services/..."
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            保存
+          </button>
+          <button
+            onClick={handleSlackTest}
+            disabled={slackTesting || (!slackWebhookSet && !slackWebhookUrl)}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
+          >
+            {slackTesting ? <Loader2 size={16} className="animate-spin" /> : <MessageSquare size={16} />}
+            テスト送信
+          </button>
+        </div>
+
+        {slackMessage && (
+          <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
+            slackMessage.type === "success"
+              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+              : "bg-red-50 text-red-700 border border-red-200"
+          }`}>
+            {slackMessage.type === "success" ? <CheckCircle size={16} /> : <XCircle size={16} />}
+            {slackMessage.text}
           </div>
         )}
       </div>
