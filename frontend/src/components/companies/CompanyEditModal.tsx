@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { X, Save, ExternalLink, History, Mail, RotateCw } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { X, Save, ExternalLink, History, Mail, RotateCw, Tag, Plus, Send, Copy, CheckCheck, ClipboardList } from "lucide-react";
 import { CATEGORIES, STATUSES } from "../../constants";
 import { api } from "../../api";
 import type { Company, StatusHistoryEntry, MemoTemplate } from "../../types";
@@ -49,9 +49,18 @@ export default function CompanyEditModal({
   const [rescraping, setRescraping] = useState(false);
   const [selectedEmailTemplate, setSelectedEmailTemplate] = useState<string>("");
 
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
+
+  const [selectedFormTemplate, setSelectedFormTemplate] = useState<string>("");
+  const [copiedField, setCopiedField] = useState<string>("");
+  const [formSendDone, setFormSendDone] = useState(false);
+  const [formSending, setFormSending] = useState(false);
+
   useEffect(() => {
     api.companies.getHistory(company.id).then((data) => setStatusHistory(data.history));
     api.templates.list().then((data) => setTemplates(data.templates));
+    api.companies.getTags(company.id).then((data) => setTags(data.tags.map((t) => t.tag_name)));
   }, [company.id]);
 
   const handleSave = () => {
@@ -82,8 +91,22 @@ export default function CompanyEditModal({
     setEditData({ ...editData, notes: current ? `${current}\n${content}` : content });
   };
 
+  const handleAddTag = useCallback(async () => {
+    const trimmed = newTag.trim();
+    if (!trimmed || tags.includes(trimmed)) return;
+    await api.companies.addTag(company.id, trimmed);
+    setTags((prev) => [...prev, trimmed]);
+    setNewTag("");
+  }, [newTag, tags, company.id]);
+
+  const handleDeleteTag = useCallback(async (tagName: string) => {
+    await api.companies.deleteTag(company.id, tagName);
+    setTags((prev) => prev.filter((t) => t !== tagName));
+  }, [company.id]);
+
   const memoTemplates = templates.filter((t) => !t.is_email_template);
   const emailTemplates = templates.filter((t) => t.is_email_template);
+  const allTemplates = templates;
 
   const handleSendEmail = (template: MemoTemplate) => {
     const subject = replaceTemplateVars(template.title, company as Company);
@@ -92,6 +115,39 @@ export default function CompanyEditModal({
     const href = buildMailtoLink(to, subject, body);
     window.open(href, "_blank");
   };
+
+  const copyToClipboard = (text: string, fieldKey: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedField(fieldKey);
+      setTimeout(() => setCopiedField(""), 1500);
+    });
+  };
+
+  const handleFormSendComplete = async () => {
+    setFormSending(true);
+    const tmpl = allTemplates.find((t) => String(t.id) === selectedFormTemplate);
+    const description = tmpl
+      ? `フォームから問い合わせ送信（テンプレート: ${tmpl.title}）`
+      : "フォームから問い合わせ送信";
+    try {
+      await api.companies.createActivity(company.id, {
+        action_type: "フォーム送信",
+        description,
+      });
+      await api.companies.update(company.id, { status: "フォーム送信済" });
+      setEditData((prev) => ({ ...prev, status: "フォーム送信済" }));
+      setFormSendDone(true);
+      setTimeout(() => setFormSendDone(false), 3000);
+    } finally {
+      setFormSending(false);
+    }
+  };
+
+  const selectedFormTmpl = allTemplates.find((t) => String(t.id) === selectedFormTemplate);
+  const formBody = selectedFormTmpl
+    ? replaceTemplateVars(selectedFormTmpl.content, editData as Company)
+    : "";
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -310,6 +366,127 @@ export default function CompanyEditModal({
             </div>
           )}
 
+          {/* ===== フォーム送信サポート ===== */}
+          <div className="border border-indigo-200 rounded-lg overflow-hidden">
+            <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2.5 border-b border-indigo-200">
+              <Send size={14} className="text-indigo-600" />
+              <span className="text-xs font-semibold text-indigo-700">フォーム送信サポート</span>
+              <span className="text-xs text-indigo-500 ml-1">— 問い合わせフォームへの入力を補助します</span>
+            </div>
+            <div className="p-4 space-y-4">
+
+              {/* ステップ1: フォームを開く */}
+              <div>
+                <p className="text-xs font-semibold text-slate-600 mb-2">① 問い合わせページを開く</p>
+                {editData.contact_url ? (
+                  <a
+                    href={editData.contact_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700 transition-colors"
+                  >
+                    <ExternalLink size={14} />
+                    問い合わせページを開く
+                  </a>
+                ) : (
+                  <p className="text-xs text-slate-400 bg-slate-50 border border-slate-200 rounded px-3 py-2">
+                    問い合わせURLが未設定です。上の「問い合わせURL」フィールドに入力してください。
+                  </p>
+                )}
+              </div>
+
+              {/* ステップ2: コピーボックス */}
+              <div>
+                <p className="text-xs font-semibold text-slate-600 mb-2">② フォームに入力する内容をコピー</p>
+                <div className="space-y-2">
+                  <CopyRow
+                    label="会社名"
+                    value={editData.company_name || ""}
+                    fieldKey="company_name"
+                    copiedField={copiedField}
+                    onCopy={copyToClipboard}
+                  />
+                  <CopyRow
+                    label="メールアドレス"
+                    value={editData.email || ""}
+                    fieldKey="email"
+                    copiedField={copiedField}
+                    onCopy={copyToClipboard}
+                  />
+                  <CopyRow
+                    label="電話番号"
+                    value={editData.phone || ""}
+                    fieldKey="phone"
+                    copiedField={copiedField}
+                    onCopy={copyToClipboard}
+                  />
+                </div>
+              </div>
+
+              {/* ステップ3: 本文テンプレート */}
+              <div>
+                <p className="text-xs font-semibold text-slate-600 mb-2">③ 送信本文を選択してコピー（任意）</p>
+                <div className="flex gap-2 mb-2">
+                  <select
+                    value={selectedFormTemplate}
+                    onChange={(e) => setSelectedFormTemplate(e.target.value)}
+                    className="flex-1 text-sm border border-slate-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="">テンプレートを選択...</option>
+                    {allTemplates.map((t) => (
+                      <option key={t.id} value={String(t.id)}>
+                        {t.is_email_template ? "[メール]" : "[メモ]"} {t.title}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedFormTemplate && formBody && (
+                    <button
+                      onClick={() => copyToClipboard(formBody, "form_body")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors whitespace-nowrap ${
+                        copiedField === "form_body"
+                          ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
+                          : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {copiedField === "form_body" ? <CheckCheck size={14} /> : <Copy size={14} />}
+                      {copiedField === "form_body" ? "コピー済み" : "本文をコピー"}
+                    </button>
+                  )}
+                </div>
+                {selectedFormTemplate && formBody && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-md p-3 text-xs text-slate-600 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {formBody}
+                  </div>
+                )}
+              </div>
+
+              {/* ステップ4: 送信完了を記録 */}
+              <div className="border-t border-indigo-100 pt-3 flex items-center justify-between">
+                <p className="text-xs text-slate-500">④ 送信したら完了を記録（ステータスが「フォーム送信済」に更新されます）</p>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                  {formSendDone && (
+                    <span className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">
+                      <CheckCheck size={12} />
+                      記録しました
+                    </span>
+                  )}
+                  <button
+                    onClick={handleFormSendComplete}
+                    disabled={formSending || editData.status === "フォーム送信済"}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm transition-colors whitespace-nowrap ${
+                      editData.status === "フォーム送信済"
+                        ? "bg-slate-100 text-slate-400 cursor-default"
+                        : "bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                    }`}
+                  >
+                    <ClipboardList size={14} />
+                    {formSending ? "記録中..." : editData.status === "フォーム送信済" ? "送信済み" : "送信完了を記録"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {statusHistory.length > 0 && (
             <div>
               <h4 className="text-xs font-medium text-slate-600 mb-2 flex items-center gap-1">
@@ -359,6 +536,42 @@ export default function CompanyEditModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CopyRow({
+  label,
+  value,
+  fieldKey,
+  copiedField,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  fieldKey: string;
+  copiedField: string;
+  onCopy: (text: string, key: string) => void;
+}) {
+  const isCopied = copiedField === fieldKey;
+  return (
+    <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-md px-3 py-1.5">
+      <span className="text-xs text-slate-500 w-24 flex-shrink-0">{label}</span>
+      <span className="flex-1 text-sm text-slate-700 truncate">{value || <span className="text-slate-300">未設定</span>}</span>
+      <button
+        onClick={() => onCopy(value, fieldKey)}
+        disabled={!value}
+        className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors flex-shrink-0 ${
+          isCopied
+            ? "bg-emerald-100 text-emerald-700"
+            : value
+            ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            : "bg-slate-50 text-slate-300 cursor-default"
+        }`}
+      >
+        {isCopied ? <CheckCheck size={12} /> : <Copy size={12} />}
+        {isCopied ? "コピー済み" : "コピー"}
+      </button>
     </div>
   );
 }
