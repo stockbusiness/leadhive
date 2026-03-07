@@ -48,6 +48,13 @@ export const api = {
     exportCsvUrl: (params: URLSearchParams) =>
       `/api/companies/csv?${params.toString()}`,
 
+    exportCsv: (params: URLSearchParams): Promise<{ blob: Blob; count: number; limit: number | null }> =>
+      axios.get(`/api/companies/csv?${params.toString()}`, { responseType: "blob" }).then((r) => ({
+        blob: r.data as Blob,
+        count: parseInt(r.headers["x-export-count"] || "0", 10),
+        limit: r.headers["x-export-limit"] ? parseInt(r.headers["x-export-limit"], 10) : null,
+      })),
+
     csvTemplateUrl: () => `/api/companies/csv/template`,
 
     importCsv: (file: File, projectId: number) => {

@@ -202,6 +202,7 @@ export interface PlanData {
   max_companies: number | null;
   max_ai_analyses_monthly: number | null;
   max_master_db_imports: number | null;
+  max_csv_export: number | null;
   api_daily_limit: number | null;
   is_active: boolean;
   created_at: string | null;

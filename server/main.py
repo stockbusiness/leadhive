@@ -24,6 +24,7 @@ DEFAULT_PLANS = [
         "max_companies": 200,
         "max_ai_analyses_monthly": 3,
         "max_master_db_imports": 0,
+        "max_csv_export": 50,
         "api_daily_limit": None,
         "is_active": True,
     },
@@ -36,6 +37,7 @@ DEFAULT_PLANS = [
         "max_companies": 1000,
         "max_ai_analyses_monthly": 20,
         "max_master_db_imports": 100,
+        "max_csv_export": 1000,
         "api_daily_limit": None,
         "is_active": True,
     },
@@ -48,6 +50,7 @@ DEFAULT_PLANS = [
         "max_companies": 5000,
         "max_ai_analyses_monthly": 100,
         "max_master_db_imports": None,
+        "max_csv_export": None,
         "api_daily_limit": None,
         "is_active": True,
     },
@@ -60,6 +63,7 @@ DEFAULT_PLANS = [
         "max_companies": None,
         "max_ai_analyses_monthly": None,
         "max_master_db_imports": None,
+        "max_csv_export": None,
         "api_daily_limit": None,
         "is_active": True,
     },
@@ -77,6 +81,7 @@ def run_db_migrations():
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS master_db_import_count INTEGER DEFAULT 0",
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS master_db_import_month VARCHAR(7)",
             "ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_master_db_imports INTEGER",
+            "ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_csv_export INTEGER",
         ]:
             conn.execute(sa.text(stmt))
         conn.commit()

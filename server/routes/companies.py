@@ -8,7 +8,7 @@ from sqlalchemy import desc, asc
 from typing import Optional, List
 from datetime import date, timedelta
 from server.database import get_db
-from server.models import Company, StatusHistory, MemoTemplate, ActivityLog, CompanyTag, User
+from server.models import Company, StatusHistory, MemoTemplate, ActivityLog, CompanyTag, User, Organization, Plan
 from server.services.scorer import calculate_score
 from server.services.scraper import scrape_company_info
 from server.services.categorizer import categorize_company, detect_flags
@@ -435,6 +435,23 @@ def export_csv(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    from fastapi import HTTPException as _HTTPException
+    from datetime import datetime as _dt
+
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+    csv_limit = None
+    if org and org.plan_id:
+        plan = db.query(Plan).filter(Plan.id == org.plan_id).first()
+        if plan:
+            raw = getattr(plan, "max_csv_export", None)
+            if raw is not None:
+                if raw == 0:
+                    raise _HTTPException(
+                        status_code=402,
+                        detail="CSVエクスポートはスターター以上のプランでご利用いただけます。"
+                    )
+                csv_limit = raw
+
     query = db.query(Company)
     if project_id:
         query = query.filter(Company.project_id == project_id)
@@ -450,7 +467,10 @@ def export_csv(
     if has_contact:
         query = query.filter(Company.contact_url.isnot(None), Company.contact_url != "")
 
-    companies = query.order_by(desc(Company.score_total)).all()
+    query = query.order_by(desc(Company.score_total))
+    if csv_limit is not None:
+        query = query.limit(csv_limit)
+    companies = query.all()
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -481,10 +501,18 @@ def export_csv(
     csv_content = output.getvalue()
     output.close()
 
+    today = _dt.utcnow().strftime("%Y%m%d")
+    headers = {
+        "Content-Disposition": f"attachment; filename=companies_export_{today}.csv",
+        "X-Export-Count": str(len(companies)),
+    }
+    if csv_limit is not None:
+        headers["X-Export-Limit"] = str(csv_limit)
+
     return Response(
         content=csv_content.encode("utf-8-sig"),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=companies_export.csv"},
+        headers=headers,
     )
 
 

@@ -16,6 +16,7 @@ class Plan(Base):
     max_companies = Column(Integer, nullable=True)
     max_ai_analyses_monthly = Column(Integer, nullable=True)
     max_master_db_imports = Column(Integer, nullable=True)
+    max_csv_export = Column(Integer, nullable=True)
     api_daily_limit = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())

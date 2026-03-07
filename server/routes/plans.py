@@ -61,6 +61,7 @@ class PlanBody(BaseModel):
     max_companies: Optional[int] = None
     max_ai_analyses_monthly: Optional[int] = None
     max_master_db_imports: Optional[int] = None
+    max_csv_export: Optional[int] = None
     api_daily_limit: Optional[int] = None
     is_active: bool = True
 
@@ -76,6 +77,7 @@ def plan_to_dict(plan: Plan) -> dict:
         "max_companies": plan.max_companies,
         "max_ai_analyses_monthly": plan.max_ai_analyses_monthly,
         "max_master_db_imports": plan.max_master_db_imports,
+        "max_csv_export": plan.max_csv_export,
         "api_daily_limit": plan.api_daily_limit,
         "is_active": plan.is_active,
         "created_at": plan.created_at.isoformat() if plan.created_at else None,

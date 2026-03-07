@@ -117,6 +117,16 @@ function PlanCurrentSection() {
               ) : (
                 <UsageBar label="マスターDBインポート（今月）" used={usage.master_db_imports_this_month} limit={plan.max_master_db_imports} />
               )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">CSVエクスポート上限</span>
+                {plan.max_csv_export === null ? (
+                  <span className="text-slate-500">無制限</span>
+                ) : plan.max_csv_export === 0 ? (
+                  <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded">スターター以上で利用可能</span>
+                ) : (
+                  <span className="font-medium text-slate-700">{plan.max_csv_export.toLocaleString()}件 / 回</span>
+                )}
+              </div>
             </div>
           )}
         </>

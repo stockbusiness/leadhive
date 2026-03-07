@@ -12,6 +12,7 @@ const EMPTY_PLAN: Omit<PlanData, "id" | "created_at" | "updated_at"> = {
   max_companies: null,
   max_ai_analyses_monthly: null,
   max_master_db_imports: null,
+  max_csv_export: null,
   api_daily_limit: null,
   is_active: true,
 };
@@ -48,6 +49,7 @@ function PlanModal({
           max_companies: plan.max_companies ?? null,
           max_ai_analyses_monthly: plan.max_ai_analyses_monthly ?? null,
           max_master_db_imports: plan.max_master_db_imports ?? null,
+          max_csv_export: plan.max_csv_export ?? null,
           api_daily_limit: plan.api_daily_limit ?? null,
           is_active: plan.is_active ?? true,
         }
@@ -150,6 +152,7 @@ function PlanModal({
               {limitField("最大企業登録数", "max_companies")}
               {limitField("月次AI分析回数", "max_ai_analyses_monthly")}
               {limitField("マスターDBインポート/月（0=不可）", "max_master_db_imports")}
+              {limitField("CSVエクスポート行数上限（0=不可）", "max_csv_export")}
               {limitField("API日次上限（Google）", "api_daily_limit")}
             </div>
           </div>
@@ -286,6 +289,7 @@ export default function AdminPlans() {
                   <th className="text-center px-3 py-3">企業数</th>
                   <th className="text-center px-3 py-3">AI分析/月</th>
                   <th className="text-center px-3 py-3">マスターDB</th>
+                  <th className="text-center px-3 py-3">CSV出力</th>
                   <th className="text-center px-3 py-3">状態</th>
                   <th className="text-center px-3 py-3">操作</th>
                 </tr>
@@ -313,6 +317,7 @@ export default function AdminPlans() {
                     <td className="px-3 py-3 text-center"><LimitCell value={plan.max_companies} /></td>
                     <td className="px-3 py-3 text-center"><LimitCell value={plan.max_ai_analyses_monthly} /></td>
                     <td className="px-3 py-3 text-center"><MasterDBLimitCell value={plan.max_master_db_imports} /></td>
+                    <td className="px-3 py-3 text-center"><MasterDBLimitCell value={plan.max_csv_export} /></td>
                     <td className="px-3 py-3 text-center">
                       <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${plan.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
                         {plan.is_active ? <Check size={10} /> : <Minus size={10} />}

@@ -6,7 +6,7 @@ import { Pagination } from "../components/common";
 import { CompanyFilterBar, CompanyTable, CompanyEditModal } from "../components/companies";
 import CompanyKanban from "../components/companies/CompanyKanban";
 import { STATUSES } from "../constants";
-import type { Company, Project } from "../types";
+import type { Company, Project, PlanData } from "../types";
 import { useProject } from "../contexts/ProjectContext";
 
 interface DuplicateGroup {
@@ -50,6 +50,13 @@ export default function Companies() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [csvPlan, setCsvPlan] = useState<PlanData | null | undefined>(undefined);
+
+  useEffect(() => {
+    api.plans.current().then((d) => setCsvPlan(d.plan ?? null)).catch(() => setCsvPlan(null));
+  }, []);
 
   const handleFilterChange = useCallback((newFilters: typeof filters) => {
     setFilters(newFilters);
@@ -95,14 +102,42 @@ export default function Companies() {
     localStorage.setItem("leadhive_view_mode", mode);
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
+    setExportLoading(true);
+    setExportMessage(null);
     const params = new URLSearchParams();
     if (filters.category) params.set("category", filters.category);
     if (filters.status) params.set("status", filters.status);
     if (filters.score_rank) params.set("score_rank", filters.score_rank);
     if (filters.has_contact) params.set("has_contact", filters.has_contact);
-    window.open(api.companies.exportCsvUrl(params), "_blank");
+    if (currentProject?.id) params.set("project_id", String(currentProject.id));
+    try {
+      const { blob, count, limit } = await api.companies.exportCsv(params);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      a.download = `companies_export_${today}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      const msg = limit !== null
+        ? `${count}件をエクスポートしました（プランの上限: ${limit}件）`
+        : `${count}件をエクスポートしました`;
+      setExportMessage(msg);
+      setTimeout(() => setExportMessage(null), 4000);
+    } catch {
+    } finally {
+      setExportLoading(false);
+    }
   };
+
+  const csvExportLabel = (() => {
+    if (csvPlan === undefined) return "CSV出力";
+    if (csvPlan?.max_csv_export === null || csvPlan === null) return "CSV出力";
+    return `CSV出力（上位${csvPlan.max_csv_export.toLocaleString()}件）`;
+  })();
 
   const handleStatusChange = (id: number, newStatus: string) => {
     api.companies.update(id, { status: newStatus }).then(() => fetchCompanies());
@@ -242,13 +277,24 @@ export default function Companies() {
           </button>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors"
+            disabled={exportLoading}
+            className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
           >
-            <Download size={15} />
-            <span className="hidden sm:inline">CSV出力</span>
+            <Download size={15} className={exportLoading ? "animate-bounce" : ""} />
+            <span className="hidden sm:inline">{exportLoading ? "出力中..." : csvExportLabel}</span>
           </button>
         </div>
       </div>
+
+      {exportMessage && (
+        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+          <Download size={16} className="text-emerald-600 flex-shrink-0" />
+          <span className="text-sm text-emerald-700 font-medium">{exportMessage}</span>
+          <button onClick={() => setExportMessage(null)} className="ml-auto text-emerald-400 hover:text-emerald-600">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       <CompanyFilterBar filters={filters} onFilterChange={handleFilterChange} />
 
