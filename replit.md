@@ -37,10 +37,13 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
 - **Plan Management**: サブスクリプションプランのCRUDと組織への割り当て。メンバー数、プロジェクト数、企業数、月次AI分析回数、マスターDBインポート回数に上限を設定可能。Stripe Payment Integrationによるセルフアップグレードに対応。
 - **CSV Export with Plan Limits**: 企業リストのCSVエクスポート機能にプラン別件数制限を適用。
 - **Master DB Access Control**: プランに応じたマスターDB検索・インポート機能の利用制限。
+- **Team Progress Dashboard**: ダッシュボードに「概要/チーム」タブを追加。チームタブでは担当者別の担当企業数・今週のアクティビティ・期限超過件数・アプローチ進捗バーを表示。GET /api/dashboard/team エンドポイント。
+- **AI Usage Logging**: ai_usage_logs テーブルでAI機能のトークン消費量（入力/出力）・モデル・コストを記録。ai_analyzer.py で自動ログ保存。
+- **Last Login Tracking**: users.last_login_at カラム。ログイン時に自動更新。
 - **Admin Features**:
-    - **Admin Dashboard**: テナント数、ユーザー数、統計データ、グラフ表示。
+    - **Admin Dashboard**: テナント数、ユーザー数、統計データ、グラフ表示。AIコスト管理セクション（組織別・月別トークン消費量・USD概算コスト・棒グラフ・詳細テーブル）。
     - **System API Settings**: gBizINFO等のシステム全体で共有するAPIキー管理。
-    - **Tenant Management**: 全Organizationの一覧表示、プラン変更。
+    - **Tenant Management**: 全Organizationの一覧表示、プラン変更。最終利用日・今月収集数・解約リスクバッジ（30日未利用）の表示。GET /api/admin/ai-costs エンドポイント。
     - **User Management**: 全ユーザーの横断管理、ロール変更、削除。
     - **System Logs**: 管理者操作の監査ログ。
     - **Announcements**: 全体またはテナント個別のお知らせ配信。

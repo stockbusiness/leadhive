@@ -245,6 +245,25 @@ export default function Manual() {
               Custom Search API と同じAPIキーをPlacesでも使用できますが、用途別に分けて管理することを推奨します。
             </InfoBox>
 
+            <SubTitle>オンボーディングウィザード（初回ログイン時）</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">
+              新規アカウント作成後、初回ログイン時に <strong>6ステップのウィザード</strong>が自動起動し、設定に必要な手順をガイドします。
+            </p>
+            <Table
+              headers={["ステップ", "内容"]}
+              rows={[
+                ["① ようこそ", "LeadHiveの概要説明"],
+                ["② 組織名の設定", "組織名・会社名の入力"],
+                ["③ プロジェクト作成", "最初の営業リストプロジェクトを作成"],
+                ["④ キーワード登録", "ターゲット業種・条件のキーワードを追加"],
+                ["⑤ Google APIキー設定", "Google APIキーとSearch Engine IDを入力・テスト"],
+                ["⑥ 完了", "セットアップ完了・収集開始"],
+              ]}
+            />
+            <InfoBox color="green">
+              ウィザードは途中でスキップ・あとから再設定も可能です。完了後はいつでも設定画面から変更できます。
+            </InfoBox>
+
             <SubTitle>Slack 通知の設定（任意）</SubTitle>
             <div className="space-y-2">
               <Step number={1}>設定画面「Slack通知設定」に Webhook URL を入力・保存</Step>
@@ -395,6 +414,7 @@ export default function Manual() {
             <div className="grid grid-cols-2 gap-2">
               {[
                 "基本情報（会社名・URL・電話・メール・所在地）",
+                "コンタクト担当者名・役職（contact_name / contact_title）",
                 "カテゴリ・フラグ（Shopify/EC/Amazon/楽天等）",
                 "スコア手動調整（-30〜+30点）",
                 "メモ・内部ノート",
@@ -402,6 +422,7 @@ export default function Manual() {
                 "ステータス変更履歴の閲覧",
                 "営業活動ログの記録",
                 "メールテンプレートの呼び出し",
+                "SMTPメール送信・送信履歴",
               ].map(item => (
                 <div key={item} className="flex items-start gap-1.5 text-sm text-slate-700">
                   <span className="text-blue-500 mt-0.5 flex-shrink-0">✓</span>
@@ -409,6 +430,9 @@ export default function Manual() {
                 </div>
               ))}
             </div>
+            <InfoBox color="blue">
+              <strong>コンタクト担当者名・役職</strong>を登録しておくと、AIメール生成時に宛名として自動的に使用されます。
+            </InfoBox>
 
             <SubTitle>一括操作（複数選択）</SubTitle>
             <p className="text-sm text-slate-600 mb-2">チェックボックスで複数企業を選択するとバルクアクションバーが表示されます：</p>
@@ -526,7 +550,17 @@ export default function Manual() {
           <section>
             <SectionTitle id="dashboard" icon={<LayoutDashboard size={20} />} title="ダッシュボードの見方" />
 
-            <SubTitle>統計カード</SubTitle>
+            <SubTitle>タブの切り替え（概要 / チーム）</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">ダッシュボード右上の切り替えボタンで <strong>「概要」</strong>タブと<strong>「チーム」</strong>タブを切り替えられます。</p>
+            <Table
+              headers={["タブ", "表示内容"]}
+              rows={[
+                ["概要", "全体の統計カード・グラフ・ファネル・最近の企業一覧"],
+                ["チーム", "チームメンバー別の担当企業数・アプローチ進捗・期限超過・今週の活動数"],
+              ]}
+            />
+
+            <SubTitle>概要タブ — 統計カード</SubTitle>
             <Table
               headers={["カード", "説明"]}
               rows={[
@@ -539,7 +573,7 @@ export default function Manual() {
               ]}
             />
 
-            <SubTitle>グラフ一覧</SubTitle>
+            <SubTitle>概要タブ — グラフ一覧</SubTitle>
             <Table
               headers={["グラフ", "種類", "説明"]}
               rows={[
@@ -551,6 +585,19 @@ export default function Manual() {
               ]}
             />
             <InfoBox color="blue">全グラフは現在選択中のプロジェクトのデータのみを表示します。</InfoBox>
+
+            <SubTitle>チームタブ — 進捗ビュー</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">「チーム」タブでは担当者別の進捗をひと目で確認できます。</p>
+            <Table
+              headers={["表示項目", "説明"]}
+              rows={[
+                ["今月の新規収集", "今月チーム全体で追加した企業数"],
+                ["アプローチ済み", "フォーム送信以降のステータスの合計"],
+                ["面談・商談化", "面談化・商談中・代理店化のステータス合計"],
+                ["期限超過", "フォローアップ期限が過ぎている企業数"],
+                ["担当者別テーブル", "各メンバーの担当企業数・今週の活動数・期限超過件数・アプローチ進捗バー"],
+              ]}
+            />
           </section>
 
           {/* ========== 営業活動の記録 ========== */}
@@ -583,6 +630,21 @@ export default function Manual() {
               </div>
               <p className="text-xs text-slate-500 mt-2">企業詳細モーダルから呼び出すと変数が自動展開され、mailto:リンクも生成されます。</p>
             </div>
+
+            <SubTitle>SMTPメール直接送信</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              企業の詳細編集モーダルから、LeadHive内で直接メールを送信できます。送信したメールは<strong>送信履歴</strong>として記録されます。
+            </p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>企業詳細編集モーダルを開く（鉛筆アイコン）</Step>
+              <Step number={2}>「<strong>メール送信</strong>」タブを選択</Step>
+              <Step number={3}>宛先メールアドレス・件名・本文を入力（テンプレートから呼び出し可）</Step>
+              <Step number={4}>「<strong>送信</strong>」をクリック → 完了メッセージが表示される</Step>
+              <Step number={5}>「<strong>送信履歴</strong>」タブで送信日時・件名・宛先を確認</Step>
+            </div>
+            <InfoBox color="amber">
+              メール送信にはSMTP設定が必要です。管理者が設定画面の「<strong>メール通知設定（SMTP）</strong>」でサーバー情報を設定してください。
+            </InfoBox>
           </section>
 
           {/* ========== チーム管理 ========== */}
@@ -617,6 +679,26 @@ export default function Manual() {
             <InfoBox color="amber">
               メンバー数の上限はプランによって異なります。設定画面の「プラン・使用量」セクションで残り枠を確認できます。
             </InfoBox>
+
+            <SubTitle>チーム進捗ダッシュボード</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">
+              ダッシュボードの「チーム」タブで、チームメンバー全員の活動状況をひとつの画面でまとめて確認できます。
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                "担当者別の担当企業数",
+                "今週のアクティビティ件数",
+                "期限超過フォローアップ件数",
+                "アプローチ進捗バー（担当中の何件が送信済み以降か）",
+                "今月チーム全体の収集数",
+                "面談化・商談化の合計件数",
+              ].map(item => (
+                <div key={item} className="flex items-start gap-1.5 text-sm text-slate-700">
+                  <span className="text-blue-500 mt-0.5 flex-shrink-0">✓</span>
+                  {item}
+                </div>
+              ))}
+            </div>
           </section>
 
           {/* ========== Slack通知・自動収集 ========== */}
@@ -719,6 +801,21 @@ export default function Manual() {
             <InfoBox color="blue">
               <strong>プランの月次AI分析回数上限</strong>に達すると生成できなくなります。使用量は設定画面のプログレスバーで確認できます。
             </InfoBox>
+
+            <SubTitle>AIトークン使用量ログ（管理者向け）</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">
+              AI機能を実行するたびに、使用したトークン数・モデル・コストが自動的に記録されます。
+              管理者は<strong>管理ダッシュボードのAIコスト管理セクション</strong>で、組織別・月別のトークン消費量とUSDコストを確認できます。
+            </p>
+            <Table
+              headers={["確認できる情報", "説明"]}
+              rows={[
+                ["入力トークン数", "プロンプトに使用したトークン数"],
+                ["出力トークン数", "AIが生成したテキストのトークン数"],
+                ["API呼び出し回数", "AI機能を実行した合計回数"],
+                ["コスト概算 (USD)", "GPT-4o-mini 基準の概算費用（入力$0.15/1M・出力$0.60/1M）"],
+              ]}
+            />
           </section>
 
           {/* ========== キーワード分析 ========== */}
@@ -897,6 +994,38 @@ export default function Manual() {
                 ["月次AI分析回数", "1ヶ月のAI分析・メール生成の合計上限"],
                 ["マスターDBインポート上限", "月間のマスターDBインポート件数（0=アクセス不可）"],
                 ["Stripe Price ID", "Stripe決済との連携用ID。設定するとセルフアップグレードが有効になる"],
+              ]}
+            />
+
+            <SubTitle>テナント管理（/admin/tenants）— 利用状況モニタリング</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              各テナント（組織）の詳細な利用状況を一覧で確認し、解約リスクの早期発見ができます。
+            </p>
+            <Table
+              headers={["カラム", "説明"]}
+              rows={[
+                ["最終利用日", "その組織のメンバーが最後にログインした日時（14日以上前はオレンジ表示）"],
+                ["今月収集", "当月に新規収集した企業数"],
+                ["状態", "30日以上未ログインの場合「🔴 30日未利用」バッジ（解約リスク）を表示"],
+              ]}
+            />
+            <InfoBox color="amber">
+              ページ上部に解約リスク件数の合計バッジが表示されます。定期的に確認して早期フォローアップに活用してください。
+            </InfoBox>
+
+            <SubTitle>AIコスト管理（管理ダッシュボード内）</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              管理ダッシュボード（/admin）の「AIコスト管理」セクションで、全組織のAI使用コストを月次・組織別に可視化できます。
+            </p>
+            <Table
+              headers={["表示内容", "説明"]}
+              rows={[
+                ["累計コスト (USD)", "全期間・全組織のAIコスト総額"],
+                ["API呼び出し回数", "全期間のAI分析・メール生成の合計回数"],
+                ["今月コスト", "当月のAIコスト"],
+                ["組織別累計コスト棒グラフ", "コストの高い組織を上位10件で可視化"],
+                ["月次コスト推移グラフ", "直近3ヶ月の月別コスト変化"],
+                ["月別・組織別詳細テーブル", "入力/出力トークン数・呼び出し回数・コストの詳細一覧"],
               ]}
             />
           </section>

@@ -3,49 +3,59 @@ import {
   Building2, Search, Zap, BarChart3, Users,
   CheckCircle2, ArrowRight, Globe, Mail, ChevronRight,
   Kanban, FileSpreadsheet, UserCheck, Star,
-  Sparkles, TrendingUp, Target, ListChecks,
+  Sparkles, TrendingUp, Target, ListChecks, Brain, Bell, Send,
 } from "lucide-react";
 
 const FEATURES = [
   {
     icon: <Search className="text-blue-500" size={24} />,
     title: "営業先を自動収集",
-    description: "Google検索・Googleマップ・各種Webソースから、条件に合う営業先を全自動で収集。手作業ゼロでリストを構築できます。",
+    description: "Google検索・Googleマップ・法人DB（gBizINFO）など6種類のソースから、条件に合う営業先を全自動で収集。手作業ゼロでリストを構築できます。",
   },
   {
     icon: <Zap className="text-amber-500" size={24} />,
     title: "スマートスコアリング",
-    description: "問い合わせフォームの有無・Web更新頻度・規模感など複数の評価軸で自動スコアリング。優先度の高い営業先を一目で識別。",
+    description: "問い合わせフォームの有無・Shopify/EC判定・所在地など複数の評価軸で自動スコアリング。優先度の高い営業先をA〜Dランクで即識別できます。",
   },
   {
-    icon: <Kanban className="text-violet-500" size={24} />,
+    icon: <Brain className="text-violet-500" size={24} />,
+    title: "AI企業分析・メール生成",
+    description: "OpenAI GPTが企業サイトを解析し、事業内容・顧客層・強みを自動要約。その分析結果をもとにパーソナライズされた営業メールを数秒で生成します。",
+  },
+  {
+    icon: <Kanban className="text-indigo-500" size={24} />,
     title: "カンバン進捗管理",
     description: "「未確認」から「成約」まで9段階のステータスをカンバンボードで視覚管理。ドラッグ&ドロップで進捗を即更新できます。",
   },
   {
-    icon: <Mail className="text-emerald-500" size={24} />,
-    title: "アプローチ支援",
-    description: "メールテンプレートの変数自動展開、問い合わせフォーム入力補助コピー機能で、アプローチ作業を大幅に効率化します。",
+    icon: <Send className="text-emerald-500" size={24} />,
+    title: "SMTPメール直接送信",
+    description: "LeadHive上から直接メールを送信し、送信履歴を企業ごとに記録。メールテンプレートの変数自動展開でアプローチ作業を大幅に効率化します。",
   },
   {
-    icon: <Users className="text-indigo-500" size={24} />,
-    title: "チーム管理",
-    description: "メンバー招待・ロール管理・担当者アサイン機能で、営業チームの分業と進捗共有をシームレスに実現します。",
+    icon: <Users className="text-rose-500" size={24} />,
+    title: "チーム進捗ダッシュボード",
+    description: "担当者別の担当企業数・今週のアクティビティ・期限超過件数をひとつの画面で可視化。チーム全体の営業進捗を管理者がリアルタイムで把握できます。",
   },
   {
-    icon: <BarChart3 className="text-rose-500" size={24} />,
-    title: "営業ダッシュボード",
-    description: "収集件数トレンド・カテゴリ分布・ランク別集計など、営業活動の全体像をリアルタイムで把握できます。",
+    icon: <Bell className="text-orange-500" size={24} />,
+    title: "フォローアップ通知",
+    description: "企業ごとにフォローアップ期限を設定し、期限当日・超過をメールまたはSlackで自動通知。対応漏れをゼロにします。",
   },
   {
-    icon: <FileSpreadsheet className="text-teal-500" size={24} />,
-    title: "CSV一括インポート",
-    description: "既存のリストをCSVで一括インポート。会社名・URL・ステータス・担当者などをそのまま取り込めます。",
+    icon: <BarChart3 className="text-teal-500" size={24} />,
+    title: "キーワード分析・最適化",
+    description: "収集効率・成功率・重複率を可視化し、効果の高いキーワードと無駄なキーワードを自動判定。収集戦略の改善に活用できます。",
   },
   {
-    icon: <Globe className="text-orange-500" size={24} />,
-    title: "マルチプロジェクト",
-    description: "業種・地域・担当チームごとに独立したプロジェクトを作成。同一組織内で複数の収集プロジェクトを並行管理できます。",
+    icon: <FileSpreadsheet className="text-cyan-500" size={24} />,
+    title: "CSV一括インポート・エクスポート",
+    description: "既存のリストをCSVで一括インポート。フィルターで絞り込んだ状態でCSVエクスポートも可能。外部ツールとのデータ連携も簡単です。",
+  },
+  {
+    icon: <Globe className="text-blue-400" size={24} />,
+    title: "マルチプロジェクト管理",
+    description: "業種・地域・担当チームごとに独立したプロジェクトを作成。マスターDBで全プロジェクトの企業を横断管理・再活用できます。",
   },
 ];
 
@@ -75,8 +85,8 @@ const STEPS = [
 const STATS = [
   { value: "90%+", label: "リスト作成の時間削減" },
   { value: "10x", label: "スクリーニング効率" },
-  { value: "全自動", label: "営業先収集・スコアリング" },
-  { value: "一元化", label: "リスト・進捗・チーム管理" },
+  { value: "6種類", label: "の収集ソース対応" },
+  { value: "AI搭載", label: "企業分析・メール自動生成" },
 ];
 
 export default function LandingPage() {
@@ -247,7 +257,7 @@ export default function LandingPage() {
               営業先の収集から成約まで、営業プロセスのすべてをLeadHiveでカバーします。
             </p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-5">
             {FEATURES.map(f => (
               <div
                 key={f.title}
@@ -299,11 +309,11 @@ export default function LandingPage() {
               LeadHiveを使うことで、営業先リストの作成から成約までの時間を大幅に短縮できます。
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               {
                 before: "週8〜10時間の手動リサーチ",
-                after: "キーワード設定のみで全自動収集",
+                after: "キーワード設定のみで6ソース全自動収集",
                 icon: <Target size={20} />,
                 color: "from-blue-600 to-blue-700",
               },
@@ -314,8 +324,14 @@ export default function LandingPage() {
                 color: "from-violet-600 to-violet-700",
               },
               {
+                before: "メール文面を毎回ゼロから作成",
+                after: "AIがWebサイトを分析し営業メールを自動生成",
+                icon: <Brain size={20} />,
+                color: "from-rose-600 to-rose-700",
+              },
+              {
                 before: "進捗が個人依存で属人化",
-                after: "チーム全体で進捗・担当者を共有",
+                after: "チーム進捗ダッシュボードで担当者別に可視化",
                 icon: <UserCheck size={20} />,
                 color: "from-emerald-600 to-emerald-700",
               },
@@ -441,7 +457,7 @@ export default function LandingPage() {
             <Link to="/login" className="hover:text-white transition-colors">ログイン</Link>
             <Link to="/register" className="hover:text-white transition-colors">新規登録</Link>
           </div>
-          <p className="text-slate-600 text-sm">© 2025 LeadHive. All rights reserved.</p>
+          <p className="text-slate-600 text-sm">© 2026 LeadHive. All rights reserved.</p>
         </div>
       </footer>
     </div>
