@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/plans", tags=["plans"])
 
 def check_plan_limit(org_id: int, resource: str, db: Session):
     """
-    resource: 'members' | 'projects' | 'companies' | 'ai_analyses'
+    resource: 'members' | 'projects' | 'companies' | 'ai_analyses' | 'master_db_imports'
     Raises HTTPException 402 if limit is exceeded.
     Returns (plan, usage) tuple if within limits (or no plan set).
     """
@@ -32,6 +32,7 @@ def check_plan_limit(org_id: int, resource: str, db: Session):
         "projects": ("max_projects", usage["projects"], "プロジェクト数"),
         "companies": ("max_companies", usage["companies"], "企業登録数"),
         "ai_analyses": ("max_ai_analyses_monthly", usage["ai_analyses_this_month"], "月次AI分析回数"),
+        "master_db_imports": ("max_master_db_imports", usage["master_db_imports_this_month"], "マスターDBインポート"),
     }
 
     if resource not in limit_map:
@@ -40,9 +41,14 @@ def check_plan_limit(org_id: int, resource: str, db: Session):
     field, current, label = limit_map[resource]
     limit = getattr(plan, field, None)
     if limit is not None and current >= limit:
+        if limit == 0:
+            raise HTTPException(
+                status_code=402,
+                detail=f"マスターDBの利用にはスターター以上のプランが必要です。現在のプラン「{plan.name}」ではご利用いただけません。"
+            )
         raise HTTPException(
             status_code=402,
-            detail=f"プラン「{plan.name}」の{label}上限（{limit}）に達しています（現在: {current}）。プランをアップグレードしてください。"
+            detail=f"プラン「{plan.name}」の{label}上限（{limit}件/月）に達しています（今月: {current}件）。プランをアップグレードしてください。"
         )
 
 
@@ -54,6 +60,7 @@ class PlanBody(BaseModel):
     max_projects: Optional[int] = None
     max_companies: Optional[int] = None
     max_ai_analyses_monthly: Optional[int] = None
+    max_master_db_imports: Optional[int] = None
     api_daily_limit: Optional[int] = None
     is_active: bool = True
 
@@ -68,6 +75,7 @@ def plan_to_dict(plan: Plan) -> dict:
         "max_projects": plan.max_projects,
         "max_companies": plan.max_companies,
         "max_ai_analyses_monthly": plan.max_ai_analyses_monthly,
+        "max_master_db_imports": plan.max_master_db_imports,
         "api_daily_limit": plan.api_daily_limit,
         "is_active": plan.is_active,
         "created_at": plan.created_at.isoformat() if plan.created_at else None,
@@ -98,11 +106,19 @@ def get_org_usage(org_id: int, db: Session) -> dict:
             and str(c.ai_summary.get("generated_at", ""))[:7] == month_prefix
         )
 
+    now = datetime.utcnow()
+    current_month = f"{now.year}-{now.month:02d}"
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    master_db_imports_this_month = 0
+    if org and getattr(org, "master_db_import_month", None) == current_month:
+        master_db_imports_this_month = getattr(org, "master_db_import_count", None) or 0
+
     return {
         "members": members,
         "projects": projects,
         "companies": companies,
         "ai_analyses_this_month": ai_analyses_this_month,
+        "master_db_imports_this_month": master_db_imports_this_month,
     }
 
 

@@ -15,6 +15,7 @@ class Plan(Base):
     max_projects = Column(Integer, nullable=True)
     max_companies = Column(Integer, nullable=True)
     max_ai_analyses_monthly = Column(Integer, nullable=True)
+    max_master_db_imports = Column(Integer, nullable=True)
     api_daily_limit = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
@@ -27,6 +28,8 @@ class Organization(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     plan_id = Column(Integer, ForeignKey("plans.id"), nullable=True)
+    master_db_import_count = Column(Integer, default=0)
+    master_db_import_month = Column(String(7), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 

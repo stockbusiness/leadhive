@@ -1,9 +1,10 @@
+from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from server.database import get_db
-from server.models import CompanyMaster, Company, User
+from server.models import CompanyMaster, Company, User, Organization, Plan
 from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/master", tags=["master"])
@@ -38,6 +39,22 @@ def _master_to_dict(m: CompanyMaster, already_in_project: bool = False) -> dict:
     }
 
 
+def _check_master_db_access(current_user: User, db: Session):
+    """プランチェック: マスターDB検索・インポートへのアクセス権があるか確認する"""
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+    if not org or not org.plan_id:
+        return
+    plan = db.query(Plan).filter(Plan.id == org.plan_id).first()
+    if not plan:
+        return
+    limit = getattr(plan, "max_master_db_imports", None)
+    if limit is not None and limit == 0:
+        raise HTTPException(
+            status_code=402,
+            detail=f"マスターDBの利用にはスターター以上のプランが必要です。現在のプラン「{plan.name}」ではご利用いただけません。"
+        )
+
+
 @router.get("/stats")
 def get_master_stats(
     current_user: User = Depends(get_current_user),
@@ -70,6 +87,8 @@ def search_master(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _check_master_db_access(current_user, db)
+
     query = db.query(CompanyMaster)
 
     if q and q.strip():
@@ -110,6 +129,9 @@ def import_from_master(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    from server.routes.plans import check_plan_limit
+    check_plan_limit(current_user.org_id, "master_db_imports", db)
+
     domain_list = data.get("domain_list", [])
     project_id = data.get("project_id")
 
@@ -166,9 +188,21 @@ def import_from_master(
             existing_domains.add(domain)
             success += 1
             imported.append({"domain": domain, "company_id": company.id})
-        except Exception as e:
+        except Exception:
             db.rollback()
             error += 1
+
+    if success > 0:
+        now = datetime.utcnow()
+        current_month = f"{now.year}-{now.month:02d}"
+        org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+        if org:
+            if getattr(org, "master_db_import_month", None) != current_month:
+                org.master_db_import_count = success
+                org.master_db_import_month = current_month
+            else:
+                org.master_db_import_count = (getattr(org, "master_db_import_count", None) or 0) + success
+            db.commit()
 
     return {
         "success": success,

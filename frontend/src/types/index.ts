@@ -201,6 +201,7 @@ export interface PlanData {
   max_projects: number | null;
   max_companies: number | null;
   max_ai_analyses_monthly: number | null;
+  max_master_db_imports: number | null;
   api_daily_limit: number | null;
   is_active: boolean;
   created_at: string | null;
@@ -212,6 +213,7 @@ export interface PlanUsage {
   projects: number;
   companies: number;
   ai_analyses_this_month: number;
+  master_db_imports_this_month: number;
 }
 
 export interface OrgWithPlan {

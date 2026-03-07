@@ -109,6 +109,14 @@ function PlanCurrentSection() {
               <UsageBar label="プロジェクト" used={usage.projects} limit={plan.max_projects} />
               <UsageBar label="登録企業数" used={usage.companies} limit={plan.max_companies} />
               <UsageBar label="AI分析（今月）" used={usage.ai_analyses_this_month} limit={plan.max_ai_analyses_monthly} />
+              {plan.max_master_db_imports === 0 ? (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">マスターDBインポート（今月）</span>
+                  <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded">スターター以上で利用可能</span>
+                </div>
+              ) : (
+                <UsageBar label="マスターDBインポート（今月）" used={usage.master_db_imports_this_month} limit={plan.max_master_db_imports} />
+              )}
             </div>
           )}
         </>

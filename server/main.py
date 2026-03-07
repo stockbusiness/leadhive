@@ -23,6 +23,7 @@ DEFAULT_PLANS = [
         "max_projects": 1,
         "max_companies": 200,
         "max_ai_analyses_monthly": 3,
+        "max_master_db_imports": 0,
         "api_daily_limit": None,
         "is_active": True,
     },
@@ -34,6 +35,7 @@ DEFAULT_PLANS = [
         "max_projects": 3,
         "max_companies": 1000,
         "max_ai_analyses_monthly": 20,
+        "max_master_db_imports": 100,
         "api_daily_limit": None,
         "is_active": True,
     },
@@ -45,6 +47,7 @@ DEFAULT_PLANS = [
         "max_projects": 10,
         "max_companies": 5000,
         "max_ai_analyses_monthly": 100,
+        "max_master_db_imports": None,
         "api_daily_limit": None,
         "is_active": True,
     },
@@ -56,6 +59,7 @@ DEFAULT_PLANS = [
         "max_projects": None,
         "max_companies": None,
         "max_ai_analyses_monthly": None,
+        "max_master_db_imports": None,
         "api_daily_limit": None,
         "is_active": True,
     },
@@ -65,20 +69,29 @@ DEFAULT_PLANS = [
 def run_db_migrations():
     from server.database import engine, Base, SessionLocal
     from server import models  # noqa: F401 — ensure all models are registered
+    import sqlalchemy as sa
     Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
-        conn.execute(__import__("sqlalchemy").text(
-            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan_id INTEGER REFERENCES plans(id)"
-        ))
+        for stmt in [
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan_id INTEGER REFERENCES plans(id)",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS master_db_import_count INTEGER DEFAULT 0",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS master_db_import_month VARCHAR(7)",
+            "ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_master_db_imports INTEGER",
+        ]:
+            conn.execute(sa.text(stmt))
         conn.commit()
 
     db = SessionLocal()
     try:
         from server.models import Plan
-        if db.query(Plan).count() == 0:
-            for p in DEFAULT_PLANS:
+        for p in DEFAULT_PLANS:
+            existing = db.query(Plan).filter(Plan.name == p["name"]).first()
+            if existing:
+                for key, value in p.items():
+                    setattr(existing, key, value)
+            else:
                 db.add(Plan(**p))
-            db.commit()
+        db.commit()
     finally:
         db.close()
 

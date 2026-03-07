@@ -11,6 +11,7 @@ const EMPTY_PLAN: Omit<PlanData, "id" | "created_at" | "updated_at"> = {
   max_projects: null,
   max_companies: null,
   max_ai_analyses_monthly: null,
+  max_master_db_imports: null,
   api_daily_limit: null,
   is_active: true,
 };
@@ -18,6 +19,12 @@ const EMPTY_PLAN: Omit<PlanData, "id" | "created_at" | "updated_at"> = {
 function LimitCell({ value }: { value: number | null }) {
   if (value === null) return <span className="text-slate-400 text-xs">無制限</span>;
   return <span className="text-slate-700 text-sm font-medium">{value.toLocaleString()}</span>;
+}
+
+function MasterDBLimitCell({ value }: { value: number | null | undefined }) {
+  if (value === null || value === undefined) return <span className="text-slate-400 text-xs">無制限</span>;
+  if (value === 0) return <span className="text-red-500 text-xs font-medium">不可</span>;
+  return <span className="text-slate-700 text-sm font-medium">{value.toLocaleString()}件/月</span>;
 }
 
 function PlanModal({
@@ -40,6 +47,7 @@ function PlanModal({
           max_projects: plan.max_projects ?? null,
           max_companies: plan.max_companies ?? null,
           max_ai_analyses_monthly: plan.max_ai_analyses_monthly ?? null,
+          max_master_db_imports: plan.max_master_db_imports ?? null,
           api_daily_limit: plan.api_daily_limit ?? null,
           is_active: plan.is_active ?? true,
         }
@@ -141,6 +149,7 @@ function PlanModal({
               {limitField("最大プロジェクト数", "max_projects")}
               {limitField("最大企業登録数", "max_companies")}
               {limitField("月次AI分析回数", "max_ai_analyses_monthly")}
+              {limitField("マスターDBインポート/月（0=不可）", "max_master_db_imports")}
               {limitField("API日次上限（Google）", "api_daily_limit")}
             </div>
           </div>
@@ -276,6 +285,7 @@ export default function AdminPlans() {
                   <th className="text-center px-3 py-3">プロジェクト</th>
                   <th className="text-center px-3 py-3">企業数</th>
                   <th className="text-center px-3 py-3">AI分析/月</th>
+                  <th className="text-center px-3 py-3">マスターDB</th>
                   <th className="text-center px-3 py-3">状態</th>
                   <th className="text-center px-3 py-3">操作</th>
                 </tr>
@@ -302,6 +312,7 @@ export default function AdminPlans() {
                     <td className="px-3 py-3 text-center"><LimitCell value={plan.max_projects} /></td>
                     <td className="px-3 py-3 text-center"><LimitCell value={plan.max_companies} /></td>
                     <td className="px-3 py-3 text-center"><LimitCell value={plan.max_ai_analyses_monthly} /></td>
+                    <td className="px-3 py-3 text-center"><MasterDBLimitCell value={plan.max_master_db_imports} /></td>
                     <td className="px-3 py-3 text-center">
                       <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${plan.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
                         {plan.is_active ? <Check size={10} /> : <Minus size={10} />}
