@@ -376,7 +376,7 @@ def collect_urls_preview(
         keyword = data.get("keyword", "")
         prefecture = data.get("prefecture", "")
         max_results = min(int(data.get("max_results", 20)), 100)
-        from server.services.gbiz_collector import get_gbiz_token, search_gbiz
+        from server.services.gbiz_collector import get_gbiz_token, search_gbiz, find_website_for_company
         token = get_gbiz_token(current_user.org_id, db)
         if not token:
             return {"error": "gBizINFO APIトークンが設定されていません。"}
@@ -391,16 +391,41 @@ def collect_urls_preview(
             if page >= result["total_page_count"]:
                 break
             page += 1
+
+        from urllib.parse import urlparse as _urlparse
+        from server.services.aggregator import normalize_domain as _normalize_domain
+
         urls = []
+        seen_domains = set()
         for c in all_companies[:max_results]:
-            company_url = c.get("company_url", "") or ""
-            if company_url.strip():
-                urls.append({
-                    "url": company_url.strip(),
-                    "name": c.get("name", ""),
-                    "source": "法人DB",
-                    "location": c.get("location", ""),
-                })
+            company_name = c.get("name", "")
+            location = c.get("location", "")
+            company_url = (c.get("company_url", "") or "").strip()
+
+            # gBizINFO に URL がない場合は Google 検索で探す
+            if not company_url:
+                found = find_website_for_company(
+                    company_name, location, db=db, org_id=current_user.org_id
+                )
+                company_url = found or ""
+
+            if not company_url:
+                continue
+
+            # 重複ドメインを除外
+            netloc = _urlparse(company_url).netloc or company_url
+            domain = _normalize_domain(netloc)
+            if domain in seen_domains:
+                continue
+            seen_domains.add(domain)
+
+            urls.append({
+                "url": company_url,
+                "name": company_name,
+                "source": "法人DB",
+                "location": location,
+            })
+
         return {"urls": urls, "count": len(urls)}
 
     elif type_ == "google-api":

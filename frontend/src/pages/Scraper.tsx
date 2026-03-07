@@ -538,8 +538,10 @@ function GbizSection({
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-500">
-        経済産業省の <strong>gBizINFO</strong>（約400万社）から法人リストを取得し、
-        各社のホームページを探索してスクレイピングします。ゴミデータが混入しない高品質な収集が可能です。
+        経済産業省の <strong>gBizINFO</strong>（約400万社）から企業名・住所を取得し、
+        HPが未登録の企業はGoogle検索でサイトURLを自動検索します。
+        URLが揃ったらステージング一覧でスクレイピング対象を確認・選択できます。
+        <span className="text-amber-600 font-medium">※企業数に応じて数十秒かかる場合があります。</span>
       </p>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
         <div className="md:col-span-2">
