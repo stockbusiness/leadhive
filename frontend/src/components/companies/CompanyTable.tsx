@@ -46,145 +46,257 @@ export default function CompanyTable({
     onSelectionChange(newSet);
   };
 
+  const empty = (
+    <div className="px-4 py-10 text-center text-slate-400 text-sm">
+      企業データがありません。「URL収集」から企業を追加してください。
+    </div>
+  );
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-slate-50 border-b border-slate-200">
-            <th className="px-3 py-2 w-8">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={handleSelectAll}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-            </th>
-            <th className="text-left px-3 py-2 font-medium text-slate-600">会社名</th>
-            <th className="text-left px-3 py-2 font-medium text-slate-600">カテゴリ</th>
-            <th className="text-center px-3 py-2 font-medium text-slate-600">スコア</th>
-            <th className="text-left px-3 py-2 font-medium text-slate-600">所在地</th>
-            <th className="text-left px-3 py-2 font-medium text-slate-600">問い合わせ</th>
-            <th className="text-left px-3 py-2 font-medium text-slate-600">担当者</th>
-            <th className="text-left px-3 py-2 font-medium text-slate-600">ステータス</th>
-            <th className="text-left px-3 py-2 font-medium text-slate-600">メモ</th>
-            <th className="text-center px-3 py-2 font-medium text-slate-600">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {companies.map((c) => {
-            const isOverdue = c.follow_up_date && new Date(c.follow_up_date) < new Date(new Date().toDateString());
-            return (
-            <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${selectedIds.has(c.id) ? "bg-blue-50" : isOverdue ? "bg-red-50" : ""}`}>
-              <td className="px-3 py-2">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(c.id)}
-                  onChange={() => handleSelectOne(c.id)}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-              </td>
-              <td className="px-3 py-2">
-                <button
-                  onClick={() => navigate(`/companies/${c.id}`)}
-                  className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left leading-snug"
-                >
-                  {c.company_name || c.domain}
-                </button>
-                <a
-                  href={c.website_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-slate-400 hover:underline flex items-center gap-1"
-                  onClick={e => e.stopPropagation()}
-                >
-                  {c.domain} <ExternalLink size={10} />
-                </a>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {c.shopify_flag && <FlagBadge label="Shopify" color="bg-green-100 text-green-700" />}
-                  {c.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
-                  {c.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
-                  {c.tags && c.tags.map((tag) => (
-                    <span key={tag} className="inline-block bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[10px] leading-tight">
-                      {tag}
-                    </span>
-                  ))}
+    <>
+      {/* Mobile card list */}
+      <div className="md:hidden divide-y divide-slate-100">
+        {companies.length === 0 && empty}
+        {companies.map((c) => {
+          const isOverdue = c.follow_up_date && new Date(c.follow_up_date) < new Date(new Date().toDateString());
+          return (
+            <div
+              key={c.id}
+              className={`px-3 py-3 ${isOverdue ? "bg-red-50" : selectedIds.has(c.id) ? "bg-blue-50" : ""}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(c.id)}
+                    onChange={() => handleSelectOne(c.id)}
+                    className="mt-1 flex-shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="min-w-0">
+                    <button
+                      onClick={() => navigate(`/companies/${c.id}`)}
+                      className="font-semibold text-blue-600 hover:underline text-left text-sm leading-snug"
+                    >
+                      {c.company_name || c.domain}
+                    </button>
+                    {c.website_url && (
+                      <a
+                        href={c.website_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-slate-400 hover:underline mt-0.5"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {c.domain} <ExternalLink size={10} />
+                      </a>
+                    )}
+                    {c.category_main && (
+                      <span className="text-xs text-slate-500 mt-0.5 block">{c.category_main}</span>
+                    )}
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {c.shopify_flag && <FlagBadge label="Shopify" color="bg-green-100 text-green-700" />}
+                      {c.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
+                      {c.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
+                      {c.tags && c.tags.map((tag) => (
+                        <span key={tag} className="inline-block bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[10px]">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </td>
-              <td className="px-3 py-2 text-slate-600">{c.category_main}</td>
-              <td className="px-3 py-2 text-center">
-                <ScoreBadge score={c.score_total} rank={c.score_rank} />
-              </td>
-              <td className="px-3 py-2 text-slate-600 text-xs">
-                {c.prefecture}{c.city}
-                {c.phone && <div className="text-slate-400">{c.phone}</div>}
-              </td>
-              <td className="px-3 py-2">
-                {c.contact_url ? (
-                  <a
-                    href={c.contact_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
-                  >
-                    <MessageSquare size={12} />
-                    問い合わせ
-                  </a>
-                ) : (
-                  <span className="text-xs text-slate-400">なし</span>
-                )}
-              </td>
-              <td className="px-3 py-2">
-                {c.assignee ? (
-                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                    {c.assignee.display_name || c.assignee.email}
-                  </span>
-                ) : (
-                  <span className="text-xs text-slate-400">—</span>
-                )}
-              </td>
-              <td className="px-3 py-2">
+                <div className="flex-shrink-0">
+                  <ScoreBadge score={c.score_total} rank={c.score_rank} />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 mt-2 pl-6">
                 <select
                   value={c.status}
                   onChange={(e) => onStatusChange(c.id, e.target.value)}
-                  className="text-xs border border-slate-300 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="text-xs border border-slate-300 rounded px-1.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 flex-1 min-w-0 bg-white"
                 >
                   {STATUSES.map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
-                {c.follow_up_date && <FollowUpBadge date={c.follow_up_date} />}
-              </td>
-              <td className="px-3 py-2">
-                <span className="text-xs text-slate-500 max-w-[120px] truncate block">
-                  {c.notes || "-"}
-                </span>
-              </td>
-              <td className="px-3 py-2 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <button onClick={() => onRescrape(c.id)} className="text-amber-500 hover:text-amber-700 p-1" title="再スクレイピング">
-                    <RotateCw size={14} />
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <button onClick={() => onRescrape(c.id)} className="text-amber-500 hover:text-amber-700 p-1.5" title="再スクレイピング">
+                    <RotateCw size={15} />
                   </button>
-                  <button onClick={() => onEdit(c)} className="text-blue-500 hover:text-blue-700 p-1" title="詳細編集">
-                    <Pencil size={14} />
+                  <button onClick={() => onEdit(c)} className="text-blue-500 hover:text-blue-700 p-1.5" title="編集">
+                    <Pencil size={15} />
                   </button>
-                  <button onClick={() => onDelete(c.id)} className="text-red-400 hover:text-red-600 p-1" title="削除">
-                    <Trash2 size={14} />
+                  <button onClick={() => onDelete(c.id)} className="text-red-400 hover:text-red-600 p-1.5" title="削除">
+                    <Trash2 size={15} />
                   </button>
                 </div>
-              </td>
-            </tr>
+              </div>
+
+              {c.follow_up_date && (
+                <div className="pl-6 mt-1.5">
+                  <FollowUpBadge date={c.follow_up_date} />
+                </div>
+              )}
+
+              {c.contact_url && (
+                <div className="pl-6 mt-1.5">
+                  <a
+                    href={c.contact_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded"
+                  >
+                    <MessageSquare size={11} />
+                    問い合わせ
+                  </a>
+                </div>
+              )}
+            </div>
           );
-          })}
-          {companies.length === 0 && (
-            <tr>
-              <td colSpan={10} className="px-3 py-8 text-center text-slate-400">
-                企業データがありません。「URL収集」から企業を追加してください。
-              </td>
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="px-3 py-2 w-8">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={handleSelectAll}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+              </th>
+              <th className="text-left px-3 py-2 font-medium text-slate-600">会社名</th>
+              <th className="text-left px-3 py-2 font-medium text-slate-600">カテゴリ</th>
+              <th className="text-center px-3 py-2 font-medium text-slate-600">スコア</th>
+              <th className="text-left px-3 py-2 font-medium text-slate-600">所在地</th>
+              <th className="text-left px-3 py-2 font-medium text-slate-600">問い合わせ</th>
+              <th className="text-left px-3 py-2 font-medium text-slate-600">担当者</th>
+              <th className="text-left px-3 py-2 font-medium text-slate-600">ステータス</th>
+              <th className="text-left px-3 py-2 font-medium text-slate-600">メモ</th>
+              <th className="text-center px-3 py-2 font-medium text-slate-600">操作</th>
             </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {companies.map((c) => {
+              const isOverdue = c.follow_up_date && new Date(c.follow_up_date) < new Date(new Date().toDateString());
+              return (
+                <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${selectedIds.has(c.id) ? "bg-blue-50" : isOverdue ? "bg-red-50" : ""}`}>
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(c.id)}
+                      onChange={() => handleSelectOne(c.id)}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <button
+                      onClick={() => navigate(`/companies/${c.id}`)}
+                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left leading-snug"
+                    >
+                      {c.company_name || c.domain}
+                    </button>
+                    <a
+                      href={c.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-slate-400 hover:underline flex items-center gap-1"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {c.domain} <ExternalLink size={10} />
+                    </a>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {c.shopify_flag && <FlagBadge label="Shopify" color="bg-green-100 text-green-700" />}
+                      {c.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
+                      {c.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
+                      {c.tags && c.tags.map((tag) => (
+                        <span key={tag} className="inline-block bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[10px] leading-tight">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-slate-600">{c.category_main}</td>
+                  <td className="px-3 py-2 text-center">
+                    <ScoreBadge score={c.score_total} rank={c.score_rank} />
+                  </td>
+                  <td className="px-3 py-2 text-slate-600 text-xs">
+                    {c.prefecture}{c.city}
+                    {c.phone && <div className="text-slate-400">{c.phone}</div>}
+                  </td>
+                  <td className="px-3 py-2">
+                    {c.contact_url ? (
+                      <a
+                        href={c.contact_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                      >
+                        <MessageSquare size={12} />
+                        問い合わせ
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400">なし</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {c.assignee ? (
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                        {c.assignee.display_name || c.assignee.email}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <select
+                      value={c.status}
+                      onChange={(e) => onStatusChange(c.id, e.target.value)}
+                      className="text-xs border border-slate-300 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                    {c.follow_up_date && <FollowUpBadge date={c.follow_up_date} />}
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className="text-xs text-slate-500 max-w-[120px] truncate block">
+                      {c.notes || "-"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => onRescrape(c.id)} className="text-amber-500 hover:text-amber-700 p-1" title="再スクレイピング">
+                        <RotateCw size={14} />
+                      </button>
+                      <button onClick={() => onEdit(c)} className="text-blue-500 hover:text-blue-700 p-1" title="詳細編集">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => onDelete(c.id)} className="text-red-400 hover:text-red-600 p-1" title="削除">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {companies.length === 0 && (
+              <tr>
+                <td colSpan={10} className="px-3 py-8 text-center text-slate-400">
+                  企業データがありません。「URL収集」から企業を追加してください。
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

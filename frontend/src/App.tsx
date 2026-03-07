@@ -19,6 +19,7 @@ import {
   X,
   Save,
   Loader2,
+  Menu,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -96,56 +97,29 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
           {success && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3">{success}</div>}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">メールアドレス</label>
-            <input
-              type="email"
-              value={user?.email || ""}
-              disabled
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-400"
-            />
+            <input type="email" value={user?.email || ""} disabled className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-400" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">表示名</label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={e => setDisplayName(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="山田 太郎"
-            />
+            <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="山田 太郎" />
           </div>
           <div className="pt-2 border-t border-slate-100">
             <p className="text-xs font-semibold text-slate-600 mb-3">パスワード変更（任意）</p>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">現在のパスワード</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={e => setCurrentPassword(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="••••••••"
-                />
+                <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">新しいパスワード</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="6文字以上"
-                />
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="6文字以上" />
               </div>
             </div>
           </div>
         </div>
         <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">キャンセル</button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
-          >
+          <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             保存
           </button>
@@ -160,6 +134,9 @@ function AppContent() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const closeSidebar = () => setSidebarOpen(false);
 
   const handleLogout = () => {
     logout();
@@ -167,12 +144,33 @@ function AppContent() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50">
-      <aside className="w-60 bg-slate-900 text-white flex flex-col">
-        <div className="p-4 border-b border-slate-700">
-          <h1 className="text-lg font-bold">LeadHive</h1>
-          <p className="text-xs text-slate-400">営業先リスト自動化ツール</p>
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
+      <aside className={`
+        fixed md:static inset-y-0 left-0 z-40 flex-shrink-0
+        w-64 bg-slate-900 text-white flex flex-col
+        transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+      `}>
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <div>
+            <h1 className="text-lg font-bold">LeadHive</h1>
+            <p className="text-xs text-slate-400 hidden md:block">営業先リスト自動化ツール</p>
+          </div>
+          <button
+            onClick={closeSidebar}
+            className="md:hidden text-slate-400 hover:text-white p-1"
+          >
+            <X size={18} />
+          </button>
         </div>
+
         <div className="px-3 py-2 border-b border-slate-700">
           <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">プロジェクト</label>
           <div className="relative">
@@ -188,28 +186,31 @@ function AppContent() {
             <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
         </div>
+
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          <SidebarLink to="/" icon={<LayoutDashboard size={18} />} label="ダッシュボード" />
-          <SidebarLink to="/companies" icon={<Building2 size={18} />} label="候補企業一覧" />
-          <SidebarLink to="/keywords" icon={<Search size={18} />} label="検索条件管理" />
-          <SidebarLink to="/scraper" icon={<Globe size={18} />} label="URL収集" />
-          <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" />
-          <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" />
-          <SidebarLink to="/templates" icon={<FileText size={18} />} label="メモテンプレート" />
-          <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" />
-          <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" />
+          <SidebarLink to="/" icon={<LayoutDashboard size={18} />} label="ダッシュボード" onClick={closeSidebar} />
+          <SidebarLink to="/companies" icon={<Building2 size={18} />} label="候補企業一覧" onClick={closeSidebar} />
+          <SidebarLink to="/keywords" icon={<Search size={18} />} label="検索条件管理" onClick={closeSidebar} />
+          <SidebarLink to="/scraper" icon={<Globe size={18} />} label="URL収集" onClick={closeSidebar} />
+          <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" onClick={closeSidebar} />
+          <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" onClick={closeSidebar} />
+          <SidebarLink to="/templates" icon={<FileText size={18} />} label="メモテンプレート" onClick={closeSidebar} />
+          <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" onClick={closeSidebar} />
+          <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" onClick={closeSidebar} />
           {user?.role === "admin" && (
-            <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" />
+            <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
           )}
         </nav>
+
         <div className="p-2 border-t border-slate-700 space-y-1">
-          <SidebarLink to="/manual" icon={<BookOpen size={18} />} label="マニュアル" />
-          <SidebarLink to="/settings" icon={<Settings size={18} />} label="設定" />
+          <SidebarLink to="/manual" icon={<BookOpen size={18} />} label="マニュアル" onClick={closeSidebar} />
+          <SidebarLink to="/settings" icon={<Settings size={18} />} label="設定" onClick={closeSidebar} />
         </div>
+
         {user && (
           <div className="px-3 py-3 border-t border-slate-700 bg-slate-950">
             <button
-              onClick={() => setShowProfileModal(true)}
+              onClick={() => { setShowProfileModal(true); closeSidebar(); }}
               className="flex items-center gap-2 mb-2 w-full hover:bg-slate-800 rounded-md px-1 py-1 transition-colors"
             >
               <div className="bg-blue-600 rounded-full p-1.5 flex-shrink-0">
@@ -230,25 +231,53 @@ function AppContent() {
           </div>
         )}
       </aside>
-      <main className="flex-1 overflow-auto">
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/companies" element={<Companies />} />
-            <Route path="/companies/:id" element={<CompanyDetail />} />
-            <Route path="/keywords" element={<Keywords />} />
-            <Route path="/scraper" element={<Scraper />} />
-            <Route path="/history" element={<CollectionHistory />} />
-            <Route path="/rejected" element={<RejectedList />} />
-            <Route path="/templates" element={<Templates />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/master" element={<MasterDB />} />
-            <Route path="/manual" element={<Manual />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/users" element={<UserManagement />} />
-          </Routes>
-        </Suspense>
-      </main>
+
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-slate-600 hover:text-slate-800 p-1 -ml-1"
+          >
+            <Menu size={22} />
+          </button>
+          <div className="flex-1 min-w-0">
+            {currentProject ? (
+              <p className="text-sm font-semibold text-slate-800 truncate">{currentProject.name}</p>
+            ) : (
+              <span className="text-sm font-bold text-slate-800">LeadHive</span>
+            )}
+          </div>
+          {user && (
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="bg-blue-600 rounded-full p-1.5 flex-shrink-0"
+            >
+              <User size={14} className="text-white" />
+            </button>
+          )}
+        </header>
+
+        <main className="flex-1 overflow-auto">
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/companies" element={<Companies />} />
+              <Route path="/companies/:id" element={<CompanyDetail />} />
+              <Route path="/keywords" element={<Keywords />} />
+              <Route path="/scraper" element={<Scraper />} />
+              <Route path="/history" element={<CollectionHistory />} />
+              <Route path="/rejected" element={<RejectedList />} />
+              <Route path="/templates" element={<Templates />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/master" element={<MasterDB />} />
+              <Route path="/manual" element={<Manual />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/users" element={<UserManagement />} />
+            </Routes>
+          </Suspense>
+        </main>
+      </div>
+
       {showProfileModal && <ProfileModal onClose={() => setShowProfileModal(false)} />}
     </div>
   );
@@ -293,11 +322,12 @@ function App() {
   );
 }
 
-function SidebarLink({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
+function SidebarLink({ to, icon, label, onClick }: { to: string; icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
     <NavLink
       to={to}
       end={to === "/"}
+      onClick={onClick}
       className={({ isActive }) =>
         `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
           isActive ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white"

@@ -101,31 +101,31 @@ export default function CompanyDetail() {
   const hasFollowUp = company.follow_up_date && new Date(company.follow_up_date) <= new Date();
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
+    <div className="p-3 md:p-6 space-y-4 md:space-y-6 max-w-4xl">
       <div className="flex items-center gap-3">
         <button onClick={() => navigate("/companies")} className="text-slate-400 hover:text-slate-700">
           <ArrowLeft size={20} />
         </button>
-        <nav className="flex items-center gap-1 text-sm text-slate-500">
-          <Link to="/companies" className="hover:text-blue-600">候補企業一覧</Link>
-          <ChevronRight size={14} />
-          <span className="text-slate-800 font-medium">{company.company_name || company.domain}</span>
+        <nav className="flex items-center gap-1 text-sm text-slate-500 min-w-0">
+          <Link to="/companies" className="hover:text-blue-600 flex-shrink-0">候補企業一覧</Link>
+          <ChevronRight size={14} className="flex-shrink-0" />
+          <span className="text-slate-800 font-medium truncate">{company.company_name || company.domain}</span>
         </nav>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="bg-slate-100 rounded-lg p-3">
-              <Building2 size={28} className="text-slate-600" />
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 md:p-6">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="bg-slate-100 rounded-lg p-2.5 flex-shrink-0">
+              <Building2 size={24} className="text-slate-600" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-800">{company.company_name || "（名称未設定）"}</h1>
+            <div className="min-w-0">
+              <h1 className="text-lg md:text-xl font-bold text-slate-800 leading-snug">{company.company_name || "（名称未設定）"}</h1>
               {company.website_url && (
-                <a href={company.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-blue-600 hover:underline mt-1">
-                  <Globe size={14} />
-                  {company.domain || company.website_url}
-                  <ExternalLink size={12} />
+                <a href={company.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-blue-600 hover:underline mt-1 truncate">
+                  <Globe size={14} className="flex-shrink-0" />
+                  <span className="truncate">{company.domain || company.website_url}</span>
+                  <ExternalLink size={12} className="flex-shrink-0" />
                 </a>
               )}
               <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -151,7 +151,7 @@ export default function CompanyDetail() {
             <ScoreBadge score={company.score_total} rank={company.score_rank} />
             <button
               onClick={() => setEditOpen(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
             >
               <Edit2 size={14} />
               編集

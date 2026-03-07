@@ -8,7 +8,7 @@ LeadHiveは、BtoB営業先の収集、スコアリング、進捗管理、チ�
 
 ## System Architecture
 LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケーションです。
-- **UI/UX**: React, TypeScript, Tailwind CSS, Rechartsを使用し、Viteでビルドされた静的ファイルとして提供されます。プロジェクトごとに収集対象業種、カテゴリ、フラグ、スコアリング基準をカスタマイズでき、サイドバーでプロジェクト切り替えが可能です。カンバンビューやダッシュボードのチャート表示（Recharts）により、視覚的に情報を管理します。
+- **UI/UX**: React, TypeScript, Tailwind CSS, Rechartsを使用し、Viteでビルドされた静的ファイルとして提供されます。プロジェクトごとに収集対象業種、カテゴリ、フラグ、スコアリング基準をカスタマイズでき、サイドバーでプロジェクト切り替えが可能です。カンバンビューやダッシュボードのチャート表示（Recharts）により、視覚的に情報を管理します。モバイル対応済み：スマートフォン（viewport < 768px）ではサイドバーがハンバーガーメニューによるスライドドロワーに変わり、企業一覧はカードビューで表示されます。
 - **Backend**: FastAPI (Python) を使用し、ポート5000で動作します。
 - **Database**: PostgreSQLを使用し、リプリットの内蔵データベースを活用します。
 - **Authentication**: JWTと`sha256_crypt`による認証を採用し、AuthorizationヘッダーでBearerトークンを使用します。

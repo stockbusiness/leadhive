@@ -41,20 +41,22 @@ export default function CompanyFilterBar({
     setSearchInput(filters.search);
   }, [filters.search]);
 
+  const selectClass = "border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-      <div className="flex flex-wrap gap-3">
+    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3">
+      <div className="flex flex-wrap gap-2">
         <input
           type="text"
           placeholder="会社名・URL・メモ検索..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          className="border border-slate-300 rounded-md px-3 py-1.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`${selectClass} w-full sm:w-48`}
         />
         <select
           value={filters.category}
           onChange={(e) => onFilterChange({ ...filters, category: e.target.value })}
-          className="border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={selectClass}
         >
           <option value="">全カテゴリ</option>
           {CATEGORIES.map((c) => (
@@ -64,7 +66,7 @@ export default function CompanyFilterBar({
         <select
           value={filters.status}
           onChange={(e) => onFilterChange({ ...filters, status: e.target.value })}
-          className="border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={selectClass}
         >
           <option value="">全ステータス</option>
           {STATUSES.map((s) => (
@@ -74,7 +76,7 @@ export default function CompanyFilterBar({
         <select
           value={filters.score_rank}
           onChange={(e) => onFilterChange({ ...filters, score_rank: e.target.value })}
-          className="border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={selectClass}
         >
           <option value="">全ランク</option>
           {RANKS.map((r) => (
@@ -84,7 +86,7 @@ export default function CompanyFilterBar({
         <select
           value={filters.has_contact}
           onChange={(e) => onFilterChange({ ...filters, has_contact: e.target.value })}
-          className="border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={selectClass}
         >
           <option value="">問い合わせ</option>
           <option value="true">あり</option>
@@ -94,7 +96,7 @@ export default function CompanyFilterBar({
           <select
             value={filters.assignee_id}
             onChange={(e) => onFilterChange({ ...filters, assignee_id: e.target.value })}
-            className="border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={selectClass}
           >
             <option value="">全担当者</option>
             <option value="unassigned">未割り当て</option>
@@ -107,7 +109,7 @@ export default function CompanyFilterBar({
           <select
             value={filters.tag}
             onChange={(e) => onFilterChange({ ...filters, tag: e.target.value })}
-            className="border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={selectClass}
           >
             <option value="">全タグ</option>
             {allTags.map((t) => (
@@ -118,7 +120,7 @@ export default function CompanyFilterBar({
         <select
           value={filters.follow_up_filter}
           onChange={(e) => onFilterChange({ ...filters, follow_up_filter: e.target.value })}
-          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
             filters.follow_up_filter === "overdue"
               ? "border-red-400 bg-red-50 text-red-700"
               : filters.follow_up_filter

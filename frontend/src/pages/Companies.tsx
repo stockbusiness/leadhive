@@ -205,47 +205,47 @@ export default function Companies() {
   const totalPages = Math.ceil(total / 50);
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-800">候補企業一覧</h2>
-        <div className="flex items-center gap-2">
+    <div className="p-3 md:p-6 space-y-3 md:space-y-4">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <h2 className="text-xl md:text-2xl font-bold text-slate-800">候補企業一覧</h2>
+        <div className="flex items-center flex-wrap gap-2">
           <div className="flex items-center bg-slate-100 rounded-lg p-1">
             <button
               onClick={() => handleViewModeChange("list")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-slate-800 font-medium" : "text-slate-500 hover:text-slate-700"}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-slate-800 font-medium" : "text-slate-500 hover:text-slate-700"}`}
             >
               <LayoutList size={15} />
-              リスト
+              <span className="hidden sm:inline">リスト</span>
             </button>
             <button
               onClick={() => handleViewModeChange("kanban")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${viewMode === "kanban" ? "bg-white shadow-sm text-slate-800 font-medium" : "text-slate-500 hover:text-slate-700"}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors ${viewMode === "kanban" ? "bg-white shadow-sm text-slate-800 font-medium" : "text-slate-500 hover:text-slate-700"}`}
             >
               <Kanban size={15} />
-              カンバン
+              <span className="hidden sm:inline">カンバン</span>
             </button>
           </div>
           <button
             onClick={handleDuplicateCheck}
             disabled={duplicateLoading}
-            className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 bg-amber-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-amber-700 transition-colors disabled:opacity-50"
           >
-            <Copy size={16} />
-            {duplicateLoading ? "チェック中..." : "重複チェック"}
+            <Copy size={15} />
+            <span className="hidden sm:inline">{duplicateLoading ? "チェック中..." : "重複チェック"}</span>
           </button>
           <button
             onClick={() => { setShowImportModal(true); setImportResult(null); setImportFile(null); }}
-            className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-violet-700 transition-colors"
+            className="flex items-center gap-1.5 bg-violet-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-violet-700 transition-colors"
           >
-            <Upload size={16} />
-            CSVインポート
+            <Upload size={15} />
+            <span className="hidden sm:inline">CSVインポート</span>
           </button>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors"
+            className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors"
           >
-            <Download size={16} />
-            CSV出力
+            <Download size={15} />
+            <span className="hidden sm:inline">CSV出力</span>
           </button>
         </div>
       </div>
