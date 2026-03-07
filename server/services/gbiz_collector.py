@@ -5,7 +5,7 @@ import logging
 import requests
 from sqlalchemy.orm import Session
 
-from server.models import AppSetting, Company, RejectedUrl
+from server.models import Company, RejectedUrl
 from server.services.scraper import scrape_company_info
 from server.services.aggregator import normalize_domain, is_aggregator_site
 from server.services.categorizer import categorize_company, detect_flags
@@ -27,11 +27,9 @@ PREFECTURES = [
 
 
 def get_gbiz_token(org_id: int, db: Session) -> str | None:
-    setting = db.query(AppSetting).filter(
-        AppSetting.setting_key == "gbizinfo_api_token",
-        AppSetting.org_id == org_id,
-    ).first()
-    return setting.setting_value if setting and setting.setting_value else None
+    from server.models import SystemSettings
+    row = db.query(SystemSettings).filter(SystemSettings.key == "gbizinfo_api_token").first()
+    return row.value if row and row.value else None
 
 
 def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: int = 1) -> dict:

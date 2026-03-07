@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, Building2 } from "lucide-react";
+import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper } from "lucide-react";
 import { api } from "../api";
 import type { PlanData, PlanUsage } from "../types";
 
@@ -187,9 +187,6 @@ export default function Settings() {
   const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [openaiApiKeySet, setOpenaiApiKeySet] = useState(false);
 
-  const [gbizApiToken, setGbizApiToken] = useState("");
-  const [gbizApiTokenSet, setGbizApiTokenSet] = useState(false);
-
   useEffect(() => {
     api.settings.get().then((data) => {
       const s = data.settings;
@@ -209,7 +206,6 @@ export default function Settings() {
       if (s.followup_notify_enabled) setFollowupNotifyEnabled(s.followup_notify_enabled.value === "true");
       if (s.followup_notify_channel?.is_set) setFollowupNotifyChannel(s.followup_notify_channel.value);
       if (s.openai_api_key) { setOpenaiApiKeySet(s.openai_api_key.is_set); if (s.openai_api_key.is_set) setOpenaiApiKey(s.openai_api_key.value); }
-      if (s.gbizinfo_api_token) { setGbizApiTokenSet(s.gbizinfo_api_token.is_set); if (s.gbizinfo_api_token.is_set) setGbizApiToken(s.gbizinfo_api_token.value); }
     });
     api.settings.getScheduler().then((data) => setSchedulerRunning(data.running)).catch(() => {});
   }, []);
@@ -232,7 +228,6 @@ export default function Settings() {
     data.followup_notify_enabled = followupNotifyEnabled ? "true" : "false";
     data.followup_notify_channel = followupNotifyChannel;
     if (openaiApiKey && !openaiApiKey.includes("*")) data.openai_api_key = openaiApiKey;
-    if (gbizApiToken && !gbizApiToken.includes("*")) data.gbizinfo_api_token = gbizApiToken;
     return data;
   };
 
@@ -501,27 +496,6 @@ export default function Settings() {
         <SaveButton saving={saving} onClick={handleSave} />
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-4">
-        <SectionHeader icon={<Building2 size={20} className="text-indigo-600" />} title="gBizINFO 設定（法人DB収集）" />
-        <p className="text-sm text-slate-500">
-          経済産業省の gBizINFO から約400万社の法人情報を取得します。URL収集ページの「法人DB」タブから利用できます。
-          APIトークンは
-          <a href="https://info.gbiz.go.jp/api/index.html" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline mx-1">こちらのページ</a>
-          から無料・即時発行されます（フォーム送信後すぐメールで届きます）。
-        </p>
-        <div>
-          <label className={labelClass}>gBizINFO APIトークン {gbizApiTokenSet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}</label>
-          <input
-            type="password"
-            value={gbizApiToken}
-            onChange={e => setGbizApiToken(e.target.value)}
-            placeholder="取得したAPIトークンを入力"
-            className={inputClass}
-          />
-          <p className="text-xs text-slate-400 mt-1">登録は無料です。申請後メールアドレスにトークンが即時送信されます。</p>
-        </div>
-        <SaveButton saving={saving} onClick={handleSave} />
-      </div>
     </div>
   );
 }

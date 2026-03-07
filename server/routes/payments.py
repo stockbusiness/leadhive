@@ -104,6 +104,46 @@ def test_stripe_connection(
 
 
 # ──────────────────────────────────────────────────────────────
+#  Admin: システムAPI設定（gBizINFO等）
+# ──────────────────────────────────────────────────────────────
+
+SYSTEM_API_KEYS = ["gbizinfo_api_token"]
+
+
+@router.get("/api/admin/api-settings")
+def get_api_settings(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    data = {}
+    for key in SYSTEM_API_KEYS:
+        value = get_setting(db, key)
+        if value:
+            masked = value[:4] + "••••••••" + value[-4:] if len(value) > 8 else "••••••••"
+            data[key] = masked
+            data[f"{key}_set"] = True
+        else:
+            data[key] = ""
+            data[f"{key}_set"] = False
+    return data
+
+
+@router.put("/api/admin/api-settings")
+def update_api_settings(
+    payload: dict,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    updated = []
+    for key in SYSTEM_API_KEYS:
+        if key in payload and payload[key] and "••" not in payload[key]:
+            set_setting(db, key, payload[key])
+            updated.append(key)
+    db.commit()
+    return {"message": "設定を保存しました", "updated": updated}
+
+
+# ──────────────────────────────────────────────────────────────
 #  Checkout Session 作成
 # ──────────────────────────────────────────────────────────────
 

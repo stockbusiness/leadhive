@@ -22,6 +22,7 @@ import {
   Menu,
   Crown,
   CreditCard,
+  Key,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -45,6 +46,7 @@ const Register = lazy(() => import("./pages/Register"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const AdminPlans = lazy(() => import("./pages/AdminPlans"));
 const AdminStripe = lazy(() => import("./pages/AdminStripe"));
+const AdminApiKeys = lazy(() => import("./pages/AdminApiKeys"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -221,6 +223,9 @@ function AppContent() {
           {user?.role === "admin" && (
             <SidebarLink to="/admin/stripe" icon={<CreditCard size={18} />} label="Stripe設定" onClick={closeSidebar} />
           )}
+          {user?.role === "admin" && (
+            <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
+          )}
         </nav>
 
         <div className="p-2 border-t border-slate-700 space-y-1">
@@ -296,6 +301,7 @@ function AppContent() {
               <Route path="/users" element={<UserManagement />} />
               <Route path="/admin/plans" element={<AdminPlans />} />
               <Route path="/admin/stripe" element={<AdminStripe />} />
+              <Route path="/admin/api-keys" element={<AdminApiKeys />} />
             </Routes>
           </Suspense>
         </main>

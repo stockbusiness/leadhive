@@ -304,6 +304,14 @@ export const api = {
       }).then(r => r.data),
   },
 
+  admin: {
+    getApiSettings: () =>
+      axios.get<Record<string, string | boolean>>("/api/admin/api-settings").then(r => r.data),
+
+    updateApiSettings: (data: Record<string, string>) =>
+      axios.put("/api/admin/api-settings", data).then(r => r.data),
+  },
+
   auth: {
     me: () =>
       axios.get("/api/auth/me").then(r => r.data),

@@ -40,7 +40,8 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
 - **Plan Limit Upgrade Modal**: axiosのresponseインターセプターが HTTP 402 を検知し `plan-limit-exceeded` カスタムDOMイベントを発火。App.tsx の `AppContent` がそれをリッスンして `PlanLimitModal`（`frontend/src/components/common/PlanLimitModal.tsx`）を全画面表示。モーダルはエラーメッセージ・プラン比較表・アップグレードCTAを含む。**全ユーザー**がStripe Checkout経由で自己アップグレード可能（stripe_price_idが設定されているプランにボタンが表示）。管理者はさらに「プラン管理へ」ボタンも表示。stripe_price_idが未設定のプランは「管理者にご相談ください」メッセージを表示。
 - **Keyword Analytics**: 検索条件管理ページ（/keywords）に「分析」タブを追加。collection_logsを集計してキーワードごとの獲得数・成功率・重複率・拒否率を可視化。棒グラフと詳細テーブルで効率の高い/低いキーワードを把握できます。
 - **Outreach Email Generation**: 企業詳細ページのAIサマリータブ内に「アウトリーチメール生成」セクションを追加。ai_summaryデータを活用し、フォーマル/カジュアルのトーン選択と追加指示に基づいてOpenAI GPT-4o-miniが件名・本文を生成。コピーボタン付き・本文は編集可能。
-- **gBizINFO 法人DB収集**: URL収集ページに「法人DB」タブを追加。経済産業省の gBizINFO API（約400万社）から会社名・住所・企業URLを取得し、URL未登録の法人はGoogle直接検索でホームページを特定してスクレイピング。既存パイプライン（スコアリング・マスターDB書き込み）に接続。APIトークンは設定画面（gBizINFO設定セクション）から登録。収集フローはGoogle APIタブと同じSSE進捗バーで可視化。都道府県・最大件数選択対応。実装ファイル: `server/services/gbiz_collector.py`、`server/routes/collector.py`（`/api/collect/gbiz`）、`frontend/src/pages/Scraper.tsx`、`frontend/src/pages/Settings.tsx`
+- **gBizINFO 法人DB収集**: URL収集ページに「法人DB」タブを追加。経済産業省の gBizINFO API（約400万社）から会社名・住所・企業URLを取得し、URL未登録の法人はGoogle直接検索でホームページを特定してスクレイピング。既存パイプライン（スコアリング・マスターDB書き込み）に接続。APIトークンは管理者専用の「システムAPI設定」ページ（`/admin/api-keys`）から登録（SystemSettingsテーブルで全組織共有）。収集フローはGoogle APIタブと同じSSE進捗バーで可視化。都道府県・最大件数選択対応。実装ファイル: `server/services/gbiz_collector.py`、`server/routes/collector.py`（`/api/collect/gbiz`）、`frontend/src/pages/Scraper.tsx`、`frontend/src/pages/AdminApiKeys.tsx`
+- **システムAPI設定ページ** (`/admin/api-keys`): 管理者専用ページ。gBizINFO等のシステム全体で共有するAPIキーを管理。バックエンドは `GET/PUT /api/admin/api-settings`（`server/routes/payments.py`）、SystemSettingsテーブルに保存。サイドバーに「システムAPI設定」リンクを追加（admin only）。
 
 ## External Dependencies
 - **Google Custom Search API**: 営業先の自動収集に利用します。APIキーは管理画面で設定します。
