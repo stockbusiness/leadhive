@@ -2,7 +2,7 @@ import axios from "axios";
 import type {
   Company, StatusHistoryEntry, MemoTemplate, SearchKeyword,
   ScrapeResult, CollectionLog, RejectedItem, DashboardData, ActivityLogEntry, Project, CompanyMaster,
-  PlanData, PlanUsage, OrgWithPlan,
+  PlanData, PlanUsage, OrgWithPlan, KeywordAnalytics, KeywordAnalyticsSummary,
 } from "../types";
 
 export const api = {
@@ -95,6 +95,12 @@ export const api = {
 
     delete: (id: number) =>
       axios.delete(`/api/keywords/${id}`).then(r => r.data),
+
+    analytics: (projectId?: number) =>
+      axios.get<{ analytics: KeywordAnalytics[]; summary: KeywordAnalyticsSummary }>(
+        "/api/keywords/analytics",
+        { params: projectId ? { project_id: projectId } : {} }
+      ).then(r => r.data),
   },
 
   scraper: {

@@ -169,6 +169,29 @@ export interface CompanyMaster {
   already_in_project: boolean;
 }
 
+export interface KeywordAnalytics {
+  keyword_id: number | null;
+  keyword_text: string;
+  total_runs: number;
+  total_found: number;
+  success_count: number;
+  duplicate_count: number;
+  rejected_count: number;
+  error_count: number;
+  last_run_at: string | null;
+  success_rate: number;
+  duplicate_rate: number;
+  rejected_rate: number;
+}
+
+export interface KeywordAnalyticsSummary {
+  total_companies_collected: number;
+  total_api_calls: number;
+  avg_success_rate: number;
+  total_runs: number;
+  keyword_count: number;
+}
+
 export interface PlanData {
   id: number;
   name: string;
