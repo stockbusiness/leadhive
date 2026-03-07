@@ -89,7 +89,9 @@ def run_db_migrations():
 
     db = SessionLocal()
     try:
-        from server.models import Plan
+        from server.models import Plan, User, Organization
+        from server.auth import hash_password
+
         for p in DEFAULT_PLANS:
             existing = db.query(Plan).filter(Plan.name == p["name"]).first()
             if existing:
@@ -98,6 +100,25 @@ def run_db_migrations():
             else:
                 db.add(Plan(**p))
         db.commit()
+
+        if db.query(User).count() == 0:
+            admin_email = os.environ.get("INITIAL_ADMIN_EMAIL", "admin@leadhive.work")
+            admin_password = os.environ.get("INITIAL_ADMIN_PASSWORD", "LeadHive2026!")
+            org = Organization(name="LeadHive管理")
+            db.add(org)
+            db.flush()
+            free_plan = db.query(Plan).filter(Plan.name == "エンタープライズ").first()
+            if free_plan:
+                org.plan_id = free_plan.id
+            admin = User(
+                org_id=org.id,
+                email=admin_email,
+                password_hash=hash_password(admin_password),
+                role="admin",
+            )
+            db.add(admin)
+            db.commit()
+            print(f"[LeadHive] 初期管理者アカウントを作成しました: {admin_email}")
     finally:
         db.close()
 
