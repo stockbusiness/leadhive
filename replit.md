@@ -41,7 +41,9 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
 - **Keyword Analytics**: 検索条件管理ページ（/keywords）に「分析」タブを追加。collection_logsを集計してキーワードごとの獲得数・成功率・重複率・拒否率を可視化。棒グラフと詳細テーブルで効率の高い/低いキーワードを把握できます。
 - **Outreach Email Generation**: 企業詳細ページのAIサマリータブ内に「アウトリーチメール生成」セクションを追加。ai_summaryデータを活用し、フォーマル/カジュアルのトーン選択と追加指示に基づいてOpenAI GPT-4o-miniが件名・本文を生成。コピーボタン付き・本文は編集可能。
 - **gBizINFO 法人DB収集**: URL収集ページに「法人DB」タブを追加。経済産業省の gBizINFO API（約400万社）から会社名・住所・企業URLを取得し、URL未登録の法人はGoogle直接検索でホームページを特定してスクレイピング。既存パイプライン（スコアリング・マスターDB書き込み）に接続。APIトークンは管理者専用の「システムAPI設定」ページ（`/admin/api-keys`）から登録（SystemSettingsテーブルで全組織共有）。収集フローはGoogle APIタブと同じSSE進捗バーで可視化。都道府県・最大件数選択対応。実装ファイル: `server/services/gbiz_collector.py`、`server/routes/collector.py`（`/api/collect/gbiz`）、`frontend/src/pages/Scraper.tsx`、`frontend/src/pages/AdminApiKeys.tsx`
-- **システムAPI設定ページ** (`/admin/api-keys`): 管理者専用ページ。gBizINFO等のシステム全体で共有するAPIキーを管理。バックエンドは `GET/PUT /api/admin/api-settings`（`server/routes/payments.py`）、SystemSettingsテーブルに保存。サイドバーに「システムAPI設定」リンクを追加（admin only）。
+- **システムAPI設定ページ** (`/admin/api-keys`): 管理者専用ページ。gBizINFO等のシステム全体で共有するAPIキーを管理。バックエンドは `GET/PUT /api/admin/api-settings`（`server/routes/payments.py`）、SystemSettingsテーブルに保存。
+- **テナント管理ページ** (`/admin/tenants`): 管理者専用。全Organizationを一覧表示し、メンバー数・企業数・プロジェクト数・割当プランを確認・変更できる。バックエンドは `GET /api/admin/tenants`・`PATCH /api/admin/tenants/{id}`（`server/routes/payments.py`）。実装ファイル: `frontend/src/pages/AdminTenants.tsx`。
+- **サイドバー分離**: 通常機能メニューとシステム管理メニューを「システム管理」セクションヘッダーで分離。管理者にのみ表示されるセクション（テナント管理・プラン管理・Stripe設定・システムAPI設定）を視覚的に区別。
 
 ## External Dependencies
 - **Google Custom Search API**: 営業先の自動収集に利用します。APIキーは管理画面で設定します。

@@ -47,6 +47,7 @@ const UserManagement = lazy(() => import("./pages/UserManagement"));
 const AdminPlans = lazy(() => import("./pages/AdminPlans"));
 const AdminStripe = lazy(() => import("./pages/AdminStripe"));
 const AdminApiKeys = lazy(() => import("./pages/AdminApiKeys"));
+const AdminTenants = lazy(() => import("./pages/AdminTenants"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -204,27 +205,36 @@ function AppContent() {
           </div>
         </div>
 
-        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          <SidebarLink to="/" icon={<LayoutDashboard size={18} />} label="ダッシュボード" onClick={closeSidebar} />
-          <SidebarLink to="/companies" icon={<Building2 size={18} />} label="候補企業一覧" onClick={closeSidebar} />
-          <SidebarLink to="/keywords" icon={<Search size={18} />} label="検索条件管理" onClick={closeSidebar} />
-          <SidebarLink to="/scraper" icon={<Globe size={18} />} label="URL収集" onClick={closeSidebar} />
-          <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" onClick={closeSidebar} />
-          <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" onClick={closeSidebar} />
-          <SidebarLink to="/templates" icon={<FileText size={18} />} label="メモテンプレート" onClick={closeSidebar} />
-          <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" onClick={closeSidebar} />
-          <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" onClick={closeSidebar} />
+        <nav className="flex-1 p-2 overflow-y-auto">
+          <div className="space-y-1">
+            <SidebarLink to="/" icon={<LayoutDashboard size={18} />} label="ダッシュボード" onClick={closeSidebar} />
+            <SidebarLink to="/companies" icon={<Building2 size={18} />} label="候補企業一覧" onClick={closeSidebar} />
+            <SidebarLink to="/keywords" icon={<Search size={18} />} label="検索条件管理" onClick={closeSidebar} />
+            <SidebarLink to="/scraper" icon={<Globe size={18} />} label="URL収集" onClick={closeSidebar} />
+            <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" onClick={closeSidebar} />
+            <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" onClick={closeSidebar} />
+            <SidebarLink to="/templates" icon={<FileText size={18} />} label="メモテンプレート" onClick={closeSidebar} />
+            <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" onClick={closeSidebar} />
+            <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" onClick={closeSidebar} />
+            {user?.role === "admin" && (
+              <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
+            )}
+          </div>
+
           {user?.role === "admin" && (
-            <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
-          )}
-          {user?.role === "admin" && (
-            <SidebarLink to="/admin/plans" icon={<Crown size={18} />} label="プラン管理" onClick={closeSidebar} />
-          )}
-          {user?.role === "admin" && (
-            <SidebarLink to="/admin/stripe" icon={<CreditCard size={18} />} label="Stripe設定" onClick={closeSidebar} />
-          )}
-          {user?.role === "admin" && (
-            <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
+            <div className="mt-4">
+              <div className="px-3 py-1.5 flex items-center gap-2">
+                <div className="h-px flex-1 bg-slate-700" />
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">システム管理</span>
+                <div className="h-px flex-1 bg-slate-700" />
+              </div>
+              <div className="space-y-1 mt-1">
+                <SidebarLink to="/admin/tenants" icon={<Building2 size={18} />} label="テナント管理" onClick={closeSidebar} />
+                <SidebarLink to="/admin/plans" icon={<Crown size={18} />} label="プラン管理" onClick={closeSidebar} />
+                <SidebarLink to="/admin/stripe" icon={<CreditCard size={18} />} label="Stripe設定" onClick={closeSidebar} />
+                <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
+              </div>
+            </div>
           )}
         </nav>
 
@@ -299,6 +309,7 @@ function AppContent() {
               <Route path="/manual" element={<Manual />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/users" element={<UserManagement />} />
+              <Route path="/admin/tenants" element={<AdminTenants />} />
               <Route path="/admin/plans" element={<AdminPlans />} />
               <Route path="/admin/stripe" element={<AdminStripe />} />
               <Route path="/admin/api-keys" element={<AdminApiKeys />} />

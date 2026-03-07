@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from server.database import get_db
-from server.models import SystemSettings, Plan, Organization, User
+from server.models import SystemSettings, Plan, Organization, User, Company, Project
 from server.auth import get_current_user, require_admin
 
 router = APIRouter(tags=["payments"])
@@ -224,3 +224,61 @@ async def stripe_webhook(
                 db.commit()
 
     return {"received": True}
+
+
+class TenantUpdateBody(BaseModel):
+    plan_id: Optional[int] = None
+    name: Optional[str] = None
+
+
+@router.get("/api/admin/tenants")
+def list_tenants(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    orgs = db.query(Organization).order_by(Organization.id).all()
+    plans = {p.id: p for p in db.query(Plan).all()}
+    result = []
+    for org in orgs:
+        member_count = db.query(User).filter(User.org_id == org.id).count()
+        project_count = db.query(Project).filter(Project.org_id == org.id).count()
+        company_count = (
+            db.query(Company)
+            .join(Project, Company.project_id == Project.id)
+            .filter(Project.org_id == org.id)
+            .count()
+        )
+        plan = plans.get(org.plan_id) if org.plan_id else None
+        result.append({
+            "id": org.id,
+            "name": org.name,
+            "plan_id": org.plan_id,
+            "plan_name": plan.name if plan else None,
+            "member_count": member_count,
+            "company_count": company_count,
+            "project_count": project_count,
+            "created_at": org.created_at.isoformat() if org.created_at else None,
+        })
+    return {"tenants": result}
+
+
+@router.patch("/api/admin/tenants/{org_id}")
+def update_tenant(
+    org_id: int,
+    body: TenantUpdateBody,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    if body.plan_id is not None:
+        plan = db.query(Plan).filter(Plan.id == body.plan_id).first()
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plan not found")
+        org.plan_id = body.plan_id
+    if body.name is not None:
+        org.name = body.name
+    db.commit()
+    db.refresh(org)
+    return {"id": org.id, "name": org.name, "plan_id": org.plan_id}

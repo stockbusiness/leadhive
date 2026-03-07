@@ -335,4 +335,14 @@ export const api = {
         `/api/auth/invite/${token}/accept`, data
       ).then(r => r.data),
   },
+
+  tenants: {
+    list: () =>
+      axios.get<{ tenants: Array<{
+        id: number; name: string; plan_id: number | null; plan_name: string | null;
+        member_count: number; company_count: number; project_count: number; created_at: string | null;
+      }> }>("/api/admin/tenants").then(r => r.data),
+    update: (orgId: number, data: { plan_id?: number; name?: string }) =>
+      axios.patch(`/api/admin/tenants/${orgId}`, data).then(r => r.data),
+  },
 };
