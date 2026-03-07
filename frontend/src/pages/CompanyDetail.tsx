@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft, Building2, Globe, Phone, Mail, MapPin, Tag, ExternalLink,
-  Edit2, Loader2, Clock, ChevronRight, Activity, FileText, User, Sparkles
+  Edit2, Loader2, Clock, ChevronRight, Activity, FileText, User, Sparkles,
+  Send, Copy, Check, RefreshCw, ChevronDown, ChevronUp
 } from "lucide-react";
 import { api } from "../api";
 import type { Company, StatusHistoryEntry, ActivityLogEntry } from "../types";
@@ -42,6 +43,15 @@ export default function CompanyDetail() {
   const [activeTab, setActiveTab] = useState<"info" | "history" | "activities" | "ai">("info");
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [emailTone, setEmailTone] = useState<"formal" | "casual">("formal");
+  const [emailNote, setEmailNote] = useState("");
+  const [emailGenerating, setEmailGenerating] = useState(false);
+  const [emailResult, setEmailResult] = useState<{ subject: string; body: string } | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSectionOpen, setEmailSectionOpen] = useState(false);
+  const [copiedSubject, setCopiedSubject] = useState(false);
+  const [copiedBody, setCopiedBody] = useState(false);
+  const [copiedAll, setCopiedAll] = useState(false);
 
   const companyId = Number(id);
 
@@ -83,6 +93,31 @@ export default function CompanyDetail() {
       setAiError(err.response?.data?.detail || "AI分析に失敗しました");
     }
     setAiAnalyzing(false);
+  };
+
+  const handleGenerateEmail = async () => {
+    if (!company) return;
+    setEmailGenerating(true);
+    setEmailError(null);
+    setEmailResult(null);
+    try {
+      const data = await api.companies.generateEmail(company.id, emailTone, emailNote);
+      if (data.error) {
+        setEmailError(data.error);
+      } else if (data.email) {
+        setEmailResult(data.email);
+      }
+    } catch (err: any) {
+      setEmailError(err.response?.data?.detail || "メール生成に失敗しました");
+    }
+    setEmailGenerating(false);
+  };
+
+  const copyText = (text: string, setter: (v: boolean) => void) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setter(true);
+      setTimeout(() => setter(false), 2000);
+    });
   };
 
   if (loading) {
@@ -301,6 +336,128 @@ export default function CompanyDetail() {
                   )}
                 </div>
               )}
+
+              {/* ===== アウトリーチメール生成 ===== */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden mt-2">
+                <button
+                  onClick={() => setEmailSectionOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Send size={16} className="text-blue-600" />
+                    <span className="font-semibold text-sm text-slate-700">アウトリーチメール生成</span>
+                    <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">AI</span>
+                  </div>
+                  {emailSectionOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                </button>
+
+                {emailSectionOpen && (
+                  <div className="p-4 space-y-4 bg-white">
+                    {!company.ai_summary && (
+                      <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        AIサマリーがあるとより精度の高いメールが生成されます。先に「AIサマリーを生成」することを推奨します。
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-slate-600 mb-1.5">トーン</p>
+                        <div className="flex gap-2">
+                          {(["formal", "casual"] as const).map((t) => (
+                            <button
+                              key={t}
+                              onClick={() => setEmailTone(t)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${emailTone === t ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-300 hover:border-blue-400"}`}
+                            >
+                              {t === "formal" ? "フォーマル" : "カジュアル"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-slate-600 mb-1.5">追加指示（任意）</p>
+                        <input
+                          type="text"
+                          value={emailNote}
+                          onChange={(e) => setEmailNote(e.target.value)}
+                          placeholder="例: Shopify移行について触れてほしい"
+                          className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleGenerateEmail}
+                      disabled={emailGenerating}
+                      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      {emailGenerating ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                      {emailGenerating ? "生成中..." : emailResult ? "再生成" : "メールを生成"}
+                    </button>
+
+                    {emailGenerating && (
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                        <Loader2 size={16} className="animate-spin text-blue-600" />
+                        <span className="text-sm text-blue-700">AIがメール文案を作成中...</span>
+                      </div>
+                    )}
+
+                    {emailError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{emailError}</div>
+                    )}
+
+                    {emailResult && !emailGenerating && (
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">件名</label>
+                            <button
+                              onClick={() => copyText(emailResult.subject, setCopiedSubject)}
+                              className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600"
+                            >
+                              {copiedSubject ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                              {copiedSubject ? "コピー済み" : "コピー"}
+                            </button>
+                          </div>
+                          <div className="border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 text-sm text-slate-800 font-medium">
+                            {emailResult.subject}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">本文</label>
+                            <button
+                              onClick={() => copyText(emailResult.body, setCopiedBody)}
+                              className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600"
+                            >
+                              {copiedBody ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                              {copiedBody ? "コピー済み" : "コピー"}
+                            </button>
+                          </div>
+                          <textarea
+                            value={emailResult.body.replace(/\\n/g, "\n")}
+                            onChange={(e) => setEmailResult({ ...emailResult, body: e.target.value })}
+                            rows={8}
+                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          />
+                        </div>
+
+                        <button
+                          onClick={() => copyText(
+                            `件名: ${emailResult.subject}\n\n${emailResult.body.replace(/\\n/g, "\n")}`,
+                            setCopiedAll
+                          )}
+                          className="flex items-center gap-2 w-full justify-center border border-slate-300 text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50 transition-colors"
+                        >
+                          {copiedAll ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                          {copiedAll ? "コピーしました" : "件名＋本文をまとめてコピー"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -774,6 +774,42 @@ def ai_analyze_company(
     return {"company": company_to_dict(company, db), "summary": result["summary"]}
 
 
+@router.post("/{company_id}/generate-email")
+def generate_company_email(
+    company_id: int,
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.services.ai_analyzer import generate_outreach_email, get_openai_key
+
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        return {"error": "企業が見つかりません"}
+
+    api_key = get_openai_key(db, current_user.org_id)
+    if not api_key:
+        return {"error": "OpenAI APIキーが設定されていません。設定画面からAPIキーを登録してください。"}
+
+    tone = data.get("tone", "formal")
+    custom_note = data.get("custom_note", "")
+
+    result = generate_outreach_email(
+        company_name=company.company_name or company.domain or "",
+        url=company.website_url or "",
+        category=company.category_main or "",
+        ai_summary=company.ai_summary,
+        tone=tone,
+        custom_note=custom_note,
+        api_key=api_key,
+    )
+
+    if not result.get("success"):
+        return {"error": f"メール生成に失敗しました: {result.get('error', '不明なエラー')}"}
+
+    return {"email": result["email"]}
+
+
 @router.post("/move-project")
 def move_project(
     data: dict,

@@ -84,6 +84,12 @@ export const api = {
 
     aiAnalyze: (id: number) =>
       axios.post<{ company: Company; summary: Record<string, string>; error?: string }>(`/api/companies/${id}/ai-analyze`).then(r => r.data),
+
+    generateEmail: (id: number, tone: "formal" | "casual", customNote?: string) =>
+      axios.post<{ email: { subject: string; body: string; generated_at: string }; error?: string }>(
+        `/api/companies/${id}/generate-email`,
+        { tone, custom_note: customNote || "" }
+      ).then(r => r.data),
   },
 
   keywords: {
