@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
 import { api } from "./api";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -255,27 +254,39 @@ function AppContent() {
   );
 }
 
+function HomeRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  return (
+    <ProjectProvider>
+      <AppContent />
+    </ProjectProvider>
+  );
+}
+
 function App() {
   return (
     <AuthProvider>
       <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div></div>}>
         <Routes>
-          <Route path="/lp" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/accept-invite/:token" element={<AcceptInvite />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route
-            path="/*"
-            element={
-              <ProtectedRoute>
-                <ProjectProvider>
-                  <AppContent />
-                </ProjectProvider>
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/*" element={<HomeRoute />} />
         </Routes>
       </Suspense>
     </AuthProvider>
