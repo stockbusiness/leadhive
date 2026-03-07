@@ -31,6 +31,8 @@ def company_to_dict(c: Company, db: Session = None) -> dict:
         "city": c.city,
         "phone": c.phone,
         "email": c.email,
+        "contact_name": c.contact_name,
+        "contact_title": c.contact_title,
         "category_main": c.category_main,
         "category_sub": c.category_sub,
         "shopify_flag": c.shopify_flag,
@@ -48,6 +50,6 @@ def company_to_dict(c: Company, db: Session = None) -> dict:
         "follow_up_date": c.follow_up_date.isoformat() if c.follow_up_date else None,
         "tags": tags,
         "ai_summary": c.ai_summary if hasattr(c, "ai_summary") else None,
-        "created_at": c.created_at.isoformat() if c.created_at else None,
-        "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+        "created_at": c.created_at.isoformat() if c.created_at and hasattr(c.created_at, 'isoformat') else (str(c.created_at) if c.created_at else None),
+        "updated_at": c.updated_at.isoformat() if c.updated_at and hasattr(c.updated_at, 'isoformat') else (str(c.updated_at) if c.updated_at else None),
     }

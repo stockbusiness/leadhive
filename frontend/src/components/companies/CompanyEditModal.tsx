@@ -14,23 +14,16 @@ const FLAG_LABELS = [
   ["production_flag", "制作対応"],
 ] as const;
 
-function replaceTemplateVars(text: string, company: Company): string {
+function replaceTemplateVars(text: string, company: Partial<Company>): string {
   return text
     .replace(/\{会社名\}/g, company.company_name || "")
-    .replace(/\{担当者名\}/g, "ご担当者")
+    .replace(/\{担当者名\}/g, company.contact_name || "ご担当者")
+    .replace(/\{役職\}/g, company.contact_title || "")
     .replace(/\{メールアドレス\}/g, company.email || "")
     .replace(/\{電話番号\}/g, company.phone || "")
     .replace(/\{都道府県\}/g, company.prefecture || "")
     .replace(/\{市区町村\}/g, company.city || "")
     .replace(/\{WebサイトURL\}/g, company.website_url || "");
-}
-
-function buildMailtoLink(to: string, subject: string, body: string): string {
-  const params = new URLSearchParams();
-  if (subject) params.set("subject", subject);
-  if (body) params.set("body", body);
-  const paramStr = params.toString();
-  return `mailto:${encodeURIComponent(to)}${paramStr ? "?" + paramStr : ""}`;
 }
 
 export default function CompanyEditModal({
@@ -58,11 +51,19 @@ export default function CompanyEditModal({
   const [formSendDone, setFormSendDone] = useState(false);
   const [formSending, setFormSending] = useState(false);
 
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailResult, setEmailResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [emailLogs, setEmailLogs] = useState<{ id: number; subject: string; to_email: string; status: string; error_message?: string; sent_by?: string; sent_at: string }[]>([]);
+  const [emailToEdit, setEmailToEdit] = useState(company.email || "");
+  const [emailSubjectEdit, setEmailSubjectEdit] = useState("");
+  const [emailBodyEdit, setEmailBodyEdit] = useState("");
+
   useEffect(() => {
     api.companies.getHistory(company.id).then((data) => setStatusHistory(data.history));
     api.templates.list().then((data) => setTemplates(data.templates));
     api.companies.getTags(company.id).then((data) => setTags(data.tags.map((t) => t.tag_name)));
     api.users.list().then((data) => setMembers(data.users.map(u => ({ id: u.id, email: u.email, display_name: u.display_name })))).catch(() => {});
+    api.companies.getEmailLogs(company.id).then((data) => setEmailLogs(data.logs)).catch(() => {});
   }, [company.id]);
 
   const handleSave = () => {
@@ -110,12 +111,37 @@ export default function CompanyEditModal({
   const emailTemplates = templates.filter((t) => t.is_email_template);
   const allTemplates = templates;
 
-  const handleSendEmail = (template: MemoTemplate) => {
-    const subject = replaceTemplateVars(template.title, company as Company);
-    const body = replaceTemplateVars(template.content, company as Company);
-    const to = company.email || "";
-    const href = buildMailtoLink(to, subject, body);
-    window.open(href, "_blank");
+  const handleApplyEmailTemplate = (templateId: string) => {
+    setSelectedEmailTemplate(templateId);
+    const tmpl = emailTemplates.find((t) => String(t.id) === templateId);
+    if (!tmpl) return;
+    setEmailSubjectEdit(replaceTemplateVars(tmpl.title, editData));
+    setEmailBodyEdit(replaceTemplateVars(tmpl.content, editData));
+    if (!emailToEdit) setEmailToEdit(editData.email || "");
+  };
+
+  const handleSendEmailViaApi = async () => {
+    setEmailSending(true);
+    setEmailResult(null);
+    try {
+      const tmpl = emailTemplates.find((t) => String(t.id) === selectedEmailTemplate);
+      const res = await api.companies.sendEmail(company.id, {
+        subject: emailSubjectEdit,
+        body: emailBodyEdit,
+        to_email: emailToEdit,
+        template_id: tmpl?.id,
+      });
+      if (res.error) {
+        setEmailResult({ success: false, message: res.error });
+      } else {
+        setEmailResult({ success: true, message: "メールを送信しました" });
+        api.companies.getEmailLogs(company.id).then((d) => setEmailLogs(d.logs)).catch(() => {});
+      }
+    } catch {
+      setEmailResult({ success: false, message: "送信に失敗しました" });
+    } finally {
+      setEmailSending(false);
+    }
   };
 
   const copyToClipboard = (text: string, fieldKey: string) => {
@@ -191,9 +217,11 @@ export default function CompanyEditModal({
               </div>
             </div>
             <FieldInput label="メールアドレス" value={editData.email || ""} onChange={(v) => setEditData({ ...editData, email: v })} type="email" />
+            <FieldInput label="電話番号" value={editData.phone || ""} onChange={(v) => setEditData({ ...editData, phone: v })} />
+            <FieldInput label="担当者名" value={editData.contact_name || ""} onChange={(v) => setEditData({ ...editData, contact_name: v })} />
+            <FieldInput label="役職" value={editData.contact_title || ""} onChange={(v) => setEditData({ ...editData, contact_title: v })} />
             <FieldInput label="都道府県" value={editData.prefecture || ""} onChange={(v) => setEditData({ ...editData, prefecture: v })} />
             <FieldInput label="市区町村" value={editData.city || ""} onChange={(v) => setEditData({ ...editData, city: v })} />
-            <FieldInput label="電話番号" value={editData.phone || ""} onChange={(v) => setEditData({ ...editData, phone: v })} />
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">カテゴリ</label>
               <select
@@ -361,52 +389,99 @@ export default function CompanyEditModal({
             />
           </div>
 
-          {emailTemplates.length > 0 && (
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-2 flex items-center gap-1">
-                <Mail size={12} />
-                メール送信
-              </label>
-              <div className="bg-slate-50 rounded-md p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedEmailTemplate}
-                    onChange={(e) => setSelectedEmailTemplate(e.target.value)}
-                    className="flex-1 text-sm border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="">メールテンプレートを選択...</option>
-                    {emailTemplates.map((t) => (
-                      <option key={t.id} value={String(t.id)}>{t.title}</option>
-                    ))}
-                  </select>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2 flex items-center gap-1">
+              <Mail size={12} />
+              メール送信
+            </label>
+            <div className="border border-emerald-200 rounded-lg overflow-hidden">
+              <div className="flex items-center gap-2 bg-emerald-50 px-4 py-2.5 border-b border-emerald-200">
+                <Mail size={14} className="text-emerald-600" />
+                <span className="text-xs font-semibold text-emerald-700">SMTPメール送信</span>
+                <span className="text-xs text-emerald-500 ml-1">— 設定のSMTPサーバー経由で直接送信</span>
+              </div>
+              <div className="p-4 space-y-3">
+                {emailTemplates.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedEmailTemplate}
+                      onChange={(e) => handleApplyEmailTemplate(e.target.value)}
+                      className="flex-1 text-sm border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      <option value="">テンプレートを選択して適用...</option>
+                      {emailTemplates.map((t) => (
+                        <option key={t.id} value={String(t.id)}>{t.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">宛先メールアドレス</label>
+                  <input
+                    type="email"
+                    value={emailToEdit}
+                    onChange={(e) => setEmailToEdit(e.target.value)}
+                    placeholder="送信先のメールアドレス"
+                    className="w-full text-sm border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">件名</label>
+                  <input
+                    type="text"
+                    value={emailSubjectEdit}
+                    onChange={(e) => setEmailSubjectEdit(e.target.value)}
+                    placeholder="メールの件名"
+                    className="w-full text-sm border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">本文</label>
+                  <textarea
+                    value={emailBodyEdit}
+                    onChange={(e) => setEmailBodyEdit(e.target.value)}
+                    rows={5}
+                    placeholder="メール本文を入力（テンプレートを適用すると自動入力されます）"
+                    className="w-full text-sm border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  {emailResult && (
+                    <span className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${emailResult.success ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                      {emailResult.success ? <CheckCheck size={12} /> : null}
+                      {emailResult.message}
+                    </span>
+                  )}
+                  {!emailResult && <span />}
                   <button
-                    onClick={() => {
-                      const tmpl = emailTemplates.find((t) => String(t.id) === selectedEmailTemplate);
-                      if (tmpl) handleSendEmail(tmpl);
-                    }}
-                    disabled={!selectedEmailTemplate}
+                    onClick={handleSendEmailViaApi}
+                    disabled={emailSending || !emailToEdit || !emailSubjectEdit || !emailBodyEdit}
                     className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-md text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 whitespace-nowrap"
                   >
-                    <Mail size={14} />
-                    メール送信
+                    <Send size={14} className={emailSending ? "animate-pulse" : ""} />
+                    {emailSending ? "送信中..." : "送信"}
                   </button>
                 </div>
-                {selectedEmailTemplate && (() => {
-                  const tmpl = emailTemplates.find((t) => String(t.id) === selectedEmailTemplate);
-                  if (!tmpl) return null;
-                  const subject = replaceTemplateVars(tmpl.title, company as Company);
-                  const body = replaceTemplateVars(tmpl.content, company as Company);
-                  return (
-                    <div className="text-xs text-slate-500 bg-white rounded border border-slate-200 p-2 space-y-1">
-                      <p><span className="font-medium text-slate-600">宛先:</span> {company.email || "(未設定)"}</p>
-                      <p><span className="font-medium text-slate-600">件名:</span> {subject}</p>
-                      <p className="whitespace-pre-wrap"><span className="font-medium text-slate-600">本文:</span> {body}</p>
+                {emailLogs.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 mb-2">送信履歴</p>
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                      {emailLogs.map((log) => (
+                        <div key={log.id} className="flex items-start gap-2 text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5">
+                          <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${log.status === "sent" ? "bg-emerald-500" : "bg-red-500"}`} />
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium text-slate-700 truncate block">{log.subject}</span>
+                            <span className="text-slate-400">{log.to_email} · {log.sent_by || "不明"} · {log.sent_at ? new Date(log.sent_at).toLocaleString("ja-JP") : ""}</span>
+                            {log.error_message && <span className="text-red-500 block">{log.error_message}</span>}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  );
-                })()}
+                  </div>
+                )}
               </div>
             </div>
-          )}
+          </div>
 
           {/* ===== フォーム送信サポート ===== */}
           <div className="border border-indigo-200 rounded-lg overflow-hidden">
@@ -445,6 +520,20 @@ export default function CompanyEditModal({
                     label="会社名"
                     value={editData.company_name || ""}
                     fieldKey="company_name"
+                    copiedField={copiedField}
+                    onCopy={copyToClipboard}
+                  />
+                  <CopyRow
+                    label="担当者名"
+                    value={editData.contact_name || ""}
+                    fieldKey="contact_name"
+                    copiedField={copiedField}
+                    onCopy={copyToClipboard}
+                  />
+                  <CopyRow
+                    label="役職"
+                    value={editData.contact_title || ""}
+                    fieldKey="contact_title"
                     copiedField={copiedField}
                     onCopy={copyToClipboard}
                   />

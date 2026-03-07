@@ -108,6 +108,12 @@ export const api = {
         `/api/companies/${id}/generate-email`,
         { tone, custom_note: customNote || "" }
       ).then(r => r.data),
+
+    sendEmail: (id: number, data: { subject: string; body: string; to_email: string; template_id?: number }) =>
+      axios.post<{ success?: boolean; message?: string; error?: string }>(`/api/companies/${id}/send-email`, data).then(r => r.data),
+
+    getEmailLogs: (id: number) =>
+      axios.get<{ logs: { id: number; subject: string; to_email: string; status: string; error_message?: string; sent_by?: string; sent_at: string }[] }>(`/api/companies/${id}/email-logs`).then(r => r.data),
   },
 
   keywords: {

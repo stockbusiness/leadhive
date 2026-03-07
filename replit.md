@@ -48,6 +48,10 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
     - **SMTP Settings**: 各種SMTPサービス設定とテスト送信機能。
     - **Feature Flags**: 主要機能（AI分析、CSVエクスポート、マスターDB、gBizINFO、Googleマップ、Slack通知、セルフアップグレード）の有効/無効管理。
 - **Keyword Analytics**: 検索条件管理ページに、キーワードごとの獲得数・成功率・重複率・拒否率を可視化する分析タブ。
+- **Contact Person Fields**: 企業モデルに担当者名（contact_name）と役職（contact_title）フィールドを追加。編集モーダルと詳細ページに表示。
+- **Tag Management**: 企業へのフリータグ追加・削除・フィルタリング機能。CompanyEditModal でタグ管理、CompanyFilterBar でタグ絞り込み。
+- **SMTP Email Send with History**: 企業詳細の編集モーダルからSMTPサーバー経由でメールを直接送信。送信履歴を email_send_logs テーブルに保存し、アクティビティログにも記録。テンプレート適用・宛先/件名/本文の編集が可能。
+- **Onboarding Wizard**: 新規ユーザー向け6ステップウィザード（ようこそ→組織名→プロジェクト→キーワード→Google API→完了）。onboarding_completed フラグ管理。
 
 ## External Dependencies
 - **Google Custom Search API**: 営業先自動収集。

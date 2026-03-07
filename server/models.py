@@ -117,6 +117,8 @@ class Company(Base):
     score_adjustment = Column(Integer, default=0)
     score_rank = Column(String(1), default="D", index=True)
     status = Column(String(50), default="未確認", index=True)
+    contact_name = Column(String(255), nullable=True)
+    contact_title = Column(String(100), nullable=True)
     notes = Column(Text)
     follow_up_date = Column(Date, nullable=True, index=True)
     ai_summary = Column(JSON, nullable=True)
@@ -259,6 +261,22 @@ class ActivityLog(Base):
     action_type = Column(String(50), nullable=False)
     description = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class EmailSendLog(Base):
+    __tablename__ = "email_send_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    sent_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    template_id = Column(Integer, ForeignKey("memo_templates.id"), nullable=True)
+    subject = Column(String(500))
+    body = Column(Text)
+    to_email = Column(String(255))
+    status = Column(String(20), default="sent")
+    error_message = Column(Text, nullable=True)
+    sent_at = Column(DateTime, server_default=func.now(), index=True)
 
 
 class SystemLog(Base):

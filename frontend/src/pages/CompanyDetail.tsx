@@ -199,6 +199,9 @@ export default function CompanyDetail() {
           <InfoItem icon={<Phone size={14} />} label="電話" value={company.phone || "—"} />
           <InfoItem icon={<Mail size={14} />} label="メール" value={company.email || "—"} />
           <InfoItem icon={<Tag size={14} />} label="カテゴリ" value={company.category_main || "—"} />
+          {(company.contact_name || company.contact_title) && (
+            <InfoItem icon={<User size={14} />} label="担当者" value={[company.contact_name, company.contact_title].filter(Boolean).join(" / ")} />
+          )}
         </div>
 
         {company.contact_url && (

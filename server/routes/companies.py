@@ -8,7 +8,7 @@ from sqlalchemy import desc, asc
 from typing import Optional, List
 from datetime import date, timedelta
 from server.database import get_db
-from server.models import Company, StatusHistory, MemoTemplate, ActivityLog, CompanyTag, User, Organization, Plan
+from server.models import Company, StatusHistory, MemoTemplate, ActivityLog, CompanyTag, User, Organization, Plan, EmailSendLog
 from server.services.scorer import calculate_score
 from server.services.scraper import scrape_company_info
 from server.services.categorizer import categorize_company, detect_flags
@@ -871,6 +871,103 @@ def generate_company_email(
         return {"error": f"メール生成に失敗しました: {result.get('error', '不明なエラー')}"}
 
     return {"email": result["email"]}
+
+
+@router.post("/{company_id}/send-email")
+def send_company_email(
+    company_id: int,
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.services.mailer import get_smtp_settings, send_email
+
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        return {"error": "企業が見つかりません"}
+
+    subject = data.get("subject", "").strip()
+    body = data.get("body", "").strip()
+    to_email = data.get("to_email", "").strip() or company.email or ""
+    template_id = data.get("template_id")
+
+    if not to_email:
+        return {"error": "送信先メールアドレスが設定されていません"}
+    if not subject:
+        return {"error": "件名を入力してください"}
+    if not body:
+        return {"error": "本文を入力してください"}
+
+    org_id = current_user.org_id
+    smtp_settings = get_smtp_settings(db, org_id)
+
+    html_body = body.replace("\n", "<br>")
+    success, message = send_email(
+        to=to_email,
+        subject=subject,
+        html_body=html_body,
+        smtp_settings=smtp_settings,
+        text_body=body,
+    )
+
+    log = EmailSendLog(
+        company_id=company_id,
+        org_id=org_id,
+        sent_by_id=current_user.id,
+        template_id=template_id,
+        subject=subject,
+        body=body,
+        to_email=to_email,
+        status="sent" if success else "failed",
+        error_message=None if success else message,
+    )
+    db.add(log)
+
+    if success:
+        activity = ActivityLog(
+            company_id=company_id,
+            action_type="メール送信",
+            description=f"件名: {subject} → {to_email}",
+        )
+        db.add(activity)
+
+    db.commit()
+
+    if success:
+        return {"success": True, "message": message}
+    return {"error": message}
+
+
+@router.get("/{company_id}/email-logs")
+def get_email_logs(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    logs = (
+        db.query(EmailSendLog)
+        .filter(EmailSendLog.company_id == company_id)
+        .order_by(desc(EmailSendLog.sent_at))
+        .limit(50)
+        .all()
+    )
+    result = []
+    for log in logs:
+        sender = None
+        if log.sent_by_id:
+            u = db.query(User).filter(User.id == log.sent_by_id).first()
+            if u:
+                sender = u.display_name or u.email
+        result.append({
+            "id": log.id,
+            "subject": log.subject,
+            "to_email": log.to_email,
+            "status": log.status,
+            "error_message": log.error_message,
+            "sent_by": sender,
+            "sent_at": log.sent_at.isoformat() if log.sent_at else None,
+        })
+    return {"logs": result}
 
 
 @router.post("/move-project")

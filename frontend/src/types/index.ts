@@ -11,6 +11,8 @@ export interface Company {
   city: string;
   phone: string;
   email: string;
+  contact_name?: string;
+  contact_title?: string;
   category_main: string;
   category_sub: string;
   shopify_flag: boolean;
