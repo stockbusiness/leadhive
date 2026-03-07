@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2 } from "lucide-react";
+import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "../api";
 import { ResultRow } from "../components/common";
 import { useProject } from "../contexts/ProjectContext";
@@ -37,6 +37,16 @@ export default function Scraper() {
   const [gbizPrefecture, setGbizPrefecture] = useState("");
   const [gbizMaxResults, setGbizMaxResults] = useState(20);
 
+  type StagedUrl = { id: string; url: string; name: string; source: string; selected: boolean; location?: string };
+  const [stagedUrls, setStagedUrls] = useState<StagedUrl[]>([]);
+  const [stagingLoading, setStagingLoading] = useState(false);
+  const [stagingError, setStagingError] = useState<string | null>(null);
+  const [scrapeInProgress, setScrapeInProgress] = useState(false);
+  const [scrapeProgressMsg, setScrapeProgressMsg] = useState("");
+  const [scrapeProgressCurrent, setScrapeProgressCurrent] = useState(0);
+  const [scrapeProgressTotal, setScrapeProgressTotal] = useState(0);
+  const [scrapeResults, setScrapeResults] = useState<any>(null);
+
   useEffect(() => {
     api.keywords.list().then((data) => {
       setKeywords(data.keywords.filter((k) => k.is_active));
@@ -70,144 +80,86 @@ export default function Scraper() {
     setLoading(false);
   };
 
-  const handleAutoCollect = async () => {
-    setCollectLoading(true);
-    setCollectResults(null);
-    setProgressMsg("収集を開始しています...");
-    setProgressCurrent(0);
-    setProgressTotal(0);
-
-    if (esRef.current) {
-      esRef.current.close();
-      esRef.current = null;
-    }
-
+  const handleCollectUrls = async (type: string, extraParams: Record<string, unknown> = {}) => {
+    setStagingLoading(true);
+    setStagingError(null);
+    setStagedUrls([]);
+    setScrapeResults(null);
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
     try {
-      const params: { keyword_id?: number; project_id?: number } = {};
-      if (selectedKeyword !== "all") params.keyword_id = selectedKeyword;
-      if (currentProject?.id) params.project_id = currentProject.id;
-      const { job_id } = await api.collector.startAsync(params);
-
-      const es = new EventSource(`/api/collect/progress/${job_id}`);
-      esRef.current = es;
-
-      es.onmessage = (e) => {
-        try {
-          const msg = JSON.parse(e.data);
-          if (msg.message) setProgressMsg(msg.message);
-          if (msg.current !== undefined) setProgressCurrent(msg.current);
-          if (msg.total !== undefined) setProgressTotal(msg.total);
-          if (msg.type === "done") {
-            setCollectResults(msg.result);
-            setProgressMsg("");
-            setCollectLoading(false);
-            es.close();
-          } else if (msg.type === "error") {
-            setCollectResults({ error: msg.message });
-            setProgressMsg("");
-            setCollectLoading(false);
-            es.close();
-          }
-        } catch {}
-      };
-      es.onerror = () => {
-        setCollectResults({ error: "接続エラーが発生しました" });
-        setProgressMsg("");
-        setCollectLoading(false);
-        es.close();
-      };
+      const data = await api.collector.urlsPreview({ type, ...extraParams, project_id: currentProject?.id });
+      if (data.error) {
+        setStagingError(data.error);
+      } else {
+        setStagedUrls(data.urls.map((u, i) => ({ ...u, id: `${i}-${u.url}`, selected: true })));
+      }
     } catch (err: any) {
-      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
-      setProgressMsg("");
-      setCollectLoading(false);
+      setStagingError(err.response?.data?.detail || "URL収集エラーが発生しました");
     }
+    setStagingLoading(false);
   };
 
-  const handleDirectoryCollect = async () => {
-    if (!dirUrl.trim()) return;
-    setCollectLoading(true);
-    setCollectResults(null);
+  const handleScrapeStaged = async () => {
+    const selected = stagedUrls.filter((u) => u.selected);
+    if (!selected.length) return;
+    setScrapeInProgress(true);
+    setScrapeResults(null);
+    setScrapeProgressMsg("スクレイピングを開始しています...");
+    setScrapeProgressCurrent(0);
+    setScrapeProgressTotal(selected.length);
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
     try {
-      const data = await api.collector.directory(dirUrl, dirMaxPages);
-      setCollectResults(data);
-    } catch (err: any) {
-      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
-    }
-    setCollectLoading(false);
-  };
-
-  const handleShopifyCollect = async () => {
-    setCollectLoading(true);
-    setCollectResults(null);
-    try {
-      const data = await api.collector.shopifyPartners(spMaxResults);
-      setCollectResults(data);
-    } catch (err: any) {
-      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
-    }
-    setCollectLoading(false);
-  };
-
-  const handleGoogleMapsCollect = async () => {
-    if (!gmKeyword.trim()) return;
-    setCollectLoading(true);
-    setCollectResults(null);
-    try {
-      const data = await api.collector.googleMaps(gmKeyword, gmRegion, gmMaxResults);
-      setCollectResults(data);
-    } catch (err: any) {
-      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
-    }
-    setCollectLoading(false);
-  };
-
-  const handleGbizCollect = async () => {
-    if (!gbizKeyword.trim()) return;
-    setCollectLoading(true);
-    setCollectResults(null);
-    setProgressMsg("");
-    setProgressCurrent(0);
-    setProgressTotal(0);
-    try {
-      const { job_id } = await api.collector.startGbiz({
-        project_id: currentProject?.id,
-        keyword: gbizKeyword,
-        prefecture: gbizPrefecture,
-        max_results: gbizMaxResults,
-      });
+      const { job_id } = await api.collector.scrapeStaged(selected, currentProject?.id);
       const es = new EventSource(`/api/collect/progress/${job_id}`);
       esRef.current = es;
       es.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data);
-          if (msg.message) setProgressMsg(msg.message);
-          if (msg.current !== undefined) setProgressCurrent(msg.current);
-          if (msg.total !== undefined) setProgressTotal(msg.total);
+          if (msg.message) setScrapeProgressMsg(msg.message);
+          if (msg.current !== undefined) setScrapeProgressCurrent(msg.current);
+          if (msg.total !== undefined) setScrapeProgressTotal(msg.total);
           if (msg.type === "done") {
-            setCollectResults(msg.result);
-            setProgressMsg("");
-            setCollectLoading(false);
+            setScrapeResults(msg.result);
+            setScrapeProgressMsg("");
+            setScrapeInProgress(false);
             es.close();
           } else if (msg.type === "error") {
-            setCollectResults({ error: msg.message });
-            setProgressMsg("");
-            setCollectLoading(false);
+            setScrapeResults({ error: msg.message });
+            setScrapeProgressMsg("");
+            setScrapeInProgress(false);
             es.close();
           }
         } catch {}
       };
       es.onerror = () => {
-        setCollectResults({ error: "接続エラーが発生しました" });
-        setProgressMsg("");
-        setCollectLoading(false);
+        setScrapeResults({ error: "接続エラーが発生しました" });
+        setScrapeProgressMsg("");
+        setScrapeInProgress(false);
         es.close();
       };
     } catch (err: any) {
-      setCollectResults({ error: err.response?.data?.detail || "収集エラーが発生しました" });
-      setProgressMsg("");
-      setCollectLoading(false);
+      setScrapeResults({ error: err.response?.data?.detail || "スクレイピングエラーが発生しました" });
+      setScrapeProgressMsg("");
+      setScrapeInProgress(false);
     }
   };
+
+  const handleScrapeOne = async (url: string) => {
+    try {
+      const data = await api.scraper.single(url);
+      setScrapeResults((prev: any) => ({
+        results: [...(prev?.results || []), { url, status: data.status || "success", message: data.company_name || url, company_id: data.company_id }],
+        summary: { ...(prev?.summary || {}), success: (prev?.summary?.success || 0) + 1 },
+      }));
+    } catch (err: any) {
+      setScrapeResults((prev: any) => ({
+        results: [...(prev?.results || []), { url, status: "error", message: err.response?.data?.detail || "エラー" }],
+      }));
+    }
+  };
+
+  const toggleAll = (checked: boolean) => setStagedUrls((prev) => prev.map((u) => ({ ...u, selected: checked })));
+  const toggleOne = (id: string) => setStagedUrls((prev) => prev.map((u) => u.id === id ? { ...u, selected: !u.selected } : u));
 
   const tabs: { key: CollectTab; label: string; icon: typeof Zap }[] = [
     { key: "google-api", label: "Google API検索", icon: Zap },
@@ -226,7 +178,7 @@ export default function Scraper() {
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => { setActiveTab(tab.key); setCollectResults(null); }}
+              onClick={() => { setActiveTab(tab.key); setCollectResults(null); setStagedUrls([]); setStagingError(null); setScrapeResults(null); }}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? "border-blue-600 text-blue-600"
@@ -245,11 +197,10 @@ export default function Scraper() {
               keywords={keywords}
               selectedKeyword={selectedKeyword}
               onSelectKeyword={setSelectedKeyword}
-              loading={collectLoading}
-              onCollect={handleAutoCollect}
-              progressMsg={progressMsg}
-              progressCurrent={progressCurrent}
-              progressTotal={progressTotal}
+              loading={stagingLoading}
+              onCollect={() => handleCollectUrls("google-api", {
+                keyword_id: selectedKeyword !== "all" ? selectedKeyword : undefined,
+              })}
             />
           )}
 
@@ -259,8 +210,8 @@ export default function Scraper() {
               onUrlChange={setDirUrl}
               maxPages={dirMaxPages}
               onMaxPagesChange={setDirMaxPages}
-              loading={collectLoading}
-              onCollect={handleDirectoryCollect}
+              loading={stagingLoading}
+              onCollect={() => handleCollectUrls("directory", { url: dirUrl, max_pages: dirMaxPages })}
             />
           )}
 
@@ -268,8 +219,8 @@ export default function Scraper() {
             <ShopifySection
               maxResults={spMaxResults}
               onMaxResultsChange={setSpMaxResults}
-              loading={collectLoading}
-              onCollect={handleShopifyCollect}
+              loading={stagingLoading}
+              onCollect={() => handleCollectUrls("shopify", { max_results: spMaxResults })}
             />
           )}
 
@@ -281,8 +232,8 @@ export default function Scraper() {
               onRegionChange={setGmRegion}
               maxResults={gmMaxResults}
               onMaxResultsChange={setGmMaxResults}
-              loading={collectLoading}
-              onCollect={handleGoogleMapsCollect}
+              loading={stagingLoading}
+              onCollect={() => handleCollectUrls("google-maps", { keyword: gmKeyword, region: gmRegion, max_results: gmMaxResults })}
             />
           )}
 
@@ -294,17 +245,34 @@ export default function Scraper() {
               onPrefectureChange={setGbizPrefecture}
               maxResults={gbizMaxResults}
               onMaxResultsChange={setGbizMaxResults}
-              loading={collectLoading}
-              onCollect={handleGbizCollect}
-              progressMsg={progressMsg}
-              progressCurrent={progressCurrent}
-              progressTotal={progressTotal}
+              loading={stagingLoading}
+              onCollect={() => handleCollectUrls("houjin-db", { keyword: gbizKeyword, prefecture: gbizPrefecture, max_results: gbizMaxResults })}
             />
           )}
 
-          <CollectResultsDisplay results={collectResults} />
+          {stagingError && (
+            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+              <XCircle size={16} className="flex-shrink-0" />
+              {stagingError}
+            </div>
+          )}
         </div>
       </div>
+
+      {stagedUrls.length > 0 && (
+        <StagingTable
+          urls={stagedUrls}
+          onToggleAll={toggleAll}
+          onToggleOne={toggleOne}
+          onScrapeSelected={handleScrapeStaged}
+          onScrapeOne={handleScrapeOne}
+          scrapeInProgress={scrapeInProgress}
+          scrapeProgressMsg={scrapeProgressMsg}
+          scrapeProgressCurrent={scrapeProgressCurrent}
+          scrapeProgressTotal={scrapeProgressTotal}
+          scrapeResults={scrapeResults}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SingleScrapeSection
@@ -366,8 +334,8 @@ function GoogleApiSection({
           disabled={loading || keywords.length === 0}
           className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-          収集開始
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+          URLを収集
         </button>
       </div>
       {loading && progressMsg && (
@@ -436,8 +404,8 @@ function DirectorySection({
           disabled={loading || !url.trim()}
           className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
         >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <List size={16} />}
-          収集開始
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+          URLを収集
         </button>
       </div>
     </div>
@@ -475,8 +443,8 @@ function ShopifySection({
           disabled={loading}
           className="flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
         >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
-          Shopifyパートナー収集
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+          URLを収集
         </button>
       </div>
     </div>
@@ -537,8 +505,8 @@ function GoogleMapsSection({
           disabled={loading || !keyword.trim()}
           className="flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
         >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
-          マップ検索
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+          URLを収集
         </button>
       </div>
     </div>
@@ -615,8 +583,8 @@ function GbizSection({
         disabled={loading || !keyword.trim()}
         className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
       >
-        {loading ? <Loader2 size={16} className="animate-spin" /> : <Building2 size={16} />}
-        法人DB収集開始
+        {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+        URLを収集
       </button>
       {loading && progressMsg && (
         <div className="space-y-1">
@@ -805,6 +773,171 @@ function CollectSummaryCard({ summary }: { summary: any }) {
         <span className="text-amber-600">重複: {summary.duplicate}</span>
         <span className="text-red-500">エラー: {summary.error}</span>
       </div>
+    </div>
+  );
+}
+
+type StagedUrlItem = { id: string; url: string; name: string; source: string; selected: boolean; location?: string };
+
+function StagingTable({
+  urls, onToggleAll, onToggleOne, onScrapeSelected, onScrapeOne,
+  scrapeInProgress, scrapeProgressMsg, scrapeProgressCurrent, scrapeProgressTotal, scrapeResults,
+}: {
+  urls: StagedUrlItem[];
+  onToggleAll: (checked: boolean) => void;
+  onToggleOne: (id: string) => void;
+  onScrapeSelected: () => void;
+  onScrapeOne: (url: string) => void;
+  scrapeInProgress: boolean;
+  scrapeProgressMsg: string;
+  scrapeProgressCurrent: number;
+  scrapeProgressTotal: number;
+  scrapeResults: any;
+}) {
+  const [showResults, setShowResults] = useState(true);
+  const allChecked = urls.length > 0 && urls.every((u) => u.selected);
+  const someChecked = urls.some((u) => u.selected);
+  const selectedCount = urls.filter((u) => u.selected).length;
+  const pct = scrapeProgressTotal > 0 ? Math.round((scrapeProgressCurrent / scrapeProgressTotal) * 100) : 0;
+
+  const resultMap: Record<string, { status: string; message: string }> = {};
+  if (scrapeResults?.results) {
+    for (const r of scrapeResults.results) {
+      resultMap[r.url] = r;
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-center gap-2">
+          <Globe size={16} className="text-blue-600" />
+          <span className="font-semibold text-slate-700 text-sm">
+            URL一覧（{urls.length}件）
+          </span>
+          <span className="text-xs text-slate-400">— {selectedCount}件選択中</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onScrapeSelected}
+            disabled={scrapeInProgress || selectedCount === 0}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {scrapeInProgress ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+            選択をスクレイピング ({selectedCount})
+          </button>
+        </div>
+      </div>
+
+      {scrapeInProgress && (
+        <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 space-y-1">
+          <div className="flex justify-between text-xs text-blue-700">
+            <span>{scrapeProgressMsg}</span>
+            {scrapeProgressTotal > 0 && <span>{scrapeProgressCurrent}/{scrapeProgressTotal}</span>}
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-1.5 overflow-hidden">
+            <div className="h-1.5 bg-blue-600 rounded-full transition-all duration-300" style={{ width: scrapeProgressTotal > 0 ? `${pct}%` : "50%" }} />
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50/50">
+              <th className="w-10 px-3 py-2 text-center">
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  ref={(el) => { if (el) el.indeterminate = !allChecked && someChecked; }}
+                  onChange={(e) => onToggleAll(e.target.checked)}
+                  className="rounded"
+                />
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">企業名</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">URL</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">ソース</th>
+              <th className="px-3 py-2 text-center text-xs font-medium text-slate-500">結果</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {urls.map((u) => {
+              const res = resultMap[u.url];
+              return (
+                <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${u.selected ? "" : "opacity-50"}`}>
+                  <td className="px-3 py-2 text-center">
+                    <input type="checkbox" checked={u.selected} onChange={() => onToggleOne(u.id)} className="rounded" />
+                  </td>
+                  <td className="px-3 py-2 font-medium text-slate-700 max-w-[200px] truncate">
+                    {u.name || "—"}
+                    {u.location && <span className="ml-1 text-xs text-slate-400">{u.location}</span>}
+                  </td>
+                  <td className="px-3 py-2 max-w-[300px]">
+                    <a href={u.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs truncate block">
+                      {u.url}
+                    </a>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-slate-500">{u.source}</td>
+                  <td className="px-3 py-2 text-center">
+                    {res ? (
+                      res.status === "success" ? (
+                        <span className="flex items-center justify-center gap-1 text-emerald-600 text-xs">
+                          <CheckCircle size={13} /> 成功
+                        </span>
+                      ) : res.status === "duplicate" ? (
+                        <span className="text-amber-500 text-xs">重複</span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-1 text-red-500 text-xs">
+                          <XCircle size={13} /> エラー
+                        </span>
+                      )
+                    ) : (
+                      <button
+                        onClick={() => onScrapeOne(u.url)}
+                        disabled={scrapeInProgress}
+                        className="text-xs text-slate-400 hover:text-blue-600 disabled:opacity-30 transition-colors"
+                        title="単独スクレイピング"
+                      >
+                        <Zap size={13} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {scrapeResults && !scrapeInProgress && (
+        <div className="border-t border-slate-200">
+          <button
+            onClick={() => setShowResults((v) => !v)}
+            className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            {showResults ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            スクレイピング結果
+            {scrapeResults.summary && (
+              <span className="ml-auto text-xs text-slate-400">
+                成功: {scrapeResults.summary?.success ?? 0} / エラー: {scrapeResults.summary?.error ?? 0}
+              </span>
+            )}
+          </button>
+          {showResults && (
+            <div className="px-4 pb-4 space-y-1">
+              {scrapeResults.error && (
+                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+                  <XCircle size={14} /> {scrapeResults.error}
+                </div>
+              )}
+              {scrapeResults.summary && <CollectSummaryCard summary={scrapeResults.summary} />}
+              {scrapeResults.results?.map((r: ScrapeResult, i: number) => (
+                <ResultRow key={i} result={r} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

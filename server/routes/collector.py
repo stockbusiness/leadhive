@@ -324,6 +324,166 @@ def collect_gbiz(
     return {"job_id": job_id}
 
 
+@router.post("/urls-preview")
+def collect_urls_preview(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """各収集タイプからURLリストだけを取得する（スクレイピングなし）"""
+    type_ = data.get("type", "")
+
+    if type_ == "directory":
+        url = data.get("url", "").strip()
+        max_pages = min(data.get("max_pages", 3), 10)
+        if not url:
+            return {"error": "URLを入力してください"}
+        from server.services.directory_scraper import scrape_directory
+        links = scrape_directory(url, max_pages=max_pages)
+        urls = [{"url": l["url"], "name": l.get("title", ""), "source": "ディレクトリ"} for l in links]
+        return {"urls": urls, "count": len(urls)}
+
+    elif type_ == "shopify":
+        max_results = min(data.get("max_results", 20), 50)
+        from server.services.shopify_partners import collect_shopify_partners_via_google
+        partners = collect_shopify_partners_via_google(max_results=max_results, db=db, org_id=current_user.org_id)
+        if not partners:
+            return {"error": "Google APIキーが設定されていないか、結果が見つかりませんでした。"}
+        urls = [{"url": p["url"], "name": p.get("title", ""), "source": "Shopifyパートナー"} for p in partners]
+        return {"urls": urls, "count": len(urls)}
+
+    elif type_ == "google-maps":
+        keyword = data.get("keyword", "").strip()
+        region = data.get("region", "東京").strip()
+        max_results = min(data.get("max_results", 20), 60)
+        if not keyword:
+            return {"error": "キーワードを入力してください"}
+        from server.models import AppSetting
+        api_key_row = db.query(AppSetting).filter(
+            AppSetting.setting_key == "google_places_api_key",
+            AppSetting.org_id == current_user.org_id,
+        ).first()
+        if not api_key_row or not api_key_row.setting_value:
+            return {"error": "Google Places APIキーが設定されていません。"}
+        from server.services.google_places import search_google_maps
+        places = search_google_maps(keyword=keyword, region=region, api_key=api_key_row.setting_value, max_results=max_results)
+        if not places:
+            return {"error": "結果が見つかりませんでした。"}
+        urls = [{"url": p["url"], "name": p.get("title", ""), "source": f"Googleマップ: {keyword}"} for p in places if p.get("url")]
+        return {"urls": urls, "count": len(urls)}
+
+    elif type_ == "houjin-db":
+        keyword = data.get("keyword", "")
+        prefecture = data.get("prefecture", "")
+        max_results = min(int(data.get("max_results", 20)), 100)
+        from server.services.gbiz_collector import get_gbiz_token, search_gbiz
+        token = get_gbiz_token(current_user.org_id, db)
+        if not token:
+            return {"error": "gBizINFO APIトークンが設定されていません。"}
+        all_companies = []
+        page = 1
+        while len(all_companies) < max_results * 2 and page <= 5:
+            try:
+                result = search_gbiz(token, name_keyword=keyword, prefecture=prefecture, page=page)
+            except Exception as e:
+                return {"error": f"gBizINFO エラー: {str(e)}"}
+            all_companies.extend(result["companies"])
+            if page >= result["total_page_count"]:
+                break
+            page += 1
+        urls = []
+        for c in all_companies[:max_results]:
+            company_url = c.get("company_url", "") or ""
+            if company_url.strip():
+                urls.append({
+                    "url": company_url.strip(),
+                    "name": c.get("name", ""),
+                    "source": "法人DB",
+                    "location": c.get("location", ""),
+                })
+        return {"urls": urls, "count": len(urls)}
+
+    elif type_ == "google-api":
+        keyword_id = data.get("keyword_id")
+        keywords_data = []
+        if keyword_id:
+            from server.models import SearchKeyword
+            kw = db.query(SearchKeyword).filter(SearchKeyword.id == keyword_id).first()
+            if kw:
+                keywords_data = [kw]
+        else:
+            from server.models import SearchKeyword
+            project_id = data.get("project_id")
+            q = db.query(SearchKeyword).filter(SearchKeyword.is_active == True)
+            if project_id:
+                q = q.filter(SearchKeyword.project_id == project_id)
+            keywords_data = q.limit(5).all()
+
+        if not keywords_data:
+            return {"error": "キーワードが見つかりません"}
+
+        from server.models import AppSetting
+        from server.services.google_search import search_google
+        api_key_row = db.query(AppSetting).filter(
+            AppSetting.org_id == current_user.org_id, AppSetting.setting_key == "google_api_key"
+        ).first()
+        cx_row = db.query(AppSetting).filter(
+            AppSetting.org_id == current_user.org_id, AppSetting.setting_key == "google_cx"
+        ).first()
+        if not api_key_row or not api_key_row.setting_value:
+            return {"error": "Google APIキーが設定されていません。"}
+        if not cx_row or not cx_row.setting_value:
+            return {"error": "Search Engine IDが設定されていません。"}
+
+        urls = []
+        seen = set()
+        for kw in keywords_data:
+            query = kw.keyword + (f" {kw.region}" if kw.region else "")
+            results = search_google(api_key_row.setting_value, cx_row.setting_value, query, db, num=10)
+            for r in results:
+                url = r.get("url", "")
+                if url and url not in seen:
+                    seen.add(url)
+                    urls.append({"url": url, "name": r.get("title", ""), "source": f"Google検索: {kw.keyword}"})
+        return {"urls": urls, "count": len(urls)}
+
+    return {"error": "不明な収集タイプです"}
+
+
+@router.post("/scrape-staged")
+def scrape_staged_urls(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """ステージングリストのURLをスクレイピングして保存する（SSEジョブ）"""
+    urls = data.get("urls", [])
+    project_id = data.get("project_id")
+
+    if not urls:
+        return {"error": "URLリストが空です"}
+
+    job_id = str(uuid.uuid4())
+    job_update(job_id, type="progress", current=0, total=len(urls), message="スクレイピングを開始しています...", status="running")
+
+    def run():
+        new_db = SessionLocal()
+        try:
+            total = len(urls)
+            for i, item in enumerate(urls):
+                job_update(job_id, current=i + 1, total=total, message=f"({i + 1}/{total}) 「{item.get('name') or item.get('url', '')}」を処理中...")
+            result = process_urls_to_companies(urls, new_db, source="ステージング収集", project_id=project_id)
+            cache_invalidate("dashboard")
+            job_update(job_id, type="done", result=result, message="スクレイピング完了")
+        except Exception as e:
+            job_update(job_id, type="error", message=str(e))
+        finally:
+            new_db.close()
+
+    threading.Thread(target=run, daemon=True).start()
+    return {"job_id": job_id}
+
+
 _PREFECTURES = [
     "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
     "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",

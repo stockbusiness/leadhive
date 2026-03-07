@@ -162,6 +162,14 @@ export const api = {
 
     startGbiz: (params: { project_id?: number; keyword: string; prefecture: string; max_results: number }) =>
       axios.post<{ job_id: string }>("/api/collect/gbiz", params).then(r => r.data),
+
+    urlsPreview: (params: Record<string, unknown>) =>
+      axios.post<{ urls: { url: string; name: string; source: string; location?: string }[]; count: number; error?: string }>(
+        "/api/collect/urls-preview", params
+      ).then(r => r.data),
+
+    scrapeStaged: (urls: { url: string; name: string; source: string }[], projectId?: number) =>
+      axios.post<{ job_id: string }>("/api/collect/scrape-staged", { urls, project_id: projectId }).then(r => r.data),
   },
 
   templates: {

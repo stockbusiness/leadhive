@@ -1,62 +1,60 @@
 # LeadHive — 営業先リスト自動化ツール
 
 ## Overview
-LeadHiveは、BtoB営業先の収集、スコアリング、進捗管理、チーム共有を統合したWebアプリケーションです。Google Custom Search APIやGoogleマップなどを利用して営業先を自動収集し、スコアリング、カテゴリ分類、カンバン管理によって営業活動の効率化を支援します。ビジネスビジョンとしては、営業リストを単なる使い捨てではなく「資産」として蓄積する企業データベースを構築し、将来的にはAIによる企業分析や営業判断支援機能を提供することで、「企業データOS」となることを目指しています。
+LeadHiveは、BtoB営業先の収集、スコアリング、進捗管理、チーム共有を統合したWebアプリケーションです。Google Custom Search APIやGoogleマップなどを利用して営業先を自動収集し、営業活動の効率化を支援します。将来的にはAIによる企業分析や営業判断支援機能を提供し、「企業データOS」となることを目指しています。
 
 ## User Preferences
 特に指定はありません。
 
 ## System Architecture
 LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケーションです。
-- **UI/UX**: React, TypeScript, Tailwind CSS, Rechartsを使用し、Viteでビルドされた静的ファイルとして提供されます。プロジェクトごとに収集対象業種、カテゴリ、フラグ、スコアリング基準をカスタマイズでき、サイドバーでプロジェクト切り替えが可能です。カンバンビューやダッシュボードのチャート表示（Recharts）により、視覚的に情報を管理します。モバイル対応済み：スマートフォン（viewport < 768px）ではサイドバーがハンバーガーメニューによるスライドドロワーに変わり、企業一覧はカードビューで表示されます。
+
+- **UI/UX**: React, TypeScript, Tailwind CSS, Rechartsを使用し、Viteでビルド。プロジェクトごとのカスタマイズ、カンバンビュー、ダッシュボードのチャート表示、モバイル対応が特徴です。
 - **Backend**: FastAPI (Python) を使用し、ポート5000で動作します。
-- **Database**: PostgreSQLを使用し、リプリットの内蔵データベースを活用します。
-- **Authentication**: JWTと`sha256_crypt`による認証を採用し、AuthorizationヘッダーでBearerトークンを使用します。
-- **Multi-tenancy**: 組織ベースのマルチテナンシーをサポートし、各組織は独立したプロジェクト、企業、設定、テンプレートを持ちます。
-- **Scraping**: BeautifulSoup4とRequestsを用いて、ThreadPoolExecutorによる最大5並列のWebスクレイピングを実行します。
-- **Search & Collection**: Google Custom Search APIを利用した自動収集、ディレクトリサイトからのリンク収集、Google検索結果の直接スクレイピング、Shopifyパートナーディレクトリからの収集、Google Places APIによるGoogleマップからの企業収集など、複数の情報源に対応しています。
+- **Database**: PostgreSQLを使用し、Replitの内蔵データベースを活用します。
+- **Authentication**: JWTと`sha256_crypt`による認証を採用。
+- **Multi-tenancy**: 組織ベースのマルチテナンシーをサポート。
+- **Scraping & Collection**: BeautifulSoup4とRequestsを用いた最大5並列のWebスクレイピング。Google Custom Search API、ディレクトリサイト、Google検索、Shopifyパートナーディレクトリ、Google Places API、gBizINFO APIからの企業情報収集に対応しています。
 - **Data Processing**:
-    - **Scoring**: 100点満点のスコアリングシステム（Shopify+20点、EC制作+15点など）と手動調整機能を持ち、プロジェクトごとにカスタムスコアリングルールを設定可能です。
-    - **Categorization**: 9種類のカテゴリ分類（EC制作、Shopify支援など）とフラグ検出を自動で行い、プロジェクトごとにカスタムカテゴリキーワードとフラグ定義を設定可能です。
-    - **Duplicate Detection**: ドメイン正規化による重複検出とマージ機能を提供します。
-    - **Aggregator Detection**: まとめサイトや比較サイトを自動で判定し、拒否リスト化します。
+    - **Scoring**: カスタム可能な100点満点スコアリングシステムと手動調整。
+    - **Categorization**: 9種類のカテゴリ分類とフラグ検出の自動化、カスタム設定可能。
+    - **Duplicate Detection**: ドメイン正規化による重複検出とマージ。
+    - **Aggregator Detection**: まとめサイトや比較サイトの自動判定と拒否リスト化。
 - **Workflow & Automation**:
-    - **Auto-collection**: 設定された検索キーワードに基づき、Google Custom Search APIを使用して候補企業を自動収集します。
-    - **Scheduled Tasks**: 毎日指定時刻に自動収集を実行するスケジューラを内蔵しています。
-    - **Real-time Progress**: SSE (Server-Sent Events) を使用して、Google API収集の進捗をリアルタイムで表示します。
-    - **Slack Notifications**: 収集完了時にSlackへの通知が可能です。
+    - **Auto-collection**: 設定キーワードに基づきGoogle Custom Search APIで自動収集。
+    - **Scheduled Tasks**: 毎日指定時刻の自動収集実行スケジューラ。
+    - **Real-time Progress**: SSEによるGoogle API収集進捗のリアルタイム表示。
+    - **Slack Notifications**: 収集完了時のSlack通知。
 - **Data Management**:
-    - **Master Database**: 全プロジェクト横断の企業プール（`company_master`）があり、収集時に自動的にUPSERTされます。キーワード、カテゴリ、都道府県、スコアで検索し、現在のプロジェクトにインポートできます。
-    - **History & Logs**: コレクション履歴、ステータス変更履歴、API使用ログを記録します。
-    - **Templates**: メモテンプレートとメールテンプレート（変数展開機能付き）を管理します。
-    - **User Management**: 組織メンバーの招待、一覧、ロール管理（admin/member）、削除機能を提供します。
-- **Performance**: APIレスポンス（ダッシュボード、キーワード、テンプレートなど）にはインメモリTTLキャッシュが適用されます。
-- **AI Analysis**: 企業URLをスクレイピングし、OpenAI GPT-4o-miniで事業内容・顧客層・強み・サービス・価格帯を自動生成します。結果はDBに保存（`ai_summary` JSONカラム）し、企業詳細ページの「AIサマリー」タブに表示します。
-- **Follow-up Notifications**: 毎朝9時にスケジューラが起動し、期限当日・超過のフォローアップ企業を管理者にメール/Slackで通知します。通知のON/OFFとチャンネルは設定画面から変更できます。
-- **Plan Management**: サブスクリプションプランのCRUDと組織への割り当て機能。管理者は `/admin/plans` からプランを作成・編集・削除し、各組織に割り当てられます。プランにはメンバー数・プロジェクト数・企業数・月次AI分析回数・マスターDBインポート回数の上限を設定でき、上限超過時はHTTP 402エラーを返します。設定画面ではプログレスバーで使用量を確認でき、ダッシュボードにはプラン名のバッジが表示されます。サーバー起動時に4プラン（フリー/スターター/プロ/エンタープライズ）が自動UPSERT（名前で検索→存在すれば更新、なければ挿入）されます。
-- **Stripe Payment Integration（管理画面設定型）**: 管理者が `/admin/stripe` からStripe APIキー（シークレット・公開鍵・Webhookシークレット）とテスト/本番モードを設定。設定はDB（`system_settings`テーブル）に保存。接続テストボタン付き。各プランに`stripe_price_id`（Stripe Price ID）を設定でき、プランモーダルとAdminStripeページの両方から編集可能。ユーザーがプラン上限に達するとPlanLimitModalからStripe Checkoutへ直接遷移可能。Webhookは`checkout.session.completed`を受信してOrganizationのplan_idを自動更新。決済成功後は`/settings?upgrade=success`にリダイレクトしてバナー表示。
-- **CSV Export with Plan Limits**: 企業リストの CSV エクスポート機能にプラン別制限を追加。フリー=50件、スターター=1,000件、プロ以上=無制限。`window.open()` から axios blob ダウンロードに変更しトークン認証を修正。エクスポート後に「X件をエクスポートしました」バナー表示（4秒後自動消去）。ボタンに件数ラベル「CSV出力（上位50件）」を動的表示。日付付きファイル名（`companies_export_YYYYMMDD.csv`）で出力。
-- **Master DB Access Control（ビジネスモデルの核心）**: フリープラン（`max_master_db_imports=0`）はマスターDB検索・インポートへのアクセス不可。スターター（100件/月）、プロ/エンタープライズ（無制限）。無料ユーザーは自社収集でマスターDBにデータを追加できるが、取り出しは有料。フリーユーザーには総件数（FOMAカード）+アップグレードゲートUIを表示。スターターには「今月の残りインポート: X件/100件」バッジを表示。インポート時はOrganizationの`master_db_import_count`と`master_db_import_month`で月次カウントを管理。
-- **Plan Limit Upgrade Modal**: axiosのresponseインターセプターが HTTP 402 を検知し `plan-limit-exceeded` カスタムDOMイベントを発火。App.tsx の `AppContent` がそれをリッスンして `PlanLimitModal`（`frontend/src/components/common/PlanLimitModal.tsx`）を全画面表示。モーダルはエラーメッセージ・プラン比較表・アップグレードCTAを含む。**全ユーザー**がStripe Checkout経由で自己アップグレード可能（stripe_price_idが設定されているプランにボタンが表示）。管理者はさらに「プラン管理へ」ボタンも表示。stripe_price_idが未設定のプランは「管理者にご相談ください」メッセージを表示。
-- **Keyword Analytics**: 検索条件管理ページ（/keywords）に「分析」タブを追加。collection_logsを集計してキーワードごとの獲得数・成功率・重複率・拒否率を可視化。棒グラフと詳細テーブルで効率の高い/低いキーワードを把握できます。
-- **Outreach Email Generation**: 企業詳細ページのAIサマリータブ内に「アウトリーチメール生成」セクションを追加。ai_summaryデータを活用し、フォーマル/カジュアルのトーン選択と追加指示に基づいてOpenAI GPT-4o-miniが件名・本文を生成。コピーボタン付き・本文は編集可能。
-- **gBizINFO 法人DB収集**: URL収集ページに「法人DB」タブを追加。経済産業省の gBizINFO API（約400万社）から会社名・住所・企業URLを取得し、URL未登録の法人はGoogle直接検索でホームページを特定してスクレイピング。既存パイプライン（スコアリング・マスターDB書き込み）に接続。APIトークンは管理者専用の「システムAPI設定」ページ（`/admin/api-keys`）から登録（SystemSettingsテーブルで全組織共有）。収集フローはGoogle APIタブと同じSSE進捗バーで可視化。都道府県・最大件数選択対応。実装ファイル: `server/services/gbiz_collector.py`、`server/routes/collector.py`（`/api/collect/gbiz`）、`frontend/src/pages/Scraper.tsx`、`frontend/src/pages/AdminApiKeys.tsx`
-- **システムAPI設定ページ** (`/admin/api-keys`): 管理者専用ページ。gBizINFO等のシステム全体で共有するAPIキーを管理。バックエンドは `GET/PUT /api/admin/api-settings`（`server/routes/payments.py`）、SystemSettingsテーブルに保存。
-- **テナント管理ページ** (`/admin/tenants`): 管理者専用。全Organizationを一覧表示し、メンバー数・企業数・プロジェクト数・割当プランを確認・変更できる。バックエンドは `GET /api/admin/tenants`・`PATCH /api/admin/tenants/{id}`（`server/routes/payments.py`）。実装ファイル: `frontend/src/pages/AdminTenants.tsx`。
-- **サイドバー分離**: 通常機能メニューとシステム管理メニューを「システム管理」セクションヘッダーで分離。管理者にのみ表示されるセクションを視覚的に区別。
-- **管理ダッシュボード** (`/admin/dashboard`): テナント数・ユーザー数・プロジェクト数・企業数・今月の収集数・本日のAPI使用量の統計カード + 過去7日間の日別収集件数グラフ + プラン別テナント分布円グラフ。
-- **全ユーザー管理** (`/admin/users`): 全テナントのユーザーを横断管理。メール/名前検索・ロールフィルタ・組織フィルタに対応。インラインでロール変更・削除が可能。バックエンド: `GET/PATCH/DELETE /api/admin/all-users` in `payments.py`。
-- **システムログ** (`/admin/logs`): 管理者操作の監査ログ。`SystemLog` モデル（`server/models.py`）に記録。操作種別フィルタ・キーワード検索・ページネーション対応。`write_system_log()` ヘルパーで主要操作に自動記録。
-- **お知らせ配信** (`/admin/announcements`): `Announcement` モデルで管理。全体配信またはテナント個別配信に対応。`AnnouncementBanner` コンポーネントがログイン後の全ページ上部に表示（セッション単位で非表示可）。バックエンド: `GET/POST/PATCH/DELETE /api/admin/announcements` + `GET /api/announcements`。
-- **請求・履歴管理** (`/admin/billing`): Stripe PaymentIntents一覧を表示。成功/失敗サマリーカード付き。Stripe未設定時は設定ページへのリンクを表示。バックエンド: `GET /api/admin/billing`。
-- **SMTP設定** (`/admin/smtp`): Gmail/SendGrid/Amazon SES/Mailgunのプリセット付きSMTP設定UI。テスト送信機能（管理者自身のメールアドレスへ）。バックエンド: `GET/PUT /api/admin/smtp-settings` + `POST /api/admin/smtp-settings/test`。SystemSettingsテーブルに保存。
-- **機能フラグ** (`/admin/features`): AI分析・CSVエクスポート・マスターDB・gBizINFO・Googleマップ・Slack通知・セルフアップグレードの有効/無効をトグルスイッチで管理。カテゴリ別グループ表示。バックエンド: `GET/PUT /api/admin/feature-flags`。SystemSettingsテーブルに保存。
+    - **Master Database**: 全プロジェクト横断の企業プール（`company_master`）とインポート機能。
+    - **History & Logs**: コレクション履歴、ステータス変更履歴、API使用ログ。
+    - **Templates**: メモ・メールテンプレート（変数展開機能付き）。
+    - **User Management**: 組織メンバーの招待、管理、ロール設定。
+- **Performance**: APIレスポンスにインメモリTTLキャッシュを適用。
+- **AI Analysis**: OpenAI GPT-4o-miniで企業URLから事業内容・顧客層・強み・サービス・価格帯を自動生成。企業詳細ページに表示。
+- **Outreach Email Generation**: AIサマリーを活用し、トーン選択と追加指示に基づいてOpenAI GPT-4o-miniが件名・本文を生成。
+- **Follow-up Notifications**: 期限当日・超過のフォローアップ企業をメール/Slackで通知。
+- **Plan Management**: サブスクリプションプランのCRUDと組織への割り当て。メンバー数、プロジェクト数、企業数、月次AI分析回数、マスターDBインポート回数に上限を設定可能。Stripe Payment Integrationによるセルフアップグレードに対応。
+- **CSV Export with Plan Limits**: 企業リストのCSVエクスポート機能にプラン別件数制限を適用。
+- **Master DB Access Control**: プランに応じたマスターDB検索・インポート機能の利用制限。
+- **Admin Features**:
+    - **Admin Dashboard**: テナント数、ユーザー数、統計データ、グラフ表示。
+    - **System API Settings**: gBizINFO等のシステム全体で共有するAPIキー管理。
+    - **Tenant Management**: 全Organizationの一覧表示、プラン変更。
+    - **User Management**: 全ユーザーの横断管理、ロール変更、削除。
+    - **System Logs**: 管理者操作の監査ログ。
+    - **Announcements**: 全体またはテナント個別のお知らせ配信。
+    - **Billing**: Stripe PaymentIntentsの一覧表示。
+    - **SMTP Settings**: 各種SMTPサービス設定とテスト送信機能。
+    - **Feature Flags**: 主要機能（AI分析、CSVエクスポート、マスターDB、gBizINFO、Googleマップ、Slack通知、セルフアップグレード）の有効/無効管理。
+- **Keyword Analytics**: 検索条件管理ページに、キーワードごとの獲得数・成功率・重複率・拒否率を可視化する分析タブ。
 
 ## External Dependencies
-- **Google Custom Search API**: 営業先の自動収集に利用します。APIキーは管理画面で設定します。
-- **Google Places API**: Googleマップからの企業情報収集および住所、電話、レビュー情報の補完に利用します。
-- **PostgreSQL**: データベースとして利用します（Replit内蔵）。
-- **Slack Incoming Webhook**: 収集完了通知・フォローアップ通知のために利用します。
-- **SMTPサービス**: ユーザー招待・パスワードリセット・フォローアップ通知のメール送信に利用します。SMTPサーバー設定は管理画面から行います。
-- **OpenAI API (GPT-4o-mini)**: AI企業分析機能に利用します。APIキーは管理画面から設定します。
-- **gBizINFO API（経済産業省）**: 法人DB収集機能に利用します。約400万社の法人情報（会社名・住所・企業URL等）を取得します。無料・即時発行のAPIトークンが必要です。管理画面の設定から登録します。
+- **Google Custom Search API**: 営業先自動収集。
+- **Google Places API**: Googleマップからの企業情報収集、住所・電話・レビュー情報の補完。
+- **PostgreSQL**: データベース。
+- **Slack Incoming Webhook**: 収集完了通知、フォローアップ通知。
+- **SMTPサービス**: ユーザー招待、パスワードリセット、フォローアップ通知メール送信。
+- **OpenAI API (GPT-4o-mini)**: AI企業分析、アウトリーチメール生成。
+- **gBizINFO API（経済産業省）**: 法人DB収集（約400万社）。
+- **Stripe**: 決済処理、サブスクリプション管理。
