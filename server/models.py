@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Index, Integer, String, Boolean, Text, DateTime, Date, ForeignKey, JSON, UniqueConstraint
+
 from sqlalchemy.sql import func
 from server.database import Base
 
@@ -46,6 +47,7 @@ class Company(Base):
     score_rank = Column(String(1), default="D", index=True)
     status = Column(String(50), default="未確認", index=True)
     notes = Column(Text)
+    follow_up_date = Column(Date, nullable=True, index=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

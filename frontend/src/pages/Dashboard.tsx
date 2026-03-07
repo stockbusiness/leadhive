@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp } from "lucide-react";
+import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
@@ -7,7 +7,21 @@ import {
 import { api } from "../api";
 import { RANK_COLORS, PIE_COLORS, SCORE_BADGE_COLORS } from "../constants";
 import { StatCard } from "../components/common";
-import type { DashboardData } from "../types";
+import type { DashboardData, Company } from "../types";
+
+const FUNNEL_STATUSES = ["未確認", "対象候補", "アプローチ前", "フォーム送信済", "返信あり", "面談化", "代理店化"];
+const FUNNEL_COLORS = ["#94a3b8", "#60a5fa", "#818cf8", "#f59e0b", "#f97316", "#a855f7", "#10b981"];
+
+function formatFollowUpDate(dateStr: string): { label: string; overdue: boolean } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr);
+  d.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  if (diff < 0) return { label: `${Math.abs(diff)}日超過`, overdue: true };
+  if (diff === 0) return { label: "今日", overdue: false };
+  return { label: `${diff}日後`, overdue: false };
+}
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -42,12 +56,75 @@ export default function Dashboard() {
     .slice(0, 10)
     .map(([name, value]) => ({ name, value }));
 
+  const funnelData = FUNNEL_STATUSES.map((s, i) => ({
+    name: s,
+    value: data.by_status[s] || 0,
+    fill: FUNNEL_COLORS[i],
+  })).filter(d => d.value > 0);
+
   const usagePercent = Math.min(100, (data.api_usage_today / data.api_daily_limit) * 100);
+
+  const todayFollowups = data.today_followups || [];
+  const topUncontacted = data.top_uncontacted || [];
+  const repliedCompanies = data.replied_companies || [];
+  const hasActions = todayFollowups.length > 0 || repliedCompanies.length > 0 || topUncontacted.length > 0;
 
   return (
     <div className="p-6 space-y-6">
       <h2 className="text-2xl font-bold text-slate-800">ダッシュボード</h2>
 
+      {/* ===== 今日のアクション ===== */}
+      {hasActions && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-slate-200">
+            <Bell size={16} className="text-indigo-600" />
+            <h3 className="font-semibold text-slate-700">今日のアクション</h3>
+            <span className="text-xs text-slate-500 ml-1">— 対応が必要な企業</span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {todayFollowups.length > 0 && (
+              <ActionGroup
+                icon={<CalendarClock size={14} className="text-red-500" />}
+                label="フォローアップ期限"
+                badgeColor="bg-red-100 text-red-700"
+                companies={todayFollowups}
+                renderBadge={(c) => {
+                  if (!c.follow_up_date) return null;
+                  const { label, overdue } = formatFollowUpDate(c.follow_up_date);
+                  return (
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${overdue ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                      {label}
+                    </span>
+                  );
+                }}
+              />
+            )}
+            {repliedCompanies.length > 0 && (
+              <ActionGroup
+                icon={<MessageCircle size={14} className="text-purple-500" />}
+                label="返信あり（要対応）"
+                badgeColor="bg-purple-100 text-purple-700"
+                companies={repliedCompanies}
+              />
+            )}
+            {topUncontacted.length > 0 && (
+              <ActionGroup
+                icon={<Star size={14} className="text-emerald-500" />}
+                label="未対応の高スコア企業"
+                badgeColor="bg-emerald-100 text-emerald-700"
+                companies={topUncontacted}
+                renderBadge={(c) => (
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium border ${SCORE_BADGE_COLORS[c.score_rank] || SCORE_BADGE_COLORS.D}`}>
+                    {c.score_rank} {c.score_total}点
+                  </span>
+                )}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== 統計カード ===== */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <StatCard label="総収集件数" value={data.total} icon={<Building2 size={20} />} color="bg-blue-500" />
         <StatCard label="重複除外後" value={data.unique_domains} icon={<Search size={20} />} color="bg-indigo-500" />
@@ -57,6 +134,46 @@ export default function Dashboard() {
         <ApiUsageCard usage={data.api_usage_today} limit={data.api_daily_limit} percent={usagePercent} />
       </div>
 
+      {/* ===== 営業ファネル ===== */}
+      {funnelData.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+          <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
+            <TrendingUp size={16} className="text-indigo-500" />
+            営業ファネル
+          </h3>
+          <div className="space-y-2">
+            {funnelData.map((d, i) => {
+              const max = Math.max(...funnelData.map(x => x.value));
+              const pct = max > 0 ? (d.value / max) * 100 : 0;
+              const prev = funnelData[i - 1];
+              const convRate = prev && prev.value > 0 ? Math.round((d.value / prev.value) * 100) : null;
+              return (
+                <div key={d.name} className="flex items-center gap-3">
+                  <div className="w-24 text-right text-xs text-slate-500 flex-shrink-0">{d.name}</div>
+                  <div className="flex-1 bg-slate-100 rounded-full h-7 relative overflow-hidden">
+                    <div
+                      className="h-full rounded-full flex items-center justify-end pr-2 transition-all duration-500"
+                      style={{ width: `${Math.max(pct, 4)}%`, backgroundColor: d.fill }}
+                    >
+                      <span className="text-white text-xs font-bold drop-shadow">{d.value}</span>
+                    </div>
+                  </div>
+                  <div className="w-16 text-xs text-slate-400 flex-shrink-0">
+                    {convRate !== null && (
+                      <span className={`font-medium ${convRate >= 30 ? "text-emerald-600" : convRate >= 10 ? "text-amber-600" : "text-red-500"}`}>
+                        ↑{convRate}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-slate-400 mt-3">※ 矢印は前ステータスからの転換率</p>
+        </div>
+      )}
+
+      {/* ===== 既存グラフ ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title="カテゴリ別内訳">
           {categoryData.length > 0 ? (
@@ -178,6 +295,36 @@ export default function Dashboard() {
         ) : (
           <p className="text-sm text-slate-400 text-center py-4">まだ企業が追加されていません</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ActionGroup({
+  icon, label, companies, renderBadge,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  badgeColor: string;
+  companies: Company[];
+  renderBadge?: (c: Company) => React.ReactNode;
+}) {
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-center gap-1.5 mb-2">
+        {icon}
+        <span className="text-xs font-semibold text-slate-600">{label}</span>
+        <span className="text-xs text-slate-400">({companies.length}件)</span>
+      </div>
+      <div className="space-y-1.5">
+        {companies.map((c) => (
+          <div key={c.id} className="flex items-center gap-3 text-sm">
+            <ChevronRight size={12} className="text-slate-300 flex-shrink-0" />
+            <span className="flex-1 text-slate-700 truncate">{c.company_name || c.domain}</span>
+            <span className="text-xs text-slate-400">{c.status}</span>
+            {renderBadge && renderBadge(c)}
+          </div>
+        ))}
       </div>
     </div>
   );

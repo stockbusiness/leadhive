@@ -22,6 +22,7 @@ export interface Company {
   score_rank: string;
   status: string;
   notes: string;
+  follow_up_date?: string | null;
   tags?: string[];
   created_at?: string;
   updated_at?: string;
@@ -125,6 +126,9 @@ export interface DashboardData {
   api_usage_today: number;
   api_daily_limit: number;
   daily_collection_trend?: { date: string; count: number }[];
+  today_followups?: Company[];
+  top_uncontacted?: Company[];
+  replied_companies?: Company[];
 }
 
 export interface CompanyMaster {

@@ -1,4 +1,4 @@
-import { ExternalLink, MessageSquare, Pencil, Trash2, RotateCw } from "lucide-react";
+import { ExternalLink, MessageSquare, Pencil, Trash2, RotateCw, CalendarClock } from "lucide-react";
 import { STATUSES } from "../../constants";
 import { ScoreBadge, FlagBadge } from "../common";
 import type { Company } from "../../types";
@@ -132,6 +132,7 @@ export default function CompanyTable({
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
+                {c.follow_up_date && <FollowUpBadge date={c.follow_up_date} />}
               </td>
               <td className="px-3 py-2">
                 <span className="text-xs text-slate-500 max-w-[120px] truncate block">
@@ -162,6 +163,30 @@ export default function CompanyTable({
           )}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function FollowUpBadge({ date }: { date: string }) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  const overdue = diff < 0;
+  const isToday = diff === 0;
+  const label = overdue
+    ? `${Math.abs(diff)}日超過`
+    : isToday
+    ? "今日"
+    : `${diff}日後`;
+  const cls = overdue || isToday
+    ? "bg-red-100 text-red-700"
+    : "bg-amber-100 text-amber-700";
+  return (
+    <div className={`flex items-center gap-0.5 mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium w-fit ${cls}`}>
+      <CalendarClock size={9} />
+      {label}
     </div>
   );
 }

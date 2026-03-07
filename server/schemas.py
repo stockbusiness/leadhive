@@ -31,6 +31,7 @@ def company_to_dict(c: Company, db: Session = None) -> dict:
         "score_rank": c.score_rank,
         "status": c.status,
         "notes": c.notes,
+        "follow_up_date": c.follow_up_date.isoformat() if c.follow_up_date else None,
         "tags": tags,
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,

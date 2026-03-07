@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Save, ExternalLink, History, Mail, RotateCw, Tag, Plus, Send, Copy, CheckCheck, ClipboardList } from "lucide-react";
+import { X, Save, ExternalLink, History, Mail, RotateCw, Tag, Plus, Send, Copy, CheckCheck, ClipboardList, CalendarClock } from "lucide-react";
 import { CATEGORIES, STATUSES } from "../../constants";
 import { api } from "../../api";
 import type { Company, StatusHistoryEntry, MemoTemplate } from "../../types";
@@ -207,17 +207,42 @@ export default function CompanyEditModal({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">ステータス</label>
-            <select
-              value={editData.status || ""}
-              onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-              className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+          <div className="flex items-end gap-4 flex-wrap">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">ステータス</label>
+              <select
+                value={editData.status || ""}
+                onChange={(e) => setEditData({ ...editData, status: e.target.value })}
+                className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
+                <CalendarClock size={12} />
+                フォローアップ日
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={editData.follow_up_date || ""}
+                  onChange={(e) => setEditData({ ...editData, follow_up_date: e.target.value || null })}
+                  className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {editData.follow_up_date && (
+                  <button
+                    onClick={() => setEditData({ ...editData, follow_up_date: null })}
+                    className="text-slate-400 hover:text-red-500 transition-colors"
+                    title="クリア"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           <div>

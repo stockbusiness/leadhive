@@ -19,6 +19,9 @@ def get_dashboard(project_id: Optional[int] = None, db: Session = Depends(get_db
         today = date.today()
         usage_log = db.query(ApiUsageLog).filter(ApiUsageLog.usage_date == today).first()
         cached["api_usage_today"] = usage_log.request_count if usage_log else 0
+        cached["today_followups"] = _get_today_followups(project_id, db)
+        cached["top_uncontacted"] = _get_top_uncontacted(project_id, db)
+        cached["replied_companies"] = _get_replied(project_id, db)
         return cached
 
     def scoped(q):
@@ -27,7 +30,6 @@ def get_dashboard(project_id: Optional[int] = None, db: Session = Depends(get_db
         return q
 
     total = scoped(db.query(func.count(Company.id))).scalar() or 0
-
     unique_domains = scoped(db.query(func.count(func.distinct(Company.domain)))).scalar() or 0
 
     unconfirmed = scoped(db.query(func.count(Company.id)).filter(
@@ -105,7 +107,44 @@ def get_dashboard(project_id: Optional[int] = None, db: Session = Depends(get_db
         "api_usage_today": api_usage_today,
         "api_daily_limit": 100,
         "daily_collection_trend": daily_trend,
+        "today_followups": _get_today_followups(project_id, db),
+        "top_uncontacted": _get_top_uncontacted(project_id, db),
+        "replied_companies": _get_replied(project_id, db),
     }
 
     cache_set(cache_key, result)
     return result
+
+
+def _get_today_followups(project_id, db):
+    today = date.today()
+    q = db.query(Company).filter(
+        Company.follow_up_date.isnot(None),
+        Company.follow_up_date <= today,
+        Company.status.notin_(["代理店化", "失注", "除外"]),
+    )
+    if project_id:
+        q = q.filter(Company.project_id == project_id)
+    companies = q.order_by(Company.follow_up_date).limit(10).all()
+    return [company_to_dict(c) for c in companies]
+
+
+def _get_top_uncontacted(project_id, db):
+    q = db.query(Company).filter(
+        Company.score_rank.in_(["A", "B"]),
+        Company.status.in_(["未確認", "対象候補", "アプローチ前"]),
+        Company.contact_url.isnot(None),
+        Company.contact_url != "",
+    )
+    if project_id:
+        q = q.filter(Company.project_id == project_id)
+    companies = q.order_by(desc(Company.score_total)).limit(5).all()
+    return [company_to_dict(c) for c in companies]
+
+
+def _get_replied(project_id, db):
+    q = db.query(Company).filter(Company.status == "返信あり")
+    if project_id:
+        q = q.filter(Company.project_id == project_id)
+    companies = q.order_by(desc(Company.updated_at)).limit(5).all()
+    return [company_to_dict(c) for c in companies]
