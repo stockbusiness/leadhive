@@ -97,9 +97,12 @@ def create_project(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    from server.routes.plans import check_plan_limit
     name = data.get("name", "").strip()
     if not name:
         return {"error": "プロジェクト名を入力してください"}
+
+    check_plan_limit(current_user.org_id, "projects", db)
 
     project = Project(
         org_id=current_user.org_id,

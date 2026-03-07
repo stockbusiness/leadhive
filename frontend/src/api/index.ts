@@ -2,6 +2,7 @@ import axios from "axios";
 import type {
   Company, StatusHistoryEntry, MemoTemplate, SearchKeyword,
   ScrapeResult, CollectionLog, RejectedItem, DashboardData, ActivityLogEntry, Project, CompanyMaster,
+  PlanData, PlanUsage, OrgWithPlan,
 } from "../types";
 
 export const api = {
@@ -220,6 +221,32 @@ export const api = {
 
     delete: (userId: number) =>
       axios.delete(`/api/users/${userId}`).then(r => r.data),
+  },
+
+  plans: {
+    list: () =>
+      axios.get<{ plans: PlanData[] }>("/api/plans").then(r => r.data),
+
+    create: (data: Omit<PlanData, "id" | "created_at" | "updated_at">) =>
+      axios.post<{ plan: PlanData }>("/api/plans", data).then(r => r.data),
+
+    update: (id: number, data: Omit<PlanData, "id" | "created_at" | "updated_at">) =>
+      axios.put<{ plan: PlanData }>(`/api/plans/${id}`, data).then(r => r.data),
+
+    delete: (id: number) =>
+      axios.delete(`/api/plans/${id}`).then(r => r.data),
+
+    assign: (planId: number, orgId: number) =>
+      axios.post(`/api/plans/${planId}/assign`, { org_id: orgId }).then(r => r.data),
+
+    unassign: (planId: number, orgId: number) =>
+      axios.delete(`/api/plans/${planId}/assign/${orgId}`).then(r => r.data),
+
+    current: () =>
+      axios.get<{ plan: PlanData | null; usage: PlanUsage }>("/api/plans/current").then(r => r.data),
+
+    organizations: () =>
+      axios.get<{ organizations: OrgWithPlan[] }>("/api/plans/organizations").then(r => r.data),
   },
 
   auth: {

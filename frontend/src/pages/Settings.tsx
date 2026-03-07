@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles } from "lucide-react";
+import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown } from "lucide-react";
 import { api } from "../api";
+import type { PlanData, PlanUsage } from "../types";
 
 interface MessageState {
   type: "success" | "error";
@@ -40,6 +41,79 @@ function SaveButton({ saving, onClick }: { saving: boolean; onClick: () => void 
       {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
       保存
     </button>
+  );
+}
+
+function UsageBar({ label, used, limit }: { label: string; used: number; limit: number | null }) {
+  if (limit === null) {
+    return (
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-slate-600">{label}</span>
+        <span className="text-slate-700 font-medium">{used.toLocaleString()} / 無制限</span>
+      </div>
+    );
+  }
+  const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-blue-500";
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-slate-600">{label}</span>
+        <span className={`font-medium ${pct >= 90 ? "text-red-600" : "text-slate-700"}`}>
+          {used.toLocaleString()} / {limit.toLocaleString()}
+        </span>
+      </div>
+      <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function PlanCurrentSection() {
+  const [plan, setPlan] = useState<PlanData | null | undefined>(undefined);
+  const [usage, setUsage] = useState<PlanUsage | null>(null);
+
+  useEffect(() => {
+    api.plans.current().then((data) => {
+      setPlan(data.plan ?? null);
+      setUsage(data.usage);
+    }).catch(() => setPlan(null));
+  }, []);
+
+  if (plan === undefined) return null;
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 space-y-4">
+      <SectionHeader icon={<Crown size={20} className="text-amber-500" />} title="現在のプラン" />
+      {plan === null ? (
+        <p className="text-sm text-slate-500">プランが設定されていません。管理者にお問い合わせください。</p>
+      ) : (
+        <>
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-bold text-slate-800">{plan.name}</span>
+            {plan.price_monthly !== null && (
+              <span className="text-sm text-slate-500">¥{plan.price_monthly.toLocaleString()} / 月</span>
+            )}
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ml-auto ${plan.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+              {plan.is_active ? "有効" : "無効"}
+            </span>
+          </div>
+          {plan.description && (
+            <p className="text-sm text-slate-500">{plan.description}</p>
+          )}
+          {usage && (
+            <div className="space-y-3 pt-1">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">使用量</p>
+              <UsageBar label="メンバー" used={usage.members} limit={plan.max_members} />
+              <UsageBar label="プロジェクト" used={usage.projects} limit={plan.max_projects} />
+              <UsageBar label="登録企業数" used={usage.companies} limit={plan.max_companies} />
+              <UsageBar label="AI分析（今月）" used={usage.ai_analyses_this_month} limit={plan.max_ai_analyses_monthly} />
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -191,6 +265,8 @@ export default function Settings() {
   return (
     <div className="p-6 space-y-6 max-w-2xl">
       <h2 className="text-2xl font-bold text-slate-800">設定</h2>
+
+      <PlanCurrentSection />
 
       {message && <MessageBox msg={message} />}
 

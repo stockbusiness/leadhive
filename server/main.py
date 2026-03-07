@@ -10,12 +10,24 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates, projects, master
-from server.routes import auth, users
+from server.routes import auth, users, plans
 from server.services.scheduler import start_scheduler, stop_scheduler
+
+
+def run_db_migrations():
+    from server.database import engine, Base
+    from server import models  # noqa: F401 — ensure all models are registered
+    Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        conn.execute(__import__("sqlalchemy").text(
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan_id INTEGER REFERENCES plans(id)"
+        ))
+        conn.commit()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    run_db_migrations()
     start_scheduler()
     yield
     stop_scheduler()
@@ -43,6 +55,7 @@ app.include_router(collector.router)
 app.include_router(templates.router)
 app.include_router(projects.router)
 app.include_router(master.router)
+app.include_router(plans.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 

@@ -20,6 +20,7 @@ import {
   Save,
   Loader2,
   Menu,
+  Crown,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -40,6 +41,7 @@ const Manual = lazy(() => import("./pages/Manual"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
+const AdminPlans = lazy(() => import("./pages/AdminPlans"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -200,6 +202,9 @@ function AppContent() {
           {user?.role === "admin" && (
             <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
           )}
+          {user?.role === "admin" && (
+            <SidebarLink to="/admin/plans" icon={<Crown size={18} />} label="プラン管理" onClick={closeSidebar} />
+          )}
         </nav>
 
         <div className="p-2 border-t border-slate-700 space-y-1">
@@ -273,6 +278,7 @@ function AppContent() {
               <Route path="/manual" element={<Manual />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/users" element={<UserManagement />} />
+              <Route path="/admin/plans" element={<AdminPlans />} />
             </Routes>
           </Suspense>
         </main>

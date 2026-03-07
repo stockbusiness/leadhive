@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle } from "lucide-react";
+import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle, Crown } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
@@ -7,7 +7,7 @@ import {
 import { api } from "../api";
 import { RANK_COLORS, PIE_COLORS, SCORE_BADGE_COLORS } from "../constants";
 import { StatCard } from "../components/common";
-import type { DashboardData, Company } from "../types";
+import type { DashboardData, Company, PlanData } from "../types";
 
 const FUNNEL_STATUSES = ["未確認", "対象候補", "アプローチ前", "フォーム送信済", "返信あり", "面談化", "代理店化"];
 const FUNNEL_COLORS = ["#94a3b8", "#60a5fa", "#818cf8", "#f59e0b", "#f97316", "#a855f7", "#10b981"];
@@ -25,9 +25,11 @@ function formatFollowUpDate(dateStr: string): { label: string; overdue: boolean 
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<PlanData | null>(null);
 
   useEffect(() => {
     api.dashboard.get().then(setData);
+    api.plans.current().then((d) => setCurrentPlan(d.plan ?? null)).catch(() => {});
   }, []);
 
   if (!data) {
@@ -71,7 +73,15 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-slate-800">ダッシュボード</h2>
+      <div className="flex items-center gap-3 flex-wrap">
+        <h2 className="text-2xl font-bold text-slate-800">ダッシュボード</h2>
+        {currentPlan && (
+          <span className="flex items-center gap-1.5 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+            <Crown size={12} />
+            {currentPlan.name}
+          </span>
+        )}
+      </div>
 
       {/* ===== 今日のアクション ===== */}
       {hasActions && (

@@ -64,10 +64,13 @@ def invite_user(
 ):
     from server.models import AppSetting, Organization
     from server.services.mailer import get_smtp_settings, send_email
+    from server.routes.plans import check_plan_limit
 
     existing = db.query(User).filter(User.email == body.email).first()
     if existing and existing.org_id == current_user.org_id:
         raise HTTPException(status_code=400, detail="このユーザーは既に組織に参加しています")
+
+    check_plan_limit(current_user.org_id, "members", db)
 
     existing_invite = db.query(OrgInvitation).filter(
         OrgInvitation.org_id == current_user.org_id,

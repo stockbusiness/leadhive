@@ -168,3 +168,32 @@ export interface CompanyMaster {
   created_at: string | null;
   already_in_project: boolean;
 }
+
+export interface PlanData {
+  id: number;
+  name: string;
+  description: string | null;
+  price_monthly: number | null;
+  max_members: number | null;
+  max_projects: number | null;
+  max_companies: number | null;
+  max_ai_analyses_monthly: number | null;
+  api_daily_limit: number | null;
+  is_active: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface PlanUsage {
+  members: number;
+  projects: number;
+  companies: number;
+  ai_analyses_this_month: number;
+}
+
+export interface OrgWithPlan {
+  id: number;
+  name: string;
+  plan_id: number | null;
+  created_at: string | null;
+}

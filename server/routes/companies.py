@@ -741,6 +741,7 @@ def ai_analyze_company(
 ):
     from server.services.ai_analyzer import analyze_company, get_openai_key
     from server.services.scraper import scrape_company_info
+    from server.routes.plans import check_plan_limit
 
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
@@ -749,6 +750,8 @@ def ai_analyze_company(
     api_key = get_openai_key(db, current_user.org_id)
     if not api_key:
         return {"error": "OpenAI APIキーが設定されていません。設定画面からAPIキーを登録してください。"}
+
+    check_plan_limit(current_user.org_id, "ai_analyses", db)
 
     full_text = ""
     if company.website_url:

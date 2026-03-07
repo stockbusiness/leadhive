@@ -4,11 +4,29 @@ from sqlalchemy.sql import func
 from server.database import Base
 
 
+class Plan(Base):
+    __tablename__ = "plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    price_monthly = Column(Integer, nullable=True)
+    max_members = Column(Integer, nullable=True)
+    max_projects = Column(Integer, nullable=True)
+    max_companies = Column(Integer, nullable=True)
+    max_ai_analyses_monthly = Column(Integer, nullable=True)
+    api_daily_limit = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class Organization(Base):
     __tablename__ = "organizations"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
+    plan_id = Column(Integer, ForeignKey("plans.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 
