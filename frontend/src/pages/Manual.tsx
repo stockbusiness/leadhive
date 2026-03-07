@@ -3,6 +3,7 @@ import {
   BookOpen, ChevronRight, Settings, FolderKanban, Globe,
   Building2, Database, LayoutDashboard, FileText, Star,
   AlertTriangle, HelpCircle, Zap, Search, Bell,
+  Brain, BarChart2, Crown, Mail, Copy, Sparkles,
 } from "lucide-react";
 
 interface Section {
@@ -22,6 +23,9 @@ const SECTIONS: Section[] = [
   { id: "dashboard", title: "ダッシュボードの見方", icon: <LayoutDashboard size={16} /> },
   { id: "activities", title: "営業活動の記録", icon: <FileText size={16} /> },
   { id: "notifications", title: "Slack通知・自動収集", icon: <Bell size={16} /> },
+  { id: "ai", title: "AI機能（企業分析・メール）", icon: <Brain size={16} /> },
+  { id: "keywords_analytics", title: "キーワード分析", icon: <BarChart2 size={16} /> },
+  { id: "plans", title: "プラン管理・上限", icon: <Crown size={16} /> },
   { id: "tips", title: "便利な機能", icon: <Zap size={16} /> },
   { id: "faq", title: "よくある質問", icon: <HelpCircle size={16} /> },
 ];
@@ -544,6 +548,180 @@ export default function Manual() {
 
             <SubTitle>自動収集スケジュール</SubTitle>
             <p className="text-sm text-slate-600">設定画面で「自動収集を有効にする」をONにして実行時刻を設定すると、毎日その時刻にアクティブなキーワードを自動収集します。</p>
+          </section>
+
+          {/* ========== AI機能 ========== */}
+          <section>
+            <SectionTitle id="ai" icon={<Brain size={20} />} title="AI機能（企業分析・メール生成）" />
+            <InfoBox color="amber">
+              この機能は <strong>OpenAI APIキー</strong>（GPT-4o-mini）が必要です。設定画面の「OpenAI API設定」で入力・保存してください。
+            </InfoBox>
+
+            <SubTitle>AI企業分析</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              企業のWebサイトを自動スクレイピングし、AIが<strong>事業内容・顧客層・強み・サービス・価格帯</strong>を分析・要約します。
+            </p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>候補企業一覧から企業名をクリックして<strong>企業詳細ページ</strong>を開く</Step>
+              <Step number={2}>「<strong>AIサマリー</strong>」タブを選択</Step>
+              <Step number={3}>「<strong>AI分析を実行</strong>」ボタンをクリック（初回のみ数秒かかります）</Step>
+              <Step number={4}>事業内容・顧客層・強み・サービス・価格帯の分析結果が表示される</Step>
+            </div>
+            <InfoBox color="blue">
+              分析結果はDBに保存されるため、2回目以降は即時表示されます。再分析したい場合は「再分析」ボタンをクリックしてください。
+            </InfoBox>
+            <Table
+              headers={["分析項目", "内容"]}
+              rows={[
+                ["事業内容", "企業が何をしているかの要約"],
+                ["顧客層", "ターゲット顧客・業界・規模感"],
+                ["強み", "競合に対する差別化ポイント"],
+                ["サービス", "具体的なサービス・商品の一覧"],
+                ["価格帯", "料金体系・価格感の情報"],
+              ]}
+            />
+
+            <SubTitle>AIアウトリーチメール生成</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              AI分析結果をもとに、<strong>件名・本文を自動生成</strong>します。パーソナライズされた営業メールを数秒で作成できます。
+            </p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>企業詳細ページの「AIサマリー」タブを開く（先にAI分析を実行しておく）</Step>
+              <Step number={2}>「<strong>アウトリーチメール生成</strong>」セクションでトーンを選択</Step>
+              <Step number={3}>必要に応じて「追加指示」欄に自由記述でカスタマイズ指示を入力</Step>
+              <Step number={4}>「<strong>メールを生成</strong>」をクリック → 件名・本文が自動生成される</Step>
+              <Step number={5}>本文を直接編集して調整 → <strong>「コピー」</strong> ボタンでクリップボードに貼り付け</Step>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Mail size={14} className="text-blue-600" />
+                  <p className="text-xs font-semibold text-blue-700">フォーマル</p>
+                </div>
+                <p className="text-xs text-blue-600">ビジネスライクで丁寧な文体。初回コンタクトや格式あるターゲット向け。</p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles size={14} className="text-emerald-600" />
+                  <p className="text-xs font-semibold text-emerald-700">カジュアル</p>
+                </div>
+                <p className="text-xs text-emerald-600">親しみやすく話しかけるような文体。スタートアップや中小企業向け。</p>
+              </div>
+            </div>
+            <InfoBox color="blue">
+              <strong>プランの月次AI分析回数上限</strong>に達すると生成できなくなります。使用量は設定画面のプログレスバーで確認できます。
+            </InfoBox>
+          </section>
+
+          {/* ========== キーワード分析 ========== */}
+          <section>
+            <SectionTitle id="keywords_analytics" icon={<BarChart2 size={20} />} title="キーワード分析" />
+            <p className="text-slate-600 mb-4">
+              どのキーワードが収集効率が高いか・低いかを可視化します。無駄なキーワードの削除や、効果的なキーワードの強化に活用できます。
+            </p>
+
+            <SubTitle>分析タブの開き方</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>サイドバーの <strong>「検索条件管理」</strong> を開く</Step>
+              <Step number={2}>画面上部の <strong>「分析」</strong> タブをクリック</Step>
+            </div>
+
+            <SubTitle>分析指標の見方</SubTitle>
+            <Table
+              headers={["指標", "説明", "目安"]}
+              rows={[
+                ["総獲得企業数", "そのキーワードで収集した企業の合計", "多いほど収集効率が高い"],
+                ["成功率", "収集試行のうち実際に企業が取得できた割合", "50%以上が目安"],
+                ["重複率", "収集した中ですでに登録済みだった企業の割合", "高いと新規開拓効率が低下"],
+                ["拒否率", "収集した中でまとめサイト等として除外された割合", "低いほど精度が高い"],
+              ]}
+            />
+
+            <SubTitle>効率バッジ</SubTitle>
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Badge color="bg-emerald-100 text-emerald-800">高効率</Badge>
+              <Badge color="bg-amber-100 text-amber-800">中効率</Badge>
+              <Badge color="bg-red-100 text-red-800">低効率</Badge>
+            </div>
+            <p className="text-sm text-slate-600">成功率と獲得数をもとに自動でバッジが付与されます。<strong>「低効率」</strong>のキーワードはキーワード見直しの目安にしてください。</p>
+
+            <SubTitle>棒グラフの見方</SubTitle>
+            <p className="text-sm text-slate-600">分析タブ上部の棒グラフで、キーワードごとの獲得企業数を一目で比較できます。収集数が著しく低いキーワードは検索語句を変更するか、地域・除外キーワードを調整してみてください。</p>
+          </section>
+
+          {/* ========== プラン管理・上限 ========== */}
+          <section>
+            <SectionTitle id="plans" icon={<Crown size={20} />} title="プラン管理・上限" />
+            <p className="text-slate-600 mb-4">
+              LeadHiveは組織ごとにプランを割り当て、利用できる機能・件数を管理します。
+            </p>
+
+            <SubTitle>プラン一覧</SubTitle>
+            <div className="overflow-x-auto mb-4">
+              <table className="w-full text-sm border-collapse min-w-[420px]">
+                <thead>
+                  <tr className="bg-slate-100">
+                    <th className="text-left px-3 py-2 border border-slate-200 font-semibold text-slate-700">プラン</th>
+                    <th className="text-center px-3 py-2 border border-slate-200 font-semibold text-slate-700">月額</th>
+                    <th className="text-center px-3 py-2 border border-slate-200 font-semibold text-slate-700">メンバー</th>
+                    <th className="text-center px-3 py-2 border border-slate-200 font-semibold text-slate-700">企業数</th>
+                    <th className="text-center px-3 py-2 border border-slate-200 font-semibold text-slate-700">AI分析/月</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { name: "フリー", price: "¥0", members: "1名", companies: "200件", ai: "3回" },
+                    { name: "スターター", price: "¥4,980", members: "3名", companies: "1,000件", ai: "20回" },
+                    { name: "プロ", price: "¥14,800", members: "10名", companies: "5,000件", ai: "100回" },
+                    { name: "エンタープライズ", price: "要相談", members: "無制限", companies: "無制限", ai: "無制限" },
+                  ].map((p, i) => (
+                    <tr key={p.name} className={`border-t border-slate-100 ${i === 3 ? "bg-blue-50" : "even:bg-slate-50"}`}>
+                      <td className="px-3 py-2 border border-slate-200 font-semibold text-slate-700">{p.name}</td>
+                      <td className="px-3 py-2 border border-slate-200 text-center text-slate-600">{p.price}</td>
+                      <td className="px-3 py-2 border border-slate-200 text-center text-slate-600">{p.members}</td>
+                      <td className="px-3 py-2 border border-slate-200 text-center text-slate-600">{p.companies}</td>
+                      <td className="px-3 py-2 border border-slate-200 text-center text-slate-600">{p.ai}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <SubTitle>使用量の確認</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">設定画面の「プラン・使用量」セクションで現在の使用状況をプログレスバーで確認できます。</p>
+            <div className="grid grid-cols-2 gap-2">
+              {["メンバー数", "企業数（登録合計）", "AI分析回数（今月）", "プロジェクト数"].map(item => (
+                <div key={item} className="flex items-start gap-1.5 text-sm text-slate-700">
+                  <span className="text-blue-500 mt-0.5 flex-shrink-0">✓</span>
+                  {item}
+                </div>
+              ))}
+            </div>
+
+            <SubTitle>上限に達したとき</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">プランの上限を超える操作を行うと、画面中央に<strong>アップグレードモーダル</strong>が表示されます。</p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+              <Crown size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800">
+                <p className="font-semibold mb-1">モーダルの内容</p>
+                <ul className="space-y-1 text-xs">
+                  <li>• 何の上限に達したかのエラーメッセージ</li>
+                  <li>• フリー→スターター→プロのプラン比較表</li>
+                  <li>• 管理者：「プラン管理へ」ボタン（/admin/plansに遷移）</li>
+                  <li>• メンバー：「管理者にご相談ください」案内</li>
+                </ul>
+              </div>
+            </div>
+
+            <SubTitle>プランの変更（管理者のみ）</SubTitle>
+            <div className="space-y-2">
+              <Step number={1}>サイドバー下部の <strong>「プラン管理」</strong>（管理者のみ表示）を開く</Step>
+              <Step number={2}>変更したいプランの「割り当て」ボタンをクリック</Step>
+              <Step number={3}>組織のプランが即時変更される</Step>
+            </div>
+            <InfoBox color="blue">
+              ダッシュボード右上にも現在のプラン名がバッジで表示されます。
+            </InfoBox>
           </section>
 
           {/* ========== 便利な機能 ========== */}
