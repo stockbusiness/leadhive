@@ -14,6 +14,7 @@ const EMPTY_PLAN: Omit<PlanData, "id" | "created_at" | "updated_at"> = {
   max_master_db_imports: null,
   max_csv_export: null,
   api_daily_limit: null,
+  stripe_price_id: null,
   is_active: true,
 };
 
@@ -51,6 +52,7 @@ function PlanModal({
           max_master_db_imports: plan.max_master_db_imports ?? null,
           max_csv_export: plan.max_csv_export ?? null,
           api_daily_limit: plan.api_daily_limit ?? null,
+          stripe_price_id: plan.stripe_price_id ?? null,
           is_active: plan.is_active ?? true,
         }
       : { ...EMPTY_PLAN }
@@ -154,6 +156,21 @@ function PlanModal({
               {limitField("マスターDBインポート/月（0=不可）", "max_master_db_imports")}
               {limitField("CSVエクスポート行数上限（0=不可）", "max_csv_export")}
               {limitField("API日次上限（Google）", "api_daily_limit")}
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Stripe 連携</p>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Stripe Price ID</label>
+              <input
+                type="text"
+                value={form.stripe_price_id || ""}
+                onChange={(e) => setForm((f) => ({ ...f, stripe_price_id: e.target.value || null }))}
+                placeholder="price_1AbcDef... （空欄 = Stripe連携なし）"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Stripeダッシュボードの「Products → Price」で確認できます</p>
             </div>
           </div>
 

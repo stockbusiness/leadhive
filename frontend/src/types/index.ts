@@ -204,6 +204,7 @@ export interface PlanData {
   max_master_db_imports: number | null;
   max_csv_export: number | null;
   api_daily_limit: number | null;
+  stripe_price_id: string | null;
   is_active: boolean;
   created_at: string | null;
   updated_at: string | null;

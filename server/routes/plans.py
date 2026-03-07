@@ -63,6 +63,7 @@ class PlanBody(BaseModel):
     max_master_db_imports: Optional[int] = None
     max_csv_export: Optional[int] = None
     api_daily_limit: Optional[int] = None
+    stripe_price_id: Optional[str] = None
     is_active: bool = True
 
 
@@ -79,6 +80,7 @@ def plan_to_dict(plan: Plan) -> dict:
         "max_master_db_imports": plan.max_master_db_imports,
         "max_csv_export": plan.max_csv_export,
         "api_daily_limit": plan.api_daily_limit,
+        "stripe_price_id": plan.stripe_price_id,
         "is_active": plan.is_active,
         "created_at": plan.created_at.isoformat() if plan.created_at else None,
         "updated_at": plan.updated_at.isoformat() if plan.updated_at else None,

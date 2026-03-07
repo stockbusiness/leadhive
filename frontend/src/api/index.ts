@@ -279,6 +279,28 @@ export const api = {
       axios.get<{ organizations: OrgWithPlan[] }>("/api/plans/organizations").then(r => r.data),
   },
 
+  stripe: {
+    getSettings: () =>
+      axios.get<Record<string, string | boolean | null>>("/api/admin/stripe-settings").then(r => r.data),
+
+    updateSettings: (data: {
+      stripe_secret_key?: string;
+      stripe_publishable_key?: string;
+      stripe_webhook_secret?: string;
+      stripe_mode?: string;
+    }) => axios.put("/api/admin/stripe-settings", data).then(r => r.data),
+
+    testConnection: () =>
+      axios.post<{ success: boolean; account_id: string; display_name: string }>("/api/admin/stripe-settings/test").then(r => r.data),
+
+    createCheckout: (planId: number) =>
+      axios.post<{ url: string; session_id: string }>("/api/payments/checkout", {
+        plan_id: planId,
+        success_url: `${window.location.origin}/settings?upgrade=success`,
+        cancel_url: `${window.location.origin}/settings`,
+      }).then(r => r.data),
+  },
+
   auth: {
     me: () =>
       axios.get("/api/auth/me").then(r => r.data),

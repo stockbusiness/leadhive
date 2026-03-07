@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Crown, X, ArrowRight, MessageCircle } from "lucide-react";
+import { Crown, X, ArrowRight, MessageCircle, CreditCard, Loader2, ExternalLink } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { api } from "../../api";
+import type { PlanData } from "../../types";
 
 const PLAN_TABLE = [
   { name: "フリー", price: "¥0", members: "1名", projects: "1件", companies: "200件", ai: "3回/月" },
@@ -19,9 +22,34 @@ export default function PlanLimitModal({ message, onClose }: Props) {
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
 
-  const handleUpgrade = () => {
+  const [paidPlans, setPaidPlans] = useState<PlanData[]>([]);
+  const [checkoutLoading, setCheckoutLoading] = useState<number | null>(null);
+  const [checkoutError, setCheckoutError] = useState("");
+
+  useEffect(() => {
+    api.plans.list().then((data) => {
+      const paid = data.plans.filter(
+        (p) => p.is_active && p.price_monthly && p.price_monthly > 0 && p.stripe_price_id
+      );
+      setPaidPlans(paid);
+    }).catch(() => {});
+  }, []);
+
+  const handleUpgradeManual = () => {
     onClose();
     navigate("/admin/plans");
+  };
+
+  const handleStripeCheckout = async (planId: number) => {
+    setCheckoutLoading(planId);
+    setCheckoutError("");
+    try {
+      const { url } = await api.stripe.createCheckout(planId);
+      window.location.href = url;
+    } catch (e: any) {
+      setCheckoutError(e?.response?.data?.detail || "決済ページの作成に失敗しました");
+      setCheckoutLoading(null);
+    }
   };
 
   return (
@@ -88,21 +116,58 @@ export default function PlanLimitModal({ message, onClose }: Props) {
             </div>
           </div>
 
+          {checkoutError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">
+              {checkoutError}
+            </div>
+          )}
+
           {isAdmin ? (
-            <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-600 rounded-xl text-sm hover:bg-slate-50 transition-colors"
-              >
-                閉じる
-              </button>
-              <button
-                onClick={handleUpgrade}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:from-amber-600 hover:to-orange-600 transition-colors"
-              >
-                プラン管理へ
-                <ArrowRight size={15} />
-              </button>
+            <div className="space-y-3">
+              {paidPlans.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Stripeで決済</p>
+                  <div className="space-y-2">
+                    {paidPlans.map((plan) => (
+                      <button
+                        key={plan.id}
+                        onClick={() => handleStripeCheckout(plan.id)}
+                        disabled={checkoutLoading !== null}
+                        className="w-full flex items-center justify-between bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-4 py-3 rounded-xl text-sm font-medium hover:from-violet-700 hover:to-indigo-700 disabled:opacity-60 transition-all"
+                      >
+                        <div className="flex items-center gap-2">
+                          <CreditCard size={16} />
+                          <span>{plan.name}</span>
+                          <span className="text-violet-200 text-xs">
+                            ¥{(plan.price_monthly || 0).toLocaleString()}/月
+                          </span>
+                        </div>
+                        {checkoutLoading === plan.id ? (
+                          <Loader2 size={15} className="animate-spin" />
+                        ) : (
+                          <ExternalLink size={14} className="text-violet-200" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-600 rounded-xl text-sm hover:bg-slate-50 transition-colors"
+                >
+                  閉じる
+                </button>
+                <button
+                  onClick={handleUpgradeManual}
+                  className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:from-amber-600 hover:to-orange-600 transition-colors"
+                >
+                  プラン管理へ
+                  <ArrowRight size={15} />
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">

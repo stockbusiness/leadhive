@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper } from "lucide-react";
 import { api } from "../api";
 import type { PlanData, PlanUsage } from "../types";
 
@@ -136,8 +137,20 @@ function PlanCurrentSection() {
 }
 
 export default function Settings() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [upgradeSuccess, setUpgradeSuccess] = useState(searchParams.get("upgrade") === "success");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<MessageState | null>(null);
+
+  useEffect(() => {
+    if (upgradeSuccess) {
+      const t = setTimeout(() => {
+        setUpgradeSuccess(false);
+        setSearchParams({}, { replace: true });
+      }, 8000);
+      return () => clearTimeout(t);
+    }
+  }, [upgradeSuccess, setSearchParams]);
 
   const [apiKey, setApiKey] = useState("");
   const [cx, setCx] = useState("");
@@ -283,6 +296,19 @@ export default function Settings() {
   return (
     <div className="p-6 space-y-6 max-w-2xl">
       <h2 className="text-2xl font-bold text-slate-800">設定</h2>
+
+      {upgradeSuccess && (
+        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-300 rounded-xl px-5 py-4">
+          <PartyPopper size={20} className="text-emerald-600 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-emerald-800">アップグレード完了！</p>
+            <p className="text-sm text-emerald-600">プランが変更されました。新しい機能をお楽しみください。</p>
+          </div>
+          <button onClick={() => { setUpgradeSuccess(false); setSearchParams({}, { replace: true }); }} className="ml-auto text-emerald-400 hover:text-emerald-600">
+            <XCircle size={18} />
+          </button>
+        </div>
+      )}
 
       <PlanCurrentSection />
 

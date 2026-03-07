@@ -18,6 +18,7 @@ class Plan(Base):
     max_master_db_imports = Column(Integer, nullable=True)
     max_csv_export = Column(Integer, nullable=True)
     api_daily_limit = Column(Integer, nullable=True)
+    stripe_price_id = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -257,3 +258,11 @@ class ActivityLog(Base):
     action_type = Column(String(50), nullable=False)
     description = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class SystemSettings(Base):
+    __tablename__ = "system_settings"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(Text, nullable=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

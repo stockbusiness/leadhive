@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates, projects, master
-from server.routes import auth, users, plans
+from server.routes import auth, users, plans, payments
 from server.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -82,6 +82,7 @@ def run_db_migrations():
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS master_db_import_month VARCHAR(7)",
             "ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_master_db_imports INTEGER",
             "ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_csv_export INTEGER",
+            "ALTER TABLE plans ADD COLUMN IF NOT EXISTS stripe_price_id VARCHAR(255)",
         ]:
             conn.execute(sa.text(stmt))
         conn.commit()
@@ -132,6 +133,7 @@ app.include_router(templates.router)
 app.include_router(projects.router)
 app.include_router(master.router)
 app.include_router(plans.router)
+app.include_router(payments.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 
