@@ -14,6 +14,7 @@ from server.services.scraper import scrape_company_info
 from server.services.categorizer import categorize_company, detect_flags
 from server.schemas import company_to_dict
 from server.services.cache import cache_invalidate
+from server.services.collector import _upsert_company_master
 from server.auth import get_current_user
 
 
@@ -134,6 +135,21 @@ def create_company(
     db.commit()
     db.refresh(company)
     cache_invalidate("dashboard")
+
+    domain = _normalize_domain(company.domain or company.website_url or "")
+    if domain:
+        _upsert_company_master(db, {
+            "company_name": company.company_name,
+            "website_url": company.website_url,
+            "phone": company.phone,
+            "email": company.email,
+            "prefecture": company.prefecture,
+            "city": company.city,
+            "category_main": company.category_main,
+            "score_total": company.score_total,
+            "score_rank": company.score_rank,
+        }, domain, source="manual")
+
     return {"company": company_to_dict(company, db)}
 
 
@@ -560,6 +576,7 @@ async def import_csv(
     added = 0
     skipped = 0
     errors = []
+    master_db_entries = []
 
     COLUMN_MAP = {
         "name": "company_name",
@@ -636,11 +653,29 @@ async def import_csv(
             db.add(company)
             db.flush()
             added += 1
+            master_db_entries.append({
+                "domain": domain_match,
+                "data": {
+                    "company_name": mapped.get("company_name", ""),
+                    "website_url": url,
+                    "email": mapped.get("email", ""),
+                    "phone": mapped.get("phone", ""),
+                    "prefecture": mapped.get("prefecture", ""),
+                    "city": mapped.get("city", ""),
+                    "category_main": mapped.get("category_main", ""),
+                    "score_rank": rank_val,
+                },
+            })
         except Exception as e:
             errors.append(f"行{i}: {str(e)}")
 
     db.commit()
     cache_invalidate("dashboard")
+
+    for entry in master_db_entries:
+        if entry["domain"]:
+            _upsert_company_master(db, entry["data"], entry["domain"], source="csv_import")
+
     return {
         "added": added,
         "skipped": skipped,
