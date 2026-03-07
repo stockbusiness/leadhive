@@ -43,6 +43,7 @@ const UserManagement = lazy(() => import("./pages/UserManagement"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const LandingPage = lazy(() => import("./pages/LandingPage"));
 
 function PageLoader() {
   return (
@@ -259,6 +260,7 @@ function App() {
     <AuthProvider>
       <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div></div>}>
         <Routes>
+          <Route path="/lp" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/accept-invite/:token" element={<AcceptInvite />} />
