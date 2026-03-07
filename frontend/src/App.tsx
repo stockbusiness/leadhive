@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -25,6 +25,7 @@ import {
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { api } from "./api";
+import PlanLimitModal from "./components/common/PlanLimitModal";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Companies = lazy(() => import("./pages/Companies"));
@@ -137,8 +138,18 @@ function AppContent() {
   const navigate = useNavigate();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [planLimitMessage, setPlanLimitMessage] = useState<string | null>(null);
 
   const closeSidebar = () => setSidebarOpen(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ message: string }>).detail;
+      setPlanLimitMessage(detail?.message || "現在のプランの上限に達しました。");
+    };
+    window.addEventListener("plan-limit-exceeded", handler);
+    return () => window.removeEventListener("plan-limit-exceeded", handler);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -285,6 +296,12 @@ function AppContent() {
       </div>
 
       {showProfileModal && <ProfileModal onClose={() => setShowProfileModal(false)} />}
+      {planLimitMessage && (
+        <PlanLimitModal
+          message={planLimitMessage}
+          onClose={() => setPlanLimitMessage(null)}
+        />
+      )}
     </div>
   );
 }

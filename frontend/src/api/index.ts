@@ -5,6 +5,17 @@ import type {
   PlanData, PlanUsage, OrgWithPlan, KeywordAnalytics, KeywordAnalyticsSummary,
 } from "../types";
 
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 402) {
+      const message = error.response.data?.detail || "現在のプランの上限に達しました。";
+      window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message } }));
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const api = {
   dashboard: {
     get: () => axios.get<DashboardData>("/api/dashboard").then(r => r.data),

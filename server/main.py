@@ -14,8 +14,56 @@ from server.routes import auth, users, plans
 from server.services.scheduler import start_scheduler, stop_scheduler
 
 
+DEFAULT_PLANS = [
+    {
+        "name": "フリー",
+        "description": "個人利用・お試し向けの無料プラン",
+        "price_monthly": 0,
+        "max_members": 1,
+        "max_projects": 1,
+        "max_companies": 200,
+        "max_ai_analyses_monthly": 3,
+        "api_daily_limit": None,
+        "is_active": True,
+    },
+    {
+        "name": "スターター",
+        "description": "小規模チーム・本格利用開始向けプラン",
+        "price_monthly": 4980,
+        "max_members": 3,
+        "max_projects": 3,
+        "max_companies": 1000,
+        "max_ai_analyses_monthly": 20,
+        "api_daily_limit": None,
+        "is_active": True,
+    },
+    {
+        "name": "プロ",
+        "description": "成長中のチーム・ヘビーユーザー向けプラン",
+        "price_monthly": 14800,
+        "max_members": 10,
+        "max_projects": 10,
+        "max_companies": 5000,
+        "max_ai_analyses_monthly": 100,
+        "api_daily_limit": None,
+        "is_active": True,
+    },
+    {
+        "name": "エンタープライズ",
+        "description": "カスタム契約・大規模チーム向けプラン",
+        "price_monthly": None,
+        "max_members": None,
+        "max_projects": None,
+        "max_companies": None,
+        "max_ai_analyses_monthly": None,
+        "api_daily_limit": None,
+        "is_active": True,
+    },
+]
+
+
 def run_db_migrations():
-    from server.database import engine, Base
+    from server.database import engine, Base, SessionLocal
     from server import models  # noqa: F401 — ensure all models are registered
     Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
@@ -23,6 +71,16 @@ def run_db_migrations():
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan_id INTEGER REFERENCES plans(id)"
         ))
         conn.commit()
+
+    db = SessionLocal()
+    try:
+        from server.models import Plan
+        if db.query(Plan).count() == 0:
+            for p in DEFAULT_PLANS:
+                db.add(Plan(**p))
+            db.commit()
+    finally:
+        db.close()
 
 
 @asynccontextmanager
