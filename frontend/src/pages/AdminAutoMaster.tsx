@@ -13,7 +13,8 @@ interface Status {
   keyword_idx: number;
   current_keyword: string;
   keywords: string[];
-  max_pages: number;
+  page_idx: number;
+  max_companies: number;
   max_enrich: number;
   schedule_hour: number;
   last_run: string;
@@ -49,11 +50,11 @@ export default function AdminAutoMaster() {
   const [runResult, setRunResult] = useState<any>(null);
   const [runError, setRunError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const runSnapshotRef = useRef<{ pref_idx: number; keyword_idx: number; last_run: string } | null>(null);
+  const runSnapshotRef = useRef<{ pref_idx: number; keyword_idx: number; page_idx: number; last_run: string } | null>(null);
 
   const [form, setForm] = useState({
     enabled: false,
-    max_pages: 5,
+    max_companies: 1000,
     max_enrich: 10,
     schedule_hour: 3,
   });
@@ -65,7 +66,7 @@ export default function AdminAutoMaster() {
       setStatus(s);
       setForm({
         enabled: s.enabled,
-        max_pages: s.max_pages,
+        max_companies: s.max_companies,
         max_enrich: s.max_enrich,
         schedule_hour: s.schedule_hour,
       });
@@ -82,7 +83,7 @@ export default function AdminAutoMaster() {
     setSaveMsg("");
     axios.post("/api/admin/auto-master/settings", {
       auto_master_enabled: form.enabled ? "true" : "false",
-      auto_master_max_pages: String(form.max_pages),
+      auto_master_max_companies: String(form.max_companies),
       auto_master_max_enrich: String(form.max_enrich),
       auto_master_schedule_hour: String(form.schedule_hour),
     }).then(() => {
@@ -118,7 +119,7 @@ export default function AdminAutoMaster() {
     stopPolling();
 
     const snapshot = status
-      ? { pref_idx: status.pref_idx, keyword_idx: status.keyword_idx, last_run: status.last_run }
+      ? { pref_idx: status.pref_idx, keyword_idx: status.keyword_idx, page_idx: status.page_idx, last_run: status.last_run }
       : null;
     runSnapshotRef.current = snapshot;
 
@@ -131,11 +132,19 @@ export default function AdminAutoMaster() {
           const s: Status = r.data;
           const snap = runSnapshotRef.current;
           const done = snap
-            ? (s.pref_idx !== snap.pref_idx || s.keyword_idx !== snap.keyword_idx || s.last_run !== snap.last_run)
+            ? (s.pref_idx !== snap.pref_idx || s.keyword_idx !== snap.keyword_idx ||
+               s.page_idx !== snap.page_idx || s.last_run !== snap.last_run)
             : false;
           if (done || elapsed >= 300) {
             stopPolling();
-            setRunResult({ prefecture: snap ? `${s.prefectures[snap.pref_idx] ?? ""}` : "", fetched: 0, saved: s.last_count, enriched: 0 });
+            setRunResult({
+              prefecture: snap ? `${s.prefectures[snap.pref_idx] ?? ""}` : "",
+              fetched: 0,
+              saved: s.last_count,
+              skipped: 0,
+              enriched: 0,
+              next: `${s.current_prefecture}・${s.current_keyword}（p${s.page_idx}〜）`,
+            });
             setProgressMsg("");
             setRunning(false);
             setStatus(s);
@@ -230,15 +239,15 @@ export default function AdminAutoMaster() {
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">
-              最大取得ページ数 <span className="text-slate-400">（1ページ=最大1,000社）</span>
+              1回の収集件数 <span className="text-slate-400">（目標新規保存数に達したら停止）</span>
             </label>
             <select
-              value={form.max_pages}
-              onChange={(e) => setForm((f) => ({ ...f, max_pages: Number(e.target.value) }))}
+              value={form.max_companies}
+              onChange={(e) => setForm((f) => ({ ...f, max_companies: Number(e.target.value) }))}
               className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
             >
-              {[1, 2, 5, 10, 20, 50].map((n) => (
-                <option key={n} value={n}>{n}ページ（最大{(n * 1000).toLocaleString()}社）</option>
+              {[200, 500, 1000, 2000, 5000, 10000].map((n) => (
+                <option key={n} value={n}>{n.toLocaleString()}件</option>
               ))}
             </select>
           </div>
@@ -277,8 +286,13 @@ export default function AdminAutoMaster() {
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
         <h3 className="text-base font-semibold text-slate-700">都道府県の巡回状況</h3>
+        <div className="flex flex-wrap gap-3 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">
+          <span>▶ 次回収集: <strong className="text-blue-700">{status?.current_prefecture} / {status?.current_keyword}</strong></span>
+          <span className="text-slate-400">|</span>
+          <span>開始ページ: <strong className="text-indigo-600">p{status?.page_idx ?? 1}</strong></span>
+        </div>
         <p className="text-xs text-slate-500">
-          赤枠が「次回処理する都道府県」です。実行するたびに1つずつ進みます（47都道府県で一周）。
+          目標件数（新規保存）に達したら同じ都道府県・キーワードの続きページから再開。全ページ収集完了でキーワードが次へ進みます。
         </p>
         <div className="flex flex-wrap gap-1.5">
           {status?.prefectures.map((pref, idx) => {
@@ -319,9 +333,9 @@ export default function AdminAutoMaster() {
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
         <h3 className="text-base font-semibold text-slate-700">今すぐ実行</h3>
         <p className="text-xs text-slate-500">
-          現在の対象（{status?.current_prefecture} / {status?.current_keyword}）の収集を手動で開始します。
-          gBizINFOから取得 → URL検索 → スクレイピング → スコア・業種分類の順に処理します。<br />
-          実行のたびに都道府県とキーワードが1つずつ進みます（47都道府県 × {status?.keywords?.length ?? 5}種類を網羅）。
+          現在の対象（{status?.current_prefecture} / {status?.current_keyword} p{status?.page_idx ?? 1}〜）を手動で収集します。<br />
+          目標件数の新規保存が完了したら停止し、次回は続きのページから再開します。
+          全ページを収集し終えると次のキーワードへ進みます（47都道府県 × {status?.keywords?.length ?? 5}種類を網羅）。
         </p>
 
         <div className="flex items-center gap-3">
@@ -396,6 +410,12 @@ export default function AdminAutoMaster() {
                 </div>
               ))}
             </div>
+            {runResult.next && (
+              <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                <span className="text-blue-500">▶</span>
+                次回の収集開始位置: <strong className="text-blue-700">{runResult.next}</strong>
+              </p>
+            )}
           </div>
         )}
       </div>

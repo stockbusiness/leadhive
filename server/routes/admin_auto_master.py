@@ -18,7 +18,8 @@ SETTINGS_KEYS = [
     "auto_master_enabled",
     "auto_master_pref_idx",
     "auto_master_keyword_idx",
-    "auto_master_max_pages",
+    "auto_master_page_idx",
+    "auto_master_max_companies",
     "auto_master_max_enrich",
     "auto_master_schedule_hour",
     "auto_master_last_run",
@@ -31,7 +32,8 @@ DEFAULTS = {
     "auto_master_enabled": "false",
     "auto_master_pref_idx": "0",
     "auto_master_keyword_idx": "0",
-    "auto_master_max_pages": "5",
+    "auto_master_page_idx": "1",
+    "auto_master_max_companies": "1000",
     "auto_master_max_enrich": "10",
     "auto_master_schedule_hour": "3",
     "auto_master_last_run": "",
@@ -80,6 +82,7 @@ def get_status(
     master_count = db.query(CompanyMaster).count()
 
     keyword_idx = int(settings.get("auto_master_keyword_idx", "0")) % len(AUTO_MASTER_KEYWORDS)
+    page_idx = max(1, int(settings.get("auto_master_page_idx", "1")))
 
     import os
     has_token = bool(
@@ -97,7 +100,8 @@ def get_status(
         "keyword_idx": keyword_idx,
         "current_keyword": AUTO_MASTER_KEYWORDS[keyword_idx],
         "keywords": AUTO_MASTER_KEYWORDS,
-        "max_pages": int(settings.get("auto_master_max_pages", "5")),
+        "page_idx": page_idx,
+        "max_companies": int(settings.get("auto_master_max_companies", "1000")),
         "max_enrich": int(settings.get("auto_master_max_enrich", "10")),
         "schedule_hour": int(settings.get("auto_master_schedule_hour", "3")),
         "last_run": settings.get("auto_master_last_run", ""),
@@ -115,7 +119,7 @@ def update_settings(
     db: Session = Depends(get_db),
 ):
     _require_system_admin(current_user)
-    allowed = {"auto_master_enabled", "auto_master_max_pages", "auto_master_max_enrich", "auto_master_schedule_hour"}
+    allowed = {"auto_master_enabled", "auto_master_max_companies", "auto_master_max_enrich", "auto_master_schedule_hour"}
     for key, val in data.items():
         if key in allowed:
             _set_key(db, key, str(val))
@@ -130,6 +134,7 @@ def reset_progress(
     _require_system_admin(current_user)
     _set_key(db, "auto_master_pref_idx", "0")
     _set_key(db, "auto_master_keyword_idx", "0")
+    _set_key(db, "auto_master_page_idx", "1")
     return {"ok": True}
 
 
@@ -143,6 +148,7 @@ def clear_master_data(
     db.commit()
     _set_key(db, "auto_master_pref_idx", "0")
     _set_key(db, "auto_master_keyword_idx", "0")
+    _set_key(db, "auto_master_page_idx", "1")
     _set_key(db, "auto_master_last_count", "0")
     _set_key(db, "auto_master_total_collected", "0")
     _set_key(db, "auto_master_last_run", "")
