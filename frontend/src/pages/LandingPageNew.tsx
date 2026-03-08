@@ -443,15 +443,18 @@ export default function LandingPageNew() {
             <span className="font-bold text-white text-base">LeadHive</span>
             <span className="text-slate-600 text-sm">営業先リスト自動化ツール</span>
           </div>
-          <div className="flex items-center gap-6 text-sm text-slate-500">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500 justify-center">
             <Link to="/roadmap" className="hover:text-white transition-colors flex items-center gap-1">
               <Map size={13} />
               ロードマップ
             </Link>
+            <Link to="/company" className="hover:text-white transition-colors">会社概要</Link>
+            <Link to="/privacy-policy" className="hover:text-white transition-colors">プライバシーポリシー</Link>
+            <Link to="/terms" className="hover:text-white transition-colors">利用規約</Link>
             <Link to="/login" className="hover:text-white transition-colors">ログイン</Link>
             <Link to="/register" className="hover:text-white transition-colors">新規登録</Link>
           </div>
-          <p className="text-slate-700 text-xs">© 2026 LeadHive. All rights reserved.</p>
+          <p className="text-slate-700 text-xs">© 2026 LeadHive / COOLWORKS株式会社</p>
         </div>
       </footer>
     </div>
