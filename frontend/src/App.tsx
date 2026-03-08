@@ -62,6 +62,7 @@ const AdminLogs = lazy(() => import("./pages/AdminLogs"));
 const AdminAnnouncements = lazy(() => import("./pages/AdminAnnouncements"));
 const AdminBilling = lazy(() => import("./pages/AdminBilling"));
 const AdminSmtp = lazy(() => import("./pages/AdminSmtp"));
+const AdminEmailTemplates = lazy(() => import("./pages/AdminEmailTemplates"));
 const AdminFeatures = lazy(() => import("./pages/AdminFeatures"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -261,6 +262,7 @@ function AppContent() {
                 <SidebarLink to="/admin/billing" icon={<CreditCard size={18} />} label="請求・履歴" onClick={closeSidebar} />
                 <SidebarLink to="/admin/stripe" icon={<CreditCard size={18} />} label="Stripe設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/smtp" icon={<Mail size={18} />} label="SMTP設定" onClick={closeSidebar} />
+                <SidebarLink to="/admin/email-templates" icon={<Mail size={18} />} label="メールテンプレート" onClick={closeSidebar} />
                 <SidebarLink to="/admin/features" icon={<Sliders size={18} />} label="機能フラグ" onClick={closeSidebar} />
                 <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/logs" icon={<ScrollText size={18} />} label="システムログ" onClick={closeSidebar} />
@@ -361,6 +363,7 @@ function AppContent() {
               <Route path="/admin/announcements" element={<AdminAnnouncements />} />
               <Route path="/admin/billing" element={<AdminBilling />} />
               <Route path="/admin/smtp" element={<AdminSmtp />} />
+              <Route path="/admin/email-templates" element={<AdminEmailTemplates />} />
               <Route path="/admin/features" element={<AdminFeatures />} />
               <Route path="/admin/logs" element={<AdminLogs />} />
               <Route path="/admin/plans" element={<AdminPlans />} />

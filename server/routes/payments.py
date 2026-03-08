@@ -853,6 +853,105 @@ def test_smtp(
 
 
 # ──────────────────────────────────────────────────────────────
+#  Admin: Email Templates
+# ──────────────────────────────────────────────────────────────
+from server.routes.auth import (
+    DEFAULT_VERIFICATION_HTML,
+    DEFAULT_VERIFICATION_TEXT,
+    DEFAULT_VERIFICATION_SUBJECT,
+)
+
+EMAIL_TEMPLATES = {
+    "verification": {
+        "label": "メール認証",
+        "description": "新規登録時にユーザーへ送信されるメールアドレス確認メール",
+        "keys": {
+            "subject": "email_tpl_verification_subject",
+            "html": "email_tpl_verification_html",
+            "text": "email_tpl_verification_text",
+        },
+        "defaults": {
+            "subject": DEFAULT_VERIFICATION_SUBJECT,
+            "html": DEFAULT_VERIFICATION_HTML,
+            "text": DEFAULT_VERIFICATION_TEXT,
+        },
+    }
+}
+
+TEMPLATE_VARS_HINT = [
+    {"var": "{{verify_url}}", "desc": "確認リンクURL"},
+    {"var": "{{user_email}}", "desc": "受信者のメールアドレス"},
+    {"var": "{{site_name}}", "desc": "サービス名（LeadHive）"},
+]
+
+
+@router.get("/api/admin/email-templates")
+def get_email_templates(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    result = {}
+    for tpl_id, tpl_meta in EMAIL_TEMPLATES.items():
+        fields = {}
+        for field, db_key in tpl_meta["keys"].items():
+            row = db.query(SystemSettings).filter(SystemSettings.key == db_key).first()
+            fields[field] = row.value if row and row.value else tpl_meta["defaults"][field]
+        result[tpl_id] = {
+            "label": tpl_meta["label"],
+            "description": tpl_meta["description"],
+            "fields": fields,
+            "defaults": tpl_meta["defaults"],
+            "vars": TEMPLATE_VARS_HINT,
+        }
+    return result
+
+
+class EmailTemplateBody(BaseModel):
+    subject: Optional[str] = None
+    html: Optional[str] = None
+    text: Optional[str] = None
+
+
+@router.put("/api/admin/email-templates/{template_id}")
+def save_email_template(
+    template_id: str,
+    body: EmailTemplateBody,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    if template_id not in EMAIL_TEMPLATES:
+        raise HTTPException(status_code=404, detail="テンプレートが見つかりません")
+    tpl_meta = EMAIL_TEMPLATES[template_id]
+    for field, db_key in tpl_meta["keys"].items():
+        val = getattr(body, field)
+        if val is not None:
+            row = db.query(SystemSettings).filter(SystemSettings.key == db_key).first()
+            if row:
+                row.value = val
+            else:
+                db.add(SystemSettings(key=db_key, value=val))
+    db.commit()
+    write_system_log(db, "email_template_update", current_user.email, "", template_id, "メールテンプレートを更新")
+    return {"message": "保存しました"}
+
+
+@router.delete("/api/admin/email-templates/{template_id}")
+def reset_email_template(
+    template_id: str,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    if template_id not in EMAIL_TEMPLATES:
+        raise HTTPException(status_code=404, detail="テンプレートが見つかりません")
+    tpl_meta = EMAIL_TEMPLATES[template_id]
+    for db_key in tpl_meta["keys"].values():
+        db.query(SystemSettings).filter(SystemSettings.key == db_key).delete()
+    db.commit()
+    write_system_log(db, "email_template_reset", current_user.email, "", template_id, "メールテンプレートをデフォルトに戻した")
+    return {"message": "デフォルトに戻しました"}
+
+
+# ──────────────────────────────────────────────────────────────
 #  Admin: Feature Flags
 # ──────────────────────────────────────────────────────────────
 FEATURE_FLAGS = [

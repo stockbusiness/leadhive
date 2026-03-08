@@ -90,38 +90,57 @@ def _create_verification_token(user_id: int, db: Session) -> str:
     return token_str
 
 
+DEFAULT_VERIFICATION_HTML = """<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
+  <div style="background:#1e3a5f;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center;">
+    <h1 style="color:#fff;margin:0;font-size:22px;">LeadHive</h1>
+    <p style="color:#93c5fd;margin:6px 0 0;font-size:13px;">営業先リスト自動化ツール</p>
+  </div>
+  <h2 style="color:#1e293b;font-size:18px;margin-bottom:8px;">メールアドレスの確認</h2>
+  <p style="color:#475569;font-size:14px;line-height:1.6;">
+    LeadHiveへのご登録ありがとうございます。<br>
+    以下のボタンをクリックしてメールアドレスを確認してください。
+  </p>
+  <div style="text-align:center;margin:28px 0;">
+    <a href="{{verify_url}}"
+       style="background:#2563eb;color:#fff;padding:14px 32px;border-radius:8px;
+              text-decoration:none;font-size:15px;font-weight:600;display:inline-block;">
+      メールアドレスを確認する
+    </a>
+  </div>
+  <p style="color:#94a3b8;font-size:12px;text-align:center;">
+    このリンクは24時間有効です。<br>
+    このメールに心当たりがない場合は無視してください。
+  </p>
+</div>"""
+
+DEFAULT_VERIFICATION_TEXT = "LeadHiveへのご登録ありがとうございます。\n以下のURLからメールアドレスを確認してください。\n{{verify_url}}\n（24時間有効）"
+DEFAULT_VERIFICATION_SUBJECT = "【LeadHive】メールアドレスの確認"
+
+
+def _get_tpl(db: Session, key: str, default: str) -> str:
+    from server.models import SystemSettings
+    row = db.query(SystemSettings).filter(SystemSettings.key == key).first()
+    return row.value if row and row.value else default
+
+
+def _render_tpl(template: str, vars: dict) -> str:
+    result = template
+    for k, v in vars.items():
+        result = result.replace("{{" + k + "}}", v)
+    return result
+
+
 def _send_verification_email(user_email: str, token_str: str, base_url: str, db: Session) -> bool:
     from server.services.mailer import get_system_smtp_settings, send_email
     smtp_cfg = get_system_smtp_settings(db)
     if not smtp_cfg.get("smtp_host"):
         return False
     verify_url = f"{base_url}/verify-email?token={token_str}"
-    html_body = f"""
-    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
-      <div style="background:#1e3a5f;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center;">
-        <h1 style="color:#fff;margin:0;font-size:22px;">LeadHive</h1>
-        <p style="color:#93c5fd;margin:6px 0 0;font-size:13px;">営業先リスト自動化ツール</p>
-      </div>
-      <h2 style="color:#1e293b;font-size:18px;margin-bottom:8px;">メールアドレスの確認</h2>
-      <p style="color:#475569;font-size:14px;line-height:1.6;">
-        LeadHiveへのご登録ありがとうございます。<br>
-        以下のボタンをクリックしてメールアドレスを確認してください。
-      </p>
-      <div style="text-align:center;margin:28px 0;">
-        <a href="{verify_url}"
-           style="background:#2563eb;color:#fff;padding:14px 32px;border-radius:8px;
-                  text-decoration:none;font-size:15px;font-weight:600;display:inline-block;">
-          メールアドレスを確認する
-        </a>
-      </div>
-      <p style="color:#94a3b8;font-size:12px;text-align:center;">
-        このリンクは24時間有効です。<br>
-        このメールに心当たりがない場合は無視してください。
-      </p>
-    </div>
-    """
-    text_body = f"LeadHiveへのご登録ありがとうございます。\n以下のURLからメールアドレスを確認してください。\n{verify_url}\n（24時間有効）"
-    ok, _ = send_email(user_email, "【LeadHive】メールアドレスの確認", html_body, smtp_cfg, text_body)
+    tpl_vars = {"verify_url": verify_url, "user_email": user_email, "site_name": "LeadHive"}
+    subject = _render_tpl(_get_tpl(db, "email_tpl_verification_subject", DEFAULT_VERIFICATION_SUBJECT), tpl_vars)
+    html_body = _render_tpl(_get_tpl(db, "email_tpl_verification_html", DEFAULT_VERIFICATION_HTML), tpl_vars)
+    text_body = _render_tpl(_get_tpl(db, "email_tpl_verification_text", DEFAULT_VERIFICATION_TEXT), tpl_vars)
+    ok, _ = send_email(user_email, subject, html_body, smtp_cfg, text_body)
     return ok
 
 

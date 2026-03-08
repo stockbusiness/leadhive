@@ -436,6 +436,14 @@ export const api = {
     test: () => axios.post("/api/admin/smtp-settings/test").then(r => r.data),
   },
 
+  adminEmailTemplates: {
+    list: () => axios.get("/api/admin/email-templates").then(r => r.data),
+    save: (id: string, data: { subject?: string; html?: string; text?: string }) =>
+      axios.put(`/api/admin/email-templates/${id}`, data).then(r => r.data),
+    reset: (id: string) =>
+      axios.delete(`/api/admin/email-templates/${id}`).then(r => r.data),
+  },
+
   adminFeatures: {
     get: () => axios.get<Record<string, boolean>>("/api/admin/feature-flags").then(r => r.data),
     save: (flags: Record<string, boolean>) => axios.put("/api/admin/feature-flags", { flags }).then(r => r.data),
