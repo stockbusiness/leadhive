@@ -293,20 +293,40 @@ def _run_auto_master_collect(job_id: str = None):
         enrich_count = 0
 
         for i, company in enumerate(all_companies):
-            if job_id:
+            if job_id and i % 50 == 0:
                 job_update(job_id, current=i + 1, total=total,
                            message=f"({i + 1}/{total}) {prefecture} — 「{company.get('name', '')}」を処理中...")
             try:
+                corp_num = company.get("corporate_number") or None
                 url = company.get("company_url", "") or ""
                 if not url and enrich_count < max_enrich:
                     from server.services.gbiz_collector import find_website_for_company
                     location = company.get("location", "") or ""
+                    enrich_count += 1
                     url = find_website_for_company(company["name"], location, db=db, org_id=None)
                     if url:
-                        enrich_count += 1
                         time.sleep(0.5)
 
+                loc = company.get("location", "") or ""
+                pref_name = ""
+                city_name = ""
+                for pref in PREFECTURES:
+                    if loc.startswith(pref):
+                        pref_name = pref
+                        city_name = loc[len(pref):].split("　")[0][:30]
+                        break
+
                 if not url:
+                    company_data = {
+                        "company_name": company.get("name", ""),
+                        "prefecture": pref_name or None,
+                        "city": city_name or None,
+                        "corporate_number": corp_num,
+                        "score_total": 0,
+                        "score_rank": "D",
+                    }
+                    _upsert_company_master(db, company_data, domain=None, source="auto_master", corporate_number=corp_num)
+                    saved += 1
                     continue
 
                 domain = normalize_domain(url)
@@ -317,13 +337,10 @@ def _run_auto_master_collect(job_id: str = None):
                 scraped["company_name"] = company.get("name", "")
                 scraped["website_url"] = url
                 scraped["domain"] = domain
+                scraped["corporate_number"] = corp_num
                 if not scraped.get("prefecture"):
-                    loc = company.get("location", "") or ""
-                    for pref in PREFECTURES:
-                        if loc.startswith(pref):
-                            scraped["prefecture"] = pref
-                            scraped["city"] = loc[len(pref):].split("　")[0][:30]
-                            break
+                    scraped["prefecture"] = pref_name or None
+                    scraped["city"] = city_name or None
 
                 full_text = scraped.get("full_text", "") or ""
                 cat_main, cat_sub = categorize_company(full_text)
@@ -333,9 +350,9 @@ def _run_auto_master_collect(job_id: str = None):
                 scraped["score_total"] = score
                 scraped["score_rank"] = rank
 
-                _upsert_company_master(db, scraped, domain, source="auto_master")
+                _upsert_company_master(db, scraped, domain, source="auto_master", corporate_number=corp_num)
                 saved += 1
-                if url and not company.get("company_url"):
+                if not company.get("company_url"):
                     enriched += 1
                 time.sleep(0.3)
             except Exception as e:

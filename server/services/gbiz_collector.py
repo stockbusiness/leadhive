@@ -45,7 +45,7 @@ def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: 
     if name_keyword:
         params["name"] = name_keyword
     if prefecture:
-        params["prefecture"] = prefecture
+        params["area"] = prefecture
 
     resp = requests.get(GBIZ_BASE_URL, headers=headers, params=params, timeout=15)
     if resp.status_code == 404:

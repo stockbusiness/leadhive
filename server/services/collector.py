@@ -33,17 +33,24 @@ def job_cleanup(job_id: str):
         _job_store.pop(job_id, None)
 
 
-def _upsert_company_master(db: Session, company_data: dict, domain: str, source: str = "unknown"):
+def _upsert_company_master(db: Session, company_data: dict, domain: str = None, source: str = "unknown", corporate_number: str = None):
     try:
         search_parts = [
             company_data.get("company_name") or "",
-            domain,
+            domain or "",
             company_data.get("category_main") or "",
             company_data.get("prefecture") or "",
         ]
         search_text = " ".join(p for p in search_parts if p).lower()
 
-        existing = db.query(CompanyMaster).filter(CompanyMaster.domain == domain).first()
+        corp_num = corporate_number or company_data.get("corporate_number") or None
+
+        existing = None
+        if domain:
+            existing = db.query(CompanyMaster).filter(CompanyMaster.domain == domain).first()
+        if not existing and corp_num:
+            existing = db.query(CompanyMaster).filter(CompanyMaster.corporate_number == corp_num).first()
+
         if existing:
             for field in ["company_name", "website_url", "contact_url", "phone", "email",
                           "prefecture", "city", "category_main", "category_sub",
@@ -53,11 +60,16 @@ def _upsert_company_master(db: Session, company_data: dict, domain: str, source:
                 val = company_data.get(field)
                 if val is not None:
                     setattr(existing, field, val)
+            if domain and not existing.domain:
+                existing.domain = domain
+            if corp_num and not existing.corporate_number:
+                existing.corporate_number = corp_num
             existing.search_text = search_text
             existing.last_scraped_at = datetime.utcnow()
         else:
             master_fields = {k: v for k, v in company_data.items() if hasattr(CompanyMaster, k)}
-            master_fields["domain"] = domain
+            master_fields["domain"] = domain or None
+            master_fields["corporate_number"] = corp_num
             master_fields["source"] = source
             master_fields["search_text"] = search_text
             master_fields["last_scraped_at"] = datetime.utcnow()
@@ -69,7 +81,7 @@ def _upsert_company_master(db: Session, company_data: dict, domain: str, source:
             db.add(CompanyMaster(**master_fields))
         db.commit()
     except Exception as e:
-        logger.warning(f"CompanyMaster upsert failed for {domain}: {e}")
+        logger.warning(f"CompanyMaster upsert failed for {domain or corp_num}: {e}")
         db.rollback()
 
 

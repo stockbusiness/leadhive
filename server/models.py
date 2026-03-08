@@ -154,7 +154,8 @@ class CompanyMaster(Base):
     __tablename__ = "company_master"
 
     id = Column(Integer, primary_key=True, index=True)
-    domain = Column(String(255), unique=True, nullable=False, index=True)
+    domain = Column(String(255), unique=True, nullable=True, index=True)
+    corporate_number = Column(String(14), unique=True, nullable=True, index=True)
     company_name = Column(String(255))
     website_url = Column(Text)
     contact_url = Column(Text)
