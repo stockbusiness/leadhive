@@ -64,12 +64,12 @@ def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: 
 
     resp = requests.get(GBIZ_BASE_URL, headers=headers, params=params, timeout=15)
     if resp.status_code == 404:
-        return {"companies": [], "total_page_count": 1}
+        return {"companies": [], "total_page_count": 1, "is_last_page": True}
     resp.raise_for_status()
     data = resp.json()
 
     companies = []
-    for item in data.get("hojin-infos", []):
+    for item in (data.get("hojin-infos") or []):
         companies.append({
             "name": item.get("name", ""),
             "location": item.get("location", "") or "",
@@ -78,9 +78,13 @@ def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: 
             "corporate_number": item.get("corporate_number", "") or "",
         })
 
+    total_pages = data.get("total_page_count")
+    is_last_page = len(companies) == 0 or (total_pages is not None and page >= int(total_pages))
+
     return {
         "companies": companies,
-        "total_page_count": int(data.get("total_page_count", 1)),
+        "total_page_count": int(total_pages) if total_pages else 999,
+        "is_last_page": is_last_page,
     }
 
 

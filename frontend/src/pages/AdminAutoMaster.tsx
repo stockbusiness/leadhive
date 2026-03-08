@@ -230,15 +230,15 @@ export default function AdminAutoMaster() {
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">
-              最大取得ページ数 <span className="text-slate-400">（1ページ≒10社）</span>
+              最大取得ページ数 <span className="text-slate-400">（1ページ=最大1,000社）</span>
             </label>
             <select
               value={form.max_pages}
               onChange={(e) => setForm((f) => ({ ...f, max_pages: Number(e.target.value) }))}
               className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
             >
-              {[1, 2, 3, 5, 10, 20].map((n) => (
-                <option key={n} value={n}>{n}ページ（約{n * 10}社）</option>
+              {[1, 2, 5, 10, 20, 50].map((n) => (
+                <option key={n} value={n}>{n}ページ（最大{(n * 1000).toLocaleString()}社）</option>
               ))}
             </select>
           </div>

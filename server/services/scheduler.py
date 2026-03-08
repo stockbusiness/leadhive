@@ -250,7 +250,7 @@ def _run_auto_master_collect(job_id: str = None):
         pref_idx = int(_sys_get(db, "auto_master_pref_idx", "0"))
         if pref_idx >= len(PREFECTURES):
             pref_idx = 0
-        max_pages = max(1, min(20, int(_sys_get(db, "auto_master_max_pages", "5"))))
+        max_pages = max(1, min(50, int(_sys_get(db, "auto_master_max_pages", "5"))))
         max_enrich = max(0, min(50, int(_sys_get(db, "auto_master_max_enrich", "10"))))
         prefecture = PREFECTURES[pref_idx]
 
@@ -276,9 +276,10 @@ def _run_auto_master_collect(job_id: str = None):
             try:
                 result = search_gbiz(token, name_keyword=current_keyword, prefecture=prefecture, page=page)
                 batch = result.get("companies", [])
+                if not batch:
+                    break
                 all_companies.extend(batch)
-                total_pages = int(result.get("total_page_count", 1))
-                if page >= total_pages:
+                if result.get("is_last_page"):
                     break
                 time.sleep(0.5)
             except Exception as e:
