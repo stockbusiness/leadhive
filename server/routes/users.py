@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from server.database import get_db
 from server.models import User, OrgInvitation
-from server.auth import get_current_user, require_admin, hash_password
+from server.auth import get_current_user, require_admin, require_phase0_unlock, hash_password
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -59,7 +59,7 @@ def list_users(
 @router.post("/invite")
 def invite_user(
     body: InviteRequest,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     from server.models import AppSetting, Organization

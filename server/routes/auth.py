@@ -51,11 +51,17 @@ def _user_response(user: User, org: Organization) -> dict:
         "org_name": org.name if org else "",
         "display_name": user.display_name or "",
         "onboarding_completed": org.onboarding_completed if org else False,
+        "is_system_admin": bool(user.is_system_admin),
+        "is_founder": bool(user.is_founder),
+        "registration_number": user.registration_number,
     }
 
 
 @router.post("/register")
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
+    from sqlalchemy import func as sqlfunc
+    from server.models import Plan
+
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="このメールアドレスは既に登録されています")
 
@@ -66,11 +72,24 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     db.add(org)
     db.flush()
 
+    reg_number = (db.query(sqlfunc.count(User.id)).scalar() or 0) + 1
+    is_founder = reg_number <= 50
+
+    founder_plan = db.query(Plan).filter(Plan.name == "Founder").first() if is_founder else None
+    if founder_plan:
+        org.plan_id = founder_plan.id
+    else:
+        free_plan = db.query(Plan).filter(Plan.name == "フリー").first()
+        if free_plan:
+            org.plan_id = free_plan.id
+
     user = User(
         org_id=org.id,
         email=body.email,
         password_hash=hash_password(body.password),
         role="admin",
+        registration_number=reg_number,
+        is_founder=is_founder,
     )
     db.add(user)
     db.commit()
@@ -89,6 +108,8 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="メールアドレスまたはパスワードが正しくありません")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="アカウントが停止されています。管理者にお問い合わせください。")
 
     user.last_login_at = datetime.utcnow()
     db.commit()

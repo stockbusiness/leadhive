@@ -230,6 +230,8 @@ export default function Onboarding() {
               googleSaved={googleSaved}
               onDashboard={() => handleComplete("/")}
               onScraper={() => handleComplete("/scraper")}
+              registrationNumber={user?.registration_number ?? null}
+              isFounder={!!user?.is_founder}
             />
           )}
         </div>
@@ -565,10 +567,11 @@ function StepGoogleApi({
 }
 
 function StepDone({
-  completing, keywords, projectName, googleSaved, onDashboard, onScraper,
+  completing, keywords, projectName, googleSaved, onDashboard, onScraper, registrationNumber, isFounder,
 }: {
   completing: boolean; keywords: string[]; projectName: string; googleSaved: boolean;
   onDashboard: () => void; onScraper: () => void;
+  registrationNumber: number | null; isFounder: boolean;
 }) {
   const items = [
     { label: "組織名", done: true },
@@ -586,6 +589,24 @@ function StepDone({
         <h2 className="text-2xl font-bold text-slate-800">セットアップ完了！</h2>
         <p className="text-slate-500 text-sm mt-2">LeadHiveを使い始める準備ができました</p>
       </div>
+
+      {registrationNumber && (
+        <div className={`rounded-2xl p-4 mb-6 text-center ${isFounder ? "bg-amber-50 border border-amber-200" : "bg-blue-50 border border-blue-200"}`}>
+          <p className={`text-sm font-medium ${isFounder ? "text-amber-700" : "text-blue-700"}`}>
+            あなたは <span className="text-2xl font-bold">{registrationNumber}</span> 番目のアーリーユーザーです
+          </p>
+          {isFounder && (
+            <div className="mt-2 flex items-center justify-center gap-2">
+              <span className="text-lg">🎉</span>
+              <span className="text-sm font-bold text-amber-700">先着50名のFounderメンバーです！</span>
+              <span className="text-lg">🎉</span>
+            </div>
+          )}
+          {isFounder && (
+            <p className="text-xs text-amber-600 mt-1">1年目完全無料、2年目80%オフ、3年目以降50%オフが永続適用されます</p>
+          )}
+        </div>
+      )}
 
       <div className="bg-slate-50 rounded-xl p-4 mb-6 space-y-2">
         <p className="text-xs font-medium text-slate-500 mb-2">セットアップ内容</p>

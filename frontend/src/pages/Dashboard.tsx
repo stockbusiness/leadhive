@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle, Crown, Users, AlertTriangle } from "lucide-react";
+import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle, Crown, Users, AlertTriangle, Lock } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
@@ -8,6 +8,7 @@ import { api } from "../api";
 import { RANK_COLORS, PIE_COLORS, SCORE_BADGE_COLORS } from "../constants";
 import { StatCard } from "../components/common";
 import type { DashboardData, Company, PlanData } from "../types";
+import { useAuth } from "../contexts/AuthContext";
 
 const FUNNEL_STATUSES = ["未確認", "対象候補", "アプローチ前", "フォーム送信済", "返信あり", "面談化", "代理店化"];
 const FUNNEL_COLORS = ["#94a3b8", "#60a5fa", "#818cf8", "#f59e0b", "#f97316", "#a855f7", "#10b981"];
@@ -34,6 +35,8 @@ type TeamData = {
 };
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const isSystemAdmin = !!user?.is_system_admin;
   const [data, setData] = useState<DashboardData | null>(null);
   const [currentPlan, setCurrentPlan] = useState<PlanData | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "team">("overview");
@@ -113,15 +116,25 @@ export default function Dashboard() {
             <TrendingUp size={14} />
             概要
           </button>
-          <button
-            onClick={() => setActiveTab("team")}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              activeTab === "team" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            <Users size={14} />
-            チーム
-          </button>
+          {isSystemAdmin ? (
+            <button
+              onClick={() => setActiveTab("team")}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "team" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Users size={14} />
+              チーム
+            </button>
+          ) : (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "チームダッシュボードは有料プランで利用できます。" } }))}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium text-slate-400 cursor-not-allowed"
+            >
+              <Lock size={14} />
+              チーム
+            </button>
+          )}
         </div>
       </div>
 

@@ -49,6 +49,8 @@ def get_current_user(
     user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="ユーザーが見つかりません")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="アカウントが停止されています。管理者にお問い合わせください。")
     return user
 
 
@@ -57,4 +59,24 @@ def require_admin(
 ) -> User:
     if current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="管理者権限が必要です")
+    return current_user
+
+
+def require_system_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_system_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="システム管理者権限が必要です")
+    return current_user
+
+
+def require_phase0_unlock(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Phase 0: システム管理者以外はアクセス不可（402を返してアップグレードモーダルを発火）"""
+    if not current_user.is_system_admin:
+        raise HTTPException(
+            status_code=402,
+            detail="この機能は有料プランで利用できます。プランをアップグレードしてください。",
+        )
     return current_user

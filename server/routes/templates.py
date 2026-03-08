@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from server.database import get_db
 from server.models import MemoTemplate, User
-from server.auth import get_current_user
+from server.auth import get_current_user, require_phase0_unlock
 from server.services.cache import cache_get, cache_set, cache_invalidate
 
 router = APIRouter(prefix="/api/templates", tags=["templates"])
@@ -37,7 +37,7 @@ def list_templates(
 @router.post("")
 def create_template(
     data: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     title = data.get("title", "").strip()
@@ -65,7 +65,7 @@ def create_template(
 @router.delete("/{template_id}")
 def delete_template(
     template_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     template = db.query(MemoTemplate).filter(MemoTemplate.id == template_id, MemoTemplate.org_id == current_user.org_id).first()

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown } from "lucide-react";
+import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock } from "lucide-react";
 import { api } from "../api";
 import { Pagination } from "../components/common";
 import { CompanyFilterBar, CompanyTable, CompanyEditModal } from "../components/companies";
@@ -8,6 +8,7 @@ import CompanyKanban from "../components/companies/CompanyKanban";
 import { STATUSES } from "../constants";
 import type { Company, Project, PlanData } from "../types";
 import { useProject } from "../contexts/ProjectContext";
+import { useAuth } from "../contexts/AuthContext";
 
 interface DuplicateGroup {
   normalized_domain: string;
@@ -18,6 +19,8 @@ type ViewMode = "list" | "kanban";
 
 export default function Companies() {
   const { projects, currentProject } = useProject();
+  const { user } = useAuth();
+  const isAdmin = !!user?.is_system_admin;
   const [searchParams, setSearchParams] = useSearchParams();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
@@ -275,14 +278,24 @@ export default function Companies() {
             <Upload size={15} />
             <span className="hidden sm:inline">CSVインポート</span>
           </button>
-          <button
-            onClick={handleExportCSV}
-            disabled={exportLoading}
-            className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
-          >
-            <Download size={15} className={exportLoading ? "animate-bounce" : ""} />
-            <span className="hidden sm:inline">{exportLoading ? "出力中..." : csvExportLabel}</span>
-          </button>
+          {isAdmin ? (
+            <button
+              onClick={handleExportCSV}
+              disabled={exportLoading}
+              className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            >
+              <Download size={15} className={exportLoading ? "animate-bounce" : ""} />
+              <span className="hidden sm:inline">{exportLoading ? "出力中..." : csvExportLabel}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "CSVエクスポートは有料プランで利用できます。" } }))}
+              className="flex items-center gap-1.5 bg-slate-300 text-slate-500 px-3 py-2 rounded-lg text-sm cursor-not-allowed"
+            >
+              <Lock size={15} />
+              <span className="hidden sm:inline">CSV出力</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -304,23 +317,35 @@ export default function Companies() {
           <span className="text-sm font-medium text-blue-800">
             {selectedIds.size}件選択中
           </span>
-          <select
-            value={bulkStatus}
-            onChange={(e) => setBulkStatus(e.target.value)}
-            className="text-sm border border-blue-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="">ステータスを選択...</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          <button
-            onClick={handleBulkStatusChange}
-            disabled={!bulkStatus || bulkLoading}
-            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {bulkLoading ? "処理中..." : "一括変更"}
-          </button>
+          {isAdmin ? (
+            <>
+              <select
+                value={bulkStatus}
+                onChange={(e) => setBulkStatus(e.target.value)}
+                className="text-sm border border-blue-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">ステータスを選択...</option>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleBulkStatusChange}
+                disabled={!bulkStatus || bulkLoading}
+                className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bulkLoading ? "処理中..." : "一括変更"}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "ステータス一括変更は有料プランで利用できます。" } }))}
+              className="flex items-center gap-1.5 bg-slate-200 text-slate-500 px-3 py-1 rounded text-sm cursor-not-allowed"
+            >
+              <Lock size={13} />
+              一括変更（ロック中）
+            </button>
+          )}
           <button
             onClick={() => setShowMoveModal(true)}
             className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 transition-colors"

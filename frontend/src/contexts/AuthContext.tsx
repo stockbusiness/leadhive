@@ -10,6 +10,9 @@ interface AuthUser {
   org_name: string;
   display_name: string;
   onboarding_completed: boolean;
+  is_system_admin: boolean;
+  is_founder: boolean;
+  registration_number: number | null;
 }
 
 interface AuthContextType {
@@ -61,7 +64,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     axios.get("/api/auth/me")
       .then((res) => {
-        setUser({ ...res.data, display_name: res.data.display_name || "" });
+        setUser({
+          ...res.data,
+          display_name: res.data.display_name || "",
+          is_system_admin: !!res.data.is_system_admin,
+          is_founder: !!res.data.is_founder,
+          registration_number: res.data.registration_number ?? null,
+        });
         setToken(savedToken);
       })
       .catch(() => {
@@ -77,7 +86,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { access_token, user: userData } = res.data;
     localStorage.setItem("leadhive_token", access_token);
     setToken(access_token);
-    setUser({ ...userData, display_name: userData.display_name || "" });
+    setUser({
+      ...userData,
+      display_name: userData.display_name || "",
+      is_system_admin: !!userData.is_system_admin,
+      is_founder: !!userData.is_founder,
+      registration_number: userData.registration_number ?? null,
+    });
   }, []);
 
   const register = useCallback(async (orgName: string, email: string, password: string) => {
@@ -85,7 +100,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { access_token, user: userData } = res.data;
     localStorage.setItem("leadhive_token", access_token);
     setToken(access_token);
-    setUser({ ...userData, display_name: userData.display_name || "" });
+    setUser({
+      ...userData,
+      display_name: userData.display_name || "",
+      is_system_admin: !!userData.is_system_admin,
+      is_founder: !!userData.is_founder,
+      registration_number: userData.registration_number ?? null,
+    });
   }, []);
 
   const logout = useCallback(() => {

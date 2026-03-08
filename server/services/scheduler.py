@@ -152,10 +152,68 @@ def _run_followup_notify():
         db.close()
 
 
+def _run_suspend_inactive_users():
+    """30日間ログインなしのユーザーを自動停止（システム管理者は除外）"""
+    from server.database import SessionLocal
+    from server.models import User
+    from datetime import timedelta
+
+    db = SessionLocal()
+    try:
+        cutoff = datetime.utcnow() - timedelta(days=30)
+        inactive_users = (
+            db.query(User)
+            .filter(
+                User.is_active == True,
+                User.is_system_admin == False,
+                User.last_login_at < cutoff,
+                User.last_login_at.isnot(None),
+            )
+            .all()
+        )
+
+        if not inactive_users:
+            return
+
+        logger.info(f"Auto-suspend: Found {len(inactive_users)} inactive users")
+
+        for user in inactive_users:
+            user.is_active = False
+            logger.info(f"Auto-suspend: Deactivated user {user.email} (last login: {user.last_login_at})")
+
+        db.commit()
+
+        from server.services.mailer import get_smtp_settings, send_email
+        for user in inactive_users:
+            try:
+                smtp_cfg = get_smtp_settings(db, user.org_id)
+                if smtp_cfg.get("smtp_host"):
+                    html_body = """
+                    <p>LeadHiveのご利用ありがとうございます。</p>
+                    <p>30日間ログインがなかったため、セキュリティ保護の観点からアカウントを一時停止しました。</p>
+                    <p>アカウントを再開するには、管理者にお問い合わせください。</p>
+                    <p style="color:#888;font-size:12px;">LeadHive 運営チーム</p>
+                    """
+                    send_email(
+                        to=user.email,
+                        subject="【LeadHive】アカウント停止のお知らせ",
+                        html_body=html_body,
+                        smtp_settings=smtp_cfg,
+                    )
+            except Exception as e:
+                logger.error(f"Auto-suspend: Failed to send notification to {user.email}: {e}")
+
+    except Exception as e:
+        logger.error(f"Auto-suspend error: {e}")
+    finally:
+        db.close()
+
+
 def _scheduler_loop():
     global _scheduler_running
     last_collect_date = None
     last_notify_date = None
+    last_suspend_date = None
 
     while _scheduler_running:
         try:
@@ -186,6 +244,11 @@ def _scheduler_loop():
                 last_notify_date = today
                 logger.info("Followup notify: Triggered at 09:00")
                 _run_followup_notify()
+
+            if now.hour == 2 and now.minute == 0 and last_suspend_date != today:
+                last_suspend_date = today
+                logger.info("Auto-suspend: Triggered at 02:00")
+                _run_suspend_inactive_users()
 
         except Exception as e:
             logger.error(f"Scheduler error: {e}")

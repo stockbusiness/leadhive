@@ -15,7 +15,7 @@ from server.services.categorizer import categorize_company, detect_flags
 from server.schemas import company_to_dict
 from server.services.cache import cache_invalidate
 from server.services.collector import _upsert_company_master
-from server.auth import get_current_user
+from server.auth import get_current_user, require_phase0_unlock
 
 
 def _normalize_domain(domain: str) -> str:
@@ -282,7 +282,7 @@ def get_company(
 def update_company(
     company_id: int,
     data: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     company = db.query(Company).filter(Company.id == company_id).first()
@@ -333,7 +333,7 @@ def delete_company(
 @router.put("/bulk-status")
 def bulk_update_status(
     data: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     company_ids = data.get("company_ids", [])
@@ -415,7 +415,7 @@ def get_activities(
 def create_activity(
     company_id: int,
     data: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     company = db.query(Company).filter(Company.id == company_id).first()
@@ -448,7 +448,7 @@ def export_csv(
     score_rank: Optional[str] = None,
     has_contact: Optional[bool] = None,
     project_id: Optional[int] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     from fastapi import HTTPException as _HTTPException
@@ -799,7 +799,7 @@ def rescrape_company(
 @router.post("/{company_id}/ai-analyze")
 def ai_analyze_company(
     company_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     from server.services.ai_analyzer import analyze_company, get_openai_key
@@ -844,7 +844,7 @@ def ai_analyze_company(
 def generate_company_email(
     company_id: int,
     data: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     from server.services.ai_analyzer import generate_outreach_email, get_openai_key
@@ -883,7 +883,7 @@ def generate_company_email(
 def send_company_email(
     company_id: int,
     data: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     from server.services.mailer import get_smtp_settings, send_email

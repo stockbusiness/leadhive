@@ -46,6 +46,10 @@ class User(Base):
     role = Column(String(50), default="admin")
     display_name = Column(String(255), nullable=True)
     last_login_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+    is_system_admin = Column(Boolean, default=False)
+    is_founder = Column(Boolean, default=False)
+    registration_number = Column(Integer, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 

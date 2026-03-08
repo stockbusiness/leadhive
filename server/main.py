@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates, projects, master
-from server.routes import auth, users, plans, payments, onboarding
+from server.routes import auth, users, plans, payments, onboarding, public
 from server.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -67,6 +67,19 @@ DEFAULT_PLANS = [
         "api_daily_limit": None,
         "is_active": True,
     },
+    {
+        "name": "Founder",
+        "description": "先着50名限定 Founderプラン（全機能永久無料）",
+        "price_monthly": 0,
+        "max_members": None,
+        "max_projects": None,
+        "max_companies": None,
+        "max_ai_analyses_monthly": None,
+        "max_master_db_imports": None,
+        "max_csv_export": None,
+        "api_daily_limit": None,
+        "is_active": True,
+    },
 ]
 
 
@@ -83,6 +96,10 @@ def run_db_migrations():
             "ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_master_db_imports INTEGER",
             "ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_csv_export INTEGER",
             "ALTER TABLE plans ADD COLUMN IF NOT EXISTS stripe_price_id VARCHAR(255)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_system_admin BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_founder BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_number INTEGER",
         ]:
             conn.execute(sa.text(stmt))
         conn.commit()
@@ -107,18 +124,29 @@ def run_db_migrations():
             org = Organization(name="LeadHive管理")
             db.add(org)
             db.flush()
-            free_plan = db.query(Plan).filter(Plan.name == "エンタープライズ").first()
-            if free_plan:
-                org.plan_id = free_plan.id
+            enterprise_plan = db.query(Plan).filter(Plan.name == "エンタープライズ").first()
+            if enterprise_plan:
+                org.plan_id = enterprise_plan.id
             admin = User(
                 org_id=org.id,
                 email=admin_email,
                 password_hash=hash_password(admin_password),
                 role="admin",
+                is_active=True,
+                is_system_admin=True,
+                registration_number=1,
             )
             db.add(admin)
             db.commit()
             print(f"[LeadHive] 初期管理者アカウントを作成しました: {admin_email}")
+        else:
+            admin_email = os.environ.get("INITIAL_ADMIN_EMAIL", "admin@leadhive.work")
+            existing_admin = db.query(User).filter(User.email == admin_email).first()
+            if existing_admin and not existing_admin.is_system_admin:
+                existing_admin.is_system_admin = True
+                existing_admin.is_active = True
+                db.commit()
+                print(f"[LeadHive] 初期管理者にシステム管理者権限を付与しました: {admin_email}")
     finally:
         db.close()
 
@@ -156,6 +184,7 @@ app.include_router(master.router)
 app.include_router(plans.router)
 app.include_router(payments.router)
 app.include_router(onboarding.router, prefix="/api/onboarding", tags=["onboarding"])
+app.include_router(public.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 

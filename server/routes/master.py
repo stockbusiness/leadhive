@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from server.database import get_db
 from server.models import CompanyMaster, Company, User, Organization, Plan
-from server.auth import get_current_user
+from server.auth import get_current_user, require_phase0_unlock
 
 router = APIRouter(prefix="/api/master", tags=["master"])
 
@@ -57,7 +57,7 @@ def _check_master_db_access(current_user: User, db: Session):
 
 @router.get("/stats")
 def get_master_stats(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     total = db.query(func.count(CompanyMaster.id)).scalar() or 0
@@ -84,7 +84,7 @@ def search_master(
     min_score: Optional[int] = None,
     project_id: Optional[int] = None,
     limit: int = 50,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     _check_master_db_access(current_user, db)
@@ -126,7 +126,7 @@ def search_master(
 @router.post("/import")
 def import_from_master(
     data: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
     from server.routes.plans import check_plan_limit

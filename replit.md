@@ -38,6 +38,12 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
 - **CSV Export with Plan Limits**: 企業リストのCSVエクスポート機能にプラン別件数制限を適用。
 - **Master DB Access Control**: プランに応じたマスターDB検索・インポート機能の利用制限。
 - **Team Progress Dashboard**: ダッシュボードに「概要/チーム」タブを追加。チームタブでは担当者別の担当企業数・今週のアクティビティ・期限超過件数・アプローチ進捗バーを表示。GET /api/dashboard/team エンドポイント。
+- **Early Access Phase 0**: アーリーアクセス戦略を実装。`is_system_admin`フラグによるシステム管理者のみ全機能利用可能。通常ユーザーはステータス変更、活動ログ、CSVエクスポート、AI分析、メール生成・送信、チーム招待、テンプレート管理、マスターDB、チームダッシュボードが402エラーでロック。
+- **Founder Plan**: 先着50名の登録者に自動適用されるFounderプラン。is_founder=true、1年目無料・2年目80%オフ・3年目以降50%オフ永続特典。
+- **Registration Number**: 新規登録時に連番の登録番号(registration_number)を自動発行。登録50名以内はis_founder=True。オンボーディング完了画面に表示。
+- **Auto-suspend**: 30日間ログインなしのユーザーを毎日2時に自動停止(is_active=False)。システム管理者は除外。
+- **Roadmap Page**: /roadmapで公開ロードマップページ。登録者数・Founder残り枠・機能ステータス4グループ（利用可能/スターター/プロ/準備中）・特典説明を表示。認証不要。
+- **Sidebar**: ロードマップリンク追加。マスターDBリンクはis_system_admin=trueのみ表示。FounderバッジとAdminバッジをサイドバーユーザー名横に表示。
 - **AI Usage Logging**: ai_usage_logs テーブルでAI機能のトークン消費量（入力/出力）・モデル・コストを記録。ai_analyzer.py で自動ログ保存。
 - **Last Login Tracking**: users.last_login_at カラム。ログイン時に自動更新。
 - **Admin Features**:

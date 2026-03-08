@@ -28,6 +28,8 @@ import {
   Mail,
   Sliders,
   BarChart2,
+  Map,
+  Star,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -66,6 +68,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
+const Roadmap = lazy(() => import("./pages/Roadmap"));
 
 function PageLoader() {
   return (
@@ -228,7 +231,9 @@ function AppContent() {
             <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" onClick={closeSidebar} />
             <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" onClick={closeSidebar} />
             <SidebarLink to="/templates" icon={<FileText size={18} />} label="メモテンプレート" onClick={closeSidebar} />
-            <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" onClick={closeSidebar} />
+            {user?.is_system_admin && (
+              <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" onClick={closeSidebar} />
+            )}
             <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" onClick={closeSidebar} />
             {user?.role === "admin" && (
               <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
@@ -260,6 +265,7 @@ function AppContent() {
         </nav>
 
         <div className="p-2 border-t border-slate-700 space-y-1">
+          <SidebarLink to="/roadmap" icon={<Map size={18} />} label="ロードマップ" onClick={closeSidebar} />
           <SidebarLink to="/manual" icon={<BookOpen size={18} />} label="マニュアル" onClick={closeSidebar} />
           <SidebarLink to="/settings" icon={<Settings size={18} />} label="設定" onClick={closeSidebar} />
         </div>
@@ -273,8 +279,21 @@ function AppContent() {
               <div className="bg-blue-600 rounded-full p-1.5 flex-shrink-0">
                 <User size={12} />
               </div>
-              <div className="overflow-hidden text-left">
-                <p className="text-xs text-white font-medium truncate">{user.display_name || user.org_name}</p>
+              <div className="overflow-hidden text-left flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs text-white font-medium truncate">{user.display_name || user.org_name}</p>
+                  {user.is_founder && (
+                    <span className="flex-shrink-0 flex items-center gap-0.5 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                      <Star size={8} />
+                      Founder
+                    </span>
+                  )}
+                  {user.is_system_admin && !user.is_founder && (
+                    <span className="flex-shrink-0 bg-blue-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                      Admin
+                    </span>
+                  )}
+                </div>
                 <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
               </div>
             </button>
@@ -342,6 +361,7 @@ function AppContent() {
               <Route path="/admin/plans" element={<AdminPlans />} />
               <Route path="/admin/stripe" element={<AdminStripe />} />
               <Route path="/admin/api-keys" element={<AdminApiKeys />} />
+              <Route path="/roadmap" element={<Roadmap />} />
             </Routes>
           </Suspense>
         </main>
@@ -392,6 +412,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/roadmap" element={<Roadmap />} />
           <Route path="/accept-invite/:token" element={<AcceptInvite />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />

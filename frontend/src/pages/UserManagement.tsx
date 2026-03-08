@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Users, UserPlus, Trash2, Shield, ShieldCheck, Loader2, Copy, CheckCircle, XCircle, Clock, Mail } from "lucide-react";
+import { Users, UserPlus, Trash2, Shield, ShieldCheck, Loader2, Copy, CheckCircle, XCircle, Clock, Mail, Lock } from "lucide-react";
 import { api } from "../api";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -33,6 +33,7 @@ export default function UserManagement() {
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const isAdmin = currentUser?.role === "admin";
+  const isSystemAdmin = !!currentUser?.is_system_admin;
 
   const loadUsers = async () => {
     try {
@@ -126,33 +127,49 @@ export default function UserManagement() {
           <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
             <UserPlus size={18} className="text-slate-600" />
             <h3 className="font-semibold text-slate-700">メンバーを招待</h3>
+            {!isSystemAdmin && (
+              <span className="ml-auto flex items-center gap-1 text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
+                <Lock size={11} />
+                有料プランで解放
+              </span>
+            )}
           </div>
-          <div className="flex gap-3">
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={e => setInviteEmail(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleInvite()}
-              placeholder="招待するメールアドレス"
-              className="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select
-              value={inviteRole}
-              onChange={e => setInviteRole(e.target.value)}
-              className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          {isSystemAdmin ? (
+            <div className="flex gap-3">
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleInvite()}
+                placeholder="招待するメールアドレス"
+                className="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <select
+                value={inviteRole}
+                onChange={e => setInviteRole(e.target.value)}
+                className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="member">メンバー</option>
+                <option value="admin">管理者</option>
+              </select>
+              <button
+                onClick={handleInvite}
+                disabled={inviting || !inviteEmail.trim()}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {inviting ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                招待送信
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "チームメンバー招待は有料プランで利用できます。" } }))}
+              className="flex items-center gap-3 bg-slate-50 border border-slate-200 border-dashed rounded-lg px-4 py-4 cursor-pointer hover:bg-slate-100 transition-colors"
             >
-              <option value="member">メンバー</option>
-              <option value="admin">管理者</option>
-            </select>
-            <button
-              onClick={handleInvite}
-              disabled={inviting || !inviteEmail.trim()}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {inviting ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
-              招待送信
-            </button>
-          </div>
+              <Lock size={16} className="text-slate-400" />
+              <span className="text-sm text-slate-500">有料プランにアップグレードするとチームメンバーを招待できます</span>
+            </div>
+          )}
           {inviteResult && (
             <div className={`p-3 rounded-lg text-sm ${inviteResult.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
               <div className="flex items-center gap-2 mb-2">
