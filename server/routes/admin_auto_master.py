@@ -81,6 +81,14 @@ def get_status(
 
     keyword_idx = int(settings.get("auto_master_keyword_idx", "0")) % len(AUTO_MASTER_KEYWORDS)
 
+    import os
+    has_token = bool(
+        os.environ.get("GbizAPIkey")
+        or os.environ.get("GBIZINFO_API_TOKEN")
+        or os.environ.get("GBIZ_API_TOKEN")
+        or settings.get("gbizinfo_api_token")
+    )
+
     return {
         "enabled": settings.get("auto_master_enabled") == "true",
         "pref_idx": pref_idx,
@@ -96,7 +104,7 @@ def get_status(
         "last_count": int(settings.get("auto_master_last_count", "0")),
         "total_collected": int(settings.get("auto_master_total_collected", "0")),
         "master_db_count": master_count,
-        "has_gbiz_token": bool(settings.get("gbizinfo_api_token")),
+        "has_gbiz_token": has_token,
     }
 
 

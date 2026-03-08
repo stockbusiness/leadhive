@@ -233,7 +233,13 @@ def _run_auto_master_collect(job_id: str = None):
 
     db = SessionLocal()
     try:
-        token = _sys_get(db, "gbizinfo_api_token")
+        import os
+        token = (
+            os.environ.get("GbizAPIkey")
+            or os.environ.get("GBIZINFO_API_TOKEN")
+            or os.environ.get("GBIZ_API_TOKEN")
+            or _sys_get(db, "gbizinfo_api_token")
+        )
         if not token:
             msg = "gBizINFO APIトークンが設定されていません"
             logger.warning(f"AutoMaster: {msg}")

@@ -350,10 +350,28 @@ export default function AdminAutoMaster() {
               <CheckCircle size={15} className="text-green-600" />
               {runResult.prefecture} の収集完了
             </p>
+            {(runResult.fetched ?? 0) === 0 && (
+              <div className="mb-3 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <XCircle size={14} className="shrink-0 mt-0.5" />
+                <span>
+                  gBizINFOから0件しか取得できませんでした。APIトークンが正しく設定されているか確認してください。
+                  「システムAPI設定」ページの「gBizINFO APIトークン」に直接入力するか、環境変数 <code className="bg-amber-100 px-1 rounded">GbizAPIkey</code> が正しく設定されているか確認してください。
+                </span>
+              </div>
+            )}
+            {(runResult.fetched ?? 0) > 0 && (runResult.saved ?? 0) === 0 && (
+              <div className="mb-3 flex items-start gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <DatabaseZap size={14} className="shrink-0 mt-0.5" />
+                <span>
+                  {runResult.fetched}件取得しましたが、URLを持つ企業がなかったため保存件数は0です。
+                  Google APIキーを設定すると、URLなし企業のURLを自動検索して保存件数が増えます。
+                </span>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: "取得件数", value: runResult.fetched, color: "text-blue-600" },
-                { label: "保存件数", value: runResult.saved, color: "text-green-600" },
+                { label: "gBizINFO取得", value: runResult.fetched, color: "text-blue-600" },
+                { label: "DB保存件数", value: runResult.saved, color: "text-green-600" },
                 { label: "URL補完", value: runResult.enriched, color: "text-indigo-600" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="bg-white border border-slate-200 rounded-lg p-3 text-center">
