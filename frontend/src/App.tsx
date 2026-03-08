@@ -68,6 +68,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
+const LandingPageNew = lazy(() => import("./pages/LandingPageNew"));
 const Roadmap = lazy(() => import("./pages/Roadmap"));
 
 function PageLoader() {
@@ -390,7 +391,7 @@ function HomeRoute() {
   }
 
   if (!user) {
-    return <LandingPage />;
+    return <LandingPageNew />;
   }
 
   if (!user.onboarding_completed) {
@@ -416,6 +417,7 @@ function App() {
           <Route path="/accept-invite/:token" element={<AcceptInvite />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/*" element={<HomeRoute />} />
         </Routes>
       </Suspense>
