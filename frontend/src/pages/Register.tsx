@@ -98,8 +98,18 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register(orgName, email, password, displayName, phone, corporateNumber || undefined);
-      navigate("/onboarding");
+      const result = await register(orgName, email, password, displayName, phone, corporateNumber || undefined);
+      if (result.requires_verification) {
+        navigate("/verify-email", {
+          state: {
+            email: result.email,
+            email_sent: result.email_sent,
+            verify_url: result.verify_url,
+          },
+        });
+      } else {
+        navigate("/onboarding");
+      }
     } catch (err: any) {
       setError(err?.response?.data?.detail || "登録に失敗しました");
     } finally {

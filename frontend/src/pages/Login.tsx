@@ -8,16 +8,23 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setUnverifiedEmail("");
     setLoading(true);
     try {
       await login(email, password);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "ログインに失敗しました");
+      const detail = err?.response?.data?.detail || "ログインに失敗しました";
+      const isUnverified = err?.response?.status === 403 && detail.includes("確認");
+      if (isUnverified) {
+        setUnverifiedEmail(email);
+      }
+      setError(detail);
       setLoading(false);
       return;
     }
@@ -40,7 +47,18 @@ export default function Login() {
         <h2 className="text-xl font-semibold text-slate-700 mb-6">ログイン</h2>
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
-            {error}
+            <p>{error}</p>
+            {unverifiedEmail && (
+              <p className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => navigate("/verify-email", { state: { email: unverifiedEmail, email_sent: false } })}
+                  className="underline font-medium hover:text-red-900 transition-colors"
+                >
+                  確認ページへ移動する →
+                </button>
+              </p>
+            )}
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">

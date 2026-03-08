@@ -73,6 +73,7 @@ const Roadmap = lazy(() => import("./pages/Roadmap"));
 const Company = lazy(() => import("./pages/Company"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const Terms = lazy(() => import("./pages/Terms"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 
 function PageLoader() {
   return (
@@ -424,6 +425,7 @@ function App() {
           <Route path="/company" element={<Company />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/*" element={<HomeRoute />} />
         </Routes>
       </Suspense>

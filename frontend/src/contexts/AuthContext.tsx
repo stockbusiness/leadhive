@@ -20,7 +20,8 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (orgName: string, email: string, password: string, displayName?: string, phone?: string, corporateNumber?: string) => Promise<void>;
+  register: (orgName: string, email: string, password: string, displayName?: string, phone?: string, corporateNumber?: string) => Promise<{ requires_verification: boolean; email: string; email_sent: boolean; verify_url?: string | null }>;
+  loginFromToken: (accessToken: string, userData: AuthUser) => void;
   logout: () => void;
   updateUser: (updates: Partial<AuthUser>) => void;
 }
@@ -30,7 +31,8 @@ const AuthContext = createContext<AuthContextType>({
   token: null,
   loading: true,
   login: async () => {},
-  register: async () => {},
+  register: async () => ({ requires_verification: false, email: "", email_sent: false }),
+  loginFromToken: () => {},
   logout: () => {},
   updateUser: () => {},
 });
@@ -104,9 +106,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phone: phone || "",
       corporate_number: corporateNumber || "",
     });
-    const { access_token, user: userData } = res.data;
-    localStorage.setItem("leadhive_token", access_token);
-    setToken(access_token);
+    return {
+      requires_verification: res.data.requires_verification ?? false,
+      email: res.data.email ?? email,
+      email_sent: res.data.email_sent ?? false,
+      verify_url: res.data.verify_url ?? null,
+    };
+  }, []);
+
+  const loginFromToken = useCallback((accessToken: string, userData: AuthUser) => {
+    localStorage.setItem("leadhive_token", accessToken);
+    setToken(accessToken);
     setUser({
       ...userData,
       display_name: userData.display_name || "",
@@ -128,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, loginFromToken, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -16,6 +16,26 @@ def get_smtp_settings(db, org_id: int) -> dict:
     return result
 
 
+def get_system_smtp_settings(db) -> dict:
+    from server.models import SystemSettings
+    keys = [
+        "system_smtp_host", "system_smtp_port", "system_smtp_user",
+        "system_smtp_password", "system_smtp_from_email",
+        "system_smtp_from_name", "system_smtp_use_tls",
+    ]
+    rows = db.query(SystemSettings).filter(SystemSettings.key.in_(keys)).all()
+    raw = {r.key: r.value for r in rows}
+    return {
+        "smtp_host": raw.get("system_smtp_host", ""),
+        "smtp_port": raw.get("system_smtp_port", "587"),
+        "smtp_user": raw.get("system_smtp_user", ""),
+        "smtp_password": raw.get("system_smtp_password", ""),
+        "smtp_from_email": raw.get("system_smtp_from_email", ""),
+        "smtp_from_name": raw.get("system_smtp_from_name", "LeadHive"),
+        "smtp_use_tls": raw.get("system_smtp_use_tls", "true"),
+    }
+
+
 def send_email(
     to: str,
     subject: str,

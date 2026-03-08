@@ -53,6 +53,7 @@ class User(Base):
     is_system_admin = Column(Boolean, default=False)
     is_founder = Column(Boolean, default=False)
     registration_number = Column(Integer, nullable=True)
+    email_verified = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -72,6 +73,17 @@ class OrgInvitation(Base):
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(255), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class EmailVerificationToken(Base):
+    __tablename__ = "email_verification_tokens"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)

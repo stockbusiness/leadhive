@@ -1,10 +1,11 @@
+import os
 import uuid
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from server.database import get_db
-from server.models import Organization, User, OrgInvitation, PasswordResetToken
+from server.models import Organization, User, OrgInvitation, PasswordResetToken, EmailVerificationToken
 from server.auth import hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -45,6 +46,10 @@ class AcceptInviteRequest(BaseModel):
     password: str
 
 
+class ResendVerificationRequest(BaseModel):
+    email: str
+
+
 def _user_response(user: User, org: Organization) -> dict:
     return {
         "id": user.id,
@@ -60,8 +65,68 @@ def _user_response(user: User, org: Organization) -> dict:
     }
 
 
+def _get_base_url(request: Request) -> str:
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "")
+    proto = request.headers.get("x-forwarded-proto", "https")
+    if host:
+        return f"{proto}://{host}"
+    return os.environ.get("APP_BASE_URL", "https://leadhive.work")
+
+
+def _create_verification_token(user_id: int, db: Session) -> str:
+    db.query(EmailVerificationToken).filter(
+        EmailVerificationToken.user_id == user_id,
+        EmailVerificationToken.used_at.is_(None),
+    ).delete()
+    db.flush()
+    token_str = str(uuid.uuid4())
+    ev_token = EmailVerificationToken(
+        user_id=user_id,
+        token=token_str,
+        expires_at=datetime.utcnow() + timedelta(hours=24),
+    )
+    db.add(ev_token)
+    db.flush()
+    return token_str
+
+
+def _send_verification_email(user_email: str, token_str: str, base_url: str, db: Session) -> bool:
+    from server.services.mailer import get_system_smtp_settings, send_email
+    smtp_cfg = get_system_smtp_settings(db)
+    if not smtp_cfg.get("smtp_host"):
+        return False
+    verify_url = f"{base_url}/verify-email?token={token_str}"
+    html_body = f"""
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
+      <div style="background:#1e3a5f;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center;">
+        <h1 style="color:#fff;margin:0;font-size:22px;">LeadHive</h1>
+        <p style="color:#93c5fd;margin:6px 0 0;font-size:13px;">営業先リスト自動化ツール</p>
+      </div>
+      <h2 style="color:#1e293b;font-size:18px;margin-bottom:8px;">メールアドレスの確認</h2>
+      <p style="color:#475569;font-size:14px;line-height:1.6;">
+        LeadHiveへのご登録ありがとうございます。<br>
+        以下のボタンをクリックしてメールアドレスを確認してください。
+      </p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="{verify_url}"
+           style="background:#2563eb;color:#fff;padding:14px 32px;border-radius:8px;
+                  text-decoration:none;font-size:15px;font-weight:600;display:inline-block;">
+          メールアドレスを確認する
+        </a>
+      </div>
+      <p style="color:#94a3b8;font-size:12px;text-align:center;">
+        このリンクは24時間有効です。<br>
+        このメールに心当たりがない場合は無視してください。
+      </p>
+    </div>
+    """
+    text_body = f"LeadHiveへのご登録ありがとうございます。\n以下のURLからメールアドレスを確認してください。\n{verify_url}\n（24時間有効）"
+    ok, _ = send_email(user_email, "【LeadHive】メールアドレスの確認", html_body, smtp_cfg, text_body)
+    return ok
+
+
 @router.post("/register")
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)):
     from sqlalchemy import func as sqlfunc
     from server.models import Plan
 
@@ -99,16 +164,71 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         display_name=body.display_name or None,
         registration_number=reg_number,
         is_founder=is_founder,
+        email_verified=False,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    token = create_access_token({"sub": str(user.id)})
+    token_str = _create_verification_token(user.id, db)
+    db.commit()
+
+    base_url = _get_base_url(request)
+    email_sent = _send_verification_email(body.email, token_str, base_url, db)
+
     return {
-        "access_token": token,
+        "requires_verification": True,
+        "email": body.email,
+        "email_sent": email_sent,
+        "verify_url": f"/verify-email?token={token_str}" if not email_sent else None,
+    }
+
+
+@router.get("/verify-email/{token}")
+def verify_email(token: str, db: Session = Depends(get_db)):
+    ev_token = db.query(EmailVerificationToken).filter(
+        EmailVerificationToken.token == token,
+        EmailVerificationToken.used_at.is_(None),
+        EmailVerificationToken.expires_at > datetime.utcnow(),
+    ).first()
+    if not ev_token:
+        raise HTTPException(status_code=400, detail="確認リンクが無効または期限切れです")
+
+    user = db.query(User).filter(User.id == ev_token.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
+    user.email_verified = True
+    ev_token.used_at = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+
+    org = db.query(Organization).filter(Organization.id == user.org_id).first()
+    jwt = create_access_token({"sub": str(user.id)})
+    return {
+        "access_token": jwt,
         "token_type": "bearer",
         "user": _user_response(user, org),
+    }
+
+
+@router.post("/resend-verification")
+def resend_verification(request: Request, body: ResendVerificationRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == body.email).first()
+    if not user:
+        return {"message": "確認メールを送信しました（アドレスが登録されている場合）"}
+    if user.email_verified:
+        return {"message": "既にメールアドレスは確認済みです"}
+
+    token_str = _create_verification_token(user.id, db)
+    db.commit()
+
+    base_url = _get_base_url(request)
+    email_sent = _send_verification_email(body.email, token_str, base_url, db)
+    return {
+        "message": "確認メールを送信しました（アドレスが登録されている場合）",
+        "email_sent": email_sent,
+        "verify_url": f"/verify-email?token={token_str}" if not email_sent else None,
     }
 
 
@@ -119,6 +239,12 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="メールアドレスまたはパスワードが正しくありません")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="アカウントが停止されています。管理者にお問い合わせください。")
+    if not user.email_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="メールアドレスの確認が完了していません。登録時に送信した確認メールをご確認ください。",
+            headers={"X-Verification-Required": "true"},
+        )
 
     user.last_login_at = datetime.utcnow()
     db.commit()
@@ -199,7 +325,7 @@ def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     <p style="color:#888;font-size:12px;">このメールに心当たりがない場合は無視してください。</p>
     """
     if smtp_cfg.get("smtp_host"):
-        send_email(user.email, "パスワードリセット - ESCMS", html_body, smtp_cfg)
+        send_email(user.email, "パスワードリセット - LeadHive", html_body, smtp_cfg)
 
     return {
         "message": "パスワードリセットメールを送信しました（アドレスが登録されている場合）",
@@ -276,6 +402,7 @@ def accept_invitation(token: str, body: AcceptInviteRequest, db: Session = Depen
             password_hash=hash_password(body.password),
             role=inv.role,
             display_name=body.display_name or None,
+            email_verified=True,
         )
         db.add(user)
 
