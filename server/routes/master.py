@@ -14,6 +14,7 @@ def _master_to_dict(m: CompanyMaster, already_in_project: bool = False) -> dict:
     return {
         "id": m.id,
         "domain": m.domain,
+        "corporate_number": getattr(m, "corporate_number", None),
         "company_name": m.company_name,
         "website_url": m.website_url,
         "contact_url": m.contact_url,
@@ -112,6 +113,7 @@ def search_master(
     if min_score is not None:
         query = query.filter(CompanyMaster.score_total >= min_score)
 
+    total_count = query.count()
     results = query.order_by(CompanyMaster.score_total.desc()).limit(limit).all()
 
     project_domains = set()
@@ -120,7 +122,7 @@ def search_master(
         project_domains = {r.domain for r in rows}
 
     items = [_master_to_dict(m, already_in_project=(m.domain in project_domains)) for m in results]
-    return {"items": items, "total": len(items)}
+    return {"items": items, "total": total_count}
 
 
 @router.post("/import")
