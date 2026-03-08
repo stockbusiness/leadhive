@@ -435,6 +435,7 @@ def list_all_users(
     search: str = Query(""),
     role: str = Query(""),
     org_id: Optional[int] = Query(None),
+    verified: str = Query(""),
 ):
     q = db.query(User, Organization).join(Organization, User.org_id == Organization.id)
     if search:
@@ -443,6 +444,10 @@ def list_all_users(
         q = q.filter(User.role == role)
     if org_id:
         q = q.filter(User.org_id == org_id)
+    if verified == "unverified":
+        q = q.filter(User.email_verified == False)
+    elif verified == "verified":
+        q = q.filter(User.email_verified == True)
     rows = q.order_by(User.id).all()
     return {
         "users": [
@@ -454,10 +459,94 @@ def list_all_users(
                 "org_id": u.org_id,
                 "org_name": o.name,
                 "created_at": u.created_at.isoformat() if u.created_at else None,
+                "email_verified": bool(u.email_verified),
             }
             for u, o in rows
         ]
     }
+
+
+@router.post("/api/admin/all-users/{user_id}/resend-verification")
+def resend_verification_admin(
+    user_id: int,
+    request: Request,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from server.models import EmailVerificationToken
+    from server.routes.auth import _create_verification_token, _send_verification_email, _get_base_url
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+    if user.email_verified:
+        raise HTTPException(status_code=400, detail="このユーザーは既に確認済みです")
+    token_str = _create_verification_token(user.id, db)
+    db.commit()
+    base_url = _get_base_url(request)
+    sent = _send_verification_email(user.email, token_str, base_url, db)
+    return {
+        "message": "再送しました" if sent else "トークンを作成しましたがSMTPが未設定のためメールは送信されませんでした",
+        "email_sent": sent,
+        "verify_url": f"/verify-email?token={token_str}" if not sent else None,
+    }
+
+
+@router.post("/api/admin/unverified-users/resend-all")
+def resend_all_unverified(
+    request: Request,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from server.models import EmailVerificationToken
+    from server.routes.auth import _create_verification_token, _send_verification_email, _get_base_url
+    users = db.query(User).filter(User.email_verified == False, User.is_active == True).all()
+    base_url = _get_base_url(request)
+    sent_count = 0
+    total = len(users)
+    for user in users:
+        token_str = _create_verification_token(user.id, db)
+        db.flush()
+        ok = _send_verification_email(user.email, token_str, base_url, db)
+        if ok:
+            sent_count += 1
+    db.commit()
+    return {
+        "total": total,
+        "sent": sent_count,
+        "message": f"{total}件中{sent_count}件にメールを送信しました",
+    }
+
+
+@router.delete("/api/admin/unverified-users/cleanup")
+def cleanup_unverified_users(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    days: int = Query(7, ge=1, le=365),
+):
+    from server.models import EmailVerificationToken
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    users = db.query(User).filter(
+        User.email_verified == False,
+        User.created_at < cutoff,
+        User.is_system_admin == False,
+    ).all()
+    deleted = 0
+    for user in users:
+        db.query(EmailVerificationToken).filter(EmailVerificationToken.user_id == user.id).delete()
+        orgs_with_other_users = db.query(User).filter(
+            User.org_id == user.org_id,
+            User.id != user.id,
+        ).count()
+        db.delete(user)
+        if orgs_with_other_users == 0:
+            org = db.query(Organization).filter(Organization.id == user.org_id).first()
+            if org:
+                db.delete(org)
+        deleted += 1
+    db.commit()
+    write_system_log(db, "unverified_cleanup", current_user.email, "", "",
+                     f"{days}日以上未確認のユーザー{deleted}件を削除")
+    return {"deleted": deleted, "message": f"{deleted}件の未確認ユーザーを削除しました"}
 
 
 @router.patch("/api/admin/all-users/{user_id}")
