@@ -383,10 +383,11 @@ export default function AdminAutoMaster() {
                 </span>
               </div>
             )}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               {[
                 { label: "gBizINFO取得", value: runResult.fetched, color: "text-blue-600" },
-                { label: "DB保存件数", value: runResult.saved, color: "text-green-600" },
+                { label: "新規保存", value: runResult.saved, color: "text-green-600" },
+                { label: "重複スキップ", value: runResult.skipped, color: "text-amber-600" },
                 { label: "URL補完", value: runResult.enriched, color: "text-indigo-600" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="bg-white border border-slate-200 rounded-lg p-3 text-center">

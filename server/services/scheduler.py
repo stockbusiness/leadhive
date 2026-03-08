@@ -289,16 +289,36 @@ def _run_auto_master_collect(job_id: str = None):
         total = len(all_companies)
         logger.info(f"AutoMaster: Got {total} companies from gBizINFO for {prefecture} / {current_keyword}")
 
+        existing_corp_nums = set(
+            row[0] for row in
+            db.execute(
+                __import__("sqlalchemy").text("SELECT corporate_number FROM company_master WHERE corporate_number IS NOT NULL")
+            ).fetchall()
+        )
+        existing_domains = set(
+            row[0] for row in
+            db.execute(
+                __import__("sqlalchemy").text("SELECT domain FROM company_master WHERE domain IS NOT NULL")
+            ).fetchall()
+        )
+        logger.info(f"AutoMaster: Existing records — corp_nums={len(existing_corp_nums)}, domains={len(existing_domains)}")
+
         saved = 0
+        skipped = 0
         enriched = 0
         enrich_count = 0
 
         for i, company in enumerate(all_companies):
             if job_id and i % 50 == 0:
                 job_update(job_id, current=i + 1, total=total,
-                           message=f"({i + 1}/{total}) {prefecture} — 「{company.get('name', '')}」を処理中...")
+                           message=f"({i + 1}/{total}) {prefecture} — 新規{saved}件 / スキップ{skipped}件")
             try:
                 corp_num = company.get("corporate_number") or None
+
+                if corp_num and corp_num in existing_corp_nums:
+                    skipped += 1
+                    continue
+
                 url = company.get("company_url", "") or ""
                 if not url and enrich_count < max_enrich:
                     from server.services.gbiz_collector import find_website_for_company
@@ -327,11 +347,17 @@ def _run_auto_master_collect(job_id: str = None):
                         "score_rank": "D",
                     }
                     _upsert_company_master(db, company_data, domain=None, source="auto_master", corporate_number=corp_num)
+                    if corp_num:
+                        existing_corp_nums.add(corp_num)
                     saved += 1
                     continue
 
                 domain = normalize_domain(url)
                 if not domain or is_aggregator_site(domain):
+                    continue
+
+                if domain in existing_domains:
+                    skipped += 1
                     continue
 
                 scraped = scrape_company_info(url) or {}
@@ -352,6 +378,9 @@ def _run_auto_master_collect(job_id: str = None):
                 scraped["score_rank"] = rank
 
                 _upsert_company_master(db, scraped, domain, source="auto_master", corporate_number=corp_num)
+                existing_domains.add(domain)
+                if corp_num:
+                    existing_corp_nums.add(corp_num)
                 saved += 1
                 if not company.get("company_url"):
                     enriched += 1
@@ -371,11 +400,11 @@ def _run_auto_master_collect(job_id: str = None):
         prev_total = int(total_row.value) if total_row and total_row.value else 0
         _sys_set(db, "auto_master_total_collected", str(prev_total + saved))
 
-        msg = f"{prefecture} 完了: {total}件取得 → {saved}件保存（URL補完: {enriched}件）"
+        msg = f"{prefecture} 完了: {total}件取得 → 新規{saved}件保存 / 重複{skipped}件スキップ（URL補完: {enriched}件）"
         logger.info(f"AutoMaster: {msg}")
         if job_id:
             job_update(job_id, type="done",
-                       result={"prefecture": prefecture, "fetched": total, "saved": saved, "enriched": enriched},
+                       result={"prefecture": prefecture, "fetched": total, "saved": saved, "skipped": skipped, "enriched": enriched},
                        message=msg)
 
     except Exception as e:
