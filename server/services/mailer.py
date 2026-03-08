@@ -18,21 +18,17 @@ def get_smtp_settings(db, org_id: int) -> dict:
 
 def get_system_smtp_settings(db) -> dict:
     from server.models import SystemSettings
-    keys = [
-        "system_smtp_host", "system_smtp_port", "system_smtp_user",
-        "system_smtp_password", "system_smtp_from_email",
-        "system_smtp_from_name", "system_smtp_use_tls",
-    ]
+    keys = ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_from_email", "smtp_from_name"]
     rows = db.query(SystemSettings).filter(SystemSettings.key.in_(keys)).all()
     raw = {r.key: r.value for r in rows}
     return {
-        "smtp_host": raw.get("system_smtp_host", ""),
-        "smtp_port": raw.get("system_smtp_port", "587"),
-        "smtp_user": raw.get("system_smtp_user", ""),
-        "smtp_password": raw.get("system_smtp_password", ""),
-        "smtp_from_email": raw.get("system_smtp_from_email", ""),
-        "smtp_from_name": raw.get("system_smtp_from_name", "LeadHive"),
-        "smtp_use_tls": raw.get("system_smtp_use_tls", "true"),
+        "smtp_host": raw.get("smtp_host", ""),
+        "smtp_port": raw.get("smtp_port", "587"),
+        "smtp_user": raw.get("smtp_user", ""),
+        "smtp_password": raw.get("smtp_password", ""),
+        "smtp_from_email": raw.get("smtp_from_email", ""),
+        "smtp_from_name": raw.get("smtp_from_name", "LeadHive"),
+        "smtp_use_tls": "true",
     }
 
 
