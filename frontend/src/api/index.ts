@@ -387,12 +387,24 @@ export const api = {
   },
 
   adminAllUsers: {
-    list: (params?: { search?: string; role?: string; org_id?: number }) =>
+    list: (params?: { search?: string; role?: string; org_id?: number; verified?: string }) =>
       axios.get<{ users: any[] }>("/api/admin/all-users", { params }).then(r => r.data),
     updateRole: (userId: number, role: string) =>
       axios.patch(`/api/admin/all-users/${userId}`, { role }).then(r => r.data),
     delete: (userId: number) =>
       axios.delete(`/api/admin/all-users/${userId}`).then(r => r.data),
+    resendVerification: (userId: number) =>
+      axios.post<{ message: string; email_sent: boolean; verify_url?: string }>(
+        `/api/admin/all-users/${userId}/resend-verification`
+      ).then(r => r.data),
+    resendAll: () =>
+      axios.post<{ total: number; sent: number; message: string }>(
+        "/api/admin/unverified-users/resend-all"
+      ).then(r => r.data),
+    cleanupUnverified: (days: number) =>
+      axios.delete<{ deleted: number; message: string }>(
+        "/api/admin/unverified-users/cleanup", { params: { days } }
+      ).then(r => r.data),
   },
 
   adminLogs: {
