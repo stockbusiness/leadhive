@@ -100,6 +100,9 @@ def run_db_migrations():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_system_admin BOOLEAN DEFAULT FALSE",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_founder BOOLEAN DEFAULT FALSE",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_number INTEGER",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS phone VARCHAR(50)",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS corporate_number VARCHAR(13)",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS corporate_verified BOOLEAN DEFAULT FALSE",
         ]:
             conn.execute(sa.text(stmt))
         conn.commit()

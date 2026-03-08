@@ -33,6 +33,9 @@ class Organization(Base):
     master_db_import_count = Column(Integer, default=0)
     master_db_import_month = Column(String(7), nullable=True)
     onboarding_completed = Column(Boolean, default=False)
+    phone = Column(String(50), nullable=True)
+    corporate_number = Column(String(13), nullable=True)
+    corporate_verified = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
 
 

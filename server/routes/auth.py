@@ -14,6 +14,9 @@ class RegisterRequest(BaseModel):
     org_name: str
     email: str
     password: str
+    display_name: str = ""
+    phone: str = ""
+    corporate_number: str = ""
 
 
 class LoginRequest(BaseModel):
@@ -68,7 +71,12 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     if len(body.password) < 8:
         raise HTTPException(status_code=400, detail="パスワードは8文字以上で入力してください")
 
-    org = Organization(name=body.org_name)
+    org = Organization(
+        name=body.org_name,
+        phone=body.phone or None,
+        corporate_number=body.corporate_number or None,
+        corporate_verified=False,
+    )
     db.add(org)
     db.flush()
 
@@ -88,6 +96,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         email=body.email,
         password_hash=hash_password(body.password),
         role="admin",
+        display_name=body.display_name or None,
         registration_number=reg_number,
         is_founder=is_founder,
     )

@@ -20,7 +20,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (orgName: string, email: string, password: string) => Promise<void>;
+  register: (orgName: string, email: string, password: string, displayName?: string, phone?: string, corporateNumber?: string) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<AuthUser>) => void;
 }
@@ -95,8 +95,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const register = useCallback(async (orgName: string, email: string, password: string) => {
-    const res = await axios.post("/api/auth/register", { org_name: orgName, email, password });
+  const register = useCallback(async (orgName: string, email: string, password: string, displayName?: string, phone?: string, corporateNumber?: string) => {
+    const res = await axios.post("/api/auth/register", {
+      org_name: orgName,
+      email,
+      password,
+      display_name: displayName || "",
+      phone: phone || "",
+      corporate_number: corporateNumber || "",
+    });
     const { access_token, user: userData } = res.data;
     localStorage.setItem("leadhive_token", access_token);
     setToken(access_token);
