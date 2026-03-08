@@ -141,7 +141,7 @@ export default function LandingPageNew() {
 
               <p className="text-lg text-slate-400 max-w-xl mb-8 leading-relaxed">
                 LeadHiveはBtoB営業先の収集・スコアリング・進捗管理を一元化したSaaSです。
-                今なら<span className="text-amber-400 font-semibold">先着50名限定のFounderプラン</span>で、
+                今なら<span className="text-amber-400 font-semibold">先着50社限定のFounderプラン</span>で、
                 将来の有料機能を段階的な優待価格で使い続けられます。
               </p>
 
@@ -279,7 +279,7 @@ export default function LandingPageNew() {
               {
                 num: "01",
                 title: "Founderプランで永続優待",
-                body: "先着50名はFounderメンバーとして永続的な料金優待を受けられます。1年目無料、2年目以降も80%〜50%オフが永続します。",
+                body: "先着50社はFounderメンバーとして永続的な料金優待を受けられます。1年目無料、2年目以降も80%〜50%オフが永続します。",
                 color: "from-amber-600 to-amber-700",
                 accent: "text-amber-400",
               },
@@ -387,7 +387,7 @@ export default function LandingPageNew() {
         <div className="max-w-3xl mx-auto text-center relative">
           <div className="inline-flex items-center gap-2 bg-amber-950/60 border border-amber-700/40 text-amber-300 px-4 py-1.5 rounded-full text-xs font-bold mb-6 uppercase tracking-widest">
             <Star size={12} className="fill-amber-400 text-amber-400" />
-            先着50名限定 Founderプラン
+            先着50社限定 Founderプラン
           </div>
 
           <h2 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight">
