@@ -62,6 +62,17 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
 - **SMTP Email Send with History**: 企業詳細の編集モーダルからSMTPサーバー経由でメールを直接送信。送信履歴を email_send_logs テーブルに保存し、アクティビティログにも記録。テンプレート適用・宛先/件名/本文の編集が可能。
 - **Onboarding Wizard**: 新規ユーザー向け6ステップウィザード（ようこそ→組織名→プロジェクト→キーワード→Google API→完了）。onboarding_completed フラグ管理。
 - **Enhanced Registration Form**: 登録フォームに担当者名（display_name・必須）・電話番号（phone・必須）を追加。法人番号（13桁・任意）入力欄を設置し、チェックデジット検証（NTA仕様準拠）付き。gBizINFO APIトークンが設定済みの場合は「法人情報を取得」ボタンで会社名を自動補完（GET /api/public/corporate/{number}）。利用規約・プライバシーポリシー同意チェックボックスを必須化。Organizationモデルに phone, corporate_number, corporate_verified カラムを追加。
+- **Phase 1 データ基盤**（2026-03実装）:
+    - **CMS検出**: Shopify/WordPress/BASE/MakeShop/futureshop/カラーミー/EC-CUBE/Wix/Squarespace/STORES/Jimdo の自動判定。scraper.py の `detect_cms()` が HTML/HTTPヘッダを解析。
+    - **メール取得強化**: `extract_email_from_soup()` で `mailto:` リンク優先抽出・難読化（[at]等）対応・info@/contact@等の優先順位付け・contact_url への追加クロール。
+    - **SNSリンク取得**: `extract_sns_links()` でTwitter/X・Instagram・Facebook・YouTube・LINEのURLを自動抽出し `sns_links` JSON列に保存。
+    - **採用情報フラグ**: `detect_recruitment()` で採用/求人/募集/career キーワードとIndeedリンクを検出し `has_recruitment` フラグを付与。
+    - **安全収集ポリシー**: `check_robots_allowed()` でrobots.txtを確認（24時間キャッシュ）し、Disallow対象は `robots_disallow=True` で記録してスクレイピングをスキップ。User-Agent を `LeadHive/1.0 +https://leadhive.work` に統一。AutoMasterのクロール間隔を `random.uniform(2.0, 4.0)` 秒に延長。
+    - **ESCMS優先フラグ**: `escms_target_flag = ec_flag AND cms_type NOT IN (NULL, "Shopify")` で自動付与。EC事業者でShopify未使用の企業を識別。スコア+10。
+    - **スコアリング拡張**: has_recruitment +5、SNSアクティブ +5、escms_target_flag +10。
+    - **DBスキーマ拡張**: company_master・companiesテーブルに cms_type/cms_detected_at/sns_links/has_recruitment/employee_count/escms_target_flag/robots_disallow の7カラムを追加（ALTER TABLE IF NOT EXISTS で安全マイグレーション）。
+    - **マスターDB検索フィルタ拡張**: `/api/master/search` に cms_type/has_email/escms_target/has_recruitment パラメータを追加。
+    - **UI拡張**: MasterDB検索にCMS種別・メール有無・ESCMS優先・採用情報フィルタを追加。テーブルにCMS列・情報列（メール/SNS/採用アイコン）を追加。CompanyDetailにCMSバッジ・SNSリンク行・採用中バッジ・ESCMS優先バッジ・メールコピーボタンを追加。
 
 ## External Dependencies
 - **Google Custom Search API**: 営業先自動収集。

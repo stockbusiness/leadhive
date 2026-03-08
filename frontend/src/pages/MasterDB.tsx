@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Database, Search, Download, CheckSquare, ExternalLink, X, Crown, Lock, ArrowRight } from "lucide-react";
+import { Database, Search, Download, CheckSquare, ExternalLink, X, Crown, Lock, ArrowRight, Mail, Users, Briefcase } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
@@ -117,6 +117,10 @@ export default function MasterDB() {
   const [category, setCategory] = useState("all");
   const [prefecture, setPrefecture] = useState("all");
   const [minScore, setMinScore] = useState<number | "">("");
+  const [cmsType, setCmsType] = useState("all");
+  const [hasEmail, setHasEmail] = useState<"" | "true" | "false">("");
+  const [escmsTarget, setEscmsTarget] = useState(false);
+  const [hasRecruitment, setHasRecruitment] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
@@ -138,6 +142,11 @@ export default function MasterDB() {
     if (category !== "all") params.category = category;
     if (prefecture !== "all") params.prefecture = prefecture;
     if (minScore !== "") params.min_score = minScore;
+    if (cmsType !== "all") params.cms_type = cmsType;
+    if (hasEmail === "true") params.has_email = true;
+    if (hasEmail === "false") params.has_email = false;
+    if (escmsTarget) params.escms_target = true;
+    if (hasRecruitment) params.has_recruitment = true;
     if (currentProject?.id) params.project_id = currentProject.id;
     api.master.search(params)
       .then((data) => {
@@ -146,7 +155,7 @@ export default function MasterDB() {
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [q, category, prefecture, minScore, currentProject]);
+  }, [q, category, prefecture, minScore, cmsType, hasEmail, escmsTarget, hasRecruitment, currentProject]);
 
   const handleSelectAll = () => {
     if (selectedDomains.size === items.length) {
@@ -273,7 +282,7 @@ export default function MasterDB() {
                 </select>
               </div>
             </div>
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-3 items-center flex-wrap">
               <div className="flex items-center gap-2">
                 <label className="text-xs text-slate-600">最低スコア</label>
                 <input
@@ -286,6 +295,56 @@ export default function MasterDB() {
                   className="w-20 border border-slate-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-600">CMS種別</label>
+                <select
+                  value={cmsType}
+                  onChange={(e) => setCmsType(e.target.value)}
+                  className="border border-slate-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">全て</option>
+                  <option value="Shopify">Shopify</option>
+                  <option value="WordPress">WordPress</option>
+                  <option value="BASE">BASE</option>
+                  <option value="MakeShop">MakeShop</option>
+                  <option value="futureshop">futureshop</option>
+                  <option value="カラーミー">カラーミー</option>
+                  <option value="EC-CUBE">EC-CUBE</option>
+                  <option value="Wix">Wix</option>
+                  <option value="STORES">STORES</option>
+                  <option value="none">未検出</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-600">メール</label>
+                <select
+                  value={hasEmail}
+                  onChange={(e) => setHasEmail(e.target.value as any)}
+                  className="border border-slate-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">全て</option>
+                  <option value="true">あり</option>
+                  <option value="false">なし</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={escmsTarget}
+                  onChange={(e) => setEscmsTarget(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-violet-700 font-medium">ESCMS優先</span>
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasRecruitment}
+                  onChange={(e) => setHasRecruitment(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                採用情報あり
+              </label>
               <button
                 onClick={handleSearch}
                 disabled={loading}
@@ -342,10 +401,11 @@ export default function MasterDB() {
                         />
                       </th>
                       <th className="text-left px-3 py-2 font-medium text-slate-600">会社名</th>
+                      <th className="text-left px-3 py-2 font-medium text-slate-600">CMS</th>
                       <th className="text-left px-3 py-2 font-medium text-slate-600">カテゴリ</th>
                       <th className="text-center px-3 py-2 font-medium text-slate-600">スコア</th>
                       <th className="text-left px-3 py-2 font-medium text-slate-600">所在地</th>
-                      <th className="text-left px-3 py-2 font-medium text-slate-600">収集元</th>
+                      <th className="text-center px-3 py-2 font-medium text-slate-600">情報</th>
                       <th className="text-center px-3 py-2 font-medium text-slate-600">状態</th>
                     </tr>
                   </thead>
@@ -365,7 +425,12 @@ export default function MasterDB() {
                           />
                         </td>
                         <td className="px-3 py-2">
-                          <div className="font-medium text-slate-800">{item.company_name || item.domain}</div>
+                          <div className="font-medium text-slate-800 flex items-center gap-1.5">
+                            {item.company_name || item.domain}
+                            {item.escms_target_flag && (
+                              <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-semibold">ESCMS</span>
+                            )}
+                          </div>
                           <a
                             href={item.website_url || `https://${item.domain}`}
                             target="_blank"
@@ -375,6 +440,20 @@ export default function MasterDB() {
                             {item.domain} <ExternalLink size={10} />
                           </a>
                         </td>
+                        <td className="px-3 py-2">
+                          {item.cms_type ? (
+                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                              item.cms_type === "Shopify" ? "bg-green-100 text-green-700" :
+                              item.cms_type === "WordPress" ? "bg-blue-100 text-blue-700" :
+                              item.cms_type === "BASE" ? "bg-orange-100 text-orange-700" :
+                              "bg-slate-100 text-slate-600"
+                            }`}>
+                              {item.cms_type}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-300">—</span>
+                          )}
+                        </td>
                         <td className="px-3 py-2 text-slate-600">{item.category_main || "-"}</td>
                         <td className="px-3 py-2 text-center">
                           <ScoreBadge score={item.score_total} rank={item.score_rank} />
@@ -382,10 +461,18 @@ export default function MasterDB() {
                         <td className="px-3 py-2 text-slate-600 text-xs">
                           {item.prefecture}{item.city}
                         </td>
-                        <td className="px-3 py-2">
-                          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                            {SOURCE_LABELS[item.source] || item.source || "-"}
-                          </span>
+                        <td className="px-3 py-2 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {item.email && (
+                              <span title={item.email} className="text-blue-500"><Mail size={13} /></span>
+                            )}
+                            {item.has_recruitment && (
+                              <span title="採用情報あり" className="text-emerald-500"><Users size={13} /></span>
+                            )}
+                            {(item.sns_links && Object.values(item.sns_links as Record<string,any>).some(Boolean)) && (
+                              <span title="SNSあり" className="text-indigo-400"><Briefcase size={13} /></span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-2 text-center">
                           {item.already_in_project ? (

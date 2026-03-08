@@ -1,9 +1,16 @@
 import re
 import time
-import requests
+import logging
+import random
+import urllib.robotparser
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
+
+import requests
+from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 RETRYABLE_EXCEPTIONS = (
     requests.exceptions.Timeout,
@@ -12,6 +19,30 @@ RETRYABLE_EXCEPTIONS = (
 )
 
 KNOWN_ENCODINGS = {"utf-8", "shift_jis", "shift-jis", "euc-jp", "iso-2022-jp", "cp932", "ascii"}
+
+LEADHIVE_UA = "LeadHive/1.0 +https://leadhive.work"
+
+_robots_cache: dict[str, tuple[bool, float]] = {}
+_ROBOTS_CACHE_TTL = 86400
+
+
+def check_robots_allowed(url: str) -> bool:
+    parsed = urlparse(url)
+    base = f"{parsed.scheme}://{parsed.netloc}"
+    now = time.time()
+    if base in _robots_cache:
+        allowed, cached_at = _robots_cache[base]
+        if now - cached_at < _ROBOTS_CACHE_TTL:
+            return allowed
+    try:
+        rp = urllib.robotparser.RobotFileParser()
+        rp.set_url(f"{base}/robots.txt")
+        rp.read()
+        allowed = rp.can_fetch(LEADHIVE_UA, url)
+    except Exception:
+        allowed = True
+    _robots_cache[base] = (allowed, now)
+    return allowed
 
 
 def _detect_encoding(response: requests.Response) -> str:
@@ -25,16 +56,158 @@ def _detect_encoding(response: requests.Response) -> str:
     return "utf-8"
 
 
+def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) -> str:
+    html_lower = html_source.lower()
+
+    if (
+        "cdn.shopify.com" in html_lower
+        or "shopify.com/s/files" in html_lower
+        or "Shopify.theme" in html_source
+        or response_headers.get("x-shopid")
+        or response_headers.get("x-shopify-stage")
+    ):
+        return "Shopify"
+
+    if (
+        "wp-content/" in html_lower
+        or "wp-includes/" in html_lower
+        or soup.find("meta", attrs={"name": "generator", "content": re.compile(r"WordPress", re.I)})
+    ):
+        return "WordPress"
+
+    if (
+        "pay.base.com" in html_lower
+        or ".base.shop" in html_lower
+        or "base-ec.jp" in html_lower
+    ):
+        return "BASE"
+
+    if "makeshop.jp" in html_lower:
+        return "MakeShop"
+
+    if "future-shop.jp" in html_lower or "futureshop" in html_lower:
+        return "futureshop"
+
+    if "shop-pro.jp" in html_lower or "karakami" in html_lower or "color-me-shop" in html_lower:
+        return "カラーミー"
+
+    if "ec-cube" in html_lower or "eccube" in html_lower:
+        return "EC-CUBE"
+
+    if "static.wixstatic.com" in html_lower or "wix.com" in html_lower:
+        return "Wix"
+
+    if "squarespace.com" in html_lower:
+        return "Squarespace"
+
+    if "stores.jp" in html_lower:
+        return "STORES"
+
+    if "jimdo.com" in html_lower or "jimdofree.com" in html_lower:
+        return "Jimdo"
+
+    return ""
+
+
+def extract_sns_links(soup: BeautifulSoup) -> dict:
+    result = {
+        "twitter": None,
+        "instagram": None,
+        "facebook": None,
+        "youtube": None,
+        "line": None,
+    }
+
+    for a in soup.find_all("a", href=True):
+        href = a.get("href", "")
+        if not href:
+            continue
+
+        if result["twitter"] is None and re.search(r"(?:twitter\.com|x\.com)/(?!(?:share|intent|home|search|hashtag|i/))", href):
+            result["twitter"] = href
+
+        if result["instagram"] is None and "instagram.com/" in href and "/p/" not in href:
+            result["instagram"] = href
+
+        if result["facebook"] is None and re.search(r"facebook\.com/(?!(?:sharer|share|dialog|login|l\.php))", href):
+            result["facebook"] = href
+
+        if result["youtube"] is None and re.search(r"youtube\.com/(?:channel|@|c/|user/)", href):
+            result["youtube"] = href
+
+        if result["line"] is None and ("lin.ee/" in href or "line.me/R/ti/p/" in href or "line.me/ti/p/" in href):
+            result["line"] = href
+
+    return result
+
+
+def detect_recruitment(soup: BeautifulSoup, text: str) -> bool:
+    RECRUIT_KEYWORDS = ["採用", "求人", "募集", "career", "recruit", "join us", "働く", "採用情報", "求人情報"]
+    text_lower = text.lower()
+    for kw in RECRUIT_KEYWORDS:
+        if kw.lower() in text_lower:
+            return True
+
+    for a in soup.find_all("a", href=True):
+        href = a.get("href", "").lower()
+        link_text = a.get_text(strip=True).lower()
+        combined = f"{href} {link_text}"
+        if re.search(r"recruit|career|join|採用|求人|募集|indeed\.com|求人ボックス", combined):
+            return True
+
+    return False
+
+
+def extract_email_from_soup(soup: BeautifulSoup, text: str) -> str:
+    candidates: list[str] = []
+
+    for a in soup.find_all("a", href=True):
+        href = a.get("href", "")
+        if href.startswith("mailto:"):
+            addr = href[7:].split("?")[0].strip()
+            if re.match(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", addr):
+                candidates.append(addr)
+
+    normalized = re.sub(r"\[at\]|\(at\)|（at）|\s+at\s+", "@", text, flags=re.IGNORECASE)
+    normalized = re.sub(r"\[dot\]|\(dot\)|（dot）", ".", normalized, flags=re.IGNORECASE)
+    for m in re.finditer(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", normalized):
+        addr = m.group(0)
+        if addr not in candidates:
+            candidates.append(addr)
+
+    JUNK_DOMAINS = {"example.com", "example.jp", "sentry.io", "wixpress.com", "shopify.com"}
+    filtered = [e for e in candidates if e.split("@")[-1].lower() not in JUNK_DOMAINS]
+    if not filtered:
+        return ""
+
+    PRIORITY_PREFIXES = ["info", "contact", "inquiry", "support", "sales", "hello", "mail", "admin"]
+    for prefix in PRIORITY_PREFIXES:
+        for addr in filtered:
+            if addr.lower().startswith(prefix + "@") or addr.lower().startswith(prefix + "."):
+                return addr
+
+    return filtered[0]
+
+
 def scrape_company_info(url: str, max_retries: int = 3) -> dict:
+    if not check_robots_allowed(url):
+        parsed = urlparse(url)
+        raw_domain = parsed.netloc.lower()
+        domain = raw_domain[4:] if raw_domain.startswith("www.") else raw_domain
+        return {
+            "website_url": url,
+            "domain": domain,
+            "robots_disallow": True,
+        }
+
     last_error = ""
     for attempt in range(max_retries):
         try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
+            headers = {"User-Agent": LEADHIVE_UA}
             response = requests.get(url, headers=headers, timeout=15)
             response.encoding = _detect_encoding(response)
-            soup = BeautifulSoup(response.text, "html.parser")
+            html_source = response.text
+            soup = BeautifulSoup(html_source, "html.parser")
             text_content = soup.get_text(separator=" ", strip=True)
 
             raw_domain = urlparse(url).netloc.lower()
@@ -51,9 +224,25 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
 
             company_name = extract_company_name(soup, title, text_content)
             phone = extract_phone(text_content)
-            email = extract_email(text_content)
             prefecture, city = extract_location(text_content)
             contact_url = find_contact_page(soup, url)
+
+            email = extract_email_from_soup(soup, text_content)
+
+            if not email and contact_url:
+                try:
+                    contact_resp = requests.get(contact_url, headers=headers, timeout=10)
+                    contact_resp.encoding = _detect_encoding(contact_resp)
+                    contact_soup = BeautifulSoup(contact_resp.text, "html.parser")
+                    contact_text = contact_soup.get_text(separator=" ", strip=True)
+                    email = extract_email_from_soup(contact_soup, contact_text)
+                except Exception:
+                    pass
+
+            cms_type = detect_cms(soup, html_source, dict(response.headers))
+            cms_detected_at = datetime.utcnow().isoformat() if cms_type else None
+            sns_links = extract_sns_links(soup)
+            has_recruitment = detect_recruitment(soup, text_content)
 
             full_text = f"{title} {meta_desc} {' '.join(h1_texts)} {' '.join(h2_texts)} {text_content[:3000]}"
 
@@ -66,6 +255,11 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
                 "city": city,
                 "phone": phone,
                 "email": email,
+                "cms_type": cms_type or None,
+                "cms_detected_at": cms_detected_at,
+                "sns_links": sns_links,
+                "has_recruitment": has_recruitment,
+                "robots_disallow": False,
                 "full_text": full_text,
             }
         except RETRYABLE_EXCEPTIONS as e:
@@ -151,7 +345,7 @@ def extract_location(text: str) -> tuple[str, str]:
     for pref in PREFECTURES:
         if pref in text:
             city_match = re.search(
-                rf"{pref}([^\s　,、。]{2,10}?[市区町村郡])", text
+                rf"{pref}([^\s　,、。]{{2,10}}?[市区町村郡])", text
             )
             city = city_match.group(1) if city_match else ""
             return pref, city
@@ -175,6 +369,19 @@ def find_contact_page(soup: BeautifulSoup, base_url: str) -> str:
                     return full_url
 
     return ""
+
+
+_domain_last_access: dict[str, float] = {}
+_CRAWL_MIN_INTERVAL = 3.0
+
+
+def crawl_delay(domain: str):
+    now = time.time()
+    last = _domain_last_access.get(domain, 0)
+    wait = _CRAWL_MIN_INTERVAL - (now - last)
+    if wait > 0:
+        time.sleep(wait + random.uniform(0, 1.5))
+    _domain_last_access[domain] = time.time()
 
 
 def scrape_urls_parallel(urls: list[str], max_workers: int = 5) -> list[dict]:

@@ -56,7 +56,9 @@ def _upsert_company_master(db: Session, company_data: dict, domain: str = None, 
                           "prefecture", "city", "category_main", "category_sub",
                           "shopify_flag", "ec_flag", "amazon_flag", "rakuten_flag",
                           "consulting_flag", "operation_flag", "production_flag",
-                          "score_total", "score_rank"]:
+                          "score_total", "score_rank",
+                          "cms_type", "cms_detected_at", "sns_links", "has_recruitment",
+                          "employee_count", "escms_target_flag", "robots_disallow"]:
                 val = company_data.get(field)
                 if val is not None:
                     setattr(existing, field, val)
@@ -251,7 +253,8 @@ def _process_search_results(
 
             full_text = info.pop("full_text", "")
             category_main, category_sub = categorize_company(full_text)
-            flags = detect_flags(full_text)
+            cms_type = info.get("cms_type") or None
+            flags = detect_flags(full_text, cms_type=cms_type)
 
             company_data = {
                 **info,

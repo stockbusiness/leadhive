@@ -42,7 +42,7 @@ DEFAULT_FLAG_KEYWORDS = {
 }
 
 
-def detect_flags(text: str, custom_flags: dict = None) -> dict:
+def detect_flags(text: str, custom_flags: dict = None, cms_type: str = None) -> dict:
     text_lower = text.lower()
     source = custom_flags if custom_flags else DEFAULT_FLAG_KEYWORDS
     result = {}
@@ -51,4 +51,9 @@ def detect_flags(text: str, custom_flags: dict = None) -> dict:
     for default_flag in DEFAULT_FLAG_KEYWORDS:
         if default_flag not in result:
             result[default_flag] = any(kw.lower() in text_lower for kw in DEFAULT_FLAG_KEYWORDS[default_flag])
+
+    ec_flag = result.get("ec_flag", False)
+    effective_cms = cms_type or ""
+    result["escms_target_flag"] = bool(ec_flag and effective_cms and effective_cms != "Shopify")
+
     return result

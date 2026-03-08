@@ -50,6 +50,13 @@ def company_to_dict(c: Company, db: Session = None) -> dict:
         "follow_up_date": c.follow_up_date.isoformat() if c.follow_up_date else None,
         "tags": tags,
         "ai_summary": c.ai_summary if hasattr(c, "ai_summary") else None,
+        "cms_type": getattr(c, "cms_type", None),
+        "cms_detected_at": getattr(c, "cms_detected_at", None).isoformat() if getattr(c, "cms_detected_at", None) else None,
+        "sns_links": getattr(c, "sns_links", None),
+        "has_recruitment": getattr(c, "has_recruitment", False),
+        "employee_count": getattr(c, "employee_count", None),
+        "escms_target_flag": getattr(c, "escms_target_flag", False),
+        "robots_disallow": getattr(c, "robots_disallow", False),
         "created_at": c.created_at.isoformat() if c.created_at and hasattr(c.created_at, 'isoformat') else (str(c.created_at) if c.created_at else None),
         "updated_at": c.updated_at.isoformat() if c.updated_at and hasattr(c.updated_at, 'isoformat') else (str(c.updated_at) if c.updated_at else None),
     }

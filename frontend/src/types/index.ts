@@ -37,6 +37,13 @@ export interface Company {
     価格帯?: string;
     generated_at?: string;
   } | null;
+  cms_type?: string | null;
+  cms_detected_at?: string | null;
+  sns_links?: Record<string, string | null> | null;
+  has_recruitment?: boolean;
+  employee_count?: number | null;
+  escms_target_flag?: boolean;
+  robots_disallow?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -165,6 +172,11 @@ export interface CompanyMaster {
   production_flag: boolean;
   score_total: number;
   score_rank: string;
+  cms_type?: string | null;
+  sns_links?: Record<string, string | null> | null;
+  has_recruitment?: boolean;
+  escms_target_flag?: boolean;
+  robots_disallow?: boolean;
   source: string;
   last_scraped_at: string | null;
   created_at: string | null;

@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft, Building2, Globe, Phone, Mail, MapPin, Tag, ExternalLink,
   Edit2, Loader2, Clock, ChevronRight, Activity, FileText, User, Sparkles,
-  Send, Copy, Check, RefreshCw, ChevronDown, ChevronUp
+  Send, Copy, Check, RefreshCw, ChevronDown, ChevronUp, Users, Briefcase, MonitorSmartphone
 } from "lucide-react";
 import { api } from "../api";
 import type { Company, StatusHistoryEntry, ActivityLogEntry } from "../types";
@@ -52,6 +52,7 @@ export default function CompanyDetail() {
   const [copiedSubject, setCopiedSubject] = useState(false);
   const [copiedBody, setCopiedBody] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   const companyId = Number(id);
 
@@ -197,7 +198,23 @@ export default function CompanyDetail() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-4 border-t border-slate-100">
           <InfoItem icon={<MapPin size={14} />} label="所在地" value={[company.prefecture, company.city].filter(Boolean).join(" ") || "—"} />
           <InfoItem icon={<Phone size={14} />} label="電話" value={company.phone || "—"} />
-          <InfoItem icon={<Mail size={14} />} label="メール" value={company.email || "—"} />
+          <div>
+            <p className="text-xs text-slate-500 mb-0.5 flex items-center gap-1"><Mail size={12} /> メール</p>
+            {company.email ? (
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-medium text-slate-700 truncate max-w-[140px]">{company.email}</span>
+                <button
+                  onClick={() => copyText(company.email, setCopiedEmail)}
+                  className="text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                  title="コピー"
+                >
+                  {copiedEmail ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                </button>
+              </div>
+            ) : (
+              <span className="text-sm text-slate-400">—</span>
+            )}
+          </div>
           <InfoItem icon={<Tag size={14} />} label="カテゴリ" value={company.category_main || "—"} />
           {(company.contact_name || company.contact_title) && (
             <InfoItem icon={<User size={14} />} label="担当者" value={[company.contact_name, company.contact_title].filter(Boolean).join(" / ")} />
@@ -221,7 +238,72 @@ export default function CompanyDetail() {
           {company.consulting_flag && <FlagBadge label="コンサル" color="bg-indigo-100 text-indigo-700" />}
           {company.operation_flag && <FlagBadge label="運営代行" color="bg-teal-100 text-teal-700" />}
           {company.production_flag && <FlagBadge label="制作" color="bg-violet-100 text-violet-700" />}
+          {company.escms_target_flag && (
+            <span className="flex items-center gap-1 text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-semibold">
+              <MonitorSmartphone size={11} /> ESCMS優先
+            </span>
+          )}
+          {company.has_recruitment && (
+            <span className="flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+              <Users size={11} /> 採用中
+            </span>
+          )}
         </div>
+
+        {(company.cms_type || (company.sns_links && Object.values(company.sns_links).some(Boolean))) && (
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+            {company.cms_type && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 w-16 flex-shrink-0">CMS</span>
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                  company.cms_type === "Shopify" ? "bg-green-100 text-green-700" :
+                  company.cms_type === "WordPress" ? "bg-blue-100 text-blue-700" :
+                  company.cms_type === "BASE" ? "bg-orange-100 text-orange-700" :
+                  company.cms_type === "EC-CUBE" ? "bg-amber-100 text-amber-700" :
+                  company.cms_type === "Wix" ? "bg-sky-100 text-sky-700" :
+                  "bg-slate-100 text-slate-600"
+                }`}>
+                  {company.cms_type}
+                </span>
+              </div>
+            )}
+            {company.sns_links && Object.values(company.sns_links).some(Boolean) && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-slate-500 w-16 flex-shrink-0">SNS</span>
+                {company.sns_links.twitter && (
+                  <a href={company.sns_links.twitter} target="_blank" rel="noopener noreferrer"
+                     className="text-xs bg-sky-50 text-sky-600 px-2 py-0.5 rounded hover:bg-sky-100 flex items-center gap-1">
+                    <ExternalLink size={10} /> X / Twitter
+                  </a>
+                )}
+                {company.sns_links.instagram && (
+                  <a href={company.sns_links.instagram} target="_blank" rel="noopener noreferrer"
+                     className="text-xs bg-pink-50 text-pink-600 px-2 py-0.5 rounded hover:bg-pink-100 flex items-center gap-1">
+                    <ExternalLink size={10} /> Instagram
+                  </a>
+                )}
+                {company.sns_links.facebook && (
+                  <a href={company.sns_links.facebook} target="_blank" rel="noopener noreferrer"
+                     className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 flex items-center gap-1">
+                    <ExternalLink size={10} /> Facebook
+                  </a>
+                )}
+                {company.sns_links.youtube && (
+                  <a href={company.sns_links.youtube} target="_blank" rel="noopener noreferrer"
+                     className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded hover:bg-red-100 flex items-center gap-1">
+                    <ExternalLink size={10} /> YouTube
+                  </a>
+                )}
+                {company.sns_links.line && (
+                  <a href={company.sns_links.line} target="_blank" rel="noopener noreferrer"
+                     className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded hover:bg-green-100 flex items-center gap-1">
+                    <ExternalLink size={10} /> LINE
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {company.assignee && (
           <div className="flex items-center gap-2 mt-4 p-3 bg-slate-50 rounded-lg">

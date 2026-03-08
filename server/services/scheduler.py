@@ -1,5 +1,6 @@
 import threading
 import time
+import random
 import logging
 from datetime import datetime, date
 
@@ -362,7 +363,8 @@ def _run_auto_master_collect(job_id: str = None):
 
                         full_text = scraped.get("full_text", "") or ""
                         cat_main, cat_sub = categorize_company(full_text)
-                        flags = detect_flags(full_text)
+                        cms_type = scraped.get("cms_type") or None
+                        flags = detect_flags(full_text, cms_type=cms_type)
                         scraped.update({"category_main": cat_main, "category_sub": cat_sub, **flags})
                         score, rank = calculate_score(scraped)
                         scraped["score_total"] = score
@@ -375,7 +377,7 @@ def _run_auto_master_collect(job_id: str = None):
                         saved += 1
                         if not company.get("company_url"):
                             enriched += 1
-                        time.sleep(0.3)
+                        time.sleep(random.uniform(2.0, 4.0))
                     except Exception as e:
                         logger.warning(f"AutoMaster: company error: {e}")
                         try:

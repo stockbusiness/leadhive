@@ -33,6 +33,11 @@ def _master_to_dict(m: CompanyMaster, already_in_project: bool = False) -> dict:
         "production_flag": m.production_flag,
         "score_total": m.score_total,
         "score_rank": m.score_rank,
+        "cms_type": getattr(m, "cms_type", None),
+        "sns_links": getattr(m, "sns_links", None),
+        "has_recruitment": getattr(m, "has_recruitment", False),
+        "escms_target_flag": getattr(m, "escms_target_flag", False),
+        "robots_disallow": getattr(m, "robots_disallow", False),
         "source": m.source,
         "last_scraped_at": m.last_scraped_at.isoformat() if m.last_scraped_at else None,
         "created_at": m.created_at.isoformat() if m.created_at else None,
@@ -84,6 +89,10 @@ def search_master(
     prefecture: Optional[str] = None,
     min_score: Optional[int] = None,
     project_id: Optional[int] = None,
+    cms_type: Optional[str] = None,
+    has_email: Optional[bool] = None,
+    escms_target: Optional[bool] = None,
+    has_recruitment: Optional[bool] = None,
     limit: int = 50,
     current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
@@ -112,6 +121,30 @@ def search_master(
 
     if min_score is not None:
         query = query.filter(CompanyMaster.score_total >= min_score)
+
+    if cms_type and cms_type != "all":
+        if cms_type == "none":
+            query = query.filter(
+                (CompanyMaster.cms_type.is_(None)) | (CompanyMaster.cms_type == "")
+            )
+        else:
+            query = query.filter(CompanyMaster.cms_type == cms_type)
+
+    if has_email is True:
+        query = query.filter(
+            CompanyMaster.email.isnot(None),
+            CompanyMaster.email != "",
+        )
+    elif has_email is False:
+        query = query.filter(
+            (CompanyMaster.email.is_(None)) | (CompanyMaster.email == "")
+        )
+
+    if escms_target is True:
+        query = query.filter(CompanyMaster.escms_target_flag == True)
+
+    if has_recruitment is True:
+        query = query.filter(CompanyMaster.has_recruitment == True)
 
     total_count = query.count()
     results = query.order_by(CompanyMaster.score_total.desc()).limit(limit).all()

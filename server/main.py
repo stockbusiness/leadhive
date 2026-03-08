@@ -104,6 +104,20 @@ def run_db_migrations():
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS phone VARCHAR(50)",
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS corporate_number VARCHAR(13)",
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS corporate_verified BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS cms_type VARCHAR(50)",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS cms_detected_at TIMESTAMP",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sns_links JSONB",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS has_recruitment BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS employee_count INTEGER",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS escms_target_flag BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS robots_disallow BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS cms_type VARCHAR(50)",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS cms_detected_at TIMESTAMP",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_links JSONB",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS has_recruitment BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS employee_count INTEGER",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS escms_target_flag BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS robots_disallow BOOLEAN DEFAULT FALSE",
         ]:
             conn.execute(sa.text(stmt))
         conn.commit()

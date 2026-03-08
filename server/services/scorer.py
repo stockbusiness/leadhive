@@ -7,6 +7,9 @@ DEFAULT_SCORING_RULES = {
     "phone": 5,
     "location": 5,
     "multi_platform": 10,
+    "has_recruitment": 5,
+    "sns_active": 5,
+    "escms_target_flag": 10,
     "info_missing_penalty": -10,
     "no_contact_penalty": -15,
     "not_ec_related_penalty": -20,
@@ -29,6 +32,17 @@ def calculate_score(company_data: dict, custom_rules: dict = None) -> tuple[int,
         score += rules["location"]
     if company_data.get("amazon_flag") and company_data.get("rakuten_flag") and "multi_platform" in rules:
         score += rules["multi_platform"]
+
+    if company_data.get("has_recruitment") and "has_recruitment" in rules:
+        score += rules["has_recruitment"]
+
+    if company_data.get("escms_target_flag") and "escms_target_flag" in rules:
+        score += rules["escms_target_flag"]
+
+    sns = company_data.get("sns_links") or {}
+    if isinstance(sns, dict) and any(v for v in sns.values()):
+        if "sns_active" in rules:
+            score += rules["sns_active"]
 
     info_count = sum([
         bool(company_data.get("company_name")),
