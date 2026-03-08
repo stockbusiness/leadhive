@@ -1,0 +1,132 @@
+import uuid
+import threading
+import logging
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from server.database import get_db, SessionLocal
+from server.routes.auth import get_current_user
+from server.models import User, SystemSettings, CompanyMaster
+from server.services.collector import job_update
+from server.services.gbiz_collector import PREFECTURES
+
+router = APIRouter(prefix="/api/admin/auto-master", tags=["admin-auto-master"])
+logger = logging.getLogger(__name__)
+
+SETTINGS_KEYS = [
+    "auto_master_enabled",
+    "auto_master_pref_idx",
+    "auto_master_max_pages",
+    "auto_master_max_enrich",
+    "auto_master_schedule_hour",
+    "auto_master_last_run",
+    "auto_master_last_count",
+    "auto_master_total_collected",
+    "gbizinfo_api_token",
+]
+
+DEFAULTS = {
+    "auto_master_enabled": "false",
+    "auto_master_pref_idx": "0",
+    "auto_master_max_pages": "5",
+    "auto_master_max_enrich": "10",
+    "auto_master_schedule_hour": "3",
+    "auto_master_last_run": "",
+    "auto_master_last_count": "0",
+    "auto_master_total_collected": "0",
+    "gbizinfo_api_token": "",
+}
+
+
+def _require_system_admin(current_user: User):
+    if not current_user.is_system_admin:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="システム管理者のみ操作できます")
+
+
+def _get_all(db: Session) -> dict:
+    rows = db.query(SystemSettings).filter(SystemSettings.key.in_(SETTINGS_KEYS)).all()
+    settings = dict(DEFAULTS)
+    for row in rows:
+        settings[row.key] = row.value or ""
+    return settings
+
+
+def _set_key(db: Session, key: str, value: str):
+    row = db.query(SystemSettings).filter(SystemSettings.key == key).first()
+    if row:
+        row.value = value
+    else:
+        db.add(SystemSettings(key=key, value=value))
+    db.commit()
+
+
+@router.get("/status")
+def get_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    settings = _get_all(db)
+    pref_idx = int(settings.get("auto_master_pref_idx", "0"))
+    if pref_idx >= len(PREFECTURES):
+        pref_idx = 0
+
+    master_count = db.query(CompanyMaster).count()
+
+    return {
+        "enabled": settings.get("auto_master_enabled") == "true",
+        "pref_idx": pref_idx,
+        "current_prefecture": PREFECTURES[pref_idx],
+        "prefectures": PREFECTURES,
+        "max_pages": int(settings.get("auto_master_max_pages", "5")),
+        "max_enrich": int(settings.get("auto_master_max_enrich", "10")),
+        "schedule_hour": int(settings.get("auto_master_schedule_hour", "3")),
+        "last_run": settings.get("auto_master_last_run", ""),
+        "last_count": int(settings.get("auto_master_last_count", "0")),
+        "total_collected": int(settings.get("auto_master_total_collected", "0")),
+        "master_db_count": master_count,
+        "has_gbiz_token": bool(settings.get("gbizinfo_api_token")),
+    }
+
+
+@router.post("/settings")
+def update_settings(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    allowed = {"auto_master_enabled", "auto_master_max_pages", "auto_master_max_enrich", "auto_master_schedule_hour"}
+    for key, val in data.items():
+        if key in allowed:
+            _set_key(db, key, str(val))
+    return {"ok": True}
+
+
+@router.post("/reset-progress")
+def reset_progress(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    _set_key(db, "auto_master_pref_idx", "0")
+    return {"ok": True}
+
+
+@router.post("/run-now")
+def run_now(
+    current_user: User = Depends(get_current_user),
+):
+    _require_system_admin(current_user)
+    job_id = str(uuid.uuid4())
+    job_update(job_id, type="progress", current=0, total=0,
+               message="マスターDB自動収集を開始しています...", status="running")
+
+    def run():
+        from server.services.scheduler import _run_auto_master_collect
+        _run_auto_master_collect(job_id=job_id)
+
+    threading.Thread(target=run, daemon=True).start()
+    return {"job_id": job_id}

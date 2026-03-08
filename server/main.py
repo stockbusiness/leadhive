@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates, projects, master
 from server.routes import auth, users, plans, payments, onboarding, public
+from server.routes import admin_auto_master
 from server.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -188,6 +189,7 @@ app.include_router(plans.router)
 app.include_router(payments.router)
 app.include_router(onboarding.router, prefix="/api/onboarding", tags=["onboarding"])
 app.include_router(public.router)
+app.include_router(admin_auto_master.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 

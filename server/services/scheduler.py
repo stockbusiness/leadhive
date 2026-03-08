@@ -209,21 +209,167 @@ def _run_suspend_inactive_users():
         db.close()
 
 
+def _run_auto_master_collect(job_id: str = None):
+    from server.database import SessionLocal
+    from server.models import SystemSettings, CompanyMaster
+    from server.services.gbiz_collector import search_gbiz, PREFECTURES
+    from server.services.scraper import scrape_company_info
+    from server.services.aggregator import normalize_domain, is_aggregator_site
+    from server.services.categorizer import categorize_company, detect_flags
+    from server.services.scorer import calculate_score
+    from server.services.collector import _upsert_company_master, job_update
+
+    def _sys_get(db, key, default=""):
+        row = db.query(SystemSettings).filter(SystemSettings.key == key).first()
+        return row.value if row and row.value else default
+
+    def _sys_set(db, key, value):
+        row = db.query(SystemSettings).filter(SystemSettings.key == key).first()
+        if row:
+            row.value = str(value)
+        else:
+            db.add(SystemSettings(key=key, value=str(value)))
+        db.commit()
+
+    db = SessionLocal()
+    try:
+        token = _sys_get(db, "gbizinfo_api_token")
+        if not token:
+            msg = "gBizINFO APIトークンが設定されていません"
+            logger.warning(f"AutoMaster: {msg}")
+            if job_id:
+                job_update(job_id, type="error", message=msg)
+            return
+
+        pref_idx = int(_sys_get(db, "auto_master_pref_idx", "0"))
+        if pref_idx >= len(PREFECTURES):
+            pref_idx = 0
+        max_pages = max(1, min(20, int(_sys_get(db, "auto_master_max_pages", "5"))))
+        max_enrich = max(0, min(50, int(_sys_get(db, "auto_master_max_enrich", "10"))))
+        prefecture = PREFECTURES[pref_idx]
+
+        logger.info(f"AutoMaster: Starting for {prefecture} (idx={pref_idx}, max_pages={max_pages}, max_enrich={max_enrich})")
+        if job_id:
+            job_update(job_id, type="progress", current=0, total=0,
+                       message=f"{prefecture} の収集を開始しています...", status="running")
+
+        all_companies = []
+        for page in range(1, max_pages + 1):
+            try:
+                result = search_gbiz(token, name_keyword="", prefecture=prefecture, page=page)
+                batch = result.get("companies", [])
+                all_companies.extend(batch)
+                total_pages = int(result.get("total_page_count", 1))
+                if page >= total_pages:
+                    break
+                time.sleep(0.5)
+            except Exception as e:
+                logger.warning(f"AutoMaster: gBizINFO page {page} failed: {e}")
+                break
+
+        total = len(all_companies)
+        logger.info(f"AutoMaster: Got {total} companies from gBizINFO for {prefecture}")
+
+        saved = 0
+        enriched = 0
+        enrich_count = 0
+
+        for i, company in enumerate(all_companies):
+            if job_id:
+                job_update(job_id, current=i + 1, total=total,
+                           message=f"({i + 1}/{total}) {prefecture} — 「{company.get('name', '')}」を処理中...")
+            try:
+                url = company.get("company_url", "") or ""
+                if not url and enrich_count < max_enrich:
+                    from server.services.gbiz_collector import find_website_for_company
+                    location = company.get("location", "") or ""
+                    url = find_website_for_company(company["name"], location, db=db, org_id=None)
+                    if url:
+                        enrich_count += 1
+                        time.sleep(0.5)
+
+                if not url:
+                    continue
+
+                domain = normalize_domain(url)
+                if not domain or is_aggregator_site(domain):
+                    continue
+
+                scraped = scrape_company_info(url) or {}
+                scraped["company_name"] = company.get("name", "")
+                scraped["website_url"] = url
+                scraped["domain"] = domain
+                if not scraped.get("prefecture"):
+                    loc = company.get("location", "") or ""
+                    for pref in PREFECTURES:
+                        if loc.startswith(pref):
+                            scraped["prefecture"] = pref
+                            scraped["city"] = loc[len(pref):].split("　")[0][:30]
+                            break
+
+                full_text = scraped.get("full_text", "") or ""
+                cat_main, cat_sub = categorize_company(full_text)
+                flags = detect_flags(full_text)
+                scraped.update({"category_main": cat_main, "category_sub": cat_sub, **flags})
+                score, rank = calculate_score(scraped)
+                scraped["score_total"] = score
+                scraped["score_rank"] = rank
+
+                _upsert_company_master(db, scraped, domain, source="auto_master")
+                saved += 1
+                if url and not company.get("company_url"):
+                    enriched += 1
+                time.sleep(0.3)
+            except Exception as e:
+                logger.warning(f"AutoMaster: company error: {e}")
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+
+        next_idx = (pref_idx + 1) % len(PREFECTURES)
+        _sys_set(db, "auto_master_pref_idx", str(next_idx))
+        _sys_set(db, "auto_master_last_run", datetime.utcnow().isoformat())
+        _sys_set(db, "auto_master_last_count", str(saved))
+        total_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_total_collected").first()
+        prev_total = int(total_row.value) if total_row and total_row.value else 0
+        _sys_set(db, "auto_master_total_collected", str(prev_total + saved))
+
+        msg = f"{prefecture} 完了: {total}件取得 → {saved}件保存（URL補完: {enriched}件）"
+        logger.info(f"AutoMaster: {msg}")
+        if job_id:
+            job_update(job_id, type="done",
+                       result={"prefecture": prefecture, "fetched": total, "saved": saved, "enriched": enriched},
+                       message=msg)
+
+    except Exception as e:
+        logger.error(f"AutoMaster error: {e}")
+        if job_id:
+            job_update(job_id, type="error", message=str(e))
+    finally:
+        db.close()
+
+
 def _scheduler_loop():
     global _scheduler_running
     last_collect_date = None
     last_notify_date = None
     last_suspend_date = None
+    last_master_date = None
 
     while _scheduler_running:
         try:
             from server.database import SessionLocal
-            from server.models import AppSetting
+            from server.models import AppSetting, SystemSettings
 
             db = SessionLocal()
             try:
                 enabled = db.query(AppSetting).filter(AppSetting.setting_key == "auto_collect_enabled").first()
                 schedule = db.query(AppSetting).filter(AppSetting.setting_key == "auto_collect_time").first()
+                master_enabled_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_enabled").first()
+                master_hour_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_schedule_hour").first()
+                master_enabled = master_enabled_row and master_enabled_row.value == "true"
+                master_hour = int(master_hour_row.value) if master_hour_row and master_hour_row.value else 3
             finally:
                 db.close()
 
@@ -239,6 +385,11 @@ def _scheduler_loop():
                         _run_auto_collect()
                 except (ValueError, AttributeError):
                     pass
+
+            if master_enabled and now.hour == master_hour and now.minute == 0 and last_master_date != today:
+                last_master_date = today
+                logger.info(f"AutoMaster: Triggered at {now.strftime('%H:%M')}")
+                threading.Thread(target=_run_auto_master_collect, daemon=True).start()
 
             if now.hour == 9 and now.minute == 0 and last_notify_date != today:
                 last_notify_date = today
