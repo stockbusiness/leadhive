@@ -46,11 +46,10 @@ export default function AdminAutoMaster() {
   const [saveMsg, setSaveMsg] = useState("");
   const [running, setRunning] = useState(false);
   const [progressMsg, setProgressMsg] = useState("");
-  const [progressCurrent, setProgressCurrent] = useState(0);
-  const [progressTotal, setProgressTotal] = useState(0);
   const [runResult, setRunResult] = useState<any>(null);
   const [runError, setRunError] = useState<string | null>(null);
-  const esRef = useRef<EventSource | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const runSnapshotRef = useRef<{ pref_idx: number; keyword_idx: number; last_run: string } | null>(null);
 
   const [form, setForm] = useState({
     enabled: false,
@@ -73,7 +72,10 @@ export default function AdminAutoMaster() {
     }).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    return () => stopPolling();
+  }, []);
 
   const handleSave = () => {
     setSaving(true);
@@ -94,45 +96,45 @@ export default function AdminAutoMaster() {
     axios.post("/api/admin/auto-master/reset-progress").then(() => load());
   };
 
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
+
   const handleRunNow = () => {
     setRunning(true);
     setRunResult(null);
     setRunError(null);
     setProgressMsg("処理を開始しています...");
-    setProgressCurrent(0);
-    setProgressTotal(0);
-    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+    stopPolling();
 
-    axios.post("/api/admin/auto-master/run-now").then((r) => {
-      const job_id = r.data.job_id;
-      const es = new EventSource(`/api/collect/progress/${job_id}`);
-      esRef.current = es;
-      es.onmessage = (e) => {
-        try {
-          const msg = JSON.parse(e.data);
-          if (msg.message) setProgressMsg(msg.message);
-          if (msg.current !== undefined) setProgressCurrent(msg.current);
-          if (msg.total !== undefined) setProgressTotal(msg.total);
-          if (msg.type === "done") {
-            setRunResult(msg.result);
+    const snapshot = status
+      ? { pref_idx: status.pref_idx, keyword_idx: status.keyword_idx, last_run: status.last_run }
+      : null;
+    runSnapshotRef.current = snapshot;
+
+    axios.post("/api/admin/auto-master/run-now").then(() => {
+      setProgressMsg("収集実行中...");
+      let elapsed = 0;
+      pollRef.current = setInterval(() => {
+        elapsed += 3;
+        axios.get("/api/admin/auto-master/status").then((r) => {
+          const s: Status = r.data;
+          const snap = runSnapshotRef.current;
+          const done = snap
+            ? (s.pref_idx !== snap.pref_idx || s.keyword_idx !== snap.keyword_idx || s.last_run !== snap.last_run)
+            : false;
+          if (done || elapsed >= 300) {
+            stopPolling();
+            setRunResult({ prefecture: snap ? `${s.prefectures[snap.pref_idx] ?? ""}` : "", fetched: 0, saved: s.last_count, enriched: 0 });
             setProgressMsg("");
             setRunning(false);
-            es.close();
-            load();
-          } else if (msg.type === "error") {
-            setRunError(msg.message);
-            setProgressMsg("");
-            setRunning(false);
-            es.close();
+            setStatus(s);
+          } else {
+            const msgs = ["収集実行中...", "gBizINFOから企業データを取得中...", "マスターDBに保存中..."];
+            setProgressMsg(msgs[Math.floor(elapsed / 5) % msgs.length]);
           }
-        } catch {}
-      };
-      es.onerror = () => {
-        setRunError("接続エラー");
-        setProgressMsg("");
-        setRunning(false);
-        es.close();
-      };
+        }).catch(() => {});
+      }, 3000);
     }).catch((err) => {
       setRunError(err.response?.data?.detail || "実行に失敗しました");
       setProgressMsg("");
@@ -140,7 +142,6 @@ export default function AdminAutoMaster() {
     });
   };
 
-  const pct = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
 
   const formatDateTime = (iso: string) => {
     if (!iso) return "未実行";
@@ -325,15 +326,11 @@ export default function AdminAutoMaster() {
 
         {running && progressMsg && (
           <div className="space-y-1">
-            <div className="flex justify-between text-xs text-slate-500">
+            <div className="text-xs text-slate-500">
               <span>{progressMsg}</span>
-              {progressTotal > 0 && <span>{progressCurrent}/{progressTotal}</span>}
             </div>
             <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-2 bg-indigo-500 rounded-full transition-all duration-300"
-                style={{ width: progressTotal > 0 ? `${pct}%` : "100%" }}
-              />
+              <div className="h-2 bg-indigo-500 rounded-full animate-pulse" style={{ width: "100%" }} />
             </div>
           </div>
         )}
