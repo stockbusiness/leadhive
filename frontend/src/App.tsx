@@ -30,9 +30,12 @@ import {
   BarChart2,
   Map,
   Star,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { api } from "./api";
 import PlanLimitModal from "./components/common/PlanLimitModal";
 import AnnouncementBanner from "./components/common/AnnouncementBanner";
@@ -163,6 +166,7 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
 function AppContent() {
   const { projects, currentProject, setCurrentProjectId } = useProject();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -275,6 +279,13 @@ function AppContent() {
           <SidebarLink to="/roadmap" icon={<Map size={18} />} label="ロードマップ" onClick={closeSidebar} />
           <SidebarLink to="/manual" icon={<BookOpen size={18} />} label="マニュアル" onClick={closeSidebar} />
           <SidebarLink to="/settings" icon={<Settings size={18} />} label="設定" onClick={closeSidebar} />
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            {theme === "dark" ? "ライトモード" : "ダークモード"}
+          </button>
         </div>
 
         {user && (
@@ -414,25 +425,27 @@ function HomeRoute() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div></div>}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/roadmap" element={<Roadmap />} />
-          <Route path="/accept-invite/:token" element={<AcceptInvite />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/landing" element={<LandingPage />} />
-          <Route path="/company" element={<Company />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/*" element={<HomeRoute />} />
-        </Routes>
-      </Suspense>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div></div>}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/roadmap" element={<Roadmap />} />
+            <Route path="/accept-invite/:token" element={<AcceptInvite />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/landing" element={<LandingPage />} />
+            <Route path="/company" element={<Company />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/*" element={<HomeRoute />} />
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

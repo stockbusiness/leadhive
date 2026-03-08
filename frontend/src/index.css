@@ -4,4 +4,73 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: #f8fafc;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
+
+/* ─── Dark mode global ─── */
+.dark body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Background overrides */
+.dark .bg-white            { background-color: #1e293b; }
+.dark .bg-slate-50         { background-color: #0f172a; }
+.dark .bg-slate-100        { background-color: #1e293b; }
+.dark .bg-slate-200        { background-color: #334155; }
+
+/* Text overrides */
+.dark .text-slate-900      { color: #f8fafc; }
+.dark .text-slate-800      { color: #f1f5f9; }
+.dark .text-slate-700      { color: #e2e8f0; }
+.dark .text-slate-600      { color: #cbd5e1; }
+.dark .text-slate-500      { color: #94a3b8; }
+.dark .text-slate-400      { color: #64748b; }
+
+/* Border overrides */
+.dark .border-slate-100    { border-color: #1e293b; }
+.dark .border-slate-200    { border-color: #334155; }
+.dark .border-slate-300    { border-color: #475569; }
+
+/* Hover overrides */
+.dark .hover\:bg-slate-50:hover  { background-color: #1e293b; }
+.dark .hover\:bg-slate-100:hover { background-color: #334155; }
+
+/* Divide borders */
+.dark .divide-slate-200 > * + * { border-color: #334155; }
+
+/* Shadow overrides */
+.dark .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.4); }
+.dark .shadow    { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.5); }
+
+/* Form elements */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark textarea,
+.dark select {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):disabled,
+.dark textarea:disabled,
+.dark select:disabled {
+  background-color: #0f172a;
+  color: #64748b;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b;
+}
+
+/* Amber/warning panels in dark */
+.dark .bg-amber-50  { background-color: rgb(120 53 15 / 0.2); }
+.dark .bg-green-50  { background-color: rgb(5 46 22 / 0.3); }
+.dark .bg-red-50    { background-color: rgb(69 10 10 / 0.3); }
+.dark .bg-blue-50   { background-color: rgb(23 37 84 / 0.3); }
+.dark .bg-purple-50 { background-color: rgb(59 7 100 / 0.2); }
+
+/* Scrollbar in dark mode */
+.dark ::-webkit-scrollbar        { width: 6px; height: 6px; }
+.dark ::-webkit-scrollbar-track  { background: #0f172a; }
+.dark ::-webkit-scrollbar-thumb  { background: #334155; border-radius: 3px; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
