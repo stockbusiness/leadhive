@@ -139,10 +139,10 @@ export default function AdminAutoMaster() {
             stopPolling();
             setRunResult({
               prefecture: snap ? `${s.prefectures[snap.pref_idx] ?? ""}` : "",
-              fetched: 0,
+              fetched: null,
               saved: s.last_count,
-              skipped: 0,
-              enriched: 0,
+              skipped: null,
+              enriched: null,
               next: `${s.current_prefecture}・${s.current_keyword}（p${s.page_idx}〜）`,
             });
             setProgressMsg("");
@@ -379,7 +379,7 @@ export default function AdminAutoMaster() {
               <CheckCircle size={15} className="text-green-600" />
               {runResult.prefecture} の収集完了
             </p>
-            {(runResult.fetched ?? 0) === 0 && (
+            {(runResult.fetched ?? 0) === 0 && (runResult.saved ?? 0) === 0 && (
               <div className="mb-3 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <XCircle size={14} className="shrink-0 mt-0.5" />
                 <span>
@@ -388,11 +388,11 @@ export default function AdminAutoMaster() {
                 </span>
               </div>
             )}
-            {(runResult.fetched ?? 0) > 0 && (runResult.saved ?? 0) === 0 && (
+            {(runResult.saved ?? 0) === 0 && (runResult.skipped ?? 0) > 0 && (
               <div className="mb-3 flex items-start gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <DatabaseZap size={14} className="shrink-0 mt-0.5" />
                 <span>
-                  {runResult.fetched}件取得しましたが、URLを持つ企業がなかったため保存件数は0です。
+                  取得した企業はすべて既にDB登録済みでした。次回は続きのページから収集します。
                   Google APIキーを設定すると、URLなし企業のURLを自動検索して保存件数が増えます。
                 </span>
               </div>
@@ -405,7 +405,9 @@ export default function AdminAutoMaster() {
                 { label: "URL補完", value: runResult.enriched, color: "text-indigo-600" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="bg-white border border-slate-200 rounded-lg p-3 text-center">
-                  <p className={`text-2xl font-bold ${color}`}>{value ?? 0}</p>
+                  <p className={`text-2xl font-bold ${value === null ? "text-slate-300" : color}`}>
+                    {value === null ? "—" : value}
+                  </p>
                   <p className="text-xs text-slate-500 mt-0.5">{label}</p>
                 </div>
               ))}
