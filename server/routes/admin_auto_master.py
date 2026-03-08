@@ -133,6 +133,22 @@ def reset_progress(
     return {"ok": True}
 
 
+@router.post("/clear-master-data")
+def clear_master_data(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    deleted = db.query(CompanyMaster).filter(CompanyMaster.source == "auto_master").delete()
+    db.commit()
+    _set_key(db, "auto_master_pref_idx", "0")
+    _set_key(db, "auto_master_keyword_idx", "0")
+    _set_key(db, "auto_master_last_count", "0")
+    _set_key(db, "auto_master_total_collected", "0")
+    _set_key(db, "auto_master_last_run", "")
+    return {"deleted": deleted, "ok": True}
+
+
 @router.post("/run-now")
 def run_now(
     current_user: User = Depends(get_current_user),

@@ -96,6 +96,16 @@ export default function AdminAutoMaster() {
     axios.post("/api/admin/auto-master/reset-progress").then(() => load());
   };
 
+  const handleClearMasterData = () => {
+    if (!confirm("自動収集で保存したマスターDBデータをすべて削除します。この操作は取り消せません。よろしいですか？")) return;
+    axios.post("/api/admin/auto-master/clear-master-data")
+      .then((r) => {
+        alert(`${r.data.deleted}件を削除しました。進捗もリセットされました。`);
+        load();
+      })
+      .catch(() => alert("削除に失敗しました"));
+  };
+
   const stopPolling = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   };
@@ -290,12 +300,20 @@ export default function AdminAutoMaster() {
             );
           })}
         </div>
-        <button
-          onClick={handleResetProgress}
-          className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 border border-slate-300 rounded-md px-3 py-1.5 transition-colors"
-        >
-          <RotateCcw size={13} />進捗を北海道からリセット
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleResetProgress}
+            className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 border border-slate-300 rounded-md px-3 py-1.5 transition-colors"
+          >
+            <RotateCcw size={13} />進捗を北海道からリセット
+          </button>
+          <button
+            onClick={handleClearMasterData}
+            className="flex items-center gap-2 text-xs text-red-500 hover:text-red-700 border border-red-300 rounded-md px-3 py-1.5 transition-colors"
+          >
+            <XCircle size={13} />収集データを全削除
+          </button>
+        </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
