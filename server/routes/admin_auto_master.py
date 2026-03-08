@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 SETTINGS_KEYS = [
     "auto_master_enabled",
     "auto_master_pref_idx",
+    "auto_master_keyword_idx",
     "auto_master_max_pages",
     "auto_master_max_enrich",
     "auto_master_schedule_hour",
@@ -29,6 +30,7 @@ SETTINGS_KEYS = [
 DEFAULTS = {
     "auto_master_enabled": "false",
     "auto_master_pref_idx": "0",
+    "auto_master_keyword_idx": "0",
     "auto_master_max_pages": "5",
     "auto_master_max_enrich": "10",
     "auto_master_schedule_hour": "3",
@@ -37,6 +39,8 @@ DEFAULTS = {
     "auto_master_total_collected": "0",
     "gbizinfo_api_token": "",
 }
+
+AUTO_MASTER_KEYWORDS = ["株式会社", "合同会社", "有限会社", "医療法人", "社会福祉法人"]
 
 
 def _require_system_admin(current_user: User):
@@ -75,11 +79,16 @@ def get_status(
 
     master_count = db.query(CompanyMaster).count()
 
+    keyword_idx = int(settings.get("auto_master_keyword_idx", "0")) % len(AUTO_MASTER_KEYWORDS)
+
     return {
         "enabled": settings.get("auto_master_enabled") == "true",
         "pref_idx": pref_idx,
         "current_prefecture": PREFECTURES[pref_idx],
         "prefectures": PREFECTURES,
+        "keyword_idx": keyword_idx,
+        "current_keyword": AUTO_MASTER_KEYWORDS[keyword_idx],
+        "keywords": AUTO_MASTER_KEYWORDS,
         "max_pages": int(settings.get("auto_master_max_pages", "5")),
         "max_enrich": int(settings.get("auto_master_max_enrich", "10")),
         "schedule_hour": int(settings.get("auto_master_schedule_hour", "3")),
@@ -112,6 +121,7 @@ def reset_progress(
 ):
     _require_system_admin(current_user)
     _set_key(db, "auto_master_pref_idx", "0")
+    _set_key(db, "auto_master_keyword_idx", "0")
     return {"ok": True}
 
 

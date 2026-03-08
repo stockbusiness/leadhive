@@ -10,6 +10,9 @@ interface Status {
   pref_idx: number;
   current_prefecture: string;
   prefectures: string[];
+  keyword_idx: number;
+  current_keyword: string;
+  keywords: string[];
   max_pages: number;
   max_enrich: number;
   schedule_hour: number;
@@ -177,15 +180,15 @@ export default function AdminAutoMaster() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "マスターDB総件数", value: status?.master_db_count?.toLocaleString() ?? "0", color: "text-blue-600", icon: <Layers size={16} /> },
-          { label: "今回追加（前回実行）", value: String(status?.last_count ?? 0), color: "text-green-600", icon: <CheckCircle size={16} /> },
-          { label: "次の対象都道府県", value: status?.current_prefecture ?? "-", color: "text-indigo-600", icon: <MapPin size={16} /> },
+          { label: "前回保存件数", value: String(status?.last_count ?? 0), color: "text-green-600", icon: <CheckCircle size={16} /> },
+          { label: "次回：都道府県・キーワード", value: `${status?.current_prefecture ?? "-"} / ${status?.current_keyword ?? "-"}`, color: "text-indigo-600", icon: <MapPin size={16} /> },
           { label: "前回実行日時", value: formatDateTime(status?.last_run ?? ""), color: "text-slate-600", icon: <Calendar size={16} /> },
         ].map(({ label, value, color, icon }) => (
           <div key={label} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
             <div className={`flex items-center gap-1.5 text-xs font-medium mb-2 ${color}`}>
               {icon}{label}
             </div>
-            <p className={`text-lg font-bold ${color}`}>{value}</p>
+            <p className={`text-lg font-bold ${color} break-all leading-snug`}>{value}</p>
           </div>
         ))}
       </div>
@@ -297,7 +300,9 @@ export default function AdminAutoMaster() {
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
         <h3 className="text-base font-semibold text-slate-700">今すぐ実行</h3>
         <p className="text-xs text-slate-500">
-          現在の対象都道府県（{status?.current_prefecture}）の収集を手動で開始します。gBizINFOからの取得 → URL検索 → スクレイピング → スコア・業種分類の順に処理します。
+          現在の対象（{status?.current_prefecture} / {status?.current_keyword}）の収集を手動で開始します。
+          gBizINFOから取得 → URL検索 → スクレイピング → スコア・業種分類の順に処理します。<br />
+          実行のたびに都道府県とキーワードが1つずつ進みます（47都道府県 × {status?.keywords?.length ?? 5}種類を網羅）。
         </p>
 
         <div className="flex items-center gap-3">
@@ -307,7 +312,7 @@ export default function AdminAutoMaster() {
             className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
             {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-            {running ? "実行中..." : `${status?.current_prefecture} を収集する`}
+            {running ? "実行中..." : `${status?.current_prefecture} / ${status?.current_keyword} を収集する`}
           </button>
           <button
             onClick={load}

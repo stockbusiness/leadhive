@@ -253,10 +253,22 @@ def _run_auto_master_collect(job_id: str = None):
             job_update(job_id, type="progress", current=0, total=0,
                        message=f"{prefecture} の収集を開始しています...", status="running")
 
+        AUTO_MASTER_KEYWORDS = ["株式会社", "合同会社", "有限会社", "医療法人", "社会福祉法人"]
+
+        keyword_idx = int(_sys_get(db, "auto_master_keyword_idx", "0")) % len(AUTO_MASTER_KEYWORDS)
+        current_keyword = AUTO_MASTER_KEYWORDS[keyword_idx]
+        next_keyword_idx = (keyword_idx + 1) % len(AUTO_MASTER_KEYWORDS)
+        next_pref_idx = (pref_idx + 1) % len(PREFECTURES)
+
+        logger.info(f"AutoMaster: Using keyword='{current_keyword}' for {prefecture}")
+        if job_id:
+            job_update(job_id, type="progress", current=0, total=0,
+                       message=f"{prefecture}・{current_keyword} の収集を開始しています...", status="running")
+
         all_companies = []
         for page in range(1, max_pages + 1):
             try:
-                result = search_gbiz(token, name_keyword="", prefecture=prefecture, page=page)
+                result = search_gbiz(token, name_keyword=current_keyword, prefecture=prefecture, page=page)
                 batch = result.get("companies", [])
                 all_companies.extend(batch)
                 total_pages = int(result.get("total_page_count", 1))
@@ -268,7 +280,7 @@ def _run_auto_master_collect(job_id: str = None):
                 break
 
         total = len(all_companies)
-        logger.info(f"AutoMaster: Got {total} companies from gBizINFO for {prefecture}")
+        logger.info(f"AutoMaster: Got {total} companies from gBizINFO for {prefecture} / {current_keyword}")
 
         saved = 0
         enriched = 0
@@ -327,8 +339,8 @@ def _run_auto_master_collect(job_id: str = None):
                 except Exception:
                     pass
 
-        next_idx = (pref_idx + 1) % len(PREFECTURES)
-        _sys_set(db, "auto_master_pref_idx", str(next_idx))
+        _sys_set(db, "auto_master_keyword_idx", str(next_keyword_idx))
+        _sys_set(db, "auto_master_pref_idx", str(next_pref_idx))
         _sys_set(db, "auto_master_last_run", datetime.utcnow().isoformat())
         _sys_set(db, "auto_master_last_count", str(saved))
         total_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_total_collected").first()
