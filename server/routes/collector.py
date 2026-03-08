@@ -518,3 +518,63 @@ _PREFECTURES = [
     "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
     "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
 ]
+
+
+# ──────────────────────────────────────────────────────────────
+#  Enrich: URLなし企業への情報補完バッチ
+# ──────────────────────────────────────────────────────────────
+from server.models import Company as CompanyModel
+
+
+@router.get("/enrich-count")
+def enrich_count(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    count = (
+        db.query(CompanyModel)
+        .filter(
+            CompanyModel.project_id == project_id,
+            (CompanyModel.website_url == None) | (CompanyModel.website_url == ""),
+        )
+        .count()
+    )
+    return {"count": count}
+
+
+@router.post("/enrich")
+def enrich_companies(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+):
+    project_id = data.get("project_id")
+    max_items = min(int(data.get("max_items", 20)), 100)
+
+    if not project_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="project_id が必要です")
+
+    job_id = str(uuid.uuid4())
+    job_update(job_id, type="progress", current=0, total=0, message="情報補完処理を開始しています...", status="running")
+
+    def run():
+        new_db = SessionLocal()
+        try:
+            from server.services.enrichment import enrich_companies_batch
+            result = enrich_companies_batch(
+                job_id=job_id,
+                project_id=project_id,
+                org_id=current_user.org_id,
+                db=new_db,
+                max_items=max_items,
+            )
+            cache_invalidate("dashboard")
+            job_update(job_id, type="done", result=result, message="情報補完完了")
+        except Exception as e:
+            job_update(job_id, type="error", message=str(e))
+        finally:
+            new_db.close()
+
+    threading.Thread(target=run, daemon=True).start()
+    return {"job_id": job_id}

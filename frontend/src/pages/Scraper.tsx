@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2, Search, ChevronDown, ChevronUp, DatabaseZap } from "lucide-react";
 import { api } from "../api";
 import { ResultRow } from "../components/common";
 import { useProject } from "../contexts/ProjectContext";
 import type { SearchKeyword, ScrapeResult, CollectSummary } from "../types";
 
-type CollectTab = "google-api" | "directory" | "shopify" | "google-maps" | "houjin-db";
+type CollectTab = "google-api" | "directory" | "shopify" | "google-maps" | "houjin-db" | "enrich";
 
 export default function Scraper() {
   const { currentProject } = useProject();
@@ -167,6 +167,7 @@ export default function Scraper() {
     { key: "shopify", label: "Shopifyパートナー", icon: ShoppingBag },
     { key: "google-maps", label: "Googleマップ", icon: MapPin },
     { key: "houjin-db", label: "法人DB", icon: Building2 },
+    { key: "enrich", label: "情報補完", icon: DatabaseZap },
   ];
 
   return (
@@ -247,6 +248,13 @@ export default function Scraper() {
               onMaxResultsChange={setGbizMaxResults}
               loading={stagingLoading}
               onCollect={() => handleCollectUrls("houjin-db", { keyword: gbizKeyword, prefecture: gbizPrefecture, max_results: gbizMaxResults })}
+            />
+          )}
+
+          {activeTab === "enrich" && (
+            <EnrichSection
+              projectId={currentProject?.id}
+              esRef={esRef}
             />
           )}
 
@@ -601,6 +609,174 @@ function GbizSection({
               className="h-2 bg-indigo-500 rounded-full transition-all duration-300"
               style={{ width: progressTotal && progressTotal > 0 ? `${pct}%` : "100%" }}
             />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EnrichSection({
+  projectId,
+  esRef,
+}: {
+  projectId?: number;
+  esRef: React.MutableRefObject<EventSource | null>;
+}) {
+  const [noUrlCount, setNoUrlCount] = useState<number | null>(null);
+  const [maxItems, setMaxItems] = useState(20);
+  const [loading, setLoading] = useState(false);
+  const [progressMsg, setProgressMsg] = useState("");
+  const [progressCurrent, setProgressCurrent] = useState(0);
+  const [progressTotal, setProgressTotal] = useState(0);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+    api.collector.enrichCount(projectId).then((r) => setNoUrlCount(r.count)).catch(() => setNoUrlCount(null));
+  }, [projectId]);
+
+  const handleStart = async () => {
+    if (!projectId) return;
+    setLoading(true);
+    setResult(null);
+    setError(null);
+    setProgressMsg("情報補完処理を開始しています...");
+    setProgressCurrent(0);
+    setProgressTotal(0);
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+
+    try {
+      const { job_id } = await api.collector.enrichStart({ project_id: projectId, max_items: maxItems });
+      const es = new EventSource(`/api/collect/progress/${job_id}`);
+      esRef.current = es;
+      es.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.message) setProgressMsg(msg.message);
+          if (msg.current !== undefined) setProgressCurrent(msg.current);
+          if (msg.total !== undefined) setProgressTotal(msg.total);
+          if (msg.type === "done") {
+            setResult(msg.result);
+            setProgressMsg("");
+            setLoading(false);
+            es.close();
+            api.collector.enrichCount(projectId).then((r) => setNoUrlCount(r.count)).catch(() => {});
+          } else if (msg.type === "error") {
+            setError(msg.message);
+            setProgressMsg("");
+            setLoading(false);
+            es.close();
+          }
+        } catch {}
+      };
+      es.onerror = () => {
+        setError("接続エラーが発生しました");
+        setProgressMsg("");
+        setLoading(false);
+        es.close();
+      };
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "補完処理の開始に失敗しました");
+      setProgressMsg("");
+      setLoading(false);
+    }
+  };
+
+  const pct = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <DatabaseZap size={18} className="text-blue-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-blue-800">URLなし企業の情報を自動補完</p>
+            <p className="text-xs text-blue-600 mt-1 leading-relaxed">
+              gBizINFOや法人DBから会社名・住所のみで登録された企業を対象に、公式サイトのURLを自動検索してスクレイピングします。<br />
+              ① 法人番号でgBizINFO再検索 → ② Google検索でURL探索 → ③ スクレイピングで情報補完
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {noUrlCount !== null && (
+        <div className={`flex items-center gap-2 text-sm rounded-lg px-4 py-2.5 ${
+          noUrlCount === 0
+            ? "bg-green-50 border border-green-200 text-green-700"
+            : "bg-amber-50 border border-amber-200 text-amber-700"
+        }`}>
+          {noUrlCount === 0 ? (
+            <><CheckCircle size={15} />このプロジェクトにURLなし企業はありません</>
+          ) : (
+            <><DatabaseZap size={15} />現在 <strong className="mx-1">{noUrlCount}件</strong> のURLなし企業があります</>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-end gap-3 flex-wrap">
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">最大処理件数</label>
+          <select
+            value={maxItems}
+            onChange={(e) => setMaxItems(Number(e.target.value))}
+            disabled={loading}
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {[10, 20, 50, 100].map((n) => (
+              <option key={n} value={n}>{n}件</option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={handleStart}
+          disabled={loading || noUrlCount === 0}
+          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <DatabaseZap size={16} />}
+          補完処理を開始
+        </button>
+      </div>
+
+      {loading && progressMsg && (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-slate-500">
+            <span>{progressMsg}</span>
+            {progressTotal > 0 && <span>{progressCurrent}/{progressTotal}</span>}
+          </div>
+          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-2 bg-blue-500 rounded-full transition-all duration-300"
+              style={{ width: progressTotal > 0 ? `${pct}%` : "100%" }}
+            />
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+          <XCircle size={16} className="flex-shrink-0" />{error}
+        </div>
+      )}
+
+      {result && (
+        <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+          <p className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+            <CheckCircle size={15} className="text-green-600" />補完処理完了
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "補完成功", value: result.success, color: "text-green-600" },
+              { label: "URL発見", value: result.found_url, color: "text-blue-600" },
+              { label: "URL不明", value: result.no_url, color: "text-amber-600" },
+              { label: "エラー", value: result.error, color: "text-red-600" },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="bg-white border border-slate-200 rounded-lg p-3 text-center">
+                <p className={`text-2xl font-bold ${color}`}>{value ?? 0}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}

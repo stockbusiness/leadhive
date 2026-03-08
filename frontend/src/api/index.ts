@@ -172,6 +172,12 @@ export const api = {
 
     scrapeStaged: (urls: { url: string; name: string; source: string }[], projectId?: number) =>
       axios.post<{ job_id: string }>("/api/collect/scrape-staged", { urls, project_id: projectId }).then(r => r.data),
+
+    enrichCount: (projectId: number) =>
+      axios.get<{ count: number }>("/api/collect/enrich-count", { params: { project_id: projectId } }).then(r => r.data),
+
+    enrichStart: (params: { project_id: number; max_items: number }) =>
+      axios.post<{ job_id: string }>("/api/collect/enrich", params).then(r => r.data),
   },
 
   templates: {
