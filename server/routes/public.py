@@ -18,9 +18,10 @@ GBIZ_BASE_URL = "https://info.gbiz.go.jp/hojin/v1/hojin"
 @router.get("/stats")
 def public_stats(db: Session = Depends(get_db)):
     registered_users = db.query(func.count(User.id)).scalar() or 0
+    founder_count = db.query(func.count(User.id)).filter(User.is_founder == True).scalar() or 0
     return {
         "registered_users": registered_users,
-        "founder_slots_remaining": max(0, 50 - registered_users),
+        "founder_slots_remaining": max(0, 50 - founder_count),
         "founder_slots_total": 50,
     }
 
