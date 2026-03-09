@@ -93,7 +93,7 @@ def search_master(
     has_email: Optional[bool] = None,
     escms_target: Optional[bool] = None,
     has_recruitment: Optional[bool] = None,
-    limit: int = 50,
+    limit: int = 500,
     current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):

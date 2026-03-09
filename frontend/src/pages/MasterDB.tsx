@@ -117,6 +117,7 @@ export default function MasterDB() {
   const [stats, setStats] = useState<{ total: number; by_category: Record<string, number>; by_source: Record<string, number> } | null>(null);
   const [planInfo, setPlanInfo] = useState<{ plan: PlanData | null; usage: PlanUsage } | null>(null);
   const [items, setItems] = useState<CompanyMaster[]>([]);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set());
   const [importResult, setImportResult] = useState<{ success: number; duplicate: number; error: number } | null>(null);
@@ -155,7 +156,7 @@ export default function MasterDB() {
     setLoading(true);
     setImportResult(null);
     setSelectedDomains(new Set());
-    const params: Record<string, any> = { limit: 100 };
+    const params: Record<string, any> = { limit: 500 };
     if (q.trim()) params.q = q.trim();
     if (category !== "all") params.category = category;
     if (prefecture !== "all") params.prefecture = prefecture;
@@ -169,9 +170,10 @@ export default function MasterDB() {
     api.master.search(params)
       .then((data) => {
         setItems(data.items);
+        setTotalCount(data.total ?? data.items.length);
         setHasSearched(true);
       })
-      .catch(() => setItems([]))
+      .catch(() => { setItems([]); setTotalCount(0); })
       .finally(() => setLoading(false));
   }, [q, category, prefecture, minScore, cmsType, hasEmail, escmsTarget, hasRecruitment, currentProject]);
 
@@ -544,7 +546,10 @@ export default function MasterDB() {
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
                 <span className="text-sm text-slate-600">
-                  検索結果: <strong>{items.length}</strong>件
+                  検索結果: <strong>{items.length}</strong>件表示
+                  {totalCount !== null && totalCount > items.length && (
+                    <span className="ml-1 text-slate-400">（全{totalCount.toLocaleString()}件中）</span>
+                  )}
                   {selectedDomains.size > 0 && (
                     <span className="ml-2 text-indigo-600">{selectedDomains.size}件選択中</span>
                   )}
@@ -577,40 +582,45 @@ export default function MasterDB() {
                       <th className="text-left px-3 py-2 font-medium text-slate-600">カテゴリ</th>
                       <th className="text-center px-3 py-2 font-medium text-slate-600">スコア</th>
                       <th className="text-left px-3 py-2 font-medium text-slate-600">所在地</th>
+                      <th className="text-left px-3 py-2 font-medium text-slate-600">電話</th>
                       <th className="text-center px-3 py-2 font-medium text-slate-600">情報</th>
-                      <th className="text-center px-3 py-2 font-medium text-slate-600">状態</th>
+                      <th className="text-center px-3 py-2 font-medium text-slate-600 whitespace-nowrap" title="このプロジェクトに追加済みかどうかを示します">このPJ</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((item) => (
                       <tr
-                        key={item.domain}
-                        className={`border-b border-slate-100 hover:bg-slate-50 ${selectedDomains.has(item.domain) ? "bg-indigo-50" : ""} ${item.already_in_project ? "opacity-60" : ""}`}
+                        key={item.id}
+                        className={`border-b border-slate-100 hover:bg-slate-50 ${item.domain && selectedDomains.has(item.domain) ? "bg-indigo-50" : ""} ${item.already_in_project ? "opacity-60" : ""}`}
                       >
                         <td className="px-3 py-2">
                           <input
                             type="checkbox"
-                            checked={selectedDomains.has(item.domain)}
-                            onChange={() => handleSelectOne(item.domain)}
-                            disabled={item.already_in_project}
+                            checked={!!item.domain && selectedDomains.has(item.domain)}
+                            onChange={() => item.domain && handleSelectOne(item.domain)}
+                            disabled={item.already_in_project || !item.domain}
                             className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                           />
                         </td>
                         <td className="px-3 py-2">
                           <div className="font-medium text-slate-800 flex items-center gap-1.5">
-                            {item.company_name || item.domain}
+                            {item.company_name || item.domain || "—"}
                             {item.escms_target_flag && (
                               <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-semibold">ESCMS</span>
                             )}
                           </div>
-                          <a
-                            href={item.website_url || `https://${item.domain}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-500 hover:underline flex items-center gap-1"
-                          >
-                            {item.domain} <ExternalLink size={10} />
-                          </a>
+                          {(item.website_url || item.domain) ? (
+                            <a
+                              href={item.website_url || `https://${item.domain}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-500 hover:underline flex items-center gap-1"
+                            >
+                              {item.domain || item.website_url} <ExternalLink size={10} />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-300">URLなし</span>
+                          )}
                         </td>
                         <td className="px-3 py-2">
                           {item.cms_type ? (
@@ -633,6 +643,13 @@ export default function MasterDB() {
                         <td className="px-3 py-2 text-slate-600 text-xs">
                           {item.prefecture}{item.city}
                         </td>
+                        <td className="px-3 py-2 text-xs text-slate-600">
+                          {item.phone ? (
+                            <a href={`tel:${item.phone}`} className="hover:text-blue-600 whitespace-nowrap">{item.phone}</a>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
                         <td className="px-3 py-2 text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             {item.email && (
@@ -648,16 +665,16 @@ export default function MasterDB() {
                         </td>
                         <td className="px-3 py-2 text-center">
                           {item.already_in_project ? (
-                            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">登録済み</span>
+                            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full whitespace-nowrap">追加済み</span>
                           ) : (
-                            <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">未登録</span>
+                            <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full whitespace-nowrap">未追加</span>
                           )}
                         </td>
                       </tr>
                     ))}
                     {items.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="px-3 py-8 text-center text-slate-400">
+                        <td colSpan={9} className="px-3 py-8 text-center text-slate-400">
                           検索結果がありません
                         </td>
                       </tr>
