@@ -495,6 +495,9 @@ export const api = {
     updateMessage: (id: number, data: { subject?: string; body?: string }) =>
       axios.put(`/api/sales-ai/messages/${id}`, data).then(r => r.data),
 
+    getSendPreview: (id: number) =>
+      axios.get(`/api/sales-ai/messages/${id}/send-preview`).then(r => r.data),
+
     sendMessage: (id: number, sendMethod: string, note?: string) =>
       axios.post(`/api/sales-ai/messages/${id}/send`, { send_method: sendMethod, note }).then(r => r.data),
 

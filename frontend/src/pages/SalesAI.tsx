@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Bot, Sparkles, Send, Edit3, Trash2, Check, X, AlertTriangle,
   ChevronDown, ChevronUp, RefreshCw, Eye, Ban, Info, Search,
-  MessageSquare, CheckCircle2, Filter
+  MessageSquare, CheckCircle2, Filter, Mail, Globe, Settings, XCircle
 } from "lucide-react";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
@@ -141,19 +141,70 @@ function EditModal({ message, onClose, onSave }: {
   );
 }
 
+interface SendPreview {
+  company_name: string | null;
+  email: string;
+  contact_url: string;
+  opted_out: boolean;
+  smtp_configured: boolean;
+  can_send_email: boolean;
+}
+
 function SendConfirmModal({ message, onClose, onConfirm }: {
   message: SalesMessage;
   onClose: () => void;
-  onConfirm: (sendMethod: string) => void;
+  onConfirm: (sendMethod: string) => Promise<{ send_result?: string; send_detail?: string }>;
 }) {
   const [sendMethod, setSendMethod] = useState("email");
   const [sending, setSending] = useState(false);
+  const [preview, setPreview] = useState<SendPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [result, setResult] = useState<{ ok: boolean; detail: string } | null>(null);
+
+  useEffect(() => {
+    setPreviewLoading(true);
+    api.salesAi.getSendPreview(message.id)
+      .then(r => { setPreview(r); setPreviewLoading(false); })
+      .catch(() => setPreviewLoading(false));
+  }, [message.id]);
 
   const handleSend = async () => {
     setSending(true);
-    await onConfirm(sendMethod);
-    setSending(false);
+    try {
+      const res = await onConfirm(sendMethod);
+      const ok = res?.send_result === "sent";
+      setResult({ ok, detail: res?.send_detail || (ok ? "送信しました" : "送信に失敗しました") });
+    } catch (e: any) {
+      setResult({ ok: false, detail: e?.response?.data?.detail || "送信に失敗しました" });
+    } finally {
+      setSending(false);
+    }
   };
+
+  if (result) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+          <div className="p-8 text-center space-y-4">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${result.ok ? "bg-green-100" : "bg-red-100"}`}>
+              {result.ok
+                ? <CheckCircle2 size={32} className="text-green-600" />
+                : <XCircle size={32} className="text-red-600" />}
+            </div>
+            <div>
+              <h3 className={`text-lg font-bold ${result.ok ? "text-green-700" : "text-red-700"}`}>
+                {result.ok ? "送信完了" : "送信失敗"}
+              </h3>
+              <p className="text-sm text-slate-600 mt-1">{result.detail}</p>
+            </div>
+            <button onClick={onClose} className="w-full py-2.5 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700">
+              閉じる
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -168,38 +219,84 @@ function SendConfirmModal({ message, onClose, onConfirm }: {
           </div>
         </div>
         <div className="p-5 space-y-4">
-          <div className="bg-slate-50 rounded-lg p-3">
-            <p className="text-xs text-slate-500 mb-0.5">宛先</p>
-            <p className="font-medium text-slate-800 text-sm">{message.company_name}</p>
-            <p className="text-xs text-slate-600 mt-1">件名: {message.subject}</p>
+          <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+            <div>
+              <p className="text-xs text-slate-500 mb-0.5">宛先企業</p>
+              <p className="font-medium text-slate-800 text-sm">{message.company_name}</p>
+              <p className="text-xs text-slate-600 mt-1">件名: {message.subject}</p>
+            </div>
+            {previewLoading ? (
+              <div className="flex items-center gap-2 text-xs text-slate-400 pt-1">
+                <RefreshCw size={12} className="animate-spin" /> 宛先情報を確認中...
+              </div>
+            ) : preview ? (
+              <div className="border-t border-slate-200 pt-2 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Mail size={13} className="text-slate-400 flex-shrink-0" />
+                  {preview.email ? (
+                    <span className="text-sm font-mono text-slate-700">{preview.email}</span>
+                  ) : (
+                    <span className="text-xs text-slate-400">メールアドレス未登録</span>
+                  )}
+                </div>
+                {preview.contact_url && (
+                  <div className="flex items-center gap-2">
+                    <Globe size={13} className="text-slate-400 flex-shrink-0" />
+                    <a href={preview.contact_url} target="_blank" rel="noreferrer"
+                      className="text-xs text-blue-600 hover:underline truncate">{preview.contact_url}</a>
+                  </div>
+                )}
+                {preview.opted_out && (
+                  <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded px-2 py-1">
+                    <Ban size={12} /> 配信停止リストに登録済み — 送信できません
+                  </div>
+                )}
+                {sendMethod === "email" && !preview.smtp_configured && (
+                  <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1.5">
+                    <Settings size={12} className="mt-0.5 flex-shrink-0" />
+                    <span>SMTPが未設定です。設定画面でSMTPを設定すると実際に送信されます。</span>
+                  </div>
+                )}
+                {sendMethod === "email" && preview.smtp_configured && preview.email && !preview.opted_out && (
+                  <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded px-2 py-1">
+                    <CheckCircle2 size={12} /> SMTP設定済み — 実際にメール送信されます
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">送信方法</label>
-            <div className="flex gap-3">
-              {["email", "form", "sns"].map(m => (
+            <div className="flex gap-2">
+              {[
+                { key: "email", label: "メール送信", icon: Mail },
+                { key: "form", label: "フォーム (手動)", icon: Globe },
+                { key: "manual", label: "その他 (手動記録)", icon: Check },
+              ].map(({ key, label, icon: Icon }) => (
                 <button
-                  key={m}
-                  onClick={() => setSendMethod(m)}
-                  className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-colors ${sendMethod === m ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}
+                  key={key}
+                  onClick={() => setSendMethod(key)}
+                  className={`flex-1 flex flex-col items-center gap-1 py-2 px-2 text-xs rounded-lg border transition-colors ${sendMethod === key ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}
                 >
-                  {m === "email" ? "メール" : m === "form" ? "フォーム" : "SNS"}
+                  <Icon size={14} />
+                  {label}
                 </button>
               ))}
             </div>
           </div>
           <p className="text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            送信記録は監査ログに自動保存されます。配信停止URLが本文に含まれていることを確認してください。
+            送信記録は監査ログに自動保存されます。特定電子メール法を遵守し、受信者の同意を確認してから送信してください。
           </p>
         </div>
         <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">キャンセル</button>
           <button
             onClick={handleSend}
-            disabled={sending}
+            disabled={sending || previewLoading || (preview?.opted_out ?? false)}
             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
           >
             {sending ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-            送信する
+            {sendMethod === "email" && preview?.can_send_email ? "メール送信する" : "送信済みとして記録"}
           </button>
         </div>
       </div>
@@ -296,15 +393,11 @@ export default function SalesAI() {
     }
   };
 
-  const handleSendConfirm = async (sendMethod: string) => {
-    if (!sendTarget) return;
-    try {
-      const updated = await api.salesAi.sendMessage(sendTarget.id, sendMethod);
-      setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
-      setSendTarget(null);
-    } catch (e: any) {
-      alert(e?.response?.data?.detail || "送信記録に失敗しました");
-    }
+  const handleSendConfirm = async (sendMethod: string): Promise<{ send_result?: string; send_detail?: string }> => {
+    if (!sendTarget) return {};
+    const updated = await api.salesAi.sendMessage(sendTarget.id, sendMethod);
+    setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
+    return { send_result: updated.send_result, send_detail: updated.send_detail };
   };
 
   const handleDelete = async (id: number) => {

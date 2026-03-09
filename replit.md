@@ -77,6 +77,23 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
     - **スコアリングルール管理UI改善**（2026-03実装）: Projects.tsx のスコアリングタブを全面改善。DEFAULT_SCORING_RULES の日本語ラベル・説明を追加（RULE_LABELS定数）。スライダーUI（プラスルール0〜30/ペナルティ−30〜0）。「デフォルトに戻す」ボタン。新規プロジェクト作成時はデフォルトルールで初期化。collector.py がプロジェクト固有の scoring_rules を使って calculate_score() を呼ぶように修正。
     - **job_logs DBマイグレーション**（2026-03実装）: `job_logs` テーブル（job_id/job_type/status/message/current/total/source_count/saved_count/error_count/started_at/finished_at）を新設。collector.py の `job_update()` が非同期バックグラウンドスレッドで DB にジョブ開始・完了・エラーを永続化。`GET /api/admin/auto-master/job-logs` エンドポイントを追加。AdminAutoMaster.tsx に折りたたみ式「実行履歴」パネル（開始時刻・種別・状態・保存件数・メッセージ・所要時間）を追加。
 
+- **Phase 2 営業補助AI**（2026-03実装）:
+    - **DBテーブル**: `sales_messages`（org_id/company_id/project_id/template_type/subject/body/ai_prompt_id/status/reviewed_by/reviewed_at/sent_at/sent_by）、`audit_logs`（company_id/send_method/sent_by_user_id/message_id/ai_prompt_id/result/note）、`opt_out_list`（email/domain/company_id/reason/added_by/added_at）。
+    - **営業文生成AI**: Claude API（claude-3-5-sonnet-20241022）で3テンプレート（shopify/ec_support/partner）の件名+本文（300-500字）を自動生成。`server/services/ai_writer.py`。
+    - **バックエンドAPI** (`server/routes/sales_ai.py`): POST /generate（1件）、POST /generate-batch（最大50件）、GET/PUT/DELETE /messages、POST /messages/{id}/send、GET/POST /opt-out。
+    - **SalesAI.tsx**: 企業選択→テンプレート選択→一括生成→レビューリスト→編集モーダル→1件ずつ送信の全フロー。配信停止リスト管理タブ。
+    - **opt_out_list**: メール/ドメイン単位で配信停止。生成時・送信時に自動チェック。
+- **Phase 3 URL取得エンジン**（2026-03実装）:
+    - **Serper API統合**: `server/services/serper_search.py` を新規作成。`collector.py` でSerper優先・Google CSEフォールバック実装。`/api/collect/search-engine-status` エンドポイント追加。
+    - **スコアリングv3.0**: ec_flag +25、escms_target_flag +20、shopify_flag +20、production/consulting/operation_flag +15、contact_url +15、multi_platform +10、sns_count_3 +10、has_recruitment +5、sns_count_1 +5、phone +5、location +5。
+    - **スケジューラー強化**: 自動収集時にSerper優先を使用。gBizINFOのURL補完もSerper優先。エンジン名をログ出力。
+    - **API管理一元化**: Serper・Anthropic・gBizINFO APIキーをシステム管理者専用 `AdminApiKeys.tsx` で管理（`SystemSettings` テーブル、org_id=NULL）。各API取得手順アコーディオンUI付き。
+- **Phase 4a SMTPメール送信**（2026-03実装）:
+    - **実際のメール送信**: `send_message` エンドポイントでSMTPを使い実際にメール送信。プレーンテキストをHTML変換（段落・配信停止フッター付き）。SMTP未設定時は明確なエラーメッセージ。
+    - **送信プレビューAPI**: `GET /api/sales-ai/messages/{id}/send-preview` で宛先メールアドレス・contact_url・SMTP設定状況・配信停止状態を事前確認。
+    - **SendConfirmModal刷新**: 送信ダイアログに宛先メールアドレス表示・SMTP設定状況バッジ（設定済み=緑/未設定=黄）・配信停止チェック結果を表示。送信方法を「メール送信」「フォーム(手動)」「その他(手動記録)」の3種類に拡張。
+    - **送信結果フィードバック**: 成功時は緑チェックマーク+「送信完了」画面、失敗時は赤×アイコン+「送信失敗」+エラー詳細を表示。audit_logsに送信先メールアドレスとエラー詳細を保存。
+
 ## External Dependencies
 - **Google Custom Search API**: 営業先自動収集。
 - **Google Places API**: Googleマップからの企業情報収集、住所・電話・レビュー情報の補完。

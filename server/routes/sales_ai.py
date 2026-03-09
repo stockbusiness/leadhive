@@ -254,6 +254,42 @@ def update_message(
     return _msg_to_dict(msg, c.company_name if c else None)
 
 
+@router.get("/messages/{message_id}/send-preview")
+def get_send_preview(
+    message_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    msg = db.query(SalesMessage).filter(
+        SalesMessage.id == message_id,
+        SalesMessage.org_id == current_user.org_id
+    ).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="メッセージが見つかりません")
+
+    c = db.query(Company).filter(Company.id == msg.company_id).first()
+    email = (c.email or "") if c else ""
+    contact_url = (c.contact_url or "") if c else ""
+    domain = (c.domain or "") if c else ""
+
+    opted_out = False
+    if email or domain:
+        opted_out = _is_opted_out(email, domain, db)
+
+    from server.services.mailer import get_smtp_settings
+    smtp = get_smtp_settings(db, current_user.org_id)
+    smtp_ok = bool(smtp.get("smtp_host") and smtp.get("smtp_from_email"))
+
+    return {
+        "company_name": c.company_name if c else None,
+        "email": email,
+        "contact_url": contact_url,
+        "opted_out": opted_out,
+        "smtp_configured": smtp_ok,
+        "can_send_email": bool(email and smtp_ok and not opted_out),
+    }
+
+
 @router.post("/messages/{message_id}/send")
 def send_message(
     message_id: int,
@@ -271,13 +307,61 @@ def send_message(
         raise HTTPException(status_code=400, detail="既に送信済みです")
 
     c = db.query(Company).filter(Company.id == msg.company_id).first()
-    if c:
-        domain = c.domain or ""
-        email = c.email or ""
+    email = (c.email or "") if c else ""
+    domain = (c.domain or "") if c else ""
+
+    if email or domain:
         if _is_opted_out(email, domain, db):
             raise HTTPException(status_code=400, detail="この企業/メールアドレスは配信停止リストに登録されています")
 
-    msg.status = "sent"
+    send_result = "sent"
+    send_note = req.note or ""
+    actually_sent = False
+
+    if req.send_method == "email" and email:
+        from server.services.mailer import get_smtp_settings, send_email
+        smtp = get_smtp_settings(db, current_user.org_id)
+
+        if not smtp.get("smtp_host"):
+            raise HTTPException(
+                status_code=400,
+                detail="SMTPが設定されていません。設定画面でSMTPを設定するか、送信方法を「手動」に変更してください。"
+            )
+
+        body_text = msg.body or ""
+        body_html = "<br>".join(
+            f"<p>{line}</p>" if line.strip() else "<br>"
+            for line in body_text.split("\n")
+        )
+        body_html = f"""
+<html><body style="font-family: sans-serif; font-size: 14px; line-height: 1.7; color: #333;">
+{body_html}
+<hr style="margin-top: 2em; border: none; border-top: 1px solid #eee;">
+<p style="font-size: 11px; color: #888;">
+このメールは LeadHive を通じて送信されました。<br>
+配信停止をご希望の場合は、このメールへの返信にてお知らせください。
+</p>
+</body></html>"""
+
+        success, detail = send_email(
+            to=email,
+            subject=msg.subject or "",
+            html_body=body_html,
+            text_body=body_text,
+            smtp_settings=smtp,
+        )
+        actually_sent = success
+        send_result = "sent" if success else "failed"
+        if not success:
+            send_note = f"SMTP送信失敗: {detail}"
+            logger.warning(f"SalesAI email send failed to {email}: {detail}")
+        else:
+            send_note = f"送信先: {email}" + (f" / {req.note}" if req.note else "")
+    else:
+        actually_sent = True
+
+    final_status = "sent" if (req.send_method != "email" or actually_sent) else "failed"
+    msg.status = final_status
     msg.sent_at = datetime.utcnow()
     msg.sent_by = current_user.id
 
@@ -287,14 +371,17 @@ def send_message(
         sent_by_user_id=current_user.id,
         message_id=msg.id,
         ai_prompt_id=msg.ai_prompt_id,
-        result="sent",
-        note=req.note,
+        result=send_result,
+        note=send_note,
     )
     db.add(audit)
     db.commit()
     db.refresh(msg)
 
-    return _msg_to_dict(msg, c.company_name if c else None)
+    result = _msg_to_dict(msg, c.company_name if c else None)
+    result["send_result"] = send_result
+    result["send_detail"] = send_note
+    return result
 
 
 @router.delete("/messages/{message_id}")
