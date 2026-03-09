@@ -112,7 +112,7 @@ def test_stripe_connection(
 #  Admin: システムAPI設定（gBizINFO等）
 # ──────────────────────────────────────────────────────────────
 
-SYSTEM_API_KEYS = ["gbizinfo_api_token"]
+SYSTEM_API_KEYS = ["gbizinfo_api_token", "anthropic_api_key"]
 
 
 @router.get("/api/admin/api-settings")

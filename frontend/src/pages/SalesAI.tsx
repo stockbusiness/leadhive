@@ -350,7 +350,7 @@ export default function SalesAI() {
           <AlertTriangle size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
           <div>
             <p className="text-sm font-medium text-amber-800">Anthropic APIキーが設定されていません</p>
-            <p className="text-xs text-amber-700 mt-1">設定画面から <code className="bg-amber-100 px-1 rounded">ANTHROPIC_API_KEY</code> を環境変数に設定するか、管理者に連絡してください。営業文の生成にはAPIキーが必要です。</p>
+            <p className="text-xs text-amber-700 mt-1">システム管理者（COOLWORKS）がシステムAPI設定画面でAnthropicキーを登録することで利用可能になります。営業文の生成にはAPIキーが必要です。</p>
           </div>
         </div>
       )}

@@ -366,11 +366,8 @@ def check_api_key_status(
     db: Session = Depends(get_db),
 ):
     import os
-    from server.models import AppSetting
+    from server.models import SystemSettings
     env_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    db_row = db.query(AppSetting).filter(
-        AppSetting.setting_key == "anthropic_api_key",
-        AppSetting.org_id == current_user.org_id,
-    ).first()
-    has_key = bool(env_key) or bool(db_row and db_row.setting_value)
+    sys_row = db.query(SystemSettings).filter(SystemSettings.key == "anthropic_api_key").first()
+    has_key = bool(env_key) or bool(sys_row and sys_row.value)
     return {"has_api_key": has_key}

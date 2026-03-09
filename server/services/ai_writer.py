@@ -120,19 +120,19 @@ def generate_sales_message(company: dict, template_type: str) -> dict:
     if not api_key:
         try:
             from server.database import SessionLocal
-            from server.models import AppSetting
+            from server.models import SystemSettings
             db = SessionLocal()
             try:
-                row = db.query(AppSetting).filter(AppSetting.setting_key == "anthropic_api_key").first()
-                if row and row.setting_value:
-                    api_key = row.setting_value
+                row = db.query(SystemSettings).filter(SystemSettings.key == "anthropic_api_key").first()
+                if row and row.value:
+                    api_key = row.value
             finally:
                 db.close()
         except Exception:
             pass
 
     if not api_key:
-        raise RuntimeError("Anthropic APIキーが設定されていません。設定画面から 'anthropic_api_key' を登録するか、ANTHROPIC_API_KEY 環境変数を設定してください。")
+        raise RuntimeError("Anthropic APIキーが設定されていません。システム管理画面でAPIキーを登録してください。")
 
     client = anthropic.Anthropic(api_key=api_key)
 
