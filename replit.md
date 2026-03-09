@@ -113,3 +113,16 @@ LeadHive is a modern web application built with React and FastAPI.
 - `frontend/src/pages/Pipeline.tsx`: Full Kanban board with 9 color-coded columns. Features: HTML5 drag & drop between columns (optimistic UI update), click-to-change status dropdown per card, project filter dropdown, company count badges, follow_up_date display (overdue=red/today=amber), score rank badge, EC/Shopify/CMS badges, direct link to company detail.
 - Sidebar: "パイプライン" link with GanttChartSquare icon added after "営業AI".
 - Route `/pipeline` added to App.tsx as lazy-loaded route.
+
+## Phase 6-8 Implementation (2026-03)
+
+**Phase 6: フォローアップ通知ベル**:
+- `server/routes/notifications.py`: `GET /api/notifications/follow-ups` endpoint. Returns today/overdue follow-up companies. Admin/system_admin sees all org companies; regular users see only their assigned companies. Excludes completed statuses (代理店化/失注/除外). Returns up to 20 items per category.
+- `frontend/src/components/common/NotificationPanel.tsx`: Notification bell with red badge (count), dropdown panel with "今日のフォローアップ"/"期限超過" sections, per-item company link to /companies/{id}, "パイプラインで確認" footer, auto-refresh every 5 minutes. Accepts `buttonClassName` prop for theming.
+- Added to: mobile header (App.tsx) + desktop sidebar user section (with dark-themed `buttonClassName`).
+
+**Phase 7: チームダッシュボード開放**:
+- Dashboard.tsx: Team tab access condition changed from `isSystemAdmin` only → `isSystemAdmin || user?.role === "admin"`. Org admins can now view the team dashboard without system admin privileges.
+
+**Phase 8: 収集効率ランキングカード**:
+- Keywords.tsx analytics tab: Added "成功率 上位キーワード" (green card, top 3 by success_rate where total_found >= 5) and "要改善キーワード" (red card, bottom 3 where total_runs >= 2 AND success_rate < 20%). Pure frontend sorting — no API changes. Cards appear between KPI summary grid and bar chart.

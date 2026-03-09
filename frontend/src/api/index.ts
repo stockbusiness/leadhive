@@ -529,4 +529,15 @@ export const api = {
     getAuditLogs: (limit = 50) =>
       axios.get("/api/sales-ai/audit-logs", { params: { limit } }).then(r => r.data),
   },
+
+  notifications: {
+    followUps: () =>
+      axios.get<{
+        today: { id: number; company_name: string; follow_up_date: string; status: string; score_rank: string; score_total: number }[];
+        overdue: { id: number; company_name: string; follow_up_date: string; status: string; score_rank: string; score_total: number }[];
+        today_count: number;
+        overdue_count: number;
+        total: number;
+      }>("/api/notifications/follow-ups").then(r => r.data),
+  },
 };

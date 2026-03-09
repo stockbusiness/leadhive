@@ -42,6 +42,7 @@ import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { api } from "./api";
 import PlanLimitModal from "./components/common/PlanLimitModal";
 import AnnouncementBanner from "./components/common/AnnouncementBanner";
+import NotificationPanel from "./components/common/NotificationPanel";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Companies = lazy(() => import("./pages/Companies"));
@@ -300,31 +301,34 @@ function AppContent() {
 
         {user && (
           <div className="px-3 py-3 border-t border-slate-700 bg-slate-950">
-            <button
-              onClick={() => { setShowProfileModal(true); closeSidebar(); }}
-              className="flex items-center gap-2 mb-2 w-full hover:bg-slate-800 rounded-md px-1 py-1 transition-colors"
-            >
-              <div className="bg-blue-600 rounded-full p-1.5 flex-shrink-0">
-                <User size={12} />
-              </div>
-              <div className="overflow-hidden text-left flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs text-white font-medium truncate">{user.display_name || user.org_name}</p>
-                  {user.is_founder && (
-                    <span className="flex-shrink-0 flex items-center gap-0.5 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                      <Star size={8} />
-                      Founder
-                    </span>
-                  )}
-                  {user.is_system_admin && !user.is_founder && (
-                    <span className="flex-shrink-0 bg-blue-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                      Admin
-                    </span>
-                  )}
+              <div className="flex items-center gap-1 mb-1">
+              <button
+                onClick={() => { setShowProfileModal(true); closeSidebar(); }}
+                className="flex items-center gap-2 flex-1 min-w-0 hover:bg-slate-800 rounded-md px-1 py-1 transition-colors"
+              >
+                <div className="bg-blue-600 rounded-full p-1.5 flex-shrink-0">
+                  <User size={12} />
                 </div>
-                <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
-              </div>
-            </button>
+                <div className="overflow-hidden text-left flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs text-white font-medium truncate">{user.display_name || user.org_name}</p>
+                    {user.is_founder && (
+                      <span className="flex-shrink-0 flex items-center gap-0.5 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                        <Star size={8} />
+                        Founder
+                      </span>
+                    )}
+                    {user.is_system_admin && !user.is_founder && (
+                      <span className="flex-shrink-0 bg-blue-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                        Admin
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
+                </div>
+              </button>
+              <NotificationPanel buttonClassName="relative p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 transition-colors flex-shrink-0" />
+            </div>
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
@@ -351,6 +355,7 @@ function AppContent() {
               <span className="text-sm font-bold text-slate-800">LeadHive</span>
             )}
           </div>
+          {user && <NotificationPanel />}
           {user && (
             <button
               onClick={() => setShowProfileModal(true)}

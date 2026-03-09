@@ -116,7 +116,7 @@ export default function Dashboard() {
             <TrendingUp size={14} />
             概要
           </button>
-          {isSystemAdmin ? (
+          {(isSystemAdmin || user?.role === "admin") ? (
             <button
               onClick={() => setActiveTab("team")}
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${

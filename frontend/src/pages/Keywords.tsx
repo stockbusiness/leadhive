@@ -105,6 +105,58 @@ function AnalyticsTab({ projectId }: { projectId: number | null }) {
         />
       </div>
 
+      {(() => {
+        const eligible = analytics.filter(a => a.total_found >= 5);
+        const top3 = [...eligible].sort((a, b) => b.success_rate - a.success_rate).slice(0, 3);
+        const bottom3 = analytics
+          .filter(a => a.total_runs >= 2 && a.success_rate < 20)
+          .sort((a, b) => a.success_rate - b.success_rate)
+          .slice(0, 3);
+        if (top3.length === 0 && bottom3.length === 0) return null;
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {top3.length > 0 && (
+              <div className="bg-white rounded-lg border border-emerald-200 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp size={15} className="text-emerald-600" />
+                  <h3 className="text-sm font-semibold text-slate-700">成功率 上位キーワード</h3>
+                </div>
+                <div className="space-y-2">
+                  {top3.map((a, i) => (
+                    <div key={a.keyword_id} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${i === 0 ? "bg-emerald-500 text-white" : i === 1 ? "bg-emerald-300 text-white" : "bg-emerald-100 text-emerald-700"}`}>{i + 1}</span>
+                        <span className="text-xs text-slate-700 truncate">{a.keyword_text}</span>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-600 flex-shrink-0">{a.success_rate}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {bottom3.length > 0 && (
+              <div className="bg-white rounded-lg border border-red-200 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle size={15} className="text-red-500" />
+                  <h3 className="text-sm font-semibold text-slate-700">要改善キーワード（成功率&lt;20%）</h3>
+                </div>
+                <div className="space-y-2">
+                  {bottom3.map((a, i) => (
+                    <div key={a.keyword_id} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs font-bold w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                        <span className="text-xs text-slate-700 truncate">{a.keyword_text}</span>
+                      </div>
+                      <span className="text-xs font-bold text-red-500 flex-shrink-0">{a.success_rate}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {chartData.length > 0 && (
         <div className="bg-white rounded-lg border border-slate-200 p-5">
           <h3 className="font-semibold text-slate-700 text-sm mb-4">獲得数上位10キーワード</h3>
