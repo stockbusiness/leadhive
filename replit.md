@@ -99,3 +99,8 @@ LeadHive is a modern web application built with React and FastAPI.
 - Outgoing emails include real unsubscribe link (built from REPLIT_DEV_DOMAIN) in both HTML and plain text.
 - `List-Unsubscribe` + `List-Unsubscribe-Post` headers added per RFC 2369 (one-click unsubscribe in email clients).
 - `/unsubscribe` page (public, no auth): loading → success (green check + "配信停止が完了しました") / already-unsubscribed (blue check) / error (red X) states. COOLWORKS footer.
+
+**Phase 4c: Send Statistics Dashboard**:
+- `GET /api/sales-ai/stats`: Aggregated stats — status counts (draft/reviewed/sent/failed), template type counts, send method counts, result counts, 14-day daily send history, opt-out count.
+- `GET /api/sales-ai/audit-logs?limit=50`: Recent audit log entries with company name join.
+- SalesAI "送信統計" tab (4th tab): 4 KPI cards (total/sent/failed/opt-out), progress bar charts for status/template/method breakdown, CSS-based 14-day bar chart, sortable audit log table with colored result badges.

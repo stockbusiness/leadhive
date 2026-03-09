@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Bot, Sparkles, Send, Edit3, Trash2, Check, X, AlertTriangle,
   ChevronDown, ChevronUp, RefreshCw, Eye, Ban, Info, Search,
-  MessageSquare, CheckCircle2, Filter, Mail, Globe, Settings, XCircle
+  MessageSquare, CheckCircle2, Filter, Mail, Globe, Settings, XCircle,
+  BarChart2, TrendingUp, FileText, AlertCircle, Clock
 } from "lucide-react";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
@@ -304,9 +305,34 @@ function SendConfirmModal({ message, onClose, onConfirm }: {
   );
 }
 
+interface StatsData {
+  status_counts: Record<string, number>;
+  template_counts: Record<string, number>;
+  method_counts: Record<string, number>;
+  result_counts: Record<string, number>;
+  daily_sends: { date: string; count: number }[];
+  opt_out_count: number;
+  total_messages: number;
+  total_sent: number;
+  total_failed: number;
+  total_draft: number;
+  total_reviewed: number;
+}
+
+interface AuditLogEntry {
+  id: number;
+  company_name: string | null;
+  company_id: number;
+  send_method: string;
+  result: string;
+  note: string | null;
+  sent_at: string | null;
+  message_id: number | null;
+}
+
 export default function SalesAI() {
   const { currentProject } = useProject();
-  const [activeTab, setActiveTab] = useState<"generate" | "messages" | "optout">("generate");
+  const [activeTab, setActiveTab] = useState<"generate" | "messages" | "optout" | "stats">("generate");
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -330,6 +356,10 @@ export default function SalesAI() {
 
   const [companySearch, setCompanySearch] = useState("");
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
   useEffect(() => {
     api.salesAi.checkApiKey().then(r => setHasApiKey(r.has_api_key)).catch(() => setHasApiKey(false));
@@ -360,9 +390,24 @@ export default function SalesAI() {
     } catch {}
   }, []);
 
+  const loadStats = useCallback(async () => {
+    setLoadingStats(true);
+    try {
+      const [statsRes, logsRes] = await Promise.all([
+        api.salesAi.getStats(),
+        api.salesAi.getAuditLogs(50),
+      ]);
+      setStats(statsRes);
+      setAuditLogs(logsRes.audit_logs || []);
+    } catch {} finally {
+      setLoadingStats(false);
+    }
+  }, []);
+
   useEffect(() => { loadCompanies(); }, [loadCompanies]);
   useEffect(() => { if (activeTab === "messages") loadMessages(); }, [activeTab, loadMessages]);
   useEffect(() => { if (activeTab === "optout") loadOptOut(); }, [activeTab, loadOptOut]);
+  useEffect(() => { if (activeTab === "stats") loadStats(); }, [activeTab, loadStats]);
 
   const filteredCompanies = companies.filter(c =>
     !companySearch || (c.company_name || "").toLowerCase().includes(companySearch.toLowerCase())
@@ -453,6 +498,7 @@ export default function SalesAI() {
           { key: "generate", label: "ターゲット選択・生成", icon: <Sparkles size={16} /> },
           { key: "messages", label: "レビュー・送信", icon: <MessageSquare size={16} /> },
           { key: "optout", label: "配信停止リスト", icon: <Ban size={16} /> },
+          { key: "stats", label: "送信統計", icon: <BarChart2 size={16} /> },
         ].map(tab => (
           <button
             key={tab.key}
@@ -753,6 +799,198 @@ export default function SalesAI() {
           }}
         />
       )}
+      {activeTab === "stats" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-800">送信統計ダッシュボード</h2>
+            <button onClick={loadStats} className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
+              <RefreshCw size={14} className={loadingStats ? "animate-spin" : ""} />
+              更新
+            </button>
+          </div>
+
+          {loadingStats && !stats ? (
+            <div className="flex items-center justify-center h-40 text-slate-400">
+              <RefreshCw size={20} className="animate-spin mr-2" />読み込み中...
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: "総メッセージ数", value: stats?.total_messages ?? 0, icon: <FileText size={18} />, color: "bg-slate-100 text-slate-600" },
+                  { label: "送信済み", value: stats?.total_sent ?? 0, icon: <CheckCircle2 size={18} />, color: "bg-green-100 text-green-700" },
+                  { label: "送信失敗", value: stats?.total_failed ?? 0, icon: <AlertCircle size={18} />, color: "bg-red-100 text-red-700" },
+                  { label: "配信停止数", value: stats?.opt_out_count ?? 0, icon: <Ban size={18} />, color: "bg-amber-100 text-amber-700" },
+                ].map(card => (
+                  <div key={card.label} className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${card.color}`}>
+                      {card.icon}
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-800">{card.value}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{card.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-xl border border-slate-200 p-5">
+                  <h3 className="font-semibold text-sm text-slate-700 mb-4 flex items-center gap-2">
+                    <TrendingUp size={15} className="text-violet-500" />ステータス別
+                  </h3>
+                  <div className="space-y-2">
+                    {[
+                      { key: "draft", label: "下書き", color: "bg-slate-400" },
+                      { key: "reviewed", label: "確認済み", color: "bg-blue-400" },
+                      { key: "sent", label: "送信済み", color: "bg-green-500" },
+                      { key: "failed", label: "失敗", color: "bg-red-500" },
+                    ].map(({ key, label, color }) => {
+                      const val = stats?.status_counts[key] ?? 0;
+                      const total = stats?.total_messages || 1;
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <span className="text-xs text-slate-500 w-16 flex-shrink-0">{label}</span>
+                          <div className="flex-1 bg-slate-100 rounded-full h-2">
+                            <div className={`h-2 rounded-full ${color} transition-all`} style={{ width: `${Math.round(val / total * 100)}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-slate-700 w-6 text-right">{val}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 p-5">
+                  <h3 className="font-semibold text-sm text-slate-700 mb-4 flex items-center gap-2">
+                    <FileText size={15} className="text-violet-500" />テンプレート別
+                  </h3>
+                  <div className="space-y-2">
+                    {[
+                      { key: "shopify", label: "Shopify提案" },
+                      { key: "ec_support", label: "EC支援提案" },
+                      { key: "partner", label: "パートナー提案" },
+                    ].map(({ key, label }) => {
+                      const val = stats?.template_counts[key] ?? 0;
+                      const total = stats?.total_messages || 1;
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <span className="text-xs text-slate-500 w-24 flex-shrink-0">{label}</span>
+                          <div className="flex-1 bg-slate-100 rounded-full h-2">
+                            <div className="h-2 rounded-full bg-violet-500 transition-all" style={{ width: `${Math.round(val / total * 100)}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-slate-700 w-6 text-right">{val}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 p-5">
+                  <h3 className="font-semibold text-sm text-slate-700 mb-4 flex items-center gap-2">
+                    <Send size={15} className="text-violet-500" />送信方法別
+                  </h3>
+                  {Object.keys(stats?.method_counts || {}).length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-4">送信履歴なし</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {Object.entries(stats?.method_counts || {}).map(([method, count]) => {
+                        const totalSent = Object.values(stats?.method_counts || {}).reduce((a, b) => a + b, 0) || 1;
+                        const label = method === "email" ? "メール" : method === "form" ? "フォーム" : method === "manual" ? "手動記録" : method;
+                        return (
+                          <div key={method} className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500 w-16 flex-shrink-0">{label}</span>
+                            <div className="flex-1 bg-slate-100 rounded-full h-2">
+                              <div className="h-2 rounded-full bg-blue-400 transition-all" style={{ width: `${Math.round(count / totalSent * 100)}%` }} />
+                            </div>
+                            <span className="text-xs font-medium text-slate-700 w-6 text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <h3 className="font-semibold text-sm text-slate-700 mb-4 flex items-center gap-2">
+                  <BarChart2 size={15} className="text-violet-500" />過去14日間の送信推移
+                </h3>
+                {(() => {
+                  const dailyData = stats?.daily_sends || [];
+                  const maxCount = Math.max(...dailyData.map(d => d.count), 1);
+                  return (
+                    <div className="flex items-end gap-1 h-24">
+                      {dailyData.map((d, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                          <div className="relative w-full">
+                            <div
+                              className="w-full bg-violet-500 hover:bg-violet-600 rounded-t transition-all cursor-default"
+                              style={{ height: `${Math.max(d.count / maxCount * 72, d.count > 0 ? 4 : 0)}px` }}
+                              title={`${d.date}: ${d.count}件`}
+                            />
+                          </div>
+                          {i % 2 === 0 && <span className="text-[9px] text-slate-400 -rotate-45 origin-top-left">{d.date}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="font-semibold text-sm text-slate-700 flex items-center gap-2">
+                    <Clock size={15} className="text-violet-500" />最近の送信ログ
+                  </h3>
+                  <span className="text-xs text-slate-400">{auditLogs.length}件</span>
+                </div>
+                {auditLogs.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-8">送信履歴がありません</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">企業名</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">送信方法</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">結果</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">詳細</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">日時</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {auditLogs.map(log => (
+                          <tr key={log.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-3 font-medium text-slate-800 text-xs">{log.company_name || `ID:${log.company_id}`}</td>
+                            <td className="px-4 py-3 text-xs text-slate-600">
+                              {log.send_method === "email" ? "メール" : log.send_method === "form" ? "フォーム" : log.send_method === "manual" ? "手動記録" : log.send_method}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                log.result === "sent" ? "bg-green-100 text-green-700" :
+                                log.result === "failed" ? "bg-red-100 text-red-700" :
+                                "bg-slate-100 text-slate-600"
+                              }`}>
+                                {log.result === "sent" ? "✓ 送信済" : log.result === "failed" ? "✗ 失敗" : log.result}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-500 max-w-xs truncate">{log.note || "-"}</td>
+                            <td className="px-4 py-3 text-xs text-slate-400">
+                              {log.sent_at ? new Date(log.sent_at).toLocaleDateString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {sendTarget && (
         <SendConfirmModal
           message={sendTarget}

@@ -512,5 +512,11 @@ export const api = {
 
     checkApiKey: () =>
       axios.get("/api/sales-ai/settings/api-key-status").then(r => r.data),
+
+    getStats: () =>
+      axios.get("/api/sales-ai/stats").then(r => r.data),
+
+    getAuditLogs: (limit = 50) =>
+      axios.get("/api/sales-ai/audit-logs", { params: { limit } }).then(r => r.data),
   },
 };

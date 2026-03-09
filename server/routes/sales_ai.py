@@ -1,8 +1,9 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 from server.database import get_db
 from server.models import SalesMessage, AuditLog, OptOutList, Company, CompanyMaster, User
@@ -470,6 +471,128 @@ def list_opt_out(
                 "added_at": e.added_at.isoformat() if e.added_at else None,
             }
             for e in entries
+        ]
+    }
+
+
+@router.get("/stats")
+def get_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    org_id = current_user.org_id
+
+    status_counts = dict(
+        db.query(SalesMessage.status, func.count(SalesMessage.id))
+        .filter(SalesMessage.org_id == org_id)
+        .group_by(SalesMessage.status)
+        .all()
+    )
+
+    template_counts = dict(
+        db.query(SalesMessage.template_type, func.count(SalesMessage.id))
+        .filter(SalesMessage.org_id == org_id)
+        .group_by(SalesMessage.template_type)
+        .all()
+    )
+
+    sent_msg_ids = [
+        row[0] for row in
+        db.query(SalesMessage.id)
+        .filter(SalesMessage.org_id == org_id)
+        .all()
+    ]
+
+    method_counts: dict = {}
+    result_counts: dict = {}
+    if sent_msg_ids:
+        method_rows = (
+            db.query(AuditLog.send_method, func.count(AuditLog.id))
+            .filter(AuditLog.message_id.in_(sent_msg_ids))
+            .group_by(AuditLog.send_method)
+            .all()
+        )
+        method_counts = dict(method_rows)
+
+        result_rows = (
+            db.query(AuditLog.result, func.count(AuditLog.id))
+            .filter(AuditLog.message_id.in_(sent_msg_ids))
+            .group_by(AuditLog.result)
+            .all()
+        )
+        result_counts = dict(result_rows)
+
+    today = datetime.utcnow().date()
+    daily: list[dict] = []
+    for i in range(13, -1, -1):
+        day = today - timedelta(days=i)
+        day_start = datetime.combine(day, datetime.min.time())
+        day_end = day_start + timedelta(days=1)
+        cnt = 0
+        if sent_msg_ids:
+            cnt = (
+                db.query(func.count(AuditLog.id))
+                .filter(
+                    AuditLog.message_id.in_(sent_msg_ids),
+                    AuditLog.sent_at >= day_start,
+                    AuditLog.sent_at < day_end,
+                )
+                .scalar() or 0
+            )
+        daily.append({"date": day.strftime("%m/%d"), "count": cnt})
+
+    opt_out_count = db.query(func.count(OptOutList.id)).scalar() or 0
+
+    return {
+        "status_counts": status_counts,
+        "template_counts": template_counts,
+        "method_counts": method_counts,
+        "result_counts": result_counts,
+        "daily_sends": daily,
+        "opt_out_count": opt_out_count,
+        "total_messages": sum(status_counts.values()),
+        "total_sent": status_counts.get("sent", 0),
+        "total_failed": status_counts.get("failed", 0),
+        "total_draft": status_counts.get("draft", 0),
+        "total_reviewed": status_counts.get("reviewed", 0),
+    }
+
+
+@router.get("/audit-logs")
+def get_audit_logs(
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    org_id = current_user.org_id
+    sent_msg_ids = [
+        row[0] for row in
+        db.query(SalesMessage.id).filter(SalesMessage.org_id == org_id).all()
+    ]
+    if not sent_msg_ids:
+        return {"audit_logs": []}
+
+    rows = (
+        db.query(AuditLog, Company.company_name)
+        .outerjoin(Company, Company.id == AuditLog.company_id)
+        .filter(AuditLog.message_id.in_(sent_msg_ids))
+        .order_by(AuditLog.sent_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return {
+        "audit_logs": [
+            {
+                "id": log.id,
+                "company_name": company_name,
+                "company_id": log.company_id,
+                "send_method": log.send_method,
+                "result": log.result,
+                "note": log.note,
+                "sent_at": log.sent_at.isoformat() if log.sent_at else None,
+                "message_id": log.message_id,
+            }
+            for log, company_name in rows
         ]
     }
 
