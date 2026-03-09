@@ -178,6 +178,9 @@ export const api = {
 
     enrichStart: (params: { project_id: number; max_items: number }) =>
       axios.post<{ job_id: string }>("/api/collect/enrich", params).then(r => r.data),
+
+    searchEngineStatus: () =>
+      axios.get<{ active_engine: string; has_serper: boolean; has_google: boolean }>("/api/collect/search-engine-status").then(r => r.data),
   },
 
   templates: {

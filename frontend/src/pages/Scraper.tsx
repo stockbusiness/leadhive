@@ -46,11 +46,13 @@ export default function Scraper() {
   const [scrapeProgressCurrent, setScrapeProgressCurrent] = useState(0);
   const [scrapeProgressTotal, setScrapeProgressTotal] = useState(0);
   const [scrapeResults, setScrapeResults] = useState<any>(null);
+  const [searchEngine, setSearchEngine] = useState<{ active_engine: string; has_serper: boolean; has_google: boolean } | null>(null);
 
   useEffect(() => {
     api.keywords.list().then((data) => {
       setKeywords(data.keywords.filter((k) => k.is_active));
     });
+    api.collector.searchEngineStatus().then(setSearchEngine).catch(() => {});
   }, []);
 
   const handleSingleScrape = async () => {
@@ -188,6 +190,17 @@ export default function Scraper() {
             >
               <tab.icon size={16} />
               {tab.label}
+              {tab.key === "google-api" && searchEngine && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                  searchEngine.active_engine === "serper"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : searchEngine.active_engine === "google"
+                    ? "bg-blue-100 text-blue-700"
+                    : "bg-red-100 text-red-600"
+                }`}>
+                  {searchEngine.active_engine === "serper" ? "Serper" : searchEngine.active_engine === "google" ? "Google" : "未設定"}
+                </span>
+              )}
             </button>
           ))}
         </div>

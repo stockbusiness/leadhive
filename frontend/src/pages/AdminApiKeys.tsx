@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Key, Save, Loader2, CheckCircle, Building2, ExternalLink, Bot } from "lucide-react";
+import { Key, Save, Loader2, CheckCircle, Building2, ExternalLink, Bot, Search } from "lucide-react";
 import { api } from "../api";
 
 export default function AdminApiKeys() {
@@ -7,6 +7,8 @@ export default function AdminApiKeys() {
   const [gbizTokenSet, setGbizTokenSet] = useState(false);
   const [anthropicKey, setAnthropicKey] = useState("");
   const [anthropicKeySet, setAnthropicKeySet] = useState(false);
+  const [serperKey, setSerperKey] = useState("");
+  const [serperKeySet, setSerperKeySet] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -20,6 +22,10 @@ export default function AdminApiKeys() {
         setAnthropicKeySet(true);
         setAnthropicKey((data.anthropic_api_key as string) || "");
       }
+      if (data.serper_api_key_set) {
+        setSerperKeySet(true);
+        setSerperKey((data.serper_api_key as string) || "");
+      }
     }).catch(() => {});
   }, []);
 
@@ -27,17 +33,15 @@ export default function AdminApiKeys() {
     setSaving(true);
     try {
       const payload: Record<string, string> = {};
-      if (gbizToken && !gbizToken.includes("••")) {
-        payload.gbizinfo_api_token = gbizToken;
-      }
-      if (anthropicKey && !anthropicKey.includes("••")) {
-        payload.anthropic_api_key = anthropicKey;
-      }
+      if (gbizToken && !gbizToken.includes("••")) payload.gbizinfo_api_token = gbizToken;
+      if (anthropicKey && !anthropicKey.includes("••")) payload.anthropic_api_key = anthropicKey;
+      if (serperKey && !serperKey.includes("••")) payload.serper_api_key = serperKey;
       if (Object.keys(payload).length > 0) {
         await api.admin.updateApiSettings(payload);
         setSaved(true);
         if (payload.gbizinfo_api_token) setGbizTokenSet(true);
         if (payload.anthropic_api_key) setAnthropicKeySet(true);
+        if (payload.serper_api_key) setSerperKeySet(true);
         setTimeout(() => setSaved(false), 3000);
       }
     } catch (e) {
@@ -61,6 +65,51 @@ export default function AdminApiKeys() {
           設定を保存しました
         </div>
       )}
+
+      {/* Serper API Key */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <Search size={20} className="text-emerald-600" />
+          <h3 className="text-lg font-semibold text-slate-800">Serper API設定</h3>
+          <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">URL収集エンジン</span>
+        </div>
+
+        <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 space-y-2 text-sm text-emerald-800">
+          <p className="font-medium">Serper とは</p>
+          <p className="text-emerald-700">
+            Google検索をAPIで利用できるサービス（Google Custom Search APIの高精度代替）。
+            キーワード収集で使用する検索エンジンです。<strong>SerperキーはGoogle CSEより優先</strong>されます。月2,500回まで無料。
+          </p>
+          <a
+            href="https://serper.dev/api-key"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-800 font-medium"
+          >
+            Serper.dev でAPIキーを取得（無料）
+            <ExternalLink size={13} />
+          </a>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            APIキー
+            {serperKeySet && (
+              <span className="ml-2 text-emerald-600 text-xs font-normal">✓ 設定済み</span>
+            )}
+          </label>
+          <input
+            type="password"
+            value={serperKey}
+            onChange={(e) => setSerperKey(e.target.value)}
+            placeholder="Serper APIキーを入力"
+            className={inputClass}
+          />
+          <p className="text-xs text-slate-400 mt-1">
+            設定時はSerperが優先、未設定時はGoogle Custom Search API（クライアント設定）にフォールバックします。
+          </p>
+        </div>
+      </div>
 
       {/* Anthropic API Key */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">

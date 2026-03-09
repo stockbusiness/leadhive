@@ -15,6 +15,41 @@ from server.auth import get_current_user
 router = APIRouter(prefix="/api/collect", tags=["collector"])
 
 
+@router.get("/search-engine-status")
+def get_search_engine_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    import os
+    from server.models import SystemSettings, AppSetting
+    serper_env = os.environ.get("SERPER_API_KEY", "")
+    serper_sys = db.query(SystemSettings).filter(SystemSettings.key == "serper_api_key").first()
+    has_serper = bool(serper_env) or bool(serper_sys and serper_sys.value)
+
+    google_key = db.query(AppSetting).filter(
+        AppSetting.setting_key == "google_api_key",
+        AppSetting.org_id == current_user.org_id,
+    ).first()
+    google_cx = db.query(AppSetting).filter(
+        AppSetting.setting_key == "google_cx",
+        AppSetting.org_id == current_user.org_id,
+    ).first()
+    has_google = bool(google_key and google_key.setting_value) and bool(google_cx and google_cx.setting_value)
+
+    if has_serper:
+        active_engine = "serper"
+    elif has_google:
+        active_engine = "google"
+    else:
+        active_engine = "none"
+
+    return {
+        "active_engine": active_engine,
+        "has_serper": has_serper,
+        "has_google": has_google,
+    }
+
+
 @router.get("/progress/{job_id}")
 async def collect_progress(job_id: str):
     async def event_stream():
