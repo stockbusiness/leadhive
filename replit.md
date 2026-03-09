@@ -14,14 +14,14 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
 - **Database**: PostgreSQLを使用し、Replitの内蔵データベースを活用します。
 - **Authentication**: JWTと`sha256_crypt`による認証を採用。
 - **Multi-tenancy**: 組織ベースのマルチテナンシーをサポート。
-- **Scraping & Collection**: BeautifulSoup4とRequestsを用いた最大5並列のWebスクレイピング。Google Custom Search API、ディレクトリサイト、Google検索、Shopifyパートナーディレクトリ、Google Places API、gBizINFO APIからの企業情報収集に対応しています。
+- **Scraping & Collection**: BeautifulSoup4とRequestsを用いた最大5並列のWebスクレイピング。Serper API（優先）またはGoogle Custom Search API（フォールバック）、ディレクトリサイト、Google検索、Shopifyパートナーディレクトリ、Google Places API、gBizINFO APIからの企業情報収集に対応しています。
 - **Data Processing**:
     - **Scoring**: カスタム可能な100点満点スコアリングシステムと手動調整。
     - **Categorization**: 9種類のカテゴリ分類とフラグ検出の自動化、カスタム設定可能。
     - **Duplicate Detection**: ドメイン正規化による重複検出とマージ。
     - **Aggregator Detection**: まとめサイトや比較サイトの自動判定と拒否リスト化。
 - **Workflow & Automation**:
-    - **Auto-collection**: 設定キーワードに基づきGoogle Custom Search APIで自動収集。
+    - **Auto-collection**: 設定キーワードに基づきSerper API（優先）またはGoogle Custom Search APIで自動収集。使用エンジンをログ出力。
     - **Scheduled Tasks**: 毎日指定時刻の自動収集実行スケジューラ。
     - **Real-time Progress**: SSEによるGoogle API収集進捗のリアルタイム表示。
     - **Slack Notifications**: 収集完了時のSlack通知。

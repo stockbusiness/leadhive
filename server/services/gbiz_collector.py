@@ -99,7 +99,22 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
 
     query = f'"{company_name}" {city} 公式サイト'.strip()
 
-    # Google Custom Search API を優先使用
+    # Serper API を最優先使用（システム管理者設定）
+    try:
+        from server.services.serper_search import get_serper_api_key, search_serper
+        serper_key = get_serper_api_key()
+        if serper_key:
+            results = search_serper(serper_key, query, num=3)
+            for r in results:
+                url = r.get("url", "")
+                domain = normalize_domain(url)
+                if domain and not is_aggregator_site(domain):
+                    return url
+            return None
+    except Exception as e:
+        logger.warning(f"Serper search failed for {company_name}: {e}")
+
+    # Google Custom Search API（クライアント設定）にフォールバック
     if db and org_id:
         try:
             from server.services.google_search import search_google

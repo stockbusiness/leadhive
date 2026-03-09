@@ -13,8 +13,9 @@ _scheduler_lock = threading.Lock()
 
 def _run_auto_collect():
     from server.database import SessionLocal
-    from server.models import AppSetting, SearchKeyword
+    from server.models import AppSetting, SearchKeyword, SystemSettings
     from server.services.collector import collect_by_keyword
+    import os
 
     db = SessionLocal()
     try:
@@ -27,16 +28,51 @@ def _run_auto_collect():
             logger.info("Auto-collect: No active keywords")
             return
 
+        # 使用する検索エンジンを確認してログ出力
+        serper_env = os.environ.get("SERPER_API_KEY", "")
+        serper_sys = db.query(SystemSettings).filter(SystemSettings.key == "serper_api_key").first()
+        has_serper = bool(serper_env) or bool(serper_sys and serper_sys.value)
+
+        if has_serper:
+            logger.info(f"Auto-collect: Search engine = Serper API ({len(keywords)} keywords)")
+        else:
+            # Google CSEが設定済みか確認
+            any_google = False
+            for kw in keywords:
+                if kw.project_id:
+                    from server.models import Organization
+                    proj_db_row = db.execute(
+                        __import__("sqlalchemy").text("SELECT org_id FROM projects WHERE id=:pid"),
+                        {"pid": kw.project_id}
+                    ).fetchone()
+                    if proj_db_row:
+                        google_key = db.query(AppSetting).filter(
+                            AppSetting.setting_key == "google_api_key",
+                            AppSetting.org_id == proj_db_row[0]
+                        ).first()
+                        if google_key and google_key.setting_value:
+                            any_google = True
+                            break
+            if any_google:
+                logger.info(f"Auto-collect: Search engine = Google CSE ({len(keywords)} keywords)")
+            else:
+                logger.warning("Auto-collect: 検索APIが設定されていません。システム管理画面でSerper APIキーを設定してください。")
+
         logger.info(f"Auto-collect: Starting collection for {len(keywords)} keywords")
+        total_success = 0
         for kw in keywords:
             try:
                 result = collect_by_keyword(kw.id, db)
+                if "error" in result:
+                    logger.warning(f"Auto-collect: '{kw.keyword}' - {result['error']}")
+                    continue
                 success = result.get("summary", {}).get("success", 0)
+                total_success += success
                 logger.info(f"Auto-collect: '{kw.keyword}' - {success} new companies")
             except Exception as e:
                 logger.error(f"Auto-collect error for '{kw.keyword}': {e}")
 
-        logger.info("Auto-collect: Collection complete")
+        logger.info(f"Auto-collect: Collection complete — {total_success} total new companies")
     except Exception as e:
         logger.error(f"Auto-collect error: {e}")
     finally:
