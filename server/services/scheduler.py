@@ -65,12 +65,54 @@ def _run_auto_collect():
                 result = collect_by_keyword(kw.id, db)
                 if "error" in result:
                     logger.warning(f"Auto-collect: '{kw.keyword}' - {result['error']}")
-                    continue
-                success = result.get("summary", {}).get("success", 0)
-                total_success += success
-                logger.info(f"Auto-collect: '{kw.keyword}' - {success} new companies")
+                else:
+                    success = result.get("summary", {}).get("success", 0)
+                    total_success += success
+                    logger.info(f"Auto-collect: '{kw.keyword}' (Google/Serper) - {success} new companies")
             except Exception as e:
                 logger.error(f"Auto-collect error for '{kw.keyword}': {e}")
+
+            if not kw.project_id:
+                continue
+            try:
+                import sqlalchemy as _sa
+                proj_row = db.execute(
+                    _sa.text("SELECT org_id FROM projects WHERE id=:pid"),
+                    {"pid": kw.project_id},
+                ).fetchone()
+                if not proj_row:
+                    continue
+                org_id = proj_row[0]
+                gbiz_token = db.query(AppSetting).filter(
+                    AppSetting.setting_key == "gbiz_token",
+                    AppSetting.org_id == org_id,
+                ).first()
+                if not gbiz_token or not gbiz_token.setting_value:
+                    continue
+                import uuid as _uuid
+                from server.services.collector import job_update
+                from server.services.gbiz_collector import collect_from_gbiz
+                gbiz_job_id = str(_uuid.uuid4())
+                gbiz_db = SessionLocal()
+                try:
+                    gbiz_result = collect_from_gbiz(
+                        job_id=gbiz_job_id,
+                        project_id=kw.project_id,
+                        org_id=org_id,
+                        keyword=kw.keyword,
+                        prefecture=kw.region or "",
+                        max_results=20,
+                        db=gbiz_db,
+                    )
+                    gbiz_success = gbiz_result.get("summary", {}).get("success", 0)
+                    total_success += gbiz_success
+                    logger.info(f"Auto-collect: '{kw.keyword}' (gBizINFO) - {gbiz_success} new companies")
+                except Exception as ge:
+                    logger.warning(f"Auto-collect gBizINFO skip '{kw.keyword}': {ge}")
+                finally:
+                    gbiz_db.close()
+            except Exception as e:
+                logger.error(f"Auto-collect gBizINFO outer error '{kw.keyword}': {e}")
 
         logger.info(f"Auto-collect: Collection complete — {total_success} total new companies")
     except Exception as e:
@@ -607,11 +649,19 @@ def _set_last_run(org_id: int, count: int, db):
 
 def _run_auto_enrich_all():
     from server.database import SessionLocal
-    from server.models import Organization, Project, Company
+    from server.models import Organization, Project, Company, AppSetting
     db = SessionLocal()
     try:
         orgs = db.query(Organization).all()
         for org in orgs:
+            enrich_flag = db.query(AppSetting).filter(
+                AppSetting.setting_key == "auto_enrich_enabled",
+                AppSetting.org_id == org.id,
+            ).first()
+            if enrich_flag and enrich_flag.setting_value == "false":
+                logger.info(f"AutoEnrich: org={org.id} は自動情報補完が無効のためスキップ")
+                continue
+
             projects = db.query(Project).filter(Project.org_id == org.id).all()
             for project in projects:
                 no_url_count = db.query(Company).filter(

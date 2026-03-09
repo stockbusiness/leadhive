@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper } from "lucide-react";
+import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, DatabaseZap } from "lucide-react";
 import { api } from "../api";
 import type { PlanData, PlanUsage } from "../types";
 
@@ -181,6 +181,7 @@ export default function Settings() {
 
   const [autoCollectEnabled, setAutoCollectEnabled] = useState(false);
   const [autoCollectTime, setAutoCollectTime] = useState("09:00");
+  const [autoEnrichEnabled, setAutoEnrichEnabled] = useState(true);
   const [schedulerRunning, setSchedulerRunning] = useState(false);
 
   const [followupNotifyEnabled, setFollowupNotifyEnabled] = useState(false);
@@ -198,6 +199,7 @@ export default function Settings() {
       if (s.slack_webhook_url) { setSlackWebhookSet(s.slack_webhook_url.is_set); if (s.slack_webhook_url.is_set) setSlackWebhookUrl(s.slack_webhook_url.value); }
       if (s.auto_collect_enabled) setAutoCollectEnabled(s.auto_collect_enabled.value === "true");
       if (s.auto_collect_time?.is_set) setAutoCollectTime(s.auto_collect_time.value);
+      if (s.auto_enrich_enabled) setAutoEnrichEnabled(s.auto_enrich_enabled.value !== "false");
       if (s.smtp_host?.is_set) setSmtpHost(s.smtp_host.value);
       if (s.smtp_port?.is_set) setSmtpPort(s.smtp_port.value);
       if (s.smtp_user?.is_set) setSmtpUser(s.smtp_user.value);
@@ -227,6 +229,7 @@ export default function Settings() {
     data.smtp_use_tls = smtpUseTls ? "true" : "false";
     data.auto_collect_enabled = autoCollectEnabled ? "true" : "false";
     data.auto_collect_time = autoCollectTime;
+    data.auto_enrich_enabled = autoEnrichEnabled ? "true" : "false";
     data.followup_notify_enabled = followupNotifyEnabled ? "true" : "false";
     data.followup_notify_channel = followupNotifyChannel;
     if (openaiApiKey && !openaiApiKey.includes("*")) data.openai_api_key = openaiApiKey;
@@ -535,6 +538,31 @@ export default function Settings() {
             <label className={labelClass}><Clock size={14} className="inline mr-1" />実行時刻</label>
             <input type="time" value={autoCollectTime} onChange={e => setAutoCollectTime(e.target.value)} disabled={!autoCollectEnabled} className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-slate-100" />
           </div>
+        </div>
+        <SaveButton saving={saving} onClick={handleSave} />
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
+        <SectionHeader
+          icon={<DatabaseZap size={20} className="text-indigo-600" />}
+          title="自動情報補完スケジュール"
+        />
+        <p className="text-sm text-slate-500">
+          有効にすると、毎日 AM 4:00 にURLが未取得の企業を自動的にgBizINFO・Google検索で補完します。
+          gBizINFO APIトークンが設定されている場合に効果を発揮します。
+        </p>
+        <div className="flex items-center gap-3">
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" checked={autoEnrichEnabled} onChange={e => setAutoEnrichEnabled(e.target.checked)} className="sr-only peer" />
+            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+          </label>
+          <span className="text-sm font-medium text-slate-700">自動情報補完を有効にする</span>
+        </div>
+        <div className="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2 space-y-1">
+          <p>① 法人番号でgBizINFOを再検索 → URLを取得</p>
+          <p>② Google検索で会社名からURLを探索</p>
+          <p>③ URLが見つかればスクレイピングしてCMS・メールを補完</p>
+          <p className="text-indigo-500 font-medium mt-1">1プロジェクトあたり最大50社 / 日</p>
         </div>
         <SaveButton saving={saving} onClick={handleSave} />
       </div>
