@@ -35,6 +35,7 @@ import {
   DatabaseZap,
   Bot,
   GanttChartSquare,
+  Shield,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -72,6 +73,7 @@ const AdminSmtp = lazy(() => import("./pages/AdminSmtp"));
 const AdminEmailTemplates = lazy(() => import("./pages/AdminEmailTemplates"));
 const AdminFeatures = lazy(() => import("./pages/AdminFeatures"));
 const AdminAutoMaster = lazy(() => import("./pages/AdminAutoMaster"));
+const AdminSecurity = lazy(() => import("./pages/AdminSecurity"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
@@ -280,6 +282,7 @@ function AppContent() {
                 <SidebarLink to="/admin/features" icon={<Sliders size={18} />} label="機能フラグ" onClick={closeSidebar} />
                 <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/auto-master" icon={<DatabaseZap size={18} />} label="マスターDB自動収集" onClick={closeSidebar} />
+                <SidebarLink to="/admin/security" icon={<Shield size={18} />} label="セキュリティ管理" onClick={closeSidebar} />
                 <SidebarLink to="/admin/logs" icon={<ScrollText size={18} />} label="システムログ" onClick={closeSidebar} />
               </div>
             </div>
@@ -396,6 +399,7 @@ function AppContent() {
               <Route path="/admin/stripe" element={<AdminStripe />} />
               <Route path="/admin/api-keys" element={<AdminApiKeys />} />
               <Route path="/admin/auto-master" element={<AdminAutoMaster />} />
+              <Route path="/admin/security" element={<AdminSecurity />} />
               <Route path="/sales-ai" element={<SalesAI />} />
               <Route path="/pipeline" element={<Pipeline />} />
               <Route path="/roadmap" element={<Roadmap />} />

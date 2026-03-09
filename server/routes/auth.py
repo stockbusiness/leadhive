@@ -251,11 +251,62 @@ def resend_verification(request: Request, body: ResendVerificationRequest, db: S
     }
 
 
+def _log_security_event(db: Session, event_type: str, user_id=None, org_id=None, ip_address=None, user_agent=None, details=None):
+    try:
+        from server.models import SecurityEvent
+        ev = SecurityEvent(
+            event_type=event_type,
+            user_id=user_id,
+            org_id=org_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details=details or {},
+        )
+        db.add(ev)
+        db.commit()
+    except Exception:
+        pass
+
+
+MAX_FAILED_LOGINS = 5
+LOCKOUT_MINUTES = 30
+
+
 @router.post("/login")
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown")
+    ua = request.headers.get("user-agent", "")
+
     user = db.query(User).filter(User.email == body.email).first()
-    if not user or not verify_password(body.password, user.password_hash):
+
+    if user:
+        if user.locked_until and user.locked_until > datetime.utcnow():
+            remaining = int((user.locked_until - datetime.utcnow()).total_seconds() / 60) + 1
+            _log_security_event(db, "login_blocked", user_id=user.id, org_id=user.org_id,
+                                ip_address=ip, user_agent=ua,
+                                details={"email": body.email, "reason": "account_locked"})
+            raise HTTPException(status_code=403, detail=f"アカウントがロックされています。約{remaining}分後に再試行してください。")
+
+        if not verify_password(body.password, user.password_hash):
+            count = (user.failed_login_count or 0) + 1
+            user.failed_login_count = count
+            if count >= MAX_FAILED_LOGINS:
+                user.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_MINUTES)
+                db.commit()
+                _log_security_event(db, "account_locked", user_id=user.id, org_id=user.org_id,
+                                    ip_address=ip, user_agent=ua,
+                                    details={"email": body.email, "failed_count": count})
+                raise HTTPException(status_code=403, detail=f"ログイン失敗が{MAX_FAILED_LOGINS}回に達したため、アカウントを{LOCKOUT_MINUTES}分間ロックしました。")
+            db.commit()
+            _log_security_event(db, "login_failed", user_id=user.id, org_id=user.org_id,
+                                ip_address=ip, user_agent=ua,
+                                details={"email": body.email, "failed_count": count})
+            raise HTTPException(status_code=401, detail=f"メールアドレスまたはパスワードが正しくありません（残り{MAX_FAILED_LOGINS - count}回）")
+    else:
+        _log_security_event(db, "login_failed", ip_address=ip, user_agent=ua,
+                            details={"email": body.email, "reason": "user_not_found"})
         raise HTTPException(status_code=401, detail="メールアドレスまたはパスワードが正しくありません")
+
     if not user.is_active:
         raise HTTPException(status_code=403, detail="アカウントが停止されています。管理者にお問い合わせください。")
     if not user.email_verified:
@@ -265,8 +316,14 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
             headers={"X-Verification-Required": "true"},
         )
 
+    user.failed_login_count = 0
+    user.locked_until = None
     user.last_login_at = datetime.utcnow()
     db.commit()
+
+    _log_security_event(db, "login_success", user_id=user.id, org_id=user.org_id,
+                        ip_address=ip, user_agent=ua,
+                        details={"email": body.email})
 
     org = db.query(Organization).filter(Organization.id == user.org_id).first()
     token = create_access_token({"sub": str(user.id)})
@@ -306,6 +363,8 @@ def update_profile(
         if len(body.new_password) < 8:
             raise HTTPException(status_code=400, detail="新しいパスワードは8文字以上で入力してください")
         current_user.password_hash = hash_password(body.new_password)
+        _log_security_event(db, "password_changed", user_id=current_user.id, org_id=current_user.org_id,
+                            details={"email": current_user.email})
 
     db.commit()
     db.refresh(current_user)
