@@ -38,3 +38,4 @@ externalPort = 80
 [deployment]
 deploymentTarget = "vm"
 run = ["python", "server/main.py"]
+build = ["bash", "-c", "npx vite build --config frontend/vite.config.ts"]
