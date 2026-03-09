@@ -37,6 +37,11 @@ interface Status {
   total_collected: number;
   master_db_count: number;
   has_gbiz_token: boolean;
+  enrich_enabled: boolean;
+  enrich_max: number;
+  enrich_last_run: string;
+  enrich_total: number;
+  no_url_count: number;
 }
 
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
@@ -72,6 +77,8 @@ export default function AdminAutoMaster() {
     max_companies: 1000,
     max_enrich: 10,
     schedule_hour: 3,
+    enrich_enabled: true,
+    enrich_max: 100,
   });
 
   const [jobLogs, setJobLogs] = useState<JobLogEntry[]>([]);
@@ -96,6 +103,8 @@ export default function AdminAutoMaster() {
         max_companies: s.max_companies,
         max_enrich: s.max_enrich,
         schedule_hour: s.schedule_hour,
+        enrich_enabled: s.enrich_enabled ?? true,
+        enrich_max: s.enrich_max ?? 100,
       });
     }).finally(() => setLoading(false));
   };
@@ -114,6 +123,8 @@ export default function AdminAutoMaster() {
       auto_master_max_companies: String(form.max_companies),
       auto_master_max_enrich: String(form.max_enrich),
       auto_master_schedule_hour: String(form.schedule_hour),
+      auto_master_enrich_enabled: form.enrich_enabled ? "true" : "false",
+      auto_master_enrich_max: String(form.enrich_max),
     }).then(() => {
       setSaveMsg("保存しました");
       load();
@@ -301,6 +312,62 @@ export default function AdminAutoMaster() {
             onClick={handleSave}
             disabled={saving}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
+            設定を保存
+          </button>
+          {saveMsg && (
+            <span className="text-sm text-green-600 flex items-center gap-1">
+              <CheckCircle size={14} />{saveMsg}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white border border-indigo-200 rounded-xl shadow-sm p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
+              <span className="text-indigo-600">✦</span> マスターDB 自動URL補完
+              <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">AM 5:00 実行</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">URLが未取得のマスターDB企業をGoogle検索で自動補完し、スクレイピングでCMS・メール・スコアを付与します。</p>
+          </div>
+          <Toggle enabled={form.enrich_enabled} onChange={(v) => setForm((f) => ({ ...f, enrich_enabled: v }))} />
+        </div>
+        <div className="grid grid-cols-3 gap-3 text-xs bg-indigo-50 rounded-lg p-3 border border-indigo-100">
+          <div>
+            <div className="text-slate-500">URLなし企業数</div>
+            <div className="text-xl font-bold text-indigo-700">{(status?.no_url_count ?? 0).toLocaleString()}<span className="text-xs font-normal text-slate-500 ml-1">社</span></div>
+          </div>
+          <div>
+            <div className="text-slate-500">累計補完済み</div>
+            <div className="text-xl font-bold text-green-700">{(status?.enrich_total ?? 0).toLocaleString()}<span className="text-xs font-normal text-slate-500 ml-1">社</span></div>
+          </div>
+          <div>
+            <div className="text-slate-500">前回実行</div>
+            <div className="text-sm font-semibold text-slate-700">{status?.enrich_last_run || "未実行"}</div>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">1回の補完件数 <span className="text-slate-400">（最大）</span></label>
+          <select
+            value={form.enrich_max}
+            onChange={(e) => setForm((f) => ({ ...f, enrich_max: Number(e.target.value) }))}
+            disabled={!form.enrich_enabled}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm disabled:opacity-50 disabled:bg-slate-100"
+          >
+            {[50, 100, 200, 300, 500].map((n) => (
+              <option key={n} value={n}>{n}社 / 日</option>
+            ))}
+          </select>
+          <p className="text-xs text-slate-400 mt-1">1社あたりGoogle検索 + スクレイピングで2〜4秒かかります。100社 ≈ 約5分。</p>
+        </div>
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
             {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
             設定を保存

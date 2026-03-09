@@ -26,6 +26,10 @@ SETTINGS_KEYS = [
     "auto_master_last_count",
     "auto_master_total_collected",
     "gbizinfo_api_token",
+    "auto_master_enrich_enabled",
+    "auto_master_enrich_max",
+    "auto_master_enrich_last_run",
+    "auto_master_enrich_total",
 ]
 
 DEFAULTS = {
@@ -40,6 +44,10 @@ DEFAULTS = {
     "auto_master_last_count": "0",
     "auto_master_total_collected": "0",
     "gbizinfo_api_token": "",
+    "auto_master_enrich_enabled": "true",
+    "auto_master_enrich_max": "100",
+    "auto_master_enrich_last_run": "",
+    "auto_master_enrich_total": "0",
 }
 
 AUTO_MASTER_KEYWORDS = ["株式会社", "合同会社", "有限会社", "医療法人", "社会福祉法人"]
@@ -92,6 +100,10 @@ def get_status(
         or settings.get("gbizinfo_api_token")
     )
 
+    no_url_count = db.query(CompanyMaster).filter(
+        (CompanyMaster.website_url == None) | (CompanyMaster.website_url == "")
+    ).count()
+
     return {
         "enabled": settings.get("auto_master_enabled") == "true",
         "pref_idx": pref_idx,
@@ -109,6 +121,11 @@ def get_status(
         "total_collected": int(settings.get("auto_master_total_collected", "0")),
         "master_db_count": master_count,
         "has_gbiz_token": has_token,
+        "enrich_enabled": settings.get("auto_master_enrich_enabled", "true") != "false",
+        "enrich_max": int(settings.get("auto_master_enrich_max", "100")),
+        "enrich_last_run": settings.get("auto_master_enrich_last_run", ""),
+        "enrich_total": int(settings.get("auto_master_enrich_total", "0")),
+        "no_url_count": no_url_count,
     }
 
 
@@ -119,7 +136,10 @@ def update_settings(
     db: Session = Depends(get_db),
 ):
     _require_system_admin(current_user)
-    allowed = {"auto_master_enabled", "auto_master_max_companies", "auto_master_max_enrich", "auto_master_schedule_hour"}
+    allowed = {
+        "auto_master_enabled", "auto_master_max_companies", "auto_master_max_enrich",
+        "auto_master_schedule_hour", "auto_master_enrich_enabled", "auto_master_enrich_max",
+    }
     for key, val in data.items():
         if key in allowed:
             _set_key(db, key, str(val))

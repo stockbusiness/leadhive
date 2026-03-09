@@ -695,6 +695,116 @@ def _run_auto_enrich_all():
         db.close()
 
 
+def _run_auto_master_enrich():
+    from server.database import SessionLocal
+    from server.models import SystemSettings, CompanyMaster
+    from server.services.gbiz_collector import find_website_for_company
+    from server.services.scraper import scrape_company_info
+    from server.services.aggregator import normalize_domain, is_aggregator_site
+    from server.services.categorizer import categorize_company, detect_flags
+    from server.services.scorer import calculate_score
+    from server.services.collector import _upsert_company_master
+
+    def _sys_get(db, key, default=""):
+        row = db.query(SystemSettings).filter(SystemSettings.key == key).first()
+        return row.value if row and row.value else default
+
+    def _sys_set(db, key, value):
+        row = db.query(SystemSettings).filter(SystemSettings.key == key).first()
+        if row:
+            row.value = str(value)
+        else:
+            db.add(SystemSettings(key=key, value=str(value)))
+        db.commit()
+
+    db = SessionLocal()
+    try:
+        enrich_enabled = _sys_get(db, "auto_master_enrich_enabled", "true")
+        if enrich_enabled == "false":
+            logger.info("AutoMasterEnrich: 無効のためスキップ")
+            return
+
+        max_enrich = max(1, min(500, int(_sys_get(db, "auto_master_enrich_max", "100"))))
+
+        targets = (
+            db.query(CompanyMaster)
+            .filter(
+                (CompanyMaster.website_url == None) | (CompanyMaster.website_url == ""),
+                CompanyMaster.company_name != None,
+                CompanyMaster.company_name != "",
+            )
+            .order_by(CompanyMaster.id.asc())
+            .limit(max_enrich)
+            .all()
+        )
+
+        if not targets:
+            logger.info("AutoMasterEnrich: URLなし企業なし、処理スキップ")
+            return
+
+        logger.info(f"AutoMasterEnrich: {len(targets)}社のURL補完を開始")
+        enriched = 0
+        skipped = 0
+
+        for company in targets:
+            try:
+                location = f"{company.prefecture or ''}{company.city or ''}"
+                url = find_website_for_company(company.company_name, location, db=db, org_id=None)
+                if not url:
+                    skipped += 1
+                    continue
+
+                domain = normalize_domain(url)
+                if not domain or is_aggregator_site(domain):
+                    skipped += 1
+                    continue
+
+                existing = db.query(CompanyMaster).filter(CompanyMaster.domain == domain).first()
+                if existing and existing.id != company.id:
+                    skipped += 1
+                    continue
+
+                scraped = scrape_company_info(url) or {}
+                scraped["company_name"] = company.company_name
+                scraped["website_url"] = url
+                scraped["domain"] = domain
+                if company.corporate_number:
+                    scraped["corporate_number"] = company.corporate_number
+                if not scraped.get("prefecture"):
+                    scraped["prefecture"] = company.prefecture
+                    scraped["city"] = company.city
+
+                full_text = scraped.get("full_text", "") or ""
+                cat_main, cat_sub = categorize_company(full_text)
+                cms_type = scraped.get("cms_type") or None
+                flags = detect_flags(full_text, cms_type=cms_type)
+                scraped.update({"category_main": cat_main, "category_sub": cat_sub, **flags})
+                score, rank = calculate_score(scraped)
+                scraped["score_total"] = score
+                scraped["score_rank"] = rank
+
+                _upsert_company_master(db, scraped, domain, source="auto_master_enrich", corporate_number=company.corporate_number)
+                enriched += 1
+                logger.info(f"AutoMasterEnrich: [{enriched}] {company.company_name} → {domain}")
+                import time as _time
+                _time.sleep(random.uniform(1.5, 3.0))
+            except Exception as e:
+                logger.warning(f"AutoMasterEnrich: {company.company_name} error: {e}")
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+
+        prev_total = int(_sys_get(db, "auto_master_enrich_total", "0"))
+        _sys_set(db, "auto_master_enrich_total", str(prev_total + enriched))
+        _sys_set(db, "auto_master_enrich_last_run", datetime.now().strftime("%Y-%m-%d %H:%M"))
+        logger.info(f"AutoMasterEnrich: 完了 — 補完{enriched}社 / スキップ{skipped}社")
+    except Exception as e:
+        logger.error(f"AutoMasterEnrich error: {e}")
+    finally:
+        db.close()
+
+
 def _scheduler_loop():
     global _scheduler_running
     last_collect_date = None
@@ -702,6 +812,7 @@ def _scheduler_loop():
     last_suspend_date = None
     last_master_date = None
     last_enrich_date = None
+    last_master_enrich_date = None
     last_auto_gen_dates: dict = {}
 
     while _scheduler_running:
@@ -752,6 +863,11 @@ def _scheduler_loop():
                 last_enrich_date = today
                 logger.info("AutoEnrich: Triggered at 04:00")
                 threading.Thread(target=_run_auto_enrich_all, daemon=True).start()
+
+            if now.hour == 5 and now.minute == 0 and last_master_enrich_date != today:
+                last_master_enrich_date = today
+                logger.info("AutoMasterEnrich: Triggered at 05:00")
+                threading.Thread(target=_run_auto_master_enrich, daemon=True).start()
 
             if now.minute == 0:
                 from server.models import AppSetting, Organization

@@ -122,11 +122,13 @@ Google検索・Googleマップ・gBizINFO など複数ソースから営業先�
 
 | ジョブ | 実行タイミング |
 |-------|-------------|
-| `_run_auto_collect()` | AppSetting `auto_collect_time` で指定した時刻 (org 共通) |
+| `_run_auto_collect()` | AppSetting `auto_collect_time` で指定した時刻 (org 共通) ＋ gBizINFOトークンがあれば追加収集 |
 | `_run_auto_master_collect()` | SystemSetting `auto_master_schedule_hour` 指定時刻 |
+| `_run_suspend_inactive_users()` | 毎朝 02:00 |
+| `_run_auto_enrich_all()` | 毎朝 04:00 (AppSetting `auto_enrich_enabled` per org) |
+| `_run_auto_master_enrich()` | 毎朝 05:00 (SystemSettings `auto_master_enrich_enabled`) |
 | `_run_followup_notify()` | 毎朝 09:00 (メール or Slack) |
 | `_run_auto_generate_for_org()` | org 別 `auto_generate_hour` 指定時刻 |
-| `_run_suspend_inactive_users()` | 毎朝 02:00 |
 
 ---
 
