@@ -16,11 +16,46 @@ _job_store: dict[str, dict] = {}
 _job_store_lock = threading.Lock()
 
 
+def _persist_job_log(job_id: str, data: dict):
+    try:
+        from server.database import SessionLocal
+        from server.models import JobLog
+        from datetime import datetime as dt
+        db = SessionLocal()
+        try:
+            row = db.query(JobLog).filter(JobLog.job_id == job_id).first()
+            if row is None:
+                row = JobLog(job_id=job_id)
+                db.add(row)
+            row.job_type = data.get("job_type", row.job_type)
+            row.status = data.get("status", row.status or "running")
+            row.message = data.get("message", row.message)
+            row.current = data.get("current", row.current or 0)
+            row.total = data.get("total", row.total or 0)
+            row.source_count = data.get("source_count", row.source_count or 0)
+            row.saved_count = data.get("saved_count", row.saved_count or 0)
+            row.error_count = data.get("error_count", row.error_count or 0)
+            if data.get("type") in ("done", "error"):
+                row.finished_at = dt.utcnow()
+            db.commit()
+        except Exception as e:
+            logger.warning(f"job_log DB persist error: {e}")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"job_log persist outer error: {e}")
+
+
 def job_update(job_id: str, **kwargs):
     with _job_store_lock:
         if job_id not in _job_store:
             _job_store[job_id] = {}
         _job_store[job_id].update(kwargs)
+    event_type = kwargs.get("type", "")
+    if event_type in ("done", "error") or (event_type == "progress" and not _job_store.get(job_id, {}).get("_db_created")):
+        threading.Thread(target=_persist_job_log, args=(job_id, {**_job_store.get(job_id, {}), **kwargs}), daemon=True).start()
+        with _job_store_lock:
+            _job_store.setdefault(job_id, {})["_db_created"] = True
 
 
 def job_get(job_id: str) -> dict | None:
@@ -95,6 +130,13 @@ def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> 
     if project_id is None:
         project_id = keyword.project_id
 
+    from server.models import Project
+    project_scoring_rules = None
+    if project_id:
+        proj = db.query(Project).filter(Project.id == project_id).first()
+        if proj and proj.scoring_rules:
+            project_scoring_rules = proj.scoring_rules
+
     api_key_setting = db.query(AppSetting).filter(AppSetting.setting_key == "google_api_key").first()
     cx_setting = db.query(AppSetting).filter(AppSetting.setting_key == "google_cx").first()
 
@@ -133,7 +175,7 @@ def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> 
     if search_results and "error" in search_results[0]:
         return {"error": f"検索APIエラー: {search_results[0]['error']}"}
 
-    results = _process_search_results(search_results, db, rejected_domains, existing_domains, project_id=project_id)
+    results = _process_search_results(search_results, db, rejected_domains, existing_domains, project_id=project_id, scoring_rules=project_scoring_rules)
 
     summary = {
         "keyword": keyword.keyword,
@@ -192,6 +234,7 @@ def _process_search_results(
     rejected_domains: set,
     existing_domains: set,
     project_id: int = None,
+    scoring_rules: dict = None,
 ) -> list[dict]:
     results = []
     urls_to_scrape = []
@@ -263,7 +306,7 @@ def _process_search_results(
                 **flags,
             }
 
-            score, rank = calculate_score(company_data)
+            score, rank = calculate_score(company_data, custom_rules=scoring_rules)
             company_data["score_total"] = score
             company_data["score_rank"] = rank
 

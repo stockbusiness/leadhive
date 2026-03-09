@@ -3,7 +3,7 @@ import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
 import type { Project } from "../types";
 import {
-  Plus, Pencil, Trash2, X, Save, FolderKanban,
+  Plus, Pencil, Trash2, X, Save, FolderKanban, RotateCcw,
 } from "lucide-react";
 
 interface EditForm {
@@ -16,6 +16,40 @@ interface EditForm {
   scoring_rules: Record<string, number>;
 }
 
+const DEFAULT_SCORING_RULES: Record<string, number> = {
+  shopify_flag: 20,
+  production_flag: 15,
+  consulting_flag: 15,
+  operation_flag: 15,
+  contact_url: 10,
+  phone: 5,
+  location: 5,
+  multi_platform: 10,
+  has_recruitment: 5,
+  sns_active: 5,
+  escms_target_flag: 10,
+  info_missing_penalty: -10,
+  no_contact_penalty: -15,
+  not_ec_related_penalty: -20,
+};
+
+const RULE_LABELS: Record<string, { label: string; desc: string }> = {
+  shopify_flag:          { label: "Shopifyフラグ",     desc: "Shopifyで構築されたECサイト" },
+  production_flag:       { label: "制作フラグ",         desc: "Web制作・開発を行っている" },
+  consulting_flag:       { label: "コンサルフラグ",     desc: "EC/マーケティングコンサル" },
+  operation_flag:        { label: "運用代行フラグ",     desc: "ECストア運用代行サービス" },
+  contact_url:           { label: "問い合わせページ",   desc: "contact/inquiry URL が存在する" },
+  phone:                 { label: "電話番号",            desc: "電話番号が取得できた" },
+  location:              { label: "所在地",              desc: "都道府県・市区町村が取得できた" },
+  multi_platform:        { label: "マルチプラットフォーム", desc: "Amazon+楽天両方を展開" },
+  has_recruitment:       { label: "採用情報あり",        desc: "求人・採用ページを検出" },
+  sns_active:            { label: "SNSリンクあり",       desc: "SNS（Twitter/Instagram等）を保有" },
+  escms_target_flag:     { label: "ESCMS優先ターゲット", desc: "EC系・Shopify以外のCMSを使用" },
+  info_missing_penalty:  { label: "情報不足ペナルティ",  desc: "会社名・電話・メール・所在地が2項目未満" },
+  no_contact_penalty:    { label: "連絡先なしペナルティ", desc: "問い合わせURLが存在しない" },
+  not_ec_related_penalty: { label: "EC非関連ペナルティ", desc: "EC関連フラグが一つもない" },
+};
+
 const EMPTY_FORM: EditForm = {
   name: "",
   description: "",
@@ -23,7 +57,7 @@ const EMPTY_FORM: EditForm = {
   categories: [],
   category_keywords: {},
   flag_definitions: {},
-  scoring_rules: {},
+  scoring_rules: { ...DEFAULT_SCORING_RULES },
 };
 
 export default function Projects() {
@@ -57,6 +91,9 @@ export default function Projects() {
   };
 
   const openEdit = (p: Project) => {
+    const existingRules = p.scoring_rules && Object.keys(p.scoring_rules).length > 0
+      ? p.scoring_rules
+      : { ...DEFAULT_SCORING_RULES };
     setForm({
       name: p.name,
       description: p.description,
@@ -64,7 +101,7 @@ export default function Projects() {
       categories: p.categories || [],
       category_keywords: p.category_keywords || {},
       flag_definitions: p.flag_definitions || {},
-      scoring_rules: p.scoring_rules || {},
+      scoring_rules: existingRules,
     });
     setEditingId(p.id);
     setShowCreate(true);
@@ -419,27 +456,96 @@ export default function Projects() {
               {activeTab === "scoring" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-slate-600">スコアリング基準（各項目のポイント）</p>
-                    <button onClick={addScoringRule} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700">
-                      <Plus size={14} />項目追加
-                    </button>
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">スコアリング基準</p>
+                      <p className="text-xs text-slate-400 mt-0.5">各項目のポイントを調整できます。合計は0〜100にクランプされます。</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setForm((f) => ({ ...f, scoring_rules: { ...DEFAULT_SCORING_RULES } }))}
+                        className="flex items-center gap-1 text-xs text-slate-500 border border-slate-300 rounded px-2 py-1 hover:bg-slate-50"
+                        title="デフォルト値に戻す"
+                      >
+                        <RotateCcw size={12} /> デフォルトに戻す
+                      </button>
+                      <button onClick={addScoringRule} className="flex items-center gap-1 text-xs text-blue-600 border border-blue-200 rounded px-2 py-1 hover:bg-blue-50">
+                        <Plus size={12} />カスタム追加
+                      </button>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    {Object.entries(form.scoring_rules).map(([key, points]) => (
-                      <div key={key} className="flex items-center gap-3 border rounded-lg px-3 py-2">
-                        <span className="flex-1 text-sm text-slate-700">{key}</span>
-                        <input
-                          type="number"
-                          value={points}
-                          onChange={(e) => updateScoringPoints(key, Number(e.target.value))}
-                          className="w-20 border rounded px-2 py-1 text-sm text-center"
-                        />
-                        <span className="text-xs text-slate-400">pt</span>
-                        <button onClick={() => removeScoringRule(key)} className="text-slate-400 hover:text-red-500">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ))}
+
+                  {/* Positive rules */}
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">プラスポイント</p>
+                    {Object.entries(form.scoring_rules)
+                      .filter(([, pts]) => pts >= 0)
+                      .map(([key, points]) => {
+                        const meta = RULE_LABELS[key];
+                        return (
+                          <div key={key} className="flex items-center gap-3 border border-slate-200 rounded-lg px-3 py-2.5 bg-white">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-700">{meta?.label || key}</p>
+                              {meta?.desc && <p className="text-xs text-slate-400 mt-0.5">{meta.desc}</p>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="range"
+                                min={0}
+                                max={30}
+                                step={1}
+                                value={points}
+                                onChange={(e) => updateScoringPoints(key, Number(e.target.value))}
+                                className="w-20 accent-indigo-600"
+                              />
+                              <span className={`text-sm font-bold w-12 text-right ${points > 0 ? "text-indigo-600" : "text-slate-400"}`}>
+                                +{points}pt
+                              </span>
+                            </div>
+                            {!RULE_LABELS[key] && (
+                              <button onClick={() => removeScoringRule(key)} className="text-slate-300 hover:text-red-500">
+                                <X size={14} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  {/* Penalty rules */}
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">ペナルティ</p>
+                    {Object.entries(form.scoring_rules)
+                      .filter(([, pts]) => pts < 0)
+                      .map(([key, points]) => {
+                        const meta = RULE_LABELS[key];
+                        return (
+                          <div key={key} className="flex items-center gap-3 border border-red-100 rounded-lg px-3 py-2.5 bg-red-50/30">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-700">{meta?.label || key}</p>
+                              {meta?.desc && <p className="text-xs text-slate-400 mt-0.5">{meta.desc}</p>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="range"
+                                min={-30}
+                                max={0}
+                                step={1}
+                                value={points}
+                                onChange={(e) => updateScoringPoints(key, Number(e.target.value))}
+                                className="w-20 accent-red-500"
+                              />
+                              <span className="text-sm font-bold w-12 text-right text-red-500">
+                                {points}pt
+                              </span>
+                            </div>
+                            {!RULE_LABELS[key] && (
+                              <button onClick={() => removeScoringRule(key)} className="text-slate-300 hover:text-red-500">
+                                <X size={14} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               )}

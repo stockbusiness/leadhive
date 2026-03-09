@@ -358,6 +358,24 @@ class SystemSettings(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+class JobLog(Base):
+    __tablename__ = "job_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(String(100), unique=True, index=True, nullable=False)
+    job_type = Column(String(50), nullable=True)
+    status = Column(String(20), default="running")
+    message = Column(Text, nullable=True)
+    current = Column(Integer, default=0)
+    total = Column(Integer, default=0)
+    source_count = Column(Integer, default=0)
+    saved_count = Column(Integer, default=0)
+    error_count = Column(Integer, default=0)
+    started_at = Column(DateTime, server_default=func.now())
+    finished_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class Segment(Base):
     __tablename__ = "segments"
 

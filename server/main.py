@@ -135,6 +135,26 @@ def run_db_migrations():
         """))
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_segments_org_id ON segments (org_id)"))
 
+        conn.execute(sa.text("""
+            CREATE TABLE IF NOT EXISTS job_logs (
+                id SERIAL PRIMARY KEY,
+                job_id VARCHAR(100) UNIQUE NOT NULL,
+                job_type VARCHAR(50),
+                status VARCHAR(20) DEFAULT 'running',
+                message TEXT,
+                current INTEGER DEFAULT 0,
+                total INTEGER DEFAULT 0,
+                source_count INTEGER DEFAULT 0,
+                saved_count INTEGER DEFAULT 0,
+                error_count INTEGER DEFAULT 0,
+                started_at TIMESTAMP DEFAULT NOW(),
+                finished_at TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_job_logs_job_id ON job_logs (job_id)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_job_logs_started_at ON job_logs (started_at DESC)"))
+
         conn.commit()
 
     db = SessionLocal()

@@ -1,9 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import axios from "axios";
 import {
   DatabaseZap, Play, RotateCcw, CheckCircle, XCircle,
-  Loader2, RefreshCw, MapPin, Calendar, Layers,
+  Loader2, RefreshCw, MapPin, Calendar, Layers, History, ChevronDown, ChevronRight,
 } from "lucide-react";
+
+interface JobLogEntry {
+  id: number;
+  job_id: string;
+  job_type: string | null;
+  status: string;
+  message: string | null;
+  current: number;
+  total: number;
+  source_count: number;
+  saved_count: number;
+  error_count: number;
+  started_at: string | null;
+  finished_at: string | null;
+}
 
 interface Status {
   enabled: boolean;
@@ -59,6 +74,18 @@ export default function AdminAutoMaster() {
     schedule_hour: 3,
   });
 
+  const [jobLogs, setJobLogs] = useState<JobLogEntry[]>([]);
+  const [jobLogsOpen, setJobLogsOpen] = useState(false);
+  const [jobLogsLoading, setJobLogsLoading] = useState(false);
+
+  const loadJobLogs = useCallback(() => {
+    setJobLogsLoading(true);
+    axios.get("/api/admin/auto-master/job-logs?limit=20")
+      .then((r) => setJobLogs(r.data.logs))
+      .catch(() => {})
+      .finally(() => setJobLogsLoading(false));
+  }, []);
+
   const load = () => {
     setLoading(true);
     axios.get("/api/admin/auto-master/status").then((r) => {
@@ -75,8 +102,9 @@ export default function AdminAutoMaster() {
 
   useEffect(() => {
     load();
+    loadJobLogs();
     return () => stopPolling();
-  }, []);
+  }, [loadJobLogs]);
 
   const handleSave = () => {
     setSaving(true);
@@ -148,6 +176,7 @@ export default function AdminAutoMaster() {
             setProgressMsg("");
             setRunning(false);
             setStatus(s);
+            loadJobLogs();
           } else {
             const msgs = ["収集実行中...", "gBizINFOから企業データを取得中...", "マスターDBに保存中..."];
             setProgressMsg(msgs[Math.floor(elapsed / 5) % msgs.length]);
@@ -372,6 +401,99 @@ export default function AdminAutoMaster() {
             <XCircle size={15} className="shrink-0" />{runError}
           </div>
         )}
+
+        {/* Job History */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <button
+            onClick={() => { setJobLogsOpen((v) => !v); if (!jobLogsOpen) loadJobLogs(); }}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <History size={15} className="text-indigo-500" />
+              実行履歴
+              {jobLogs.length > 0 && (
+                <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-normal">
+                  {jobLogs.length}件
+                </span>
+              )}
+            </span>
+            {jobLogsOpen ? <ChevronDown size={15} className="text-slate-400" /> : <ChevronRight size={15} className="text-slate-400" />}
+          </button>
+
+          {jobLogsOpen && (
+            <div className="border-t border-slate-100">
+              {jobLogsLoading ? (
+                <div className="flex items-center gap-2 px-4 py-5 text-sm text-slate-400">
+                  <Loader2 size={14} className="animate-spin" /> 読み込み中...
+                </div>
+              ) : jobLogs.length === 0 ? (
+                <div className="px-4 py-6 text-center text-slate-400 text-sm">
+                  実行履歴がありません。「今すぐ実行」でジョブを開始すると履歴が記録されます。
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="text-left px-4 py-2 font-medium text-slate-500">開始時刻</th>
+                        <th className="text-left px-4 py-2 font-medium text-slate-500">種別</th>
+                        <th className="text-center px-4 py-2 font-medium text-slate-500">状態</th>
+                        <th className="text-center px-4 py-2 font-medium text-slate-500">保存</th>
+                        <th className="text-left px-4 py-2 font-medium text-slate-500">メッセージ</th>
+                        <th className="text-left px-4 py-2 font-medium text-slate-500">所要時間</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {jobLogs.map((log) => {
+                        const start = log.started_at ? new Date(log.started_at + "Z") : null;
+                        const finish = log.finished_at ? new Date(log.finished_at + "Z") : null;
+                        const duration = start && finish
+                          ? Math.round((finish.getTime() - start.getTime()) / 1000)
+                          : null;
+                        return (
+                          <tr key={log.id} className="border-b border-slate-100 hover:bg-slate-50">
+                            <td className="px-4 py-2 text-slate-600 whitespace-nowrap">
+                              {start ? start.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }) : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-slate-500">
+                              {log.job_type || "—"}
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              {log.status === "done" ? (
+                                <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+                                  <CheckCircle size={12} /> 完了
+                                </span>
+                              ) : log.status === "error" ? (
+                                <span className="inline-flex items-center gap-1 text-red-500 font-medium">
+                                  <XCircle size={12} /> エラー
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-blue-500 font-medium">
+                                  <Loader2 size={12} className="animate-spin" /> 実行中
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-center font-semibold text-slate-700">
+                              {log.saved_count > 0 ? (
+                                <span className="text-green-600">{log.saved_count}</span>
+                              ) : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-slate-500 max-w-xs truncate">
+                              {log.message || "—"}
+                            </td>
+                            <td className="px-4 py-2 text-slate-400 whitespace-nowrap">
+                              {duration !== null ? `${duration}秒` : log.status === "running" ? "実行中" : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {runResult && (
           <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">

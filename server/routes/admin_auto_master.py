@@ -162,7 +162,8 @@ def run_now(
     _require_system_admin(current_user)
     job_id = str(uuid.uuid4())
     job_update(job_id, type="progress", current=0, total=0,
-               message="マスターDB自動収集を開始しています...", status="running")
+               message="マスターDB自動収集を開始しています...", status="running",
+               job_type="auto_master")
 
     def run():
         from server.services.scheduler import _run_auto_master_collect
@@ -170,3 +171,38 @@ def run_now(
 
     threading.Thread(target=run, daemon=True).start()
     return {"job_id": job_id}
+
+
+@router.get("/job-logs")
+def get_job_logs(
+    limit: int = 20,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    from server.models import JobLog
+    rows = (
+        db.query(JobLog)
+        .order_by(JobLog.started_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return {
+        "logs": [
+            {
+                "id": r.id,
+                "job_id": r.job_id,
+                "job_type": r.job_type,
+                "status": r.status,
+                "message": r.message,
+                "current": r.current,
+                "total": r.total,
+                "source_count": r.source_count,
+                "saved_count": r.saved_count,
+                "error_count": r.error_count,
+                "started_at": r.started_at.isoformat() if r.started_at else None,
+                "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+            }
+            for r in rows
+        ]
+    }

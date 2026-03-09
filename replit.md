@@ -74,6 +74,8 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
     - **マスターDB検索フィルタ拡張**: `/api/master/search` に cms_type/has_email/escms_target/has_recruitment パラメータを追加。
     - **UI拡張**: MasterDB検索にCMS種別・メール有無・ESCMS優先・採用情報フィルタを追加。テーブルにCMS列・情報列（メール/SNS/採用アイコン）を追加。CompanyDetailにCMSバッジ・SNSリンク行・採用中バッジ・ESCMS優先バッジ・メールコピーボタンを追加。
     - **セグメント機能**（2026-03実装）: 検索条件を「セグメント」として保存・再利用できる機能。`segments` テーブル（org_id/created_by/name/description/filters JSONB）を新設。CRUD API `/api/segments`（GET/POST/PUT/DELETE）。MasterDB UIに保存済みセグメントパネル（折りたたみ）・セグメント保存ダイアログ・クリックで条件を即適用・アクティブセグメント表示・削除機能を実装。上限50件/org。
+    - **スコアリングルール管理UI改善**（2026-03実装）: Projects.tsx のスコアリングタブを全面改善。DEFAULT_SCORING_RULES の日本語ラベル・説明を追加（RULE_LABELS定数）。スライダーUI（プラスルール0〜30/ペナルティ−30〜0）。「デフォルトに戻す」ボタン。新規プロジェクト作成時はデフォルトルールで初期化。collector.py がプロジェクト固有の scoring_rules を使って calculate_score() を呼ぶように修正。
+    - **job_logs DBマイグレーション**（2026-03実装）: `job_logs` テーブル（job_id/job_type/status/message/current/total/source_count/saved_count/error_count/started_at/finished_at）を新設。collector.py の `job_update()` が非同期バックグラウンドスレッドで DB にジョブ開始・完了・エラーを永続化。`GET /api/admin/auto-master/job-logs` エンドポイントを追加。AdminAutoMaster.tsx に折りたたみ式「実行履歴」パネル（開始時刻・種別・状態・保存件数・メッセージ・所要時間）を追加。
 
 ## External Dependencies
 - **Google Custom Search API**: 営業先自動収集。
