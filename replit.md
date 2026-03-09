@@ -73,6 +73,7 @@ LeadHiveは、ReactとFastAPIを組み合わせたモダンなWebアプリケー
     - **DBスキーマ拡張**: company_master・companiesテーブルに cms_type/cms_detected_at/sns_links/has_recruitment/employee_count/escms_target_flag/robots_disallow の7カラムを追加（ALTER TABLE IF NOT EXISTS で安全マイグレーション）。
     - **マスターDB検索フィルタ拡張**: `/api/master/search` に cms_type/has_email/escms_target/has_recruitment パラメータを追加。
     - **UI拡張**: MasterDB検索にCMS種別・メール有無・ESCMS優先・採用情報フィルタを追加。テーブルにCMS列・情報列（メール/SNS/採用アイコン）を追加。CompanyDetailにCMSバッジ・SNSリンク行・採用中バッジ・ESCMS優先バッジ・メールコピーボタンを追加。
+    - **セグメント機能**（2026-03実装）: 検索条件を「セグメント」として保存・再利用できる機能。`segments` テーブル（org_id/created_by/name/description/filters JSONB）を新設。CRUD API `/api/segments`（GET/POST/PUT/DELETE）。MasterDB UIに保存済みセグメントパネル（折りたたみ）・セグメント保存ダイアログ・クリックで条件を即適用・アクティブセグメント表示・削除機能を実装。上限50件/org。
 
 ## External Dependencies
 - **Google Custom Search API**: 営業先自動収集。

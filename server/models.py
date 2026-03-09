@@ -356,3 +356,16 @@ class SystemSettings(Base):
     key = Column(String(100), primary_key=True)
     value = Column(Text, nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class Segment(Base):
+    __tablename__ = "segments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    filters = Column(JSON, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

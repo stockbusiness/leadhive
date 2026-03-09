@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { Database, Search, Download, CheckSquare, ExternalLink, X, Crown, Lock, ArrowRight, Mail, Users, Briefcase } from "lucide-react";
+import { Database, Search, Download, CheckSquare, ExternalLink, X, Crown, Lock, ArrowRight, Mail, Users, Briefcase, Bookmark, BookmarkPlus, ChevronDown, ChevronRight, Tag, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
 import { ScoreBadge } from "../components/common";
-import type { CompanyMaster, PlanData, PlanUsage } from "../types";
+import type { CompanyMaster, PlanData, PlanUsage, Segment } from "../types";
 
 const PREFECTURES = [
   "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
@@ -78,29 +78,38 @@ function UpgradeGate({ total }: { total: number }) {
           {[
             "全プロジェクト横断の企業データを横断検索",
             "スコア・業種・都道府県でフィルタリング",
-            "選択した企業を一括でプロジェクトにインポート",
-            "自社で収集した企業も全ユーザーのプールに貢献",
-          ].map((feat) => (
-            <div key={feat} className="flex items-center gap-2 text-sm text-slate-600">
-              <div className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              </div>
-              {feat}
+            "CMS種別・ESCMS優先ターゲット検索",
+            "条件保存（セグメント機能）",
+          ].map((f) => (
+            <div key={f} className="flex items-center gap-2 text-sm text-slate-600">
+              <CheckSquare size={15} className="text-indigo-500 flex-shrink-0" />
+              {f}
             </div>
           ))}
         </div>
 
         <button
-          onClick={() => navigate("/settings")}
-          className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+          onClick={() => navigate("/settings?tab=plan")}
+          className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
         >
-          <Crown size={16} />
-          プランを確認・アップグレードする
-          <ArrowRight size={16} />
+          プランを確認する <ArrowRight size={16} />
         </button>
       </div>
     </div>
   );
+}
+
+function filterLabel(filters: Segment["filters"]): string {
+  const parts: string[] = [];
+  if (filters.q) parts.push(`"${filters.q}"`);
+  if (filters.category) parts.push(filters.category);
+  if (filters.prefecture) parts.push(filters.prefecture);
+  if (filters.min_score) parts.push(`スコア${filters.min_score}以上`);
+  if (filters.cms_type) parts.push(filters.cms_type);
+  if (filters.has_email === "true") parts.push("メールあり");
+  if (filters.escms_target) parts.push("ESCMS優先");
+  if (filters.has_recruitment) parts.push("採用情報あり");
+  return parts.length > 0 ? parts.join(" / ") : "フィルターなし";
 }
 
 export default function MasterDB() {
@@ -123,9 +132,18 @@ export default function MasterDB() {
   const [hasRecruitment, setHasRecruitment] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [segmentPanelOpen, setSegmentPanelOpen] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [segmentName, setSegmentName] = useState("");
+  const [segmentDesc, setSegmentDesc] = useState("");
+  const [savingSegment, setSavingSegment] = useState(false);
+  const [activeSegmentId, setActiveSegmentId] = useState<number | null>(null);
+
   useEffect(() => {
     api.master.stats().then(setStats).catch(() => {});
     api.plans.current().then(setPlanInfo).catch(() => {});
+    api.segments.list().then((d) => setSegments(d.segments)).catch(() => {});
   }, []);
 
   const isFreePlan = planInfo?.plan?.max_master_db_imports === 0;
@@ -156,6 +174,66 @@ export default function MasterDB() {
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, [q, category, prefecture, minScore, cmsType, hasEmail, escmsTarget, hasRecruitment, currentProject]);
+
+  const applySegment = (seg: Segment) => {
+    const f = seg.filters;
+    setQ(f.q || "");
+    setCategory(f.category || "all");
+    setPrefecture(f.prefecture || "all");
+    setMinScore(f.min_score ?? "");
+    setCmsType(f.cms_type || "all");
+    setHasEmail(f.has_email ?? "");
+    setEscmsTarget(!!f.escms_target);
+    setHasRecruitment(!!f.has_recruitment);
+    setActiveSegmentId(seg.id);
+    setSegmentPanelOpen(false);
+    setTimeout(() => {
+      const btn = document.getElementById("master-search-btn");
+      if (btn) btn.click();
+    }, 50);
+  };
+
+  const getCurrentFilters = (): Segment["filters"] => {
+    const f: Segment["filters"] = {};
+    if (q.trim()) f.q = q.trim();
+    if (category !== "all") f.category = category;
+    if (prefecture !== "all") f.prefecture = prefecture;
+    if (minScore !== "") f.min_score = minScore as number;
+    if (cmsType !== "all") f.cms_type = cmsType;
+    if (hasEmail) f.has_email = hasEmail;
+    if (escmsTarget) f.escms_target = true;
+    if (hasRecruitment) f.has_recruitment = true;
+    return f;
+  };
+
+  const handleSaveSegment = async () => {
+    if (!segmentName.trim()) return;
+    setSavingSegment(true);
+    try {
+      const filters = getCurrentFilters();
+      const data = await api.segments.create(segmentName.trim(), segmentDesc.trim(), filters);
+      setSegments((prev) => [data.segment, ...prev]);
+      setShowSaveDialog(false);
+      setSegmentName("");
+      setSegmentDesc("");
+      setActiveSegmentId(data.segment.id);
+      setSegmentPanelOpen(true);
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || "保存に失敗しました");
+    }
+    setSavingSegment(false);
+  };
+
+  const handleDeleteSegment = async (id: number) => {
+    if (!confirm("このセグメントを削除しますか？")) return;
+    try {
+      await api.segments.delete(id);
+      setSegments((prev) => prev.filter((s) => s.id !== id));
+      if (activeSegmentId === id) setActiveSegmentId(null);
+    } catch {
+      alert("削除に失敗しました");
+    }
+  };
 
   const handleSelectAll = () => {
     if (selectedDomains.size === items.length) {
@@ -241,11 +319,92 @@ export default function MasterDB() {
             </div>
           )}
 
+          {/* Segment Panel */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+            <button
+              onClick={() => setSegmentPanelOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <Bookmark size={15} className="text-indigo-500" />
+                保存済みセグメント
+                {segments.length > 0 && (
+                  <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-normal">
+                    {segments.length}件
+                  </span>
+                )}
+              </span>
+              {segmentPanelOpen ? <ChevronDown size={15} className="text-slate-400" /> : <ChevronRight size={15} className="text-slate-400" />}
+            </button>
+
+            {segmentPanelOpen && (
+              <div className="border-t border-slate-100">
+                {segments.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-slate-400 text-sm">
+                    <Tag size={28} className="mx-auto mb-2 opacity-30" />
+                    <p>保存済みセグメントはありません</p>
+                    <p className="text-xs mt-1">検索条件を絞り込んだあと「セグメントとして保存」で登録できます</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {segments.map((seg) => (
+                      <div
+                        key={seg.id}
+                        className={`flex items-center gap-3 px-4 py-3 hover:bg-slate-50 group ${activeSegmentId === seg.id ? "bg-indigo-50" : ""}`}
+                      >
+                        <button
+                          onClick={() => applySegment(seg)}
+                          className="flex-1 text-left min-w-0"
+                        >
+                          <p className={`text-sm font-medium ${activeSegmentId === seg.id ? "text-indigo-700" : "text-slate-800"}`}>
+                            {seg.name}
+                          </p>
+                          <p className="text-xs text-slate-400 truncate mt-0.5">{filterLabel(seg.filters)}</p>
+                          {seg.description && (
+                            <p className="text-xs text-slate-500 truncate">{seg.description}</p>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => applySegment(seg)}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          適用
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSegment(seg.id)}
+                          className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                          title="削除"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Search Form */}
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 space-y-4">
-            <h3 className="font-semibold text-slate-700 flex items-center gap-2">
-              <Search size={16} />
-              企業検索
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-700 flex items-center gap-2">
+                <Search size={16} />
+                企業検索
+                {activeSegmentId && (
+                  <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-normal flex items-center gap-1">
+                    <Bookmark size={10} />
+                    {segments.find((s) => s.id === activeSegmentId)?.name}
+                    <button
+                      onClick={() => setActiveSegmentId(null)}
+                      className="ml-0.5 hover:text-indigo-900"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                )}
+              </h3>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="md:col-span-2">
                 <input
@@ -346,12 +505,25 @@ export default function MasterDB() {
                 採用情報あり
               </label>
               <button
+                id="master-search-btn"
                 onClick={handleSearch}
                 disabled={loading}
                 className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
               >
                 <Search size={15} />
                 {loading ? "検索中..." : "検索"}
+              </button>
+              <button
+                onClick={() => {
+                  setSegmentName("");
+                  setSegmentDesc("");
+                  setShowSaveDialog(true);
+                }}
+                className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-300 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors"
+                title="現在のフィルター条件をセグメントとして保存"
+              >
+                <BookmarkPlus size={15} className="text-indigo-500" />
+                セグメント保存
               </button>
             </div>
           </div>
@@ -485,7 +657,7 @@ export default function MasterDB() {
                     ))}
                     {items.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-3 py-8 text-center text-slate-400">
+                        <td colSpan={8} className="px-3 py-8 text-center text-slate-400">
                           検索結果がありません
                         </td>
                       </tr>
@@ -504,6 +676,73 @@ export default function MasterDB() {
             </div>
           )}
         </>
+      )}
+
+      {/* Save Segment Dialog */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <BookmarkPlus size={18} className="text-indigo-500" />
+                セグメントとして保存
+              </h3>
+              <button onClick={() => setShowSaveDialog(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 rounded-lg px-3 py-2 text-xs text-slate-500 border border-slate-200">
+              <p className="font-medium text-slate-600 mb-1">現在のフィルター条件</p>
+              <p>{filterLabel(getCurrentFilters())}</p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  セグメント名 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={segmentName}
+                  onChange={(e) => setSegmentName(e.target.value)}
+                  placeholder="例: ESCMS優先・兵庫県"
+                  maxLength={80}
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">メモ（任意）</label>
+                <textarea
+                  value={segmentDesc}
+                  onChange={(e) => setSegmentDesc(e.target.value)}
+                  placeholder="このセグメントの用途や注意点など"
+                  rows={2}
+                  maxLength={200}
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-1">
+              <button
+                onClick={() => setShowSaveDialog(false)}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleSaveSegment}
+                disabled={savingSegment || !segmentName.trim()}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              >
+                <Bookmark size={14} />
+                {savingSegment ? "保存中..." : "保存"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -238,3 +238,24 @@ export interface OrgWithPlan {
   plan_id: number | null;
   created_at: string | null;
 }
+
+export interface Segment {
+  id: number;
+  org_id: number;
+  created_by: number | null;
+  creator_email?: string | null;
+  name: string;
+  description?: string | null;
+  filters: {
+    q?: string;
+    category?: string;
+    prefecture?: string;
+    min_score?: number | "";
+    cms_type?: string;
+    has_email?: "" | "true" | "false";
+    escms_target?: boolean;
+    has_recruitment?: boolean;
+  };
+  created_at: string | null;
+  updated_at: string | null;
+}

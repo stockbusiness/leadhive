@@ -250,6 +250,20 @@ export const api = {
       axios.post<{ success: number; duplicate: number; error: number }>("/api/master/import", { domain_list: domainList, project_id: projectId }).then(r => r.data),
   },
 
+  segments: {
+    list: () =>
+      axios.get<{ segments: import("../types").Segment[] }>("/api/segments").then(r => r.data),
+
+    create: (name: string, description: string, filters: Record<string, any>) =>
+      axios.post<{ segment: import("../types").Segment }>("/api/segments", { name, description, filters }).then(r => r.data),
+
+    update: (id: number, data: { name?: string; description?: string; filters?: Record<string, any> }) =>
+      axios.put<{ segment: import("../types").Segment }>(`/api/segments/${id}`, data).then(r => r.data),
+
+    delete: (id: number) =>
+      axios.delete(`/api/segments/${id}`).then(r => r.data),
+  },
+
   users: {
     list: () =>
       axios.get<{

@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates, projects, master
 from server.routes import auth, users, plans, payments, onboarding, public
-from server.routes import admin_auto_master
+from server.routes import admin_auto_master, segments
 from server.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -120,6 +120,21 @@ def run_db_migrations():
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS robots_disallow BOOLEAN DEFAULT FALSE",
         ]:
             conn.execute(sa.text(stmt))
+
+        conn.execute(sa.text("""
+            CREATE TABLE IF NOT EXISTS segments (
+                id SERIAL PRIMARY KEY,
+                org_id INTEGER NOT NULL REFERENCES organizations(id),
+                created_by INTEGER REFERENCES users(id),
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                filters JSONB NOT NULL DEFAULT '{}',
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_segments_org_id ON segments (org_id)"))
+
         conn.commit()
 
     db = SessionLocal()
@@ -204,6 +219,7 @@ app.include_router(payments.router)
 app.include_router(onboarding.router, prefix="/api/onboarding", tags=["onboarding"])
 app.include_router(public.router)
 app.include_router(admin_auto_master.router)
+app.include_router(segments.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 
