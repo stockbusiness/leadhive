@@ -78,7 +78,7 @@ function UpgradeGate({ total }: { total: number }) {
           {[
             "全プロジェクト横断の企業データを横断検索",
             "スコア・業種・都道府県でフィルタリング",
-            "CMS種別・ESCMS優先ターゲット検索",
+            "CMS種別・メールアドレス保有でフィルタリング",
             "条件保存（セグメント機能）",
           ].map((f) => (
             <div key={f} className="flex items-center gap-2 text-sm text-slate-600">
@@ -107,7 +107,6 @@ function filterLabel(filters: Segment["filters"]): string {
   if (filters.min_score) parts.push(`スコア${filters.min_score}以上`);
   if (filters.cms_type) parts.push(filters.cms_type);
   if (filters.has_email === "true") parts.push("メールあり");
-  if (filters.escms_target) parts.push("ESCMS優先");
   if (filters.has_recruitment) parts.push("採用情報あり");
   return parts.length > 0 ? parts.join(" / ") : "フィルターなし";
 }
@@ -129,7 +128,6 @@ export default function MasterDB() {
   const [minScore, setMinScore] = useState<number | "">("");
   const [cmsType, setCmsType] = useState("all");
   const [hasEmail, setHasEmail] = useState<"" | "true" | "false">("");
-  const [escmsTarget, setEscmsTarget] = useState(false);
   const [hasRecruitment, setHasRecruitment] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -164,7 +162,6 @@ export default function MasterDB() {
     if (cmsType !== "all") params.cms_type = cmsType;
     if (hasEmail === "true") params.has_email = true;
     if (hasEmail === "false") params.has_email = false;
-    if (escmsTarget) params.escms_target = true;
     if (hasRecruitment) params.has_recruitment = true;
     if (currentProject?.id) params.project_id = currentProject.id;
     api.master.search(params)
@@ -175,7 +172,7 @@ export default function MasterDB() {
       })
       .catch(() => { setItems([]); setTotalCount(0); })
       .finally(() => setLoading(false));
-  }, [q, category, prefecture, minScore, cmsType, hasEmail, escmsTarget, hasRecruitment, currentProject]);
+  }, [q, category, prefecture, minScore, cmsType, hasEmail, hasRecruitment, currentProject]);
 
   const applySegment = (seg: Segment) => {
     const f = seg.filters;
@@ -185,7 +182,6 @@ export default function MasterDB() {
     setMinScore(f.min_score ?? "");
     setCmsType(f.cms_type || "all");
     setHasEmail(f.has_email ?? "");
-    setEscmsTarget(!!f.escms_target);
     setHasRecruitment(!!f.has_recruitment);
     setActiveSegmentId(seg.id);
     setSegmentPanelOpen(false);
@@ -203,7 +199,6 @@ export default function MasterDB() {
     if (minScore !== "") f.min_score = minScore as number;
     if (cmsType !== "all") f.cms_type = cmsType;
     if (hasEmail) f.has_email = hasEmail;
-    if (escmsTarget) f.escms_target = true;
     if (hasRecruitment) f.has_recruitment = true;
     return f;
   };
@@ -491,15 +486,6 @@ export default function MasterDB() {
               <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={escmsTarget}
-                  onChange={(e) => setEscmsTarget(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="text-violet-700 font-medium">ESCMS優先</span>
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
-                <input
-                  type="checkbox"
                   checked={hasRecruitment}
                   onChange={(e) => setHasRecruitment(e.target.checked)}
                   className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
@@ -603,11 +589,8 @@ export default function MasterDB() {
                           />
                         </td>
                         <td className="px-3 py-2">
-                          <div className="font-medium text-slate-800 flex items-center gap-1.5">
+                          <div className="font-medium text-slate-800">
                             {item.company_name || item.domain || "—"}
-                            {item.escms_target_flag && (
-                              <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-semibold">ESCMS</span>
-                            )}
                           </div>
                           {(item.website_url || item.domain) ? (
                             <a
@@ -723,7 +706,7 @@ export default function MasterDB() {
                   type="text"
                   value={segmentName}
                   onChange={(e) => setSegmentName(e.target.value)}
-                  placeholder="例: ESCMS優先・兵庫県"
+                  placeholder="例: WordPress・兵庫県"
                   maxLength={80}
                   className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   autoFocus

@@ -605,12 +605,53 @@ def _set_last_run(org_id: int, count: int, db):
             db.add(AppSetting(org_id=org_id, setting_key=key, setting_value=value))
 
 
+def _run_auto_enrich_all():
+    from server.database import SessionLocal
+    from server.models import Organization, Project, Company
+    db = SessionLocal()
+    try:
+        orgs = db.query(Organization).all()
+        for org in orgs:
+            projects = db.query(Project).filter(Project.org_id == org.id).all()
+            for project in projects:
+                no_url_count = db.query(Company).filter(
+                    Company.project_id == project.id,
+                    (Company.website_url == None) | (Company.website_url == ""),
+                ).count()
+                if no_url_count == 0:
+                    continue
+                logger.info(f"AutoEnrich: org={org.id} project={project.id} ({no_url_count}社をURL補完)")
+                import uuid as _uuid
+                from server.services.collector import job_update
+                job_id = str(_uuid.uuid4())
+                job_update(job_id, type="progress", current=0, total=0, message="自動情報補完を開始...", status="running")
+                new_db = SessionLocal()
+                try:
+                    from server.services.enrichment import enrich_companies_batch
+                    enrich_companies_batch(
+                        job_id=job_id,
+                        project_id=project.id,
+                        org_id=org.id,
+                        db=new_db,
+                        max_items=50,
+                    )
+                except Exception as e:
+                    logger.warning(f"AutoEnrich error org={org.id} project={project.id}: {e}")
+                finally:
+                    new_db.close()
+    except Exception as e:
+        logger.error(f"AutoEnrich all error: {e}")
+    finally:
+        db.close()
+
+
 def _scheduler_loop():
     global _scheduler_running
     last_collect_date = None
     last_notify_date = None
     last_suspend_date = None
     last_master_date = None
+    last_enrich_date = None
     last_auto_gen_dates: dict = {}
 
     while _scheduler_running:
@@ -656,6 +697,11 @@ def _scheduler_loop():
                 last_suspend_date = today
                 logger.info("Auto-suspend: Triggered at 02:00")
                 _run_suspend_inactive_users()
+
+            if now.hour == 4 and now.minute == 0 and last_enrich_date != today:
+                last_enrich_date = today
+                logger.info("AutoEnrich: Triggered at 04:00")
+                threading.Thread(target=_run_auto_enrich_all, daemon=True).start()
 
             if now.minute == 0:
                 from server.models import AppSetting, Organization
