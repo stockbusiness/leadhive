@@ -30,6 +30,7 @@ SETTINGS_KEYS = [
     "auto_master_enrich_max",
     "auto_master_enrich_last_run",
     "auto_master_enrich_total",
+    "scheduler_timezone",
 ]
 
 DEFAULTS = {
@@ -48,6 +49,7 @@ DEFAULTS = {
     "auto_master_enrich_max": "100",
     "auto_master_enrich_last_run": "",
     "auto_master_enrich_total": "0",
+    "scheduler_timezone": "Asia/Tokyo",
 }
 
 AUTO_MASTER_KEYWORDS = ["株式会社", "合同会社", "有限会社", "医療法人", "社会福祉法人"]
@@ -126,6 +128,7 @@ def get_status(
         "enrich_last_run": settings.get("auto_master_enrich_last_run", ""),
         "enrich_total": int(settings.get("auto_master_enrich_total", "0")),
         "no_url_count": no_url_count,
+        "scheduler_timezone": settings.get("scheduler_timezone", "Asia/Tokyo"),
     }
 
 
@@ -139,11 +142,35 @@ def update_settings(
     allowed = {
         "auto_master_enabled", "auto_master_max_companies", "auto_master_max_enrich",
         "auto_master_schedule_hour", "auto_master_enrich_enabled", "auto_master_enrich_max",
+        "scheduler_timezone",
     }
     for key, val in data.items():
         if key in allowed:
             _set_key(db, key, str(val))
     return {"ok": True}
+
+
+@router.get("/server-time")
+def get_server_time(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    from datetime import datetime as _dt
+    settings = _get_all(db)
+    tz_name = settings.get("scheduler_timezone", "Asia/Tokyo")
+    try:
+        tz = ZoneInfo(tz_name)
+        now_tz = _dt.now(tz)
+    except (ZoneInfoNotFoundError, Exception):
+        tz_name = "UTC"
+        now_tz = _dt.utcnow()
+    return {
+        "timezone": tz_name,
+        "server_time": now_tz.strftime("%Y-%m-%d %H:%M:%S"),
+        "utc_offset": now_tz.strftime("%z"),
+    }
 
 
 @router.post("/reset-progress")

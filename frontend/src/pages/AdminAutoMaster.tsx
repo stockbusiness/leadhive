@@ -42,6 +42,7 @@ interface Status {
   enrich_last_run: string;
   enrich_total: number;
   no_url_count: number;
+  scheduler_timezone: string;
 }
 
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
@@ -79,7 +80,9 @@ export default function AdminAutoMaster() {
     schedule_hour: 3,
     enrich_enabled: true,
     enrich_max: 100,
+    scheduler_timezone: "Asia/Tokyo",
   });
+  const [serverTime, setServerTime] = useState<{ server_time: string; utc_offset: string } | null>(null);
 
   const [jobLogs, setJobLogs] = useState<JobLogEntry[]>([]);
   const [jobLogsOpen, setJobLogsOpen] = useState(false);
@@ -105,15 +108,24 @@ export default function AdminAutoMaster() {
         schedule_hour: s.schedule_hour,
         enrich_enabled: s.enrich_enabled ?? true,
         enrich_max: s.enrich_max ?? 100,
+        scheduler_timezone: s.scheduler_timezone ?? "Asia/Tokyo",
       });
     }).finally(() => setLoading(false));
   };
 
+  const fetchServerTime = useCallback(() => {
+    axios.get("/api/admin/auto-master/server-time")
+      .then((r) => setServerTime(r.data))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     load();
     loadJobLogs();
-    return () => stopPolling();
-  }, [loadJobLogs]);
+    fetchServerTime();
+    const stTimer = setInterval(fetchServerTime, 15000);
+    return () => { stopPolling(); clearInterval(stTimer); };
+  }, [loadJobLogs, fetchServerTime]);
 
   const handleSave = () => {
     setSaving(true);
@@ -125,9 +137,11 @@ export default function AdminAutoMaster() {
       auto_master_schedule_hour: String(form.schedule_hour),
       auto_master_enrich_enabled: form.enrich_enabled ? "true" : "false",
       auto_master_enrich_max: String(form.enrich_max),
+      scheduler_timezone: form.scheduler_timezone,
     }).then(() => {
       setSaveMsg("保存しました");
       load();
+      fetchServerTime();
     }).catch(() => setSaveMsg("保存に失敗しました")).finally(() => setSaving(false));
   };
 
@@ -251,6 +265,58 @@ export default function AdminAutoMaster() {
             <p className={`text-lg font-bold ${color} break-all leading-snug`}>{value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
+            🕐 タイムゾーン設定
+          </h3>
+          {serverTime && (
+            <div className="text-right">
+              <div className="text-xs text-slate-500">サーバー現在時刻</div>
+              <div className="text-sm font-bold text-slate-700 tabular-nums">{serverTime.server_time} <span className="text-xs font-normal text-slate-400">(UTC{serverTime.utc_offset})</span></div>
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-slate-500">
+          スケジューラーが参照するタイムゾーンを設定します。設定した時刻が<strong>このタイムゾーン</strong>で解釈されます。
+        </p>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">タイムゾーン</label>
+          <select
+            value={form.scheduler_timezone}
+            onChange={(e) => setForm((f) => ({ ...f, scheduler_timezone: e.target.value }))}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Asia/Tokyo">Asia/Tokyo（JST UTC+9）日本</option>
+            <option value="Asia/Seoul">Asia/Seoul（KST UTC+9）韓国</option>
+            <option value="Asia/Shanghai">Asia/Shanghai（CST UTC+8）中国</option>
+            <option value="Asia/Singapore">Asia/Singapore（SGT UTC+8）シンガポール</option>
+            <option value="America/New_York">America/New_York（EST/EDT）米国東部</option>
+            <option value="America/Los_Angeles">America/Los_Angeles（PST/PDT）米国西部</option>
+            <option value="America/Chicago">America/Chicago（CST/CDT）米国中部</option>
+            <option value="Europe/London">Europe/London（GMT/BST）英国</option>
+            <option value="Europe/Paris">Europe/Paris（CET/CEST）欧州中部</option>
+            <option value="Australia/Sydney">Australia/Sydney（AEST/AEDT）オーストラリア東部</option>
+            <option value="UTC">UTC（協定世界時）</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 bg-slate-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-800 disabled:opacity-50 transition-colors"
+          >
+            {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
+            設定を保存
+          </button>
+          {saveMsg && (
+            <span className="text-sm text-green-600 flex items-center gap-1">
+              <CheckCircle size={14} />{saveMsg}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-5">

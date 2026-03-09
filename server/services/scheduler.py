@@ -826,12 +826,19 @@ def _scheduler_loop():
                 schedule = db.query(AppSetting).filter(AppSetting.setting_key == "auto_collect_time").first()
                 master_enabled_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_enabled").first()
                 master_hour_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_schedule_hour").first()
+                tz_row = db.query(SystemSettings).filter(SystemSettings.key == "scheduler_timezone").first()
                 master_enabled = master_enabled_row and master_enabled_row.value == "true"
                 master_hour = int(master_hour_row.value) if master_hour_row and master_hour_row.value else 3
+                tz_name = (tz_row.value if tz_row and tz_row.value else None) or "Asia/Tokyo"
             finally:
                 db.close()
 
-            now = datetime.now()
+            try:
+                from zoneinfo import ZoneInfo
+                _tz = ZoneInfo(tz_name)
+                now = datetime.now(_tz).replace(tzinfo=None)
+            except Exception:
+                now = datetime.now()
             today = now.date()
 
             if enabled and enabled.setting_value == "true" and schedule and schedule.setting_value:
