@@ -478,4 +478,33 @@ export const api = {
     saveSettings: (data: Record<string, string>) =>
       axios.put("/api/settings/", data).then(r => r.data),
   },
+
+  salesAi: {
+    generate: (companyId: number, templateType: string, projectId?: number) =>
+      axios.post("/api/sales-ai/generate", { company_id: companyId, template_type: templateType, project_id: projectId }).then(r => r.data),
+
+    generateBatch: (companyIds: number[], templateType: string, projectId?: number) =>
+      axios.post("/api/sales-ai/generate-batch", { company_ids: companyIds, template_type: templateType, project_id: projectId }).then(r => r.data),
+
+    listMessages: (status?: string) =>
+      axios.get("/api/sales-ai/messages", { params: status ? { status } : {} }).then(r => r.data),
+
+    updateMessage: (id: number, data: { subject?: string; body?: string }) =>
+      axios.put(`/api/sales-ai/messages/${id}`, data).then(r => r.data),
+
+    sendMessage: (id: number, sendMethod: string, note?: string) =>
+      axios.post(`/api/sales-ai/messages/${id}/send`, { send_method: sendMethod, note }).then(r => r.data),
+
+    deleteMessage: (id: number) =>
+      axios.delete(`/api/sales-ai/messages/${id}`).then(r => r.data),
+
+    addOptOut: (data: { email?: string; domain?: string; company_id?: number; reason?: string }) =>
+      axios.post("/api/sales-ai/opt-out", data).then(r => r.data),
+
+    listOptOut: () =>
+      axios.get("/api/sales-ai/opt-out").then(r => r.data),
+
+    checkApiKey: () =>
+      axios.get("/api/sales-ai/settings/api-key-status").then(r => r.data),
+  },
 };

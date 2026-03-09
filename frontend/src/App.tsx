@@ -33,6 +33,7 @@ import {
   Moon,
   Sun,
   DatabaseZap,
+  Bot,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -76,6 +77,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const LandingPageNew = lazy(() => import("./pages/LandingPageNew"));
 const Roadmap = lazy(() => import("./pages/Roadmap"));
+const SalesAI = lazy(() => import("./pages/SalesAI"));
 const Company = lazy(() => import("./pages/Company"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -247,6 +249,7 @@ function AppContent() {
               <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" onClick={closeSidebar} />
             )}
             <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" onClick={closeSidebar} />
+            <SidebarLink to="/sales-ai" icon={<Bot size={18} />} label="営業AI" onClick={closeSidebar} />
             {user?.role === "admin" && (
               <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
             )}
@@ -384,6 +387,7 @@ function AppContent() {
               <Route path="/admin/stripe" element={<AdminStripe />} />
               <Route path="/admin/api-keys" element={<AdminApiKeys />} />
               <Route path="/admin/auto-master" element={<AdminAutoMaster />} />
+              <Route path="/sales-ai" element={<SalesAI />} />
               <Route path="/roadmap" element={<Roadmap />} />
             </Routes>
           </Suspense>

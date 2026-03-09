@@ -13,6 +13,7 @@ SETTING_KEYS = [
     "smtp_from_email", "smtp_from_name", "smtp_use_tls",
     "followup_notify_enabled", "followup_notify_channel",
     "openai_api_key",
+    "anthropic_api_key",
 ]
 
 MASKED_KEYS = {"api_key", "secret", "webhook", "password", "token"}
