@@ -328,27 +328,54 @@ def send_message(
                 detail="SMTPが設定されていません。設定画面でSMTPを設定するか、送信方法を「手動」に変更してください。"
             )
 
+        from server.services.unsubscribe_token import build_unsubscribe_url
+        unsub_url = build_unsubscribe_url(email)
+
         body_text = msg.body or ""
-        body_html = "<br>".join(
-            f"<p>{line}</p>" if line.strip() else "<br>"
-            for line in body_text.split("\n")
-        )
-        body_html = f"""
-<html><body style="font-family: sans-serif; font-size: 14px; line-height: 1.7; color: #333;">
-{body_html}
-<hr style="margin-top: 2em; border: none; border-top: 1px solid #eee;">
-<p style="font-size: 11px; color: #888;">
+        if unsub_url:
+            body_text_footer = f"\n\n---\n配信停止はこちら: {unsub_url}"
+        else:
+            body_text_footer = "\n\n---\n配信停止をご希望の場合は、このメールへの返信にてお知らせください。"
+
+        paragraphs = []
+        for line in body_text.split("\n"):
+            if line.strip():
+                paragraphs.append(f"<p style='margin: 0 0 0.8em 0;'>{line}</p>")
+            else:
+                paragraphs.append("<br>")
+        body_html_content = "\n".join(paragraphs)
+
+        if unsub_url:
+            footer_html = (
+                f'<a href="{unsub_url}" style="color: #999; text-decoration: underline;">'
+                f'配信停止はこちらをクリック</a>'
+            )
+        else:
+            footer_html = "配信停止をご希望の場合は、このメールへの返信にてお知らせください。"
+
+        body_html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+{body_html_content}
+<hr style="margin-top: 2.5em; border: none; border-top: 1px solid #eee;">
+<p style="font-size: 11px; color: #aaa; margin-top: 1em;">
 このメールは LeadHive を通じて送信されました。<br>
-配信停止をご希望の場合は、このメールへの返信にてお知らせください。
+{footer_html}
 </p>
 </body></html>"""
+
+        extra_headers: dict = {}
+        if unsub_url:
+            extra_headers["List-Unsubscribe"] = f"<{unsub_url}>"
+            extra_headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
 
         success, detail = send_email(
             to=email,
             subject=msg.subject or "",
             html_body=body_html,
-            text_body=body_text,
+            text_body=body_text + body_text_footer,
             smtp_settings=smtp,
+            extra_headers=extra_headers,
         )
         actually_sent = success
         send_result = "sent" if success else "failed"

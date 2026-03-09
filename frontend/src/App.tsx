@@ -78,6 +78,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage"));
 const LandingPageNew = lazy(() => import("./pages/LandingPageNew"));
 const Roadmap = lazy(() => import("./pages/Roadmap"));
 const SalesAI = lazy(() => import("./pages/SalesAI"));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const Company = lazy(() => import("./pages/Company"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -449,6 +450,7 @@ function App() {
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/*" element={<HomeRoute />} />
           </Routes>
         </Suspense>

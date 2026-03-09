@@ -1,10 +1,12 @@
 import requests
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from server.database import get_db
-from server.models import User, SystemSettings
+from server.models import User, SystemSettings, OptOutList
 
 logger = logging.getLogger(__name__)
 
@@ -57,3 +59,36 @@ def lookup_corporate(number: str, db: Session = Depends(get_db)):
     except requests.RequestException as e:
         logger.warning(f"gBizINFO lookup failed for {number}: {e}")
         raise HTTPException(status_code=502, detail="法人情報の取得に失敗しました")
+
+
+@router.get("/unsubscribe")
+def handle_unsubscribe(
+    email: str = Query(...),
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    from server.services.unsubscribe_token import verify_token
+    if not verify_token(email, token):
+        raise HTTPException(status_code=400, detail="無効なリンクです。配信停止処理できませんでした。")
+
+    existing = db.query(OptOutList).filter(
+        (OptOutList.email == email.lower().strip()) |
+        (OptOutList.domain == email.lower().strip().split("@")[-1])
+    ).first()
+
+    if not existing:
+        entry = OptOutList(
+            email=email.lower().strip(),
+            reason="メール内配信停止リンクよりお手続き",
+            added_at=datetime.utcnow(),
+        )
+        db.add(entry)
+        db.commit()
+        logger.info(f"Unsubscribe processed for email: {email}")
+
+    return {
+        "success": True,
+        "email": email,
+        "already_unsubscribed": existing is not None,
+        "message": "配信停止が完了しました。今後このアドレスへのメール送信は停止されます。",
+    }

@@ -38,6 +38,7 @@ def send_email(
     html_body: str,
     smtp_settings: dict,
     text_body: Optional[str] = None,
+    extra_headers: Optional[dict] = None,
 ) -> tuple[bool, str]:
     host = smtp_settings.get("smtp_host", "")
     port = int(smtp_settings.get("smtp_port", "587") or "587")
@@ -57,6 +58,10 @@ def send_email(
     msg["Subject"] = subject
     msg["From"] = f"{from_name} <{from_email}>"
     msg["To"] = to
+
+    if extra_headers:
+        for key, value in extra_headers.items():
+            msg[key] = value
 
     if text_body:
         msg.attach(MIMEText(text_body, "plain", "utf-8"))
