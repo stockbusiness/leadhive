@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle, Lock, Sparkles, ChevronRight, Users, Star, Rocket } from "lucide-react";
+import { CheckCircle, Lock, Sparkles, ChevronRight, Users, Star, Rocket, Zap } from "lucide-react";
 import axios from "axios";
 
 interface PublicStats {
@@ -9,34 +9,34 @@ interface PublicStats {
   founder_slots_total: number;
 }
 
-const FEATURES_AVAILABLE = [
-  "企業自動収集（Google検索連携）",
-  "スコアリング（接触しやすさ自動評価）",
-  "候補企業リスト閲覧・検索",
-  "検索キーワード管理",
-  "プロジェクト分類",
-  "ダッシュボード（概要）",
+const FEATURES_FREE = [
+  "営業先の自動収集（Google検索・マップ・gBizINFO など6ソース）",
+  "スマートスコアリング（A〜Dランク、100点満点）",
+  "企業一覧・詳細閲覧・検索・フィルタリング",
+  "キーワード管理・収集効率レポート",
+  "プロジェクト分類（複数プロジェクト）",
+  "9段階カンバンパイプライン（ドラッグ&ドロップ）",
+  "営業活動ログ・ステータス管理",
+  "フォローアップ通知（メール・Slack・アプリ内）",
+  "AI企業分析・AIメール生成（月3回）",
+  "問い合わせフォーム送信・手動送信記録",
+  "ダッシュボード（収集・スコア概要）",
+  "マスターDB（全プロジェクト横断管理）",
 ];
 
 const FEATURES_STARTER = [
-  "CSVエクスポート",
-  "ステータス管理（商談中・成約など）",
-  "活動ログ記録",
-  "AI企業分析（サイト解析・要約）",
-  "AIメール文章生成",
-  "チームメンバー招待",
-  "メモ・メールテンプレート管理",
-];
-
-const FEATURES_PRO = [
-  "チームダッシュボード（メンバー別活動分析）",
-  "SMTPメール直接送信",
-  "一括操作・高度なフィルタリング",
+  "SMTPメール直接送信（配信停止リンク自動付与）",
+  "AI企業分析・AIメール生成 無制限",
+  "チームメンバー招待・管理（3名〜）",
+  "チーム進捗ダッシュボード（担当者別活動分析）",
+  "CSVエクスポート 無制限",
+  "半自動メール生成スケジュール（毎日自動ドラフト）",
+  "送信統計・監査ログ",
 ];
 
 const FEATURES_UPCOMING = [
-  "企業データベース（詳細非公開）",
-  "その他、今後の機能（準備中）",
+  "企業マスターデータベース（詳細非公開）",
+  "その他、今後追加予定の機能（準備中）",
 ];
 
 export default function Roadmap() {
@@ -62,13 +62,13 @@ export default function Roadmap() {
         </div>
 
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 bg-blue-500/20 border border-blue-500/30 rounded-full px-4 py-1.5 text-blue-300 text-sm font-medium mb-6">
+          <div className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 rounded-full px-4 py-1.5 text-emerald-300 text-sm font-medium mb-6">
             <Rocket size={14} />
-            アーリーアクセス Phase 0
+            全機能 リリース済み
           </div>
           <h1 className="text-4xl font-bold mb-4">機能ロードマップ</h1>
           <p className="text-slate-400 text-lg">
-            LeadHiveは現在アーリーアクセス中です。今後の機能を段階的にリリース予定です。
+            LeadHiveの全機能がリリースされました。現在はアーリーアクセス期間中につきFounderプランで無料ご利用いただけます。
           </p>
         </div>
 
@@ -111,7 +111,7 @@ export default function Roadmap() {
           </div>
           <div className="space-y-3">
             {[
-              { year: "1年目", benefit: "完全無料", highlight: true },
+              { year: "1年目", benefit: "全機能 完全無料", highlight: true },
               { year: "2年目", benefit: "80%オフ（永続）", highlight: false },
               { year: "3年目以降", benefit: "50%オフ（永続）", highlight: false },
             ].map(({ year, benefit, highlight }) => (
@@ -127,31 +127,21 @@ export default function Roadmap() {
         <div className="space-y-6">
           <FeatureSection
             icon={<CheckCircle size={20} className="text-emerald-400" />}
-            title="今すぐ利用可能"
+            title="フリープランで利用可能"
             badge="無料"
             badgeColor="bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
             borderColor="border-emerald-500/20"
-            features={FEATURES_AVAILABLE}
+            features={FEATURES_FREE}
             locked={false}
           />
 
           <FeatureSection
-            icon={<Lock size={20} className="text-blue-400" />}
-            title="スターター以上で解放"
-            badge="準備中"
+            icon={<Zap size={20} className="text-blue-400" />}
+            title="スターター以上で利用可能"
+            badge="スターター〜"
             badgeColor="bg-blue-500/20 text-blue-300 border-blue-500/30"
             borderColor="border-blue-500/20"
             features={FEATURES_STARTER}
-            locked={true}
-          />
-
-          <FeatureSection
-            icon={<Lock size={20} className="text-purple-400" />}
-            title="プロ以上で解放"
-            badge="準備中"
-            badgeColor="bg-purple-500/20 text-purple-300 border-purple-500/30"
-            borderColor="border-purple-500/20"
-            features={FEATURES_PRO}
             locked={true}
           />
 
@@ -190,7 +180,7 @@ export default function Roadmap() {
         </div>
 
         <p className="text-center text-xs text-slate-600 mt-8">
-          リリース日程は未定です。機能の追加・変更が行われる場合があります。
+          機能の追加・変更が行われる場合があります。
         </p>
       </div>
     </div>

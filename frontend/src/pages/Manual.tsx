@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import axios from "axios";
 import {
   BookOpen, ChevronRight, Settings, FolderKanban, Globe,
   Building2, Database, LayoutDashboard, FileText, Star,
@@ -6,7 +8,14 @@ import {
   Brain, BarChart2, Crown, Mail, Copy, Sparkles,
   Users, ShieldBan, CreditCard, Key,
   GanttChartSquare, Calendar, Play, SendHorizonal, Ban, TrendingUp,
+  Lock,
 } from "lucide-react";
+
+interface PlanInfo {
+  id: number;
+  name: string;
+  allow_smtp_send: boolean;
+}
 
 interface Section {
   id: string;
@@ -128,9 +137,59 @@ function FlowDiagram({ steps }: { steps: string[] }) {
   );
 }
 
+function PlanGate({ children, requiredPlanName = "スターター", plan, planLoaded }: {
+  children: React.ReactNode;
+  requiredPlanName?: string;
+  plan: PlanInfo | null;
+  planLoaded: boolean;
+}) {
+  const isLocked = planLoaded && plan !== null && plan.id === 1;
+
+  if (!isLocked) return <>{children}</>;
+
+  return (
+    <div className="relative rounded-xl overflow-hidden border border-slate-200">
+      <div className="blur-sm pointer-events-none select-none max-h-48 overflow-hidden opacity-50">
+        {children}
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-white via-white/95 to-transparent">
+        <div className="text-center py-6 px-6">
+          <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto mb-3">
+            <Lock size={18} className="text-slate-500" />
+          </div>
+          <p className="font-bold text-slate-700 mb-1 text-sm">
+            {requiredPlanName}プラン以上でご利用いただけます
+          </p>
+          <p className="text-xs text-slate-500 mb-4">
+            プランをアップグレードするとこのセクションが解放されます
+          </p>
+          <Link
+            to="/settings"
+            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            <Crown size={12} />
+            プランをアップグレード
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Manual() {
   const [activeId, setActiveId] = useState("overview");
+  const [plan, setPlan] = useState<PlanInfo | null>(null);
+  const [planLoaded, setPlanLoaded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    axios.get("/api/plans/current")
+      .then(res => {
+        setPlan(res.data.plan ?? null);
+        setPlanLoaded(true);
+      })
+      .catch(() => setPlanLoaded(true));
+  }, []);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -734,6 +793,11 @@ export default function Manual() {
               ]}
             />
 
+            <InfoBox color="green">
+              <strong>フリープランでご利用できます：</strong> AIメール生成（月3回）・フォーム送信・手動送信記録。SMTPメール直接送信はスターター以上が必要です。
+            </InfoBox>
+
+            <PlanGate plan={plan} planLoaded={planLoaded}>
             <SubTitle>レビュー・送信タブ</SubTitle>
             <p className="text-sm text-slate-600 mb-3">生成したドラフトを確認・編集し、送信方法を選んで送信します。</p>
             <Table
@@ -802,6 +866,7 @@ export default function Manual() {
             <InfoBox color="blue">
               自動生成スケジュールの設定は <strong>管理者ロール以上</strong>（admin または COOLWORKS管理者）のみ操作できます。
             </InfoBox>
+            </PlanGate>
           </section>
 
           {/* ========== チーム管理 ========== */}
@@ -810,7 +875,11 @@ export default function Manual() {
             <p className="text-slate-600 mb-4">
               組織のメンバーを招待し、同じリスト・プロジェクトをチームで共有できます。メンバーはロール（権限）によって利用できる機能が異なります。
             </p>
+            <InfoBox color="amber">
+              チームメンバーの招待（3名以上）はスタータープラン以上が必要です。
+            </InfoBox>
 
+            <PlanGate plan={plan} planLoaded={planLoaded}>
             <SubTitle>メンバーの招待（管理者のみ）</SubTitle>
             <div className="space-y-2 mb-3">
               <Step number={1}>サイドバーの <strong>「ユーザー管理」</strong> を開く</Step>
@@ -856,6 +925,7 @@ export default function Manual() {
                 </div>
               ))}
             </div>
+            </PlanGate>
           </section>
 
           {/* ========== Slack通知・自動収集 ========== */}
