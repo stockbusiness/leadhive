@@ -20,7 +20,7 @@ const FEATURES = [
   {
     icon: <Brain className="text-violet-500" size={24} />,
     title: "AI企業分析・メール生成",
-    description: "OpenAI GPTが企業サイトを解析し、事業内容・顧客層・強みを自動要約。その分析結果をもとにパーソナライズされた営業メールを数秒で生成します。",
+    description: "GPT-4o-miniが企業サイトを解析し、事業内容・顧客層・強みを自動要約。その分析結果をもとにClaude（Anthropic）がパーソナライズされた営業メールを数秒で生成します。",
   },
   {
     icon: <Kanban className="text-indigo-500" size={24} />,
@@ -173,7 +173,7 @@ export default function LandingPage() {
               ))}
               <div className="col-span-4 bg-slate-750 border border-slate-700 rounded-xl p-3">
                 <div className="flex gap-2 overflow-x-auto">
-                  {["未確認 52", "対象候補 38", "アプローチ前 25", "送信済 20", "返信あり 14", "面談化 9", "成約 31"].map(s => (
+                  {["未確認 52", "対象候補 38", "アプローチ前 25", "フォーム送信済 20", "返信あり 14", "面談化 9", "代理店化 31"].map(s => (
                     <div key={s} className="flex-shrink-0 bg-slate-700 rounded-lg p-2 min-w-[100px]">
                       <p className="text-xs text-slate-400 mb-2 truncate">{s.split(" ")[0]}</p>
                       <p className="text-lg font-bold text-white">{s.split(" ")[1]}</p>
@@ -388,7 +388,7 @@ export default function LandingPage() {
                 {[
                   { status: "未確認", count: 52, color: "bg-slate-200" },
                   { status: "対象候補", count: 38, color: "bg-blue-200" },
-                  { status: "送信済", count: 20, color: "bg-indigo-200" },
+                  { status: "フォーム送信済", count: 20, color: "bg-indigo-200" },
                   { status: "返信あり", count: 14, color: "bg-violet-200" },
                 ].map(col => (
                   <div key={col.status} className="flex-shrink-0 w-36">

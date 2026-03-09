@@ -14,20 +14,22 @@ interface PublicStats {
 }
 
 const AVAILABLE_NOW = [
-  { icon: <Search size={16} />, label: "営業先の自動収集（月200件）", color: "text-blue-400" },
+  { icon: <Search size={16} />, label: "営業先の自動収集（Google・マップ・gBizINFO）", color: "text-blue-400" },
   { icon: <BarChart3 size={16} />, label: "スマートスコアリング（A〜Dランク）", color: "text-emerald-400" },
-  { icon: <Globe size={16} />, label: "企業一覧・詳細閲覧", color: "text-cyan-400" },
-  { icon: <Search size={16} />, label: "キーワード管理", color: "text-violet-400" },
-  { icon: <BarChart3 size={16} />, label: "ダッシュボード（収集概要）", color: "text-teal-400" },
+  { icon: <Globe size={16} />, label: "企業一覧・詳細閲覧・ステータス管理", color: "text-cyan-400" },
+  { icon: <Zap size={16} />, label: "9段階カンバンパイプライン", color: "text-violet-400" },
+  { icon: <Bell size={16} />, label: "フォローアップ通知（アプリ内・メール・Slack）", color: "text-orange-400" },
+  { icon: <Brain size={16} />, label: "AI企業分析・AIメール生成（月3回）", color: "text-rose-400" },
+  { icon: <BarChart3 size={16} />, label: "キーワード分析・収集効率レポート", color: "text-teal-400" },
 ];
 
 const COMING_SOON = [
-  { icon: <FileSpreadsheet size={16} />, label: "CSVエクスポート", tier: "スターター〜" },
-  { icon: <Zap size={16} />, label: "ステータス管理・活動ログ", tier: "スターター〜" },
-  { icon: <Brain size={16} />, label: "AI企業分析・AIメール生成", tier: "スターター〜" },
-  { icon: <Send size={16} />, label: "SMTPメール直接送信", tier: "プロ〜" },
-  { icon: <Users size={16} />, label: "チームメンバー招待・管理", tier: "スターター〜" },
-  { icon: <Bell size={16} />, label: "フォローアップ通知", tier: "スターター〜" },
+  { icon: <Users size={16} />, label: "チームメンバー招待・管理（3名〜）", tier: "スターター〜" },
+  { icon: <Brain size={16} />, label: "AI分析・メール生成 無制限", tier: "スターター〜" },
+  { icon: <Send size={16} />, label: "SMTPメール直接送信", tier: "スターター〜" },
+  { icon: <FileSpreadsheet size={16} />, label: "CSVエクスポート 無制限", tier: "スターター〜" },
+  { icon: <Sparkles size={16} />, label: "半自動メール生成スケジュール", tier: "スターター〜" },
+  { icon: <Users size={16} />, label: "チームダッシュボード（担当者別成果）", tier: "スターター〜" },
 ];
 
 const FOUNDER_BENEFITS = [
@@ -327,8 +329,8 @@ export default function LandingPageNew() {
                 {[
                   "6種類のソースから自動収集（Google・マップ・gBizINFO等）",
                   "100点満点のスマートスコアリングで優先度を即判定",
-                  "OpenAI GPTによる企業分析・営業メール自動生成",
-                  "カンバン進捗管理・チームダッシュボード・フォローアップ通知",
+                  "GPT-4o-miniによる企業分析 ＋ Claudeによる営業メール自動生成",
+                  "9段階カンバンパイプライン・チームダッシュボード・フォローアップ通知",
                 ].map(item => (
                   <li key={item} className="flex items-start gap-2.5 text-sm text-slate-300">
                     <CheckCircle2 size={15} className="text-emerald-400 mt-0.5 flex-shrink-0" />
@@ -364,10 +366,10 @@ export default function LandingPageNew() {
                 <div className="flex gap-1.5 overflow-x-auto">
                   {[
                     { s: "未確認", n: 52, c: "bg-slate-700" },
-                    { s: "候補", n: 38, c: "bg-blue-900/60" },
-                    { s: "送信済", n: 20, c: "bg-indigo-900/60" },
-                    { s: "返信", n: 14, c: "bg-violet-900/60" },
-                    { s: "成約", n: 31, c: "bg-emerald-900/60" },
+                    { s: "対象候補", n: 38, c: "bg-blue-900/60" },
+                    { s: "フォーム送信済", n: 20, c: "bg-indigo-900/60" },
+                    { s: "返信あり", n: 14, c: "bg-violet-900/60" },
+                    { s: "代理店化", n: 31, c: "bg-emerald-900/60" },
                   ].map(col => (
                     <div key={col.s} className={`${col.c} rounded-lg px-2 py-1.5 flex-shrink-0 min-w-[52px]`}>
                       <p className="text-[9px] text-slate-400 truncate">{col.s}</p>
