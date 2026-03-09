@@ -985,6 +985,10 @@ def send_company_email(
         return {"error": "本文を入力してください"}
 
     org_id = current_user.org_id
+
+    from server.routes.plans import check_smtp_allowed
+    check_smtp_allowed(org_id, db)
+
     smtp_settings = get_smtp_settings(db, org_id)
 
     html_body = body.replace("\n", "<br>")

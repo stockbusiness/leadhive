@@ -39,6 +39,7 @@ def check_plan_limit(org_id: int, resource: str, db: Session):
         return
 
     field, current, label = limit_map[resource]
+
     limit = getattr(plan, field, None)
     if limit is not None and current >= limit:
         if limit == 0:
@@ -49,6 +50,22 @@ def check_plan_limit(org_id: int, resource: str, db: Session):
         raise HTTPException(
             status_code=402,
             detail=f"プラン「{plan.name}」の{label}上限（{limit}件/月）に達しています（今月: {current}件）。プランをアップグレードしてください。"
+        )
+
+
+def check_smtp_allowed(org_id: int, db: Session):
+    """SMTP送信が許可されているプランか確認する。フリープランは不可 (402)。"""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org or not org.plan_id:
+        return
+    plan = db.query(Plan).filter(Plan.id == org.plan_id).first()
+    if not plan:
+        return
+    allowed = getattr(plan, "allow_smtp_send", True)
+    if allowed is False:
+        raise HTTPException(
+            status_code=402,
+            detail=f"プラン「{plan.name}」ではSMTPメール送信はご利用いただけません。スターター以上のプランにアップグレードしてください。"
         )
 
 
@@ -80,6 +97,7 @@ def plan_to_dict(plan: Plan) -> dict:
         "max_master_db_imports": plan.max_master_db_imports,
         "max_csv_export": plan.max_csv_export,
         "api_daily_limit": plan.api_daily_limit,
+        "allow_smtp_send": getattr(plan, "allow_smtp_send", True),
         "stripe_price_id": plan.stripe_price_id,
         "is_active": plan.is_active,
         "created_at": plan.created_at.isoformat() if plan.created_at else None,

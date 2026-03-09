@@ -320,6 +320,9 @@ def send_message(
     actually_sent = False
 
     if req.send_method == "email" and email:
+        from server.routes.plans import check_smtp_allowed
+        check_smtp_allowed(current_user.org_id, db)
+
         from server.services.mailer import get_smtp_settings, send_email
         smtp = get_smtp_settings(db, current_user.org_id)
 
