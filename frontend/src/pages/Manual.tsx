@@ -5,6 +5,7 @@ import {
   AlertTriangle, HelpCircle, Zap, Search, Bell,
   Brain, BarChart2, Crown, Mail, Copy, Sparkles,
   Users, ShieldBan, CreditCard, Key,
+  GanttChartSquare, Calendar, Play, SendHorizonal, Ban, TrendingUp,
 } from "lucide-react";
 
 interface Section {
@@ -23,9 +24,11 @@ const SECTIONS: Section[] = [
   { id: "master", title: "マスターDB", icon: <Database size={16} /> },
   { id: "dashboard", title: "ダッシュボードの見方", icon: <LayoutDashboard size={16} /> },
   { id: "activities", title: "営業活動の記録", icon: <FileText size={16} /> },
+  { id: "pipeline", title: "営業パイプライン", icon: <GanttChartSquare size={16} /> },
+  { id: "salesai", title: "営業AI・メール一括送信", icon: <SendHorizonal size={16} /> },
   { id: "team", title: "チーム管理", icon: <Users size={16} /> },
-  { id: "notifications", title: "Slack通知・自動収集", icon: <Bell size={16} /> },
-  { id: "ai", title: "AI機能（企業分析・メール）", icon: <Brain size={16} /> },
+  { id: "notifications", title: "通知・自動収集", icon: <Bell size={16} /> },
+  { id: "ai", title: "AI企業分析", icon: <Brain size={16} /> },
   { id: "keywords_analytics", title: "キーワード分析", icon: <BarChart2 size={16} /> },
   { id: "plans", title: "プラン管理・上限", icon: <Crown size={16} /> },
   { id: "admin_settings", title: "管理者設定", icon: <ShieldBan size={16} /> },
@@ -647,6 +650,160 @@ export default function Manual() {
             </InfoBox>
           </section>
 
+          {/* ========== 営業パイプライン ========== */}
+          <section>
+            <SectionTitle id="pipeline" icon={<GanttChartSquare size={20} />} title="営業パイプライン" />
+            <p className="text-slate-600 mb-4">
+              収集した企業を「未確認」から「代理店化・成約」まで9段階のカンバンボードで視覚的に管理します。ドラッグ&ドロップで進捗をリアルタイム更新できます。
+            </p>
+
+            <SubTitle>パイプライン画面の開き方</SubTitle>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>サイドバーの <strong>「パイプライン」</strong>（GanttChartSquare アイコン）をクリック</Step>
+              <Step number={2}>プロジェクトフィルターで表示対象を切り替える（全プロジェクト or 特定プロジェクト）</Step>
+            </div>
+
+            <SubTitle>9つのステータスカラム</SubTitle>
+            <Table
+              headers={["ステータス", "意味"]}
+              rows={[
+                ["未確認", "収集直後。まだ担当者が確認していない企業"],
+                ["アプローチ前", "確認済み。これからアプローチ予定"],
+                ["アプローチ中", "メール・電話などでアプローチ実施中"],
+                ["資料送付済", "提案資料・カタログを送付した"],
+                ["フォロー中", "返信待ち・フォロー継続中"],
+                ["面談・商談化", "商談が発生した（重要マイルストーン）"],
+                ["代理店化", "成約・代理店契約締結（完了）"],
+                ["失注", "商談が不成立（完了）"],
+                ["除外", "営業対象から外す（完了）"],
+              ]}
+            />
+
+            <SubTitle>ステータスの変更方法</SubTitle>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs font-semibold text-blue-800 mb-1">方法1: ドラッグ&ドロップ</p>
+                <p className="text-xs text-blue-700">カードをつかんで別のカラムにドロップすると即座にステータスが更新されます。</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <p className="text-xs font-semibold text-slate-800 mb-1">方法2: ドロップダウン</p>
+                <p className="text-xs text-slate-700">カード右上の「…」または現在のステータスをクリックするとドロップダウンで選択できます。</p>
+              </div>
+            </div>
+
+            <SubTitle>カードに表示される情報</SubTitle>
+            <Table
+              headers={["バッジ・情報", "説明"]}
+              rows={[
+                ["スコアランク (A/B/C/D)", "企業の優先度ランク。Aが最高"],
+                ["フォローアップ日", "赤表示 = 期限超過 / 黄表示 = 本日"],
+                ["EC / Shopify バッジ", "ECサイト・Shopify運営中を検出"],
+                ["企業名クリック", "企業詳細ページに遷移"],
+              ]}
+            />
+            <InfoBox color="blue">
+              「代理店化」「失注」「除外」に移動した企業はフォローアップ通知の対象外になります。
+            </InfoBox>
+          </section>
+
+          {/* ========== 営業AI・メール一括送信 ========== */}
+          <section>
+            <SectionTitle id="salesai" icon={<SendHorizonal size={20} />} title="営業AI・メール一括送信" />
+            <p className="text-slate-600 mb-4">
+              サイドバーの <strong>「営業AI」</strong> ページでは、AI による営業メール生成・SMTP 送信・配信管理・送信統計・自動生成スケジュールをまとめて管理できます。
+            </p>
+            <InfoBox color="amber">
+              メール生成には <strong>Anthropic APIキー (Claude-3-5-Sonnet)</strong> が必要です。COOLWORKS システム管理者が設定します。
+            </InfoBox>
+
+            <SubTitle>ターゲット選択・生成タブ</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">スコアランク・ステータス・プロジェクトで絞り込んだ企業を選択し、一括でAIメールを生成します。</p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>テンプレートを選択（Shopify移行提案 / EC支援 / 代理店パートナー）</Step>
+              <Step number={2}>左パネルのフィルターで対象企業を絞り込む</Step>
+              <Step number={3}>チェックボックスで送信したい企業を選択</Step>
+              <Step number={4}>「<strong>選択した企業に一括生成</strong>」をクリック → ドラフトが作成される</Step>
+              <Step number={5}>「<strong>レビュー・送信</strong>」タブで内容確認・送信</Step>
+            </div>
+            <Table
+              headers={["テンプレート", "対象"]}
+              rows={[
+                ["Shopify移行提案", "Shopify以外のECサイトを運営している企業"],
+                ["EC支援・売上改善", "ECサイト運営中で売上改善ニーズがある企業"],
+                ["代理店パートナー", "代理店・パートナー関係を構築したい企業"],
+              ]}
+            />
+
+            <SubTitle>レビュー・送信タブ</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">生成したドラフトを確認・編集し、送信方法を選んで送信します。</p>
+            <Table
+              headers={["送信方法", "説明"]}
+              rows={[
+                ["メール送信", "設定済みSMTPサーバー経由で直接送信。配信停止リンク自動付与"],
+                ["フォーム送信", "企業の問い合わせフォームURLを開く（手動貼り付け）"],
+                ["手動送信済み", "外部ツールで送信済みとしてログだけ記録"],
+              ]}
+            />
+            <InfoBox color="blue">
+              送信前に宛先メールアドレス・SMTP設定状態・配信停止リスト登録状況を確認できます。
+            </InfoBox>
+
+            <SubTitle>配信停止リストタブ</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              一度でも「配信停止」になったメールアドレス・ドメインには再送信できません。
+              リストは以下の方法で追加されます。
+            </p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Badge color="bg-slate-100 text-slate-700">メール内ワンクリック配信停止</Badge>
+              <Badge color="bg-slate-100 text-slate-700">管理者による手動追加</Badge>
+              <Badge color="bg-slate-100 text-slate-700">企業詳細からの追加</Badge>
+            </div>
+            <InfoBox color="amber">
+              特定電子メール法では受信者の明確な同意なしに商業メールを送信することは禁止されています。配信停止リストを適切に管理してください。
+            </InfoBox>
+
+            <SubTitle>送信統計タブ</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">送信実績の統計を確認できます。</p>
+            <Table
+              headers={["指標", "内容"]}
+              rows={[
+                ["総ドラフト数", "生成したメールの合計件数"],
+                ["送信済み", "実際に送信完了した件数"],
+                ["失敗", "送信エラーになった件数"],
+                ["配信停止", "配信停止リストに登録された件数"],
+                ["14日間の送信推移", "直近2週間の日別送信件数グラフ"],
+                ["監査ログ", "企業名・送信方法・結果・日時の詳細履歴"],
+              ]}
+            />
+
+            <SubTitle>自動生成スケジュールタブ</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              毎日指定した時刻に、条件に合う企業のメールを自動生成してドラフト保存します。
+              <strong>送信は行われません</strong>。担当者が「レビュー・送信」タブで確認してから手動送信します（半自動モード）。
+            </p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>「<strong>自動生成を有効化</strong>」トグルをONにする</Step>
+              <Step number={2}>実行時刻・対象ステータス・最低スコアランク・最大生成件数を設定</Step>
+              <Step number={3}>テンプレートと対象プロジェクトを選択して「<strong>設定を保存</strong>」</Step>
+              <Step number={4}>毎日指定時刻にドラフトが自動生成 → 通知ベルでお知らせ</Step>
+              <Step number={5}>「<strong>今すぐ実行</strong>」ボタンで動作確認できます</Step>
+            </div>
+            <Table
+              headers={["設定項目", "説明"]}
+              rows={[
+                ["実行時刻", "0〜23時から選択（毎日この時刻に自動実行）"],
+                ["対象ステータス", "どのステータスの企業を対象にするか（複数選択可）"],
+                ["最低スコアランク", "すべて / C以上 / B以上 / Aのみ"],
+                ["最大生成件数", "1回の実行で生成するドラフトの上限（1〜50件）"],
+                ["テンプレート", "使用する営業文テンプレートの種類"],
+                ["対象プロジェクト", "全プロジェクト or 特定のプロジェクトのみ"],
+              ]}
+            />
+            <InfoBox color="blue">
+              自動生成スケジュールの設定は <strong>管理者ロール以上</strong>（admin または COOLWORKS管理者）のみ操作できます。
+            </InfoBox>
+          </section>
+
           {/* ========== チーム管理 ========== */}
           <section>
             <SectionTitle id="team" icon={<Users size={20} />} title="チーム管理" />
@@ -703,7 +860,24 @@ export default function Manual() {
 
           {/* ========== Slack通知・自動収集 ========== */}
           <section>
-            <SectionTitle id="notifications" icon={<Bell size={20} />} title="Slack通知・自動収集" />
+            <SectionTitle id="notifications" icon={<Bell size={20} />} title="通知・自動収集" />
+
+            <SubTitle>通知ベル（アプリ内通知）</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              画面のサイドバー下部（デスクトップ）またはモバイルヘッダーにあるベルアイコンから、フォローアップ期限の企業をすぐに確認できます。
+            </p>
+            <Table
+              headers={["表示内容", "説明"]}
+              rows={[
+                ["赤いバッジ (数字)", "今日が期限 + 期限超過の合計件数"],
+                ["今日のフォローアップ", "本日がフォローアップ期限の企業一覧"],
+                ["期限超過", "フォローアップ期限が過ぎた企業一覧（赤ハイライト）"],
+                ["パイプラインで確認", "パイプライン画面に遷移するリンク"],
+              ]}
+            />
+            <InfoBox color="blue">
+              通知ベルは5分ごとに自動更新されます。管理者は組織全体、一般メンバーは自分が担当者に設定された企業のみ表示されます。
+            </InfoBox>
 
             <SubTitle>Slack 通知</SubTitle>
             <p className="text-sm text-slate-600 mb-2">収集が完了し、新規収集件数が1件以上の場合に自動送信されます。</p>
@@ -852,6 +1026,27 @@ export default function Manual() {
 
             <SubTitle>棒グラフの見方</SubTitle>
             <p className="text-sm text-slate-600">分析タブ上部の棒グラフで、キーワードごとの獲得企業数を一目で比較できます。収集数が著しく低いキーワードは検索語句を変更するか、地域・除外キーワードを調整してみてください。</p>
+
+            <SubTitle>収集効率ランキングカード</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              収集実績が一定数以上あるキーワードについて、成功率の高い順・低い順でランキングを自動表示します。
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp size={14} className="text-emerald-600" />
+                  <p className="text-xs font-semibold text-emerald-800">成功率 上位キーワード（緑）</p>
+                </div>
+                <p className="text-xs text-emerald-700">収集5件以上のキーワードで成功率が高いTOP3。これらのキーワードパターンを他にも展開するのがおすすめです。</p>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle size={14} className="text-red-600" />
+                  <p className="text-xs font-semibold text-red-800">要改善キーワード（赤）</p>
+                </div>
+                <p className="text-xs text-red-700">2回以上実行して成功率20%未満のキーワード。キーワードの見直しや削除を検討してください。</p>
+              </div>
+            </div>
           </section>
 
           {/* ========== プラン管理・上限 ========== */}
@@ -1089,6 +1284,26 @@ export default function Manual() {
                 {
                   q: "企業情報が不完全（会社名や電話番号がない）",
                   a: "Webサイトの構造によっては自動抽出できない場合があります。詳細編集モーダルから手動で補完してください。情報を入力・保存するとスコアが自動再計算されます。",
+                },
+                {
+                  q: "パイプラインで企業がドラッグできない",
+                  a: "モバイルブラウザではドラッグ&ドロップが使いにくい場合があります。カード右上のドロップダウンからステータス変更をご利用ください。",
+                },
+                {
+                  q: "営業AIの「メール生成」ボタンが押せない",
+                  a: "Anthropic APIキー（Claude）が設定されていない場合、生成機能が無効になります。画面上部の警告バナーをご確認ください。APIキーはCOOLWORKSシステム管理者が設定します。",
+                },
+                {
+                  q: "自動生成スケジュールを設定しても実行されない",
+                  a: "「自動生成を有効化」トグルがONになっているか確認してください。また設定保存後、次の指定時刻まで実行されません。「今すぐ実行」ボタンで即時テストができます。",
+                },
+                {
+                  q: "通知ベルに件数が表示されない",
+                  a: "フォローアップ日が設定されている企業がない場合は件数0になります。企業詳細編集モーダルの「フォローアップ日」欄から日付を設定してください。",
+                },
+                {
+                  q: "配信停止リストから削除できますか？",
+                  a: "配信停止リスト画面から個別に削除できます。ただし、受信者本人から明確な再受信の意思確認を得た場合のみ削除してください（特定電子メール法）。",
                 },
               ].map((item, i) => (
                 <div key={i} className="border border-slate-200 rounded-lg overflow-hidden">
