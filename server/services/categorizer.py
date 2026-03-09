@@ -1,4 +1,5 @@
 import re
+from bs4 import BeautifulSoup
 
 CATEGORY_KEYWORDS = {
     "Shopify支援": ["shopify", "ショッピファイ"],
@@ -41,8 +42,46 @@ DEFAULT_FLAG_KEYWORDS = {
     "production_flag": ["制作", "構築", "開発"],
 }
 
+EC_URL_PATTERNS = re.compile(
+    r"/(?:products?|items?|shop|goods|catalog|store|cart|purchase|buy|order|checkout)",
+    re.IGNORECASE,
+)
+EC_CART_KEYWORDS = ["カートに入れる", "購入する", "買い物かご", "ショッピングカート", "add to cart", "buy now", "注文する"]
+EC_PRICE_KEYWORDS = ["¥", "円", "税込", "税別", "税抜", "価格", "値段"]
+EC_TOKUSHO_PATTERNS = re.compile(r"/(?:tokusho|law|legal|tokuteishohotorihikiho|特定商取引)", re.IGNORECASE)
+EC_PAYMENT_KEYWORDS = ["決済方法", "お支払い方法", "支払方法", "クレジットカード", "代引き", "送料", "お届け", "配送方法", "配送料"]
+EC_STOCK_KEYWORDS = ["在庫あり", "在庫確認", "お届け日数", "在庫", "入荷待ち"]
 
-def detect_flags(text: str, custom_flags: dict = None, cms_type: str = None) -> dict:
+
+def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_links: list = None) -> int:
+    score = 0
+    text_lower = text.lower() if text else ""
+    html_lower = html_source.lower() if html_source else ""
+
+    link_hrefs = [a.get("href", "") for a in soup.find_all("a", href=True)] if soup else []
+    if any(EC_URL_PATTERNS.search(h) for h in link_hrefs):
+        score += 20
+
+    if any(kw in text for kw in EC_CART_KEYWORDS):
+        score += 20
+
+    if any(kw in text for kw in EC_PRICE_KEYWORDS):
+        score += 15
+
+    if any(EC_TOKUSHO_PATTERNS.search(h) for h in link_hrefs):
+        score += 20
+
+    if any(kw in text for kw in EC_PAYMENT_KEYWORDS):
+        score += 15
+
+    if any(kw in text for kw in EC_STOCK_KEYWORDS):
+        score += 10
+
+    return min(score, 100)
+
+
+def detect_flags(text: str, custom_flags: dict = None, cms_type: str = None,
+                 soup: BeautifulSoup = None, html_source: str = None) -> dict:
     text_lower = text.lower()
     source = custom_flags if custom_flags else DEFAULT_FLAG_KEYWORDS
     result = {}
@@ -52,8 +91,21 @@ def detect_flags(text: str, custom_flags: dict = None, cms_type: str = None) -> 
         if default_flag not in result:
             result[default_flag] = any(kw.lower() in text_lower for kw in DEFAULT_FLAG_KEYWORDS[default_flag])
 
-    ec_flag = result.get("ec_flag", False)
+    if soup is not None and html_source is not None:
+        ec_score = calculate_ec_score(soup, html_source, text)
+    else:
+        ec_score = 0
+
+    result["ec_score"] = ec_score
+
+    if ec_score >= 70:
+        result["ec_flag"] = True
+    elif ec_score < 40:
+        if not result.get("ec_flag"):
+            result["ec_flag"] = False
+
     effective_cms = cms_type or ""
+    ec_flag = result.get("ec_flag", False)
     result["escms_target_flag"] = bool(ec_flag and effective_cms and effective_cms != "Shopify")
 
     return result

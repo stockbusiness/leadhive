@@ -118,8 +118,77 @@ def run_db_migrations():
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS employee_count INTEGER",
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS escms_target_flag BOOLEAN DEFAULT FALSE",
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS robots_disallow BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS ec_score INTEGER DEFAULT 0",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sns_instagram_url TEXT",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sns_x_url TEXT",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sns_facebook_url TEXT",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sns_youtube_url TEXT",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sns_tiktok_url TEXT",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sns_line_url TEXT",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sns_count INTEGER DEFAULT 0",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS ec_score INTEGER DEFAULT 0",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_instagram_url TEXT",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_x_url TEXT",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_facebook_url TEXT",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_youtube_url TEXT",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_tiktok_url TEXT",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_line_url TEXT",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_count INTEGER DEFAULT 0",
         ]:
             conn.execute(sa.text(stmt))
+
+        conn.execute(sa.text("""
+            CREATE TABLE IF NOT EXISTS sales_messages (
+                id SERIAL PRIMARY KEY,
+                org_id INTEGER NOT NULL REFERENCES organizations(id),
+                company_id INTEGER NOT NULL,
+                project_id INTEGER REFERENCES projects(id),
+                template_type VARCHAR(30) NOT NULL,
+                subject VARCHAR(500) NOT NULL,
+                body TEXT NOT NULL,
+                ai_prompt_id VARCHAR(100),
+                status VARCHAR(20) DEFAULT 'draft',
+                reviewed_by INTEGER REFERENCES users(id),
+                reviewed_at TIMESTAMP,
+                sent_at TIMESTAMP,
+                sent_by INTEGER REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_sales_messages_org_id ON sales_messages (org_id)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_sales_messages_company_id ON sales_messages (company_id)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_sales_messages_status ON sales_messages (status)"))
+
+        conn.execute(sa.text("""
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id SERIAL PRIMARY KEY,
+                sent_at TIMESTAMP DEFAULT NOW(),
+                company_id INTEGER NOT NULL,
+                send_method VARCHAR(20) NOT NULL,
+                sent_by_user_id INTEGER REFERENCES users(id),
+                message_id INTEGER REFERENCES sales_messages(id),
+                ai_prompt_id VARCHAR(100),
+                result VARCHAR(30) DEFAULT 'sent',
+                note TEXT
+            )
+        """))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_id ON audit_logs (company_id)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_audit_logs_sent_at ON audit_logs (sent_at DESC)"))
+
+        conn.execute(sa.text("""
+            CREATE TABLE IF NOT EXISTS opt_out_list (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255),
+                domain VARCHAR(255),
+                company_id INTEGER,
+                reason TEXT,
+                added_by INTEGER REFERENCES users(id),
+                added_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_opt_out_list_email ON opt_out_list (email)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_opt_out_list_domain ON opt_out_list (domain)"))
 
         conn.execute(sa.text("""
             CREATE TABLE IF NOT EXISTS segments (

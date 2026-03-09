@@ -9,6 +9,7 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
+from server.services.categorizer import calculate_ec_score
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +117,15 @@ def extract_sns_links(soup: BeautifulSoup) -> dict:
         "facebook": None,
         "youtube": None,
         "line": None,
+        "tiktok": None,
+    }
+    individual = {
+        "sns_x_url": None,
+        "sns_instagram_url": None,
+        "sns_facebook_url": None,
+        "sns_youtube_url": None,
+        "sns_tiktok_url": None,
+        "sns_line_url": None,
     }
 
     for a in soup.find_all("a", href=True):
@@ -125,20 +135,30 @@ def extract_sns_links(soup: BeautifulSoup) -> dict:
 
         if result["twitter"] is None and re.search(r"(?:twitter\.com|x\.com)/(?!(?:share|intent|home|search|hashtag|i/))", href):
             result["twitter"] = href
+            individual["sns_x_url"] = href
 
         if result["instagram"] is None and "instagram.com/" in href and "/p/" not in href:
             result["instagram"] = href
+            individual["sns_instagram_url"] = href
 
         if result["facebook"] is None and re.search(r"facebook\.com/(?!(?:sharer|share|dialog|login|l\.php))", href):
             result["facebook"] = href
+            individual["sns_facebook_url"] = href
 
         if result["youtube"] is None and re.search(r"youtube\.com/(?:channel|@|c/|user/)", href):
             result["youtube"] = href
+            individual["sns_youtube_url"] = href
 
         if result["line"] is None and ("lin.ee/" in href or "line.me/R/ti/p/" in href or "line.me/ti/p/" in href):
             result["line"] = href
+            individual["sns_line_url"] = href
 
-    return result
+        if result["tiktok"] is None and "tiktok.com/" in href:
+            result["tiktok"] = href
+            individual["sns_tiktok_url"] = href
+
+    sns_count = sum(1 for v in individual.values() if v)
+    return {**result, **individual, "sns_count": sns_count}
 
 
 def detect_recruitment(soup: BeautifulSoup, text: str) -> bool:
@@ -241,8 +261,19 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
 
             cms_type = detect_cms(soup, html_source, dict(response.headers))
             cms_detected_at = datetime.utcnow().isoformat() if cms_type else None
-            sns_links = extract_sns_links(soup)
+            sns_data = extract_sns_links(soup)
             has_recruitment = detect_recruitment(soup, text_content)
+
+            sns_links = {k: v for k, v in sns_data.items() if k in ("twitter", "instagram", "facebook", "youtube", "line", "tiktok")}
+            sns_count = sns_data.get("sns_count", 0)
+
+            ec_score = calculate_ec_score(soup, html_source, text_content)
+            if ec_score >= 70:
+                ec_flag_val = True
+            elif ec_score < 40:
+                ec_flag_val = False
+            else:
+                ec_flag_val = None
 
             full_text = f"{title} {meta_desc} {' '.join(h1_texts)} {' '.join(h2_texts)} {text_content[:3000]}"
 
@@ -258,6 +289,15 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
                 "cms_type": cms_type or None,
                 "cms_detected_at": cms_detected_at,
                 "sns_links": sns_links,
+                "sns_instagram_url": sns_data.get("sns_instagram_url"),
+                "sns_x_url": sns_data.get("sns_x_url"),
+                "sns_facebook_url": sns_data.get("sns_facebook_url"),
+                "sns_youtube_url": sns_data.get("sns_youtube_url"),
+                "sns_tiktok_url": sns_data.get("sns_tiktok_url"),
+                "sns_line_url": sns_data.get("sns_line_url"),
+                "sns_count": sns_count,
+                "ec_score": ec_score,
+                "ec_flag": ec_flag_val,
                 "has_recruitment": has_recruitment,
                 "robots_disallow": False,
                 "full_text": full_text,

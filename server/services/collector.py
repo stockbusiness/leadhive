@@ -89,11 +89,13 @@ def _upsert_company_master(db: Session, company_data: dict, domain: str = None, 
         if existing:
             for field in ["company_name", "website_url", "contact_url", "phone", "email",
                           "prefecture", "city", "category_main", "category_sub",
-                          "shopify_flag", "ec_flag", "amazon_flag", "rakuten_flag",
+                          "shopify_flag", "ec_flag", "ec_score", "amazon_flag", "rakuten_flag",
                           "consulting_flag", "operation_flag", "production_flag",
                           "score_total", "score_rank",
-                          "cms_type", "cms_detected_at", "sns_links", "has_recruitment",
-                          "employee_count", "escms_target_flag", "robots_disallow"]:
+                          "cms_type", "cms_detected_at", "sns_links",
+                          "sns_instagram_url", "sns_x_url", "sns_facebook_url",
+                          "sns_youtube_url", "sns_tiktok_url", "sns_line_url", "sns_count",
+                          "has_recruitment", "employee_count", "escms_target_flag", "robots_disallow"]:
                 val = company_data.get(field)
                 if val is not None:
                     setattr(existing, field, val)
@@ -299,12 +301,26 @@ def _process_search_results(
             cms_type = info.get("cms_type") or None
             flags = detect_flags(full_text, cms_type=cms_type)
 
+            scraper_ec_score = info.pop("ec_score", None)
+            scraper_ec_flag = info.pop("ec_flag", None)
+
             company_data = {
                 **info,
                 "category_main": category_main,
                 "category_sub": category_sub,
                 **flags,
             }
+
+            if scraper_ec_score is not None:
+                company_data["ec_score"] = scraper_ec_score
+            if scraper_ec_flag is not None:
+                company_data["ec_flag"] = scraper_ec_flag
+
+            escms_flag = bool(
+                company_data.get("ec_flag") and
+                cms_type and cms_type != "Shopify"
+            )
+            company_data["escms_target_flag"] = escms_flag
 
             score, rank = calculate_score(company_data, custom_rules=scoring_rules)
             company_data["score_total"] = score

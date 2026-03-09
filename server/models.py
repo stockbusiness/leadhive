@@ -128,6 +128,7 @@ class Company(Base):
     category_sub = Column(String(100))
     shopify_flag = Column(Boolean, default=False)
     ec_flag = Column(Boolean, default=False)
+    ec_score = Column(Integer, default=0)
     amazon_flag = Column(Boolean, default=False)
     rakuten_flag = Column(Boolean, default=False)
     consulting_flag = Column(Boolean, default=False)
@@ -145,6 +146,13 @@ class Company(Base):
     cms_type = Column(String(50), nullable=True)
     cms_detected_at = Column(DateTime, nullable=True)
     sns_links = Column(JSON, nullable=True)
+    sns_instagram_url = Column(Text, nullable=True)
+    sns_x_url = Column(Text, nullable=True)
+    sns_facebook_url = Column(Text, nullable=True)
+    sns_youtube_url = Column(Text, nullable=True)
+    sns_tiktok_url = Column(Text, nullable=True)
+    sns_line_url = Column(Text, nullable=True)
+    sns_count = Column(Integer, default=0)
     has_recruitment = Column(Boolean, default=False)
     employee_count = Column(Integer, nullable=True)
     escms_target_flag = Column(Boolean, default=False)
@@ -174,6 +182,7 @@ class CompanyMaster(Base):
     category_sub = Column(String(100))
     shopify_flag = Column(Boolean, default=False)
     ec_flag = Column(Boolean, default=False)
+    ec_score = Column(Integer, default=0)
     amazon_flag = Column(Boolean, default=False)
     rakuten_flag = Column(Boolean, default=False)
     consulting_flag = Column(Boolean, default=False)
@@ -184,6 +193,13 @@ class CompanyMaster(Base):
     cms_type = Column(String(50), nullable=True)
     cms_detected_at = Column(DateTime, nullable=True)
     sns_links = Column(JSON, nullable=True)
+    sns_instagram_url = Column(Text, nullable=True)
+    sns_x_url = Column(Text, nullable=True)
+    sns_facebook_url = Column(Text, nullable=True)
+    sns_youtube_url = Column(Text, nullable=True)
+    sns_tiktok_url = Column(Text, nullable=True)
+    sns_line_url = Column(Text, nullable=True)
+    sns_count = Column(Integer, default=0)
     has_recruitment = Column(Boolean, default=False)
     employee_count = Column(Integer, nullable=True)
     escms_target_flag = Column(Boolean, default=False)
@@ -387,3 +403,49 @@ class Segment(Base):
     filters = Column(JSON, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class SalesMessage(Base):
+    __tablename__ = "sales_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    company_id = Column(Integer, nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
+    template_type = Column(String(30), nullable=False)
+    subject = Column(String(500), nullable=False)
+    body = Column(Text, nullable=False)
+    ai_prompt_id = Column(String(100), nullable=True)
+    status = Column(String(20), default="draft", index=True)
+    reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    sent_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sent_at = Column(DateTime, server_default=func.now(), index=True)
+    company_id = Column(Integer, nullable=False, index=True)
+    send_method = Column(String(20), nullable=False)
+    sent_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    message_id = Column(Integer, ForeignKey("sales_messages.id"), nullable=True)
+    ai_prompt_id = Column(String(100), nullable=True)
+    result = Column(String(30), default="sent")
+    note = Column(Text, nullable=True)
+
+
+class OptOutList(Base):
+    __tablename__ = "opt_out_list"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), nullable=True, index=True)
+    domain = Column(String(255), nullable=True, index=True)
+    company_id = Column(Integer, nullable=True)
+    reason = Column(Text, nullable=True)
+    added_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    added_at = Column(DateTime, server_default=func.now())

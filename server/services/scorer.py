@@ -1,15 +1,17 @@
 DEFAULT_SCORING_RULES = {
+    "ec_flag": 25,
+    "escms_target_flag": 20,
     "shopify_flag": 20,
     "production_flag": 15,
     "consulting_flag": 15,
     "operation_flag": 15,
-    "contact_url": 10,
+    "contact_url": 15,
+    "multi_platform": 10,
+    "sns_count_3": 10,
+    "has_recruitment": 5,
+    "sns_count_1": 5,
     "phone": 5,
     "location": 5,
-    "multi_platform": 10,
-    "has_recruitment": 5,
-    "sns_active": 5,
-    "escms_target_flag": 10,
     "info_missing_penalty": -10,
     "no_contact_penalty": -15,
     "not_ec_related_penalty": -20,
@@ -20,9 +22,15 @@ def calculate_score(company_data: dict, custom_rules: dict = None) -> tuple[int,
     rules = custom_rules if custom_rules else DEFAULT_SCORING_RULES
     score = 0
 
+    if company_data.get("ec_flag") and "ec_flag" in rules:
+        score += rules["ec_flag"]
+
     for flag in ["shopify_flag", "production_flag", "consulting_flag", "operation_flag"]:
         if company_data.get(flag) and flag in rules:
             score += rules[flag]
+
+    if company_data.get("escms_target_flag") and "escms_target_flag" in rules:
+        score += rules["escms_target_flag"]
 
     if company_data.get("contact_url") and "contact_url" in rules:
         score += rules["contact_url"]
@@ -36,13 +44,19 @@ def calculate_score(company_data: dict, custom_rules: dict = None) -> tuple[int,
     if company_data.get("has_recruitment") and "has_recruitment" in rules:
         score += rules["has_recruitment"]
 
-    if company_data.get("escms_target_flag") and "escms_target_flag" in rules:
-        score += rules["escms_target_flag"]
+    sns_count = company_data.get("sns_count", 0) or 0
+    if sns_count == 0:
+        sns = company_data.get("sns_links") or {}
+        if isinstance(sns, dict):
+            sns_count = sum(1 for v in sns.values() if v)
 
-    sns = company_data.get("sns_links") or {}
-    if isinstance(sns, dict) and any(v for v in sns.values()):
-        if "sns_active" in rules:
-            score += rules["sns_active"]
+    if sns_count >= 3 and "sns_count_3" in rules:
+        score += rules["sns_count_3"]
+    elif sns_count >= 1 and "sns_count_1" in rules:
+        score += rules["sns_count_1"]
+
+    if "sns_active" in rules and sns_count >= 1:
+        score += rules["sns_active"]
 
     info_count = sum([
         bool(company_data.get("company_name")),
