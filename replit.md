@@ -126,3 +126,15 @@ LeadHive is a modern web application built with React and FastAPI.
 
 **Phase 8: 収集効率ランキングカード**:
 - Keywords.tsx analytics tab: Added "成功率 上位キーワード" (green card, top 3 by success_rate where total_found >= 5) and "要改善キーワード" (red card, bottom 3 where total_runs >= 2 AND success_rate < 20%). Pure frontend sorting — no API changes. Cards appear between KPI summary grid and bar chart.
+
+## Phase 4d — 半自動送信スケジューラー (2026-03)
+
+**設計思想**: 完全自動送信（法務確認待ち）の代わりに「自動生成 → 人間レビュー → 手動送信」の半自動フローを実装。
+
+**バックエンド**:
+- `server/routes/sales_ai.py`: `GET/PUT /api/sales-ai/auto-generate/settings`（AppSetting経由で組織別設定保存）、`POST /api/sales-ai/auto-generate/run-now`（即時実行トリガー）。admin/system_adminのみアクセス可能。設定キー: `auto_generate_enabled`, `auto_generate_hour`, `auto_generate_statuses`(JSON), `auto_generate_min_score`, `auto_generate_max_per_run`, `auto_generate_template_type`, `auto_generate_project_id`, `auto_generate_last_run_at`, `auto_generate_last_run_count`
+- `server/services/scheduler.py`: `_run_auto_generate_for_org(org_id)` 関数追加。スコアランク降順・既ドラフト重複排除・オプトアウトチェック付き。`_set_last_run()`で実行記録を保存。スケジューラーループに毎正時チェックを追加（org別設定時刻でスレッド起動）。
+
+**フロントエンド**:
+- `frontend/src/api/index.ts`: `getAutoGenerateSettings()`, `updateAutoGenerateSettings()`, `runAutoGenerateNow()` 追加
+- `frontend/src/pages/SalesAI.tsx`: 「自動生成スケジュール」タブ（Calendar icon）追加。設定フォーム: 有効化トグル、実行時刻(0-23時)、対象ステータスピル選択、最低スコアランク、最大生成件数、テンプレート選択、プロジェクト選択。「設定を保存」「今すぐ実行」ボタン、最終実行情報表示。

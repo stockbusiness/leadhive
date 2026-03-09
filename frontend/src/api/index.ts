@@ -528,6 +528,22 @@ export const api = {
 
     getAuditLogs: (limit = 50) =>
       axios.get("/api/sales-ai/audit-logs", { params: { limit } }).then(r => r.data),
+
+    getAutoGenerateSettings: () =>
+      axios.get("/api/sales-ai/auto-generate/settings").then(r => r.data),
+
+    updateAutoGenerateSettings: (data: {
+      enabled: boolean;
+      hour: number;
+      statuses: string[];
+      min_score: number;
+      max_per_run: number;
+      template_type: string;
+      project_id?: number | null;
+    }) => axios.put("/api/sales-ai/auto-generate/settings", data).then(r => r.data),
+
+    runAutoGenerateNow: () =>
+      axios.post("/api/sales-ai/auto-generate/run-now").then(r => r.data),
   },
 
   notifications: {

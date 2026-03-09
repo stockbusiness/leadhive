@@ -473,12 +473,145 @@ def _run_auto_master_collect(job_id: str = None):
         db.close()
 
 
+def _run_auto_generate_for_org(org_id: int):
+    from server.database import SessionLocal
+    from server.models import AppSetting, Company, SalesMessage, Organization, Project
+    from server.services.ai_writer import generate_sales_message
+    import json
+
+    db = SessionLocal()
+    try:
+        def _get(key):
+            row = db.query(AppSetting).filter(
+                AppSetting.setting_key == key,
+                AppSetting.org_id == org_id,
+            ).first()
+            return row.setting_value if row else None
+
+        enabled = _get("auto_generate_enabled")
+        if enabled != "true":
+            return
+
+        try:
+            statuses = json.loads(_get("auto_generate_statuses") or '["未確認","アプローチ前"]')
+        except Exception:
+            statuses = ["未確認", "アプローチ前"]
+        min_score = int(_get("auto_generate_min_score") or "0")
+        max_per_run = int(_get("auto_generate_max_per_run") or "10")
+        template_type = _get("auto_generate_template_type") or "shopify"
+        project_id_raw = _get("auto_generate_project_id")
+        project_id = int(project_id_raw) if project_id_raw else None
+
+        score_order = {"A": 4, "B": 3, "C": 2, "D": 1}
+        SCORE_LABELS = {"A": 4, "B": 3, "C": 2, "D": 1}
+
+        project_ids = []
+        if project_id:
+            project_ids = [project_id]
+        else:
+            projects = db.query(Project).filter(
+                Project.org_id == org_id,
+                Project.is_active == True,
+            ).all()
+            project_ids = [p.id for p in projects]
+
+        if not project_ids:
+            logger.info(f"AutoGenerate org={org_id}: no projects found")
+            return
+
+        already_drafted = set(
+            r[0] for r in db.query(SalesMessage.company_id).filter(
+                SalesMessage.org_id == org_id,
+                SalesMessage.status.in_(["draft", "ready"]),
+            ).all()
+        )
+
+        candidates = db.query(Company).filter(
+            Company.project_id.in_(project_ids),
+            Company.status.in_(statuses),
+        ).all()
+
+        if min_score > 0:
+            min_label = {4: "A", 3: "B", 2: "C", 1: "D"}.get(min_score, "D")
+            allowed_scores = [lbl for lbl, val in SCORE_LABELS.items() if val >= min_score]
+            candidates = [c for c in candidates if c.score_rank in allowed_scores]
+
+        candidates = [c for c in candidates if c.id not in already_drafted]
+        candidates.sort(key=lambda c: (-score_order.get(c.score_rank, 0), c.id))
+        candidates = candidates[:max_per_run]
+
+        if not candidates:
+            logger.info(f"AutoGenerate org={org_id}: no eligible companies")
+            _set_last_run(org_id, 0, db)
+            return
+
+        generated = 0
+        for company in candidates:
+            try:
+                company_dict = {
+                    "company_name": company.company_name,
+                    "email": company.email or "",
+                    "website": company.website or "",
+                    "tel": company.tel or "",
+                    "address": company.address or "",
+                    "description": company.description or "",
+                    "score_rank": company.score_rank or "D",
+                    "score_total": company.score_total or 0,
+                    "has_contact_form": company.has_contact_form or False,
+                    "is_shopify": company.is_shopify or False,
+                    "prefecture": company.prefecture or "",
+                    "industry": company.industry or "",
+                }
+                result = generate_sales_message(company_dict, template_type)
+                msg = SalesMessage(
+                    org_id=org_id,
+                    company_id=company.id,
+                    project_id=company.project_id,
+                    template_type=template_type,
+                    subject=result["subject"],
+                    body=result["body"],
+                    ai_prompt_id=result["ai_prompt_id"],
+                    status="draft",
+                )
+                db.add(msg)
+                db.flush()
+                generated += 1
+                logger.info(f"AutoGenerate org={org_id}: generated for {company.company_name}")
+            except Exception as e:
+                logger.error(f"AutoGenerate org={org_id} company={company.id}: {e}")
+
+        _set_last_run(org_id, generated, db)
+        db.commit()
+        logger.info(f"AutoGenerate org={org_id}: done — {generated} drafts created")
+    except Exception as e:
+        logger.error(f"AutoGenerate org={org_id} fatal: {e}")
+    finally:
+        db.close()
+
+
+def _set_last_run(org_id: int, count: int, db):
+    from server.models import AppSetting
+    from datetime import datetime
+
+    now_str = datetime.now().isoformat()
+    for key, value in [("auto_generate_last_run_at", now_str), ("auto_generate_last_run_count", str(count))]:
+        row = db.query(AppSetting).filter(
+            AppSetting.setting_key == key,
+            AppSetting.org_id == org_id,
+        ).first()
+        if row:
+            row.setting_value = value
+        else:
+            db.add(AppSetting(org_id=org_id, setting_key=key, setting_value=value))
+
+
 def _scheduler_loop():
     global _scheduler_running
     last_collect_date = None
     last_notify_date = None
     last_suspend_date = None
     last_master_date = None
+    last_auto_gen_dates: dict = {}
 
     while _scheduler_running:
         try:
@@ -523,6 +656,34 @@ def _scheduler_loop():
                 last_suspend_date = today
                 logger.info("Auto-suspend: Triggered at 02:00")
                 _run_suspend_inactive_users()
+
+            if now.minute == 0:
+                from server.models import AppSetting, Organization
+                db2 = SessionLocal()
+                try:
+                    orgs = db2.query(Organization).all()
+                    for org in orgs:
+                        ag_enabled = db2.query(AppSetting).filter(
+                            AppSetting.setting_key == "auto_generate_enabled",
+                            AppSetting.org_id == org.id,
+                        ).first()
+                        if not ag_enabled or ag_enabled.setting_value != "true":
+                            continue
+                        ag_hour_row = db2.query(AppSetting).filter(
+                            AppSetting.setting_key == "auto_generate_hour",
+                            AppSetting.org_id == org.id,
+                        ).first()
+                        ag_hour = int(ag_hour_row.setting_value) if ag_hour_row and ag_hour_row.setting_value else 8
+                        if now.hour == ag_hour and last_auto_gen_dates.get(org.id) != today:
+                            last_auto_gen_dates[org.id] = today
+                            logger.info(f"AutoGenerate: Triggered for org={org.id} at {now.strftime('%H:%M')}")
+                            threading.Thread(
+                                target=_run_auto_generate_for_org,
+                                args=(org.id,),
+                                daemon=True,
+                            ).start()
+                finally:
+                    db2.close()
 
         except Exception as e:
             logger.error(f"Scheduler error: {e}")

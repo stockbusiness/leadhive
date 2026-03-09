@@ -3,7 +3,7 @@ import {
   Bot, Sparkles, Send, Edit3, Trash2, Check, X, AlertTriangle,
   ChevronDown, ChevronUp, RefreshCw, Eye, Ban, Info, Search,
   MessageSquare, CheckCircle2, Filter, Mail, Globe, Settings, XCircle,
-  BarChart2, TrendingUp, FileText, AlertCircle, Clock
+  BarChart2, TrendingUp, FileText, AlertCircle, Clock, Calendar, Play, Zap
 } from "lucide-react";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
@@ -332,7 +332,7 @@ interface AuditLogEntry {
 
 export default function SalesAI() {
   const { currentProject } = useProject();
-  const [activeTab, setActiveTab] = useState<"generate" | "messages" | "optout" | "stats">("generate");
+  const [activeTab, setActiveTab] = useState<"generate" | "messages" | "optout" | "stats" | "schedule">("generate");
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -360,6 +360,20 @@ export default function SalesAI() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+
+  const [scheduleProjects, setScheduleProjects] = useState<{id:number;name:string}[]>([]);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleHour, setScheduleHour] = useState(8);
+  const [scheduleStatuses, setScheduleStatuses] = useState<string[]>(["未確認", "アプローチ前"]);
+  const [scheduleMinScore, setScheduleMinScore] = useState(0);
+  const [scheduleMaxPerRun, setScheduleMaxPerRun] = useState(10);
+  const [scheduleTemplateType, setScheduleTemplateType] = useState<TemplateType>("shopify");
+  const [scheduleProjectId, setScheduleProjectId] = useState<number | null>(null);
+  const [scheduleLastRunAt, setScheduleLastRunAt] = useState<string | null>(null);
+  const [scheduleLastRunCount, setScheduleLastRunCount] = useState(0);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleRunning, setScheduleRunning] = useState(false);
+  const [scheduleSaveMsg, setScheduleSaveMsg] = useState("");
 
   useEffect(() => {
     api.salesAi.checkApiKey().then(r => setHasApiKey(r.has_api_key)).catch(() => setHasApiKey(false));
@@ -404,10 +418,70 @@ export default function SalesAI() {
     }
   }, []);
 
+  const loadScheduleSettings = useCallback(async () => {
+    try {
+      const res = await api.salesAi.getAutoGenerateSettings();
+      setScheduleEnabled(res.enabled);
+      setScheduleHour(res.hour);
+      setScheduleStatuses(res.statuses || ["未確認", "アプローチ前"]);
+      setScheduleMinScore(res.min_score);
+      setScheduleMaxPerRun(res.max_per_run);
+      setScheduleTemplateType(res.template_type);
+      setScheduleProjectId(res.project_id ?? null);
+      setScheduleLastRunAt(res.last_run_at ?? null);
+      setScheduleLastRunCount(res.last_run_count);
+      setScheduleProjects(res.projects || []);
+    } catch {}
+  }, []);
+
   useEffect(() => { loadCompanies(); }, [loadCompanies]);
   useEffect(() => { if (activeTab === "messages") loadMessages(); }, [activeTab, loadMessages]);
   useEffect(() => { if (activeTab === "optout") loadOptOut(); }, [activeTab, loadOptOut]);
   useEffect(() => { if (activeTab === "stats") loadStats(); }, [activeTab, loadStats]);
+  useEffect(() => { if (activeTab === "schedule") loadScheduleSettings(); }, [activeTab, loadScheduleSettings]);
+
+  const handleScheduleSave = async () => {
+    setScheduleSaving(true);
+    setScheduleSaveMsg("");
+    try {
+      await api.salesAi.updateAutoGenerateSettings({
+        enabled: scheduleEnabled,
+        hour: scheduleHour,
+        statuses: scheduleStatuses,
+        min_score: scheduleMinScore,
+        max_per_run: scheduleMaxPerRun,
+        template_type: scheduleTemplateType,
+        project_id: scheduleProjectId,
+      });
+      setScheduleSaveMsg("保存しました");
+      setTimeout(() => setScheduleSaveMsg(""), 3000);
+    } catch (e: any) {
+      setScheduleSaveMsg(e?.response?.data?.detail || "保存に失敗しました");
+    } finally {
+      setScheduleSaving(false);
+    }
+  };
+
+  const handleScheduleRunNow = async () => {
+    if (!confirm("今すぐ自動生成を実行しますか？対象企業への営業文ドラフトが作成されます。")) return;
+    setScheduleRunning(true);
+    setScheduleSaveMsg("");
+    try {
+      await api.salesAi.runAutoGenerateNow();
+      setScheduleSaveMsg("バックグラウンドで生成を開始しました。数分後に「レビュー・送信」タブで確認できます。");
+      setTimeout(() => setScheduleSaveMsg(""), 8000);
+    } catch (e: any) {
+      setScheduleSaveMsg(e?.response?.data?.detail || "実行に失敗しました");
+    } finally {
+      setScheduleRunning(false);
+    }
+  };
+
+  const toggleScheduleStatus = (status: string) => {
+    setScheduleStatuses(prev =>
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+    );
+  };
 
   const filteredCompanies = companies.filter(c =>
     !companySearch || (c.company_name || "").toLowerCase().includes(companySearch.toLowerCase())
@@ -499,6 +573,7 @@ export default function SalesAI() {
           { key: "messages", label: "レビュー・送信", icon: <MessageSquare size={16} /> },
           { key: "optout", label: "配信停止リスト", icon: <Ban size={16} /> },
           { key: "stats", label: "送信統計", icon: <BarChart2 size={16} /> },
+          { key: "schedule", label: "自動生成スケジュール", icon: <Calendar size={16} /> },
         ].map(tab => (
           <button
             key={tab.key}
@@ -987,6 +1062,174 @@ export default function SalesAI() {
                 )}
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {activeTab === "schedule" && (
+        <div className="max-w-2xl space-y-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+            <Zap size={18} className="text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-blue-800">半自動送信モード</p>
+              <p className="text-xs text-blue-700 mt-0.5">
+                毎日指定時刻に対象企業の営業文を自動生成し「ドラフト」として保存します。
+                送信は「レビュー・送信」タブで人間が確認・承認してから行います。
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                <Calendar size={16} className="text-violet-600" />
+                スケジュール設定
+              </h3>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <span className="text-sm text-slate-600">自動生成を有効化</span>
+                <div
+                  onClick={() => setScheduleEnabled(v => !v)}
+                  className={`w-11 h-6 rounded-full transition-colors cursor-pointer ${scheduleEnabled ? "bg-violet-600" : "bg-slate-300"}`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full shadow mt-0.5 transition-transform ${scheduleEnabled ? "translate-x-5.5 ml-0.5" : "ml-0.5"}`} />
+                </div>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">実行時刻</label>
+                <select
+                  value={scheduleHour}
+                  onChange={e => setScheduleHour(Number(e.target.value))}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                >
+                  {Array.from({length: 24}, (_, i) => (
+                    <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">1回の最大生成件数</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={scheduleMaxPerRun}
+                  onChange={e => setScheduleMaxPerRun(Number(e.target.value))}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-2">対象ステータス</label>
+              <div className="flex flex-wrap gap-2">
+                {["未確認", "アプローチ前", "アプローチ中", "資料送付済", "フォロー中"].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => toggleScheduleStatus(s)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      scheduleStatuses.includes(s)
+                        ? "bg-violet-600 text-white border-violet-600"
+                        : "bg-white text-slate-600 border-slate-300 hover:border-violet-400"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-2">最低スコアランク</label>
+              <div className="flex gap-2">
+                {[{label: "すべて", value: 0}, {label: "C以上", value: 2}, {label: "B以上", value: 3}, {label: "Aのみ", value: 4}].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setScheduleMinScore(opt.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      scheduleMinScore === opt.value
+                        ? "bg-violet-600 text-white border-violet-600"
+                        : "bg-white text-slate-600 border-slate-300 hover:border-violet-400"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">テンプレート</label>
+                <select
+                  value={scheduleTemplateType}
+                  onChange={e => setScheduleTemplateType(e.target.value as TemplateType)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="shopify">Shopify移行提案</option>
+                  <option value="ec_support">EC支援・売上改善</option>
+                  <option value="partner">代理店パートナー</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">対象プロジェクト</label>
+                <select
+                  value={scheduleProjectId ?? ""}
+                  onChange={e => setScheduleProjectId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">全プロジェクト</option>
+                  {scheduleProjects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {scheduleSaveMsg && (
+              <div className={`p-3 rounded-lg text-sm ${scheduleSaveMsg.includes("失敗") ? "bg-red-50 text-red-700 border border-red-200" : "bg-green-50 text-green-700 border border-green-200"}`}>
+                {scheduleSaveMsg}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={handleScheduleSave}
+                disabled={scheduleSaving}
+                className="flex items-center gap-2 px-5 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors"
+              >
+                {scheduleSaving ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+                設定を保存
+              </button>
+              <button
+                onClick={handleScheduleRunNow}
+                disabled={scheduleRunning}
+                className="flex items-center gap-2 px-5 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 disabled:opacity-50 transition-colors"
+              >
+                {scheduleRunning ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} />}
+                今すぐ実行
+              </button>
+            </div>
+          </div>
+
+          {(scheduleLastRunAt || scheduleLastRunCount > 0) && (
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">最終実行</h4>
+              <div className="flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <Clock size={14} className="text-slate-400" />
+                  {scheduleLastRunAt
+                    ? new Date(scheduleLastRunAt).toLocaleString("ja-JP")
+                    : "未実行"}
+                </div>
+                <div className="flex items-center gap-2 text-slate-700">
+                  <FileText size={14} className="text-slate-400" />
+                  {scheduleLastRunCount}件のドラフトを生成
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}

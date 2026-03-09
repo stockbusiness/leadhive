@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 from server.database import get_db
-from server.models import SalesMessage, AuditLog, OptOutList, Company, CompanyMaster, User
+from server.models import SalesMessage, AuditLog, OptOutList, Company, CompanyMaster, User, AppSetting, Project
 from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/sales-ai", tags=["sales-ai"])
@@ -608,3 +608,132 @@ def check_api_key_status(
     sys_row = db.query(SystemSettings).filter(SystemSettings.key == "anthropic_api_key").first()
     has_key = bool(env_key) or bool(sys_row and sys_row.value)
     return {"has_api_key": has_key}
+
+
+# ─────────────────────────────────────────────
+#  Auto-generate settings (semi-automatic scheduler)
+# ─────────────────────────────────────────────
+AUTO_GEN_KEYS = [
+    "auto_generate_enabled",
+    "auto_generate_hour",
+    "auto_generate_statuses",
+    "auto_generate_min_score",
+    "auto_generate_max_per_run",
+    "auto_generate_template_type",
+    "auto_generate_project_id",
+    "auto_generate_last_run_at",
+    "auto_generate_last_run_count",
+]
+
+AUTO_GEN_DEFAULTS = {
+    "auto_generate_enabled": "false",
+    "auto_generate_hour": "8",
+    "auto_generate_statuses": '["未確認","アプローチ前"]',
+    "auto_generate_min_score": "0",
+    "auto_generate_max_per_run": "10",
+    "auto_generate_template_type": "shopify",
+    "auto_generate_project_id": "",
+    "auto_generate_last_run_at": "",
+    "auto_generate_last_run_count": "0",
+}
+
+
+def _get_auto_gen_settings(org_id: int, db: Session) -> dict:
+    rows = db.query(AppSetting).filter(
+        AppSetting.setting_key.in_(AUTO_GEN_KEYS),
+        AppSetting.org_id == org_id,
+    ).all()
+    result = {**AUTO_GEN_DEFAULTS}
+    for row in rows:
+        result[row.setting_key] = row.setting_value or AUTO_GEN_DEFAULTS.get(row.setting_key, "")
+    return result
+
+
+def _set_auto_gen_setting(org_id: int, key: str, value: str, db: Session):
+    row = db.query(AppSetting).filter(
+        AppSetting.setting_key == key,
+        AppSetting.org_id == org_id,
+    ).first()
+    if row:
+        row.setting_value = value
+    else:
+        db.add(AppSetting(org_id=org_id, setting_key=key, setting_value=value))
+
+
+class AutoGenerateSettingsRequest(BaseModel):
+    enabled: bool
+    hour: int
+    statuses: list
+    min_score: int
+    max_per_run: int
+    template_type: str
+    project_id: Optional[int] = None
+
+
+@router.get("/auto-generate/settings")
+def get_auto_generate_settings(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role not in ("admin", "system_admin") and not current_user.is_system_admin:
+        raise HTTPException(status_code=403, detail="権限がありません")
+    import json
+    raw = _get_auto_gen_settings(current_user.org_id, db)
+    projects = db.query(Project).filter(Project.org_id == current_user.org_id, Project.is_active == True).all()
+    try:
+        statuses = json.loads(raw["auto_generate_statuses"])
+    except Exception:
+        statuses = ["未確認", "アプローチ前"]
+    return {
+        "enabled": raw["auto_generate_enabled"] == "true",
+        "hour": int(raw["auto_generate_hour"]),
+        "statuses": statuses,
+        "min_score": int(raw["auto_generate_min_score"]),
+        "max_per_run": int(raw["auto_generate_max_per_run"]),
+        "template_type": raw["auto_generate_template_type"],
+        "project_id": int(raw["auto_generate_project_id"]) if raw["auto_generate_project_id"] else None,
+        "last_run_at": raw["auto_generate_last_run_at"] or None,
+        "last_run_count": int(raw["auto_generate_last_run_count"]),
+        "projects": [{"id": p.id, "name": p.name} for p in projects],
+    }
+
+
+@router.put("/auto-generate/settings")
+def update_auto_generate_settings(
+    req: AutoGenerateSettingsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role not in ("admin", "system_admin") and not current_user.is_system_admin:
+        raise HTTPException(status_code=403, detail="権限がありません")
+    import json
+    if not 0 <= req.hour <= 23:
+        raise HTTPException(status_code=400, detail="時刻は0〜23で指定してください")
+    if not 1 <= req.max_per_run <= 50:
+        raise HTTPException(status_code=400, detail="最大生成件数は1〜50で指定してください")
+    _set_auto_gen_setting(current_user.org_id, "auto_generate_enabled", "true" if req.enabled else "false", db)
+    _set_auto_gen_setting(current_user.org_id, "auto_generate_hour", str(req.hour), db)
+    _set_auto_gen_setting(current_user.org_id, "auto_generate_statuses", json.dumps(req.statuses, ensure_ascii=False), db)
+    _set_auto_gen_setting(current_user.org_id, "auto_generate_min_score", str(req.min_score), db)
+    _set_auto_gen_setting(current_user.org_id, "auto_generate_max_per_run", str(req.max_per_run), db)
+    _set_auto_gen_setting(current_user.org_id, "auto_generate_template_type", req.template_type, db)
+    _set_auto_gen_setting(current_user.org_id, "auto_generate_project_id", str(req.project_id) if req.project_id else "", db)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/auto-generate/run-now")
+def run_auto_generate_now(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role not in ("admin", "system_admin") and not current_user.is_system_admin:
+        raise HTTPException(status_code=403, detail="権限がありません")
+    import threading
+    from server.services.scheduler import _run_auto_generate_for_org
+    threading.Thread(
+        target=_run_auto_generate_for_org,
+        args=(current_user.org_id,),
+        daemon=True,
+    ).start()
+    return {"ok": True, "message": "バックグラウンドで生成を開始しました"}
