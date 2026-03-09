@@ -34,6 +34,7 @@ import {
   Sun,
   DatabaseZap,
   Bot,
+  GanttChartSquare,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -78,6 +79,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage"));
 const LandingPageNew = lazy(() => import("./pages/LandingPageNew"));
 const Roadmap = lazy(() => import("./pages/Roadmap"));
 const SalesAI = lazy(() => import("./pages/SalesAI"));
+const Pipeline = lazy(() => import("./pages/Pipeline"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const Company = lazy(() => import("./pages/Company"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
@@ -251,6 +253,7 @@ function AppContent() {
             )}
             <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" onClick={closeSidebar} />
             <SidebarLink to="/sales-ai" icon={<Bot size={18} />} label="営業AI" onClick={closeSidebar} />
+            <SidebarLink to="/pipeline" icon={<GanttChartSquare size={18} />} label="パイプライン" onClick={closeSidebar} />
             {user?.role === "admin" && (
               <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
             )}
@@ -389,6 +392,7 @@ function AppContent() {
               <Route path="/admin/api-keys" element={<AdminApiKeys />} />
               <Route path="/admin/auto-master" element={<AdminAutoMaster />} />
               <Route path="/sales-ai" element={<SalesAI />} />
+              <Route path="/pipeline" element={<Pipeline />} />
               <Route path="/roadmap" element={<Roadmap />} />
             </Routes>
           </Suspense>

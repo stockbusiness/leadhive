@@ -259,3 +259,19 @@ export interface Segment {
   created_at: string | null;
   updated_at: string | null;
 }
+
+export interface PipelineCard {
+  id: number;
+  company_name: string;
+  domain: string;
+  score_total: number;
+  score_rank: string;
+  status: string;
+  follow_up_date: string | null;
+  assignee_id: number | null;
+  ec_flag: boolean;
+  shopify_flag: boolean;
+  cms_type: string | null;
+  category_main: string;
+  contact_name: string;
+}

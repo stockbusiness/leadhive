@@ -2,7 +2,7 @@ import axios from "axios";
 import type {
   Company, StatusHistoryEntry, MemoTemplate, SearchKeyword,
   ScrapeResult, CollectionLog, RejectedItem, DashboardData, ActivityLogEntry, Project, CompanyMaster,
-  PlanData, PlanUsage, OrgWithPlan, KeywordAnalytics, KeywordAnalyticsSummary,
+  PlanData, PlanUsage, OrgWithPlan, KeywordAnalytics, KeywordAnalyticsSummary, PipelineCard,
 } from "../types";
 
 axios.interceptors.response.use(
@@ -110,6 +110,16 @@ export const api = {
 
     getEmailLogs: (id: number) =>
       axios.get<{ logs: { id: number; subject: string; to_email: string; status: string; error_message?: string; sent_by?: string; sent_at: string }[] }>(`/api/companies/${id}/email-logs`).then(r => r.data),
+
+    getPipeline: (projectId?: number) =>
+      axios.get<{
+        columns: { status: string; companies: PipelineCard[] }[];
+        counts: Record<string, number>;
+        total: number;
+      }>("/api/companies/pipeline", { params: projectId ? { project_id: projectId } : {} }).then(r => r.data),
+
+    patchStatus: (id: number, status: string) =>
+      axios.patch<{ id: number; status: string }>(`/api/companies/${id}/status`, { status }).then(r => r.data),
   },
 
   keywords: {

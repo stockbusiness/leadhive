@@ -104,3 +104,12 @@ LeadHive is a modern web application built with React and FastAPI.
 - `GET /api/sales-ai/stats`: Aggregated stats — status counts (draft/reviewed/sent/failed), template type counts, send method counts, result counts, 14-day daily send history, opt-out count.
 - `GET /api/sales-ai/audit-logs?limit=50`: Recent audit log entries with company name join.
 - SalesAI "送信統計" tab (4th tab): 4 KPI cards (total/sent/failed/opt-out), progress bar charts for status/template/method breakdown, CSS-based 14-day bar chart, sortable audit log table with colored result badges.
+## Phase 5 Implementation (2026-03)
+
+**Phase 5: 営業パイプライン・カンバンボード**:
+- `GET /api/companies/pipeline?project_id=N`: Returns companies grouped by 9 statuses as kanban columns. Lightweight card data (company_name, domain, score, rank, follow_up_date, EC/Shopify flags). Route placed BEFORE `/{company_id}` to avoid 422 routing conflicts.
+- `PATCH /api/companies/{id}/status`: Fast single-field status update with StatusHistory logging and cache invalidation.
+- `PipelineCard` type added to `frontend/src/types/index.ts`.
+- `frontend/src/pages/Pipeline.tsx`: Full Kanban board with 9 color-coded columns. Features: HTML5 drag & drop between columns (optimistic UI update), click-to-change status dropdown per card, project filter dropdown, company count badges, follow_up_date display (overdue=red/today=amber), score rank badge, EC/Shopify/CMS badges, direct link to company detail.
+- Sidebar: "パイプライン" link with GanttChartSquare icon added after "営業AI".
+- Route `/pipeline` added to App.tsx as lazy-loaded route.

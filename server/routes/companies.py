@@ -261,6 +261,54 @@ def get_all_tags(
     return {"tags": [t[0] for t in tags]}
 
 
+@router.get("/pipeline")
+def get_pipeline(
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    statuses = [
+        "未確認", "対象候補", "除外", "アプローチ前",
+        "フォーム送信済", "返信あり", "面談化", "代理店化", "失注",
+    ]
+
+    if project_id:
+        query = db.query(Company).filter(Company.project_id == project_id)
+    else:
+        owned = _owned_projects(current_user, db)
+        query = db.query(Company).filter(Company.project_id.in_(owned))
+
+    companies = query.order_by(Company.score_total.desc()).all()
+
+    grouped: dict = {s: [] for s in statuses}
+
+    for c in companies:
+        card = {
+            "id": c.id,
+            "company_name": c.company_name or "",
+            "domain": c.domain or "",
+            "score_total": c.score_total or 0,
+            "score_rank": c.score_rank or "D",
+            "status": c.status or "未確認",
+            "follow_up_date": c.follow_up_date.isoformat() if c.follow_up_date else None,
+            "assignee_id": c.assignee_id,
+            "ec_flag": c.ec_flag,
+            "shopify_flag": c.shopify_flag,
+            "cms_type": c.cms_type,
+            "category_main": c.category_main or "",
+            "contact_name": c.contact_name or "",
+        }
+        target = c.status if c.status in grouped else "未確認"
+        grouped[target].append(card)
+
+    counts = {s: len(grouped[s]) for s in statuses}
+    return {
+        "columns": [{"status": s, "companies": grouped[s]} for s in statuses],
+        "counts": counts,
+        "total": len(companies),
+    }
+
+
 @router.get("/{company_id}")
 def get_company(
     company_id: int,
@@ -358,6 +406,38 @@ def bulk_update_status(
     db.commit()
     cache_invalidate("dashboard")
     return {"updated": updated, "total": len(company_ids)}
+
+
+@router.patch("/{company_id}/status")
+def patch_status(
+    company_id: int,
+    data: dict,
+    current_user: User = Depends(require_phase0_unlock),
+    db: Session = Depends(get_db),
+):
+    new_status = data.get("status", "")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="status は必須です")
+
+    owned = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id,
+        Company.project_id.in_(owned),
+    ).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="企業が見つかりません")
+
+    old_status = company.status
+    if old_status != new_status:
+        company.status = new_status
+        db.add(StatusHistory(
+            company_id=company.id,
+            old_status=old_status,
+            new_status=new_status,
+        ))
+        db.commit()
+        cache_invalidate("dashboard")
+    return {"id": company.id, "status": company.status}
 
 
 @router.get("/{company_id}/history")
