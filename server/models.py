@@ -56,6 +56,8 @@ class User(Base):
     registration_number = Column(Integer, nullable=True)
     email_verified = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
+    failed_login_count = Column(Integer, default=0)
+    locked_until = Column(DateTime, nullable=True)
 
 
 class OrgInvitation(Base):
