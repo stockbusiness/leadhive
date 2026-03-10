@@ -22,9 +22,10 @@ interface JobLogEntry {
 
 interface Status {
   enabled: boolean;
-  pref_idx: number;
+  city_idx: number;
+  total_cities: number;
+  current_city: string;
   current_prefecture: string;
-  prefectures: string[];
   keyword_idx: number;
   current_keyword: string;
   keywords: string[];
@@ -43,6 +44,8 @@ interface Status {
   enrich_total: number;
   no_url_count: number;
   scheduler_timezone: string;
+  estimated_max: number;
+  total_combinations: number;
 }
 
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
@@ -71,7 +74,7 @@ export default function AdminAutoMaster() {
   const [runResult, setRunResult] = useState<any>(null);
   const [runError, setRunError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const runSnapshotRef = useRef<{ pref_idx: number; keyword_idx: number; page_idx: number; last_run: string } | null>(null);
+  const runSnapshotRef = useRef<{ city_idx: number; keyword_idx: number; page_idx: number; last_run: string } | null>(null);
 
   const [form, setForm] = useState({
     enabled: false,
@@ -172,7 +175,7 @@ export default function AdminAutoMaster() {
     stopPolling();
 
     const snapshot = status
-      ? { pref_idx: status.pref_idx, keyword_idx: status.keyword_idx, page_idx: status.page_idx, last_run: status.last_run }
+      ? { city_idx: status.city_idx, keyword_idx: status.keyword_idx, page_idx: status.page_idx, last_run: status.last_run }
       : null;
     runSnapshotRef.current = snapshot;
 
@@ -185,18 +188,18 @@ export default function AdminAutoMaster() {
           const s: Status = r.data;
           const snap = runSnapshotRef.current;
           const done = snap
-            ? (s.pref_idx !== snap.pref_idx || s.keyword_idx !== snap.keyword_idx ||
+            ? (s.city_idx !== snap.city_idx || s.keyword_idx !== snap.keyword_idx ||
                s.page_idx !== snap.page_idx || s.last_run !== snap.last_run)
             : false;
           if (done || elapsed >= 300) {
             stopPolling();
             setRunResult({
-              prefecture: snap ? `${s.prefectures[snap.pref_idx] ?? ""}` : "",
+              prefecture: snap ? `${s.current_prefecture}・${s.current_city}` : "",
               fetched: null,
               saved: s.last_count,
               skipped: null,
               enriched: null,
-              next: `${s.current_prefecture}・${s.current_keyword}（p${s.page_idx}〜）`,
+              next: `${s.current_prefecture}・${s.current_city}/${s.current_keyword}（p${s.page_idx}〜）`,
             });
             setProgressMsg("");
             setRunning(false);
@@ -255,7 +258,7 @@ export default function AdminAutoMaster() {
         {[
           { label: "マスターDB総件数", value: status?.master_db_count?.toLocaleString() ?? "0", color: "text-blue-600", icon: <Layers size={16} /> },
           { label: "前回保存件数", value: String(status?.last_count ?? 0), color: "text-green-600", icon: <CheckCircle size={16} /> },
-          { label: "次回：都道府県・キーワード", value: `${status?.current_prefecture ?? "-"} / ${status?.current_keyword ?? "-"}`, color: "text-indigo-600", icon: <MapPin size={16} /> },
+          { label: "収集対象（市区町村）", value: `${(status?.city_idx ?? 0) + 1} / ${status?.total_cities ?? 0}`, color: "text-indigo-600", icon: <MapPin size={16} /> },
           { label: "前回実行日時", value: formatDateTime(status?.last_run ?? ""), color: "text-slate-600", icon: <Calendar size={16} /> },
         ].map(({ label, value, color, icon }) => (
           <div key={label} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
@@ -265,6 +268,19 @@ export default function AdminAutoMaster() {
             <p className={`text-lg font-bold ${color} break-all leading-snug`}>{value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white border border-blue-200 rounded-xl p-4 shadow-sm">
+          <div className="text-xs font-medium text-blue-600 mb-1">推定収集可能企業数</div>
+          <p className="text-2xl font-bold text-blue-700">{(status?.estimated_max ?? 0).toLocaleString()}<span className="text-sm font-normal text-slate-500 ml-1">社</span></p>
+          <p className="text-xs text-slate-400 mt-1">{status?.total_cities ?? 0}市区町村 × {status?.keywords?.length ?? 12}キーワード × 100件</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+          <div className="text-xs font-medium text-slate-500 mb-1">全組み合わせ数</div>
+          <p className="text-2xl font-bold text-slate-700">{(status?.total_combinations ?? 0).toLocaleString()}<span className="text-sm font-normal text-slate-500 ml-1">通り</span></p>
+          <p className="text-xs text-slate-400 mt-1">市区町村 × キーワードの総組み合わせ</p>
+        </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
@@ -447,41 +463,39 @@ export default function AdminAutoMaster() {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
-        <h3 className="text-base font-semibold text-slate-700">都道府県の巡回状況</h3>
+        <h3 className="text-base font-semibold text-slate-700">市区町村の巡回状況</h3>
         <div className="flex flex-wrap gap-3 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">
-          <span>▶ 次回収集: <strong className="text-blue-700">{status?.current_prefecture} / {status?.current_keyword}</strong></span>
+          <span>▶ 次回収集: <strong className="text-blue-700">{status?.current_prefecture}・{status?.current_city} / {status?.current_keyword}</strong></span>
           <span className="text-slate-400">|</span>
           <span>開始ページ: <strong className="text-indigo-600">p{status?.page_idx ?? 1}</strong></span>
+          <span className="text-slate-400">|</span>
+          <span>進捗: <strong className="text-green-600">{(status?.city_idx ?? 0) + 1}</strong> / {status?.total_cities ?? 0} 市区町村</span>
         </div>
         <p className="text-xs text-slate-500">
-          目標件数（新規保存）に達したら同じ都道府県・キーワードの続きページから再開。全ページ収集完了でキーワードが次へ進みます。
+          市区町村単位で順番に収集します。目標件数に達したら続きのページから再開。全ページ完了で次の市区町村へ進みます。
+          全{status?.total_cities ?? 0}市区町村 × {status?.keywords?.length ?? 12}キーワードで最大{(status?.estimated_max ?? 0).toLocaleString()}社を網羅します。
         </p>
-        <div className="flex flex-wrap gap-1.5">
-          {status?.prefectures.map((pref, idx) => {
-            const isCurrent = idx === status.pref_idx;
-            const isDone = idx < status.pref_idx;
-            return (
-              <span
-                key={pref}
-                className={`text-xs px-2 py-1 rounded-md border font-medium transition-colors ${
-                  isCurrent
-                    ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-300"
-                    : isDone
-                    ? "border-green-200 bg-green-50 text-green-600"
-                    : "border-slate-200 bg-slate-50 text-slate-500"
-                }`}
-              >
-                {isCurrent ? "▶ " : ""}{pref}
-              </span>
-            );
-          })}
+
+        {/* 進捗バー */}
+        <div>
+          <div className="flex justify-between text-xs text-slate-500 mb-1">
+            <span>市区町村の進捗</span>
+            <span>{Math.round(((status?.city_idx ?? 0) / Math.max(status?.total_cities ?? 1, 1)) * 100)}%</span>
+          </div>
+          <div className="w-full bg-slate-100 rounded-full h-2">
+            <div
+              className="bg-blue-500 h-2 rounded-full transition-all"
+              style={{ width: `${Math.round(((status?.city_idx ?? 0) / Math.max(status?.total_cities ?? 1, 1)) * 100)}%` }}
+            />
+          </div>
         </div>
+
         <div className="flex items-center gap-2">
           <button
             onClick={handleResetProgress}
             className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 border border-slate-300 rounded-md px-3 py-1.5 transition-colors"
           >
-            <RotateCcw size={13} />進捗を北海道からリセット
+            <RotateCcw size={13} />進捗を最初からリセット
           </button>
           <button
             onClick={handleClearMasterData}
@@ -495,9 +509,9 @@ export default function AdminAutoMaster() {
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
         <h3 className="text-base font-semibold text-slate-700">今すぐ実行</h3>
         <p className="text-xs text-slate-500">
-          現在の対象（{status?.current_prefecture} / {status?.current_keyword} p{status?.page_idx ?? 1}〜）を手動で収集します。<br />
+          現在の対象（{status?.current_prefecture}・{status?.current_city} / {status?.current_keyword} p{status?.page_idx ?? 1}〜）を手動で収集します。<br />
           目標件数の新規保存が完了したら停止し、次回は続きのページから再開します。
-          全ページを収集し終えると次のキーワードへ進みます（47都道府県 × {status?.keywords?.length ?? 5}種類を網羅）。
+          全ページを収集し終えると次の市区町村へ進みます（{status?.total_cities ?? 0}市区町村 × {status?.keywords?.length ?? 12}種類を網羅）。
         </p>
 
         <div className="flex items-center gap-3">
@@ -507,7 +521,7 @@ export default function AdminAutoMaster() {
             className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
             {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-            {running ? "実行中..." : `${status?.current_prefecture} / ${status?.current_keyword} を収集する`}
+            {running ? "実行中..." : `${status?.current_prefecture}・${status?.current_city} / ${status?.current_keyword} を収集する`}
           </button>
           <button
             onClick={load}

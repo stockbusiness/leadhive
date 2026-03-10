@@ -1,4 +1,6 @@
+import json
 import uuid
+import os
 import threading
 import logging
 
@@ -9,14 +11,28 @@ from server.database import get_db, SessionLocal
 from server.routes.auth import get_current_user
 from server.models import User, SystemSettings, CompanyMaster
 from server.services.collector import job_update
-from server.services.gbiz_collector import PREFECTURES
 
 router = APIRouter(prefix="/api/admin/auto-master", tags=["admin-auto-master"])
 logger = logging.getLogger(__name__)
 
+_DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "municipalities.json")
+try:
+    with open(_DATA_PATH, "r", encoding="utf-8") as _f:
+        MUNICIPALITIES = json.load(_f)
+except Exception:
+    MUNICIPALITIES = []
+TOTAL_CITIES = len(MUNICIPALITIES)
+
+AUTO_MASTER_KEYWORDS = [
+    "株式会社", "合同会社", "有限会社", "医療法人", "社会福祉法人",
+    "一般社団法人", "公益社団法人", "農業法人", "学校法人",
+    "特定非営利活動法人", "財団法人", "特例有限会社",
+]
+ESTIMATED_MAX = TOTAL_CITIES * len(AUTO_MASTER_KEYWORDS) * 100
+
 SETTINGS_KEYS = [
     "auto_master_enabled",
-    "auto_master_pref_idx",
+    "auto_master_city_idx",
     "auto_master_keyword_idx",
     "auto_master_page_idx",
     "auto_master_max_companies",
@@ -35,7 +51,7 @@ SETTINGS_KEYS = [
 
 DEFAULTS = {
     "auto_master_enabled": "false",
-    "auto_master_pref_idx": "0",
+    "auto_master_city_idx": "0",
     "auto_master_keyword_idx": "0",
     "auto_master_page_idx": "1",
     "auto_master_max_companies": "1000",
@@ -51,8 +67,6 @@ DEFAULTS = {
     "auto_master_enrich_total": "0",
     "scheduler_timezone": "Asia/Tokyo",
 }
-
-AUTO_MASTER_KEYWORDS = ["株式会社", "合同会社", "有限会社", "医療法人", "社会福祉法人"]
 
 
 def _require_system_admin(current_user: User):
@@ -87,16 +101,14 @@ def get_status(
 ):
     _require_system_admin(current_user)
     settings = _get_all(db)
-    pref_idx = int(settings.get("auto_master_pref_idx", "0"))
-    if pref_idx >= len(PREFECTURES):
-        pref_idx = 0
 
-    master_count = db.query(CompanyMaster).count()
-
+    city_idx = int(settings.get("auto_master_city_idx", "0")) % max(TOTAL_CITIES, 1)
     keyword_idx = int(settings.get("auto_master_keyword_idx", "0")) % len(AUTO_MASTER_KEYWORDS)
     page_idx = max(1, int(settings.get("auto_master_page_idx", "1")))
 
-    import os
+    current_city = MUNICIPALITIES[city_idx] if MUNICIPALITIES else {"pref_name": "-", "city_name": "-"}
+    master_count = db.query(CompanyMaster).count()
+
     has_token = bool(
         os.environ.get("GbizAPIkey")
         or os.environ.get("GBIZINFO_API_TOKEN")
@@ -110,9 +122,10 @@ def get_status(
 
     return {
         "enabled": settings.get("auto_master_enabled") == "true",
-        "pref_idx": pref_idx,
-        "current_prefecture": PREFECTURES[pref_idx],
-        "prefectures": PREFECTURES,
+        "city_idx": city_idx,
+        "total_cities": TOTAL_CITIES,
+        "current_city": current_city["city_name"],
+        "current_prefecture": current_city["pref_name"],
         "keyword_idx": keyword_idx,
         "current_keyword": AUTO_MASTER_KEYWORDS[keyword_idx],
         "keywords": AUTO_MASTER_KEYWORDS,
@@ -131,6 +144,8 @@ def get_status(
         "enrich_total": int(settings.get("auto_master_enrich_total", "0")),
         "no_url_count": no_url_count,
         "scheduler_timezone": settings.get("scheduler_timezone", "Asia/Tokyo"),
+        "estimated_max": ESTIMATED_MAX,
+        "total_combinations": TOTAL_CITIES * len(AUTO_MASTER_KEYWORDS),
     }
 
 
@@ -144,7 +159,7 @@ def update_settings(
     allowed = {
         "auto_master_enabled", "auto_master_max_companies", "auto_master_max_enrich",
         "auto_master_schedule_hour", "auto_master_enrich_enabled", "auto_master_enrich_max",
-        "scheduler_timezone",
+        "scheduler_timezone", "gbizinfo_api_token",
     }
     for key, val in data.items():
         if key in allowed:
@@ -175,16 +190,43 @@ def get_server_time(
     }
 
 
+@router.get("/job-logs")
+def get_job_logs(
+    limit: int = 20,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    from server.models import SystemLog
+    logs = (
+        db.query(SystemLog)
+        .filter(SystemLog.event_type.in_(["auto_master_collect", "auto_master_enrich"]))
+        .order_by(SystemLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": log.id,
+            "event_type": log.event_type,
+            "message": log.message,
+            "details": log.details,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        }
+        for log in logs
+    ]
+
+
 @router.post("/reset-progress")
 def reset_progress(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     _require_system_admin(current_user)
-    _set_key(db, "auto_master_pref_idx", "0")
+    _set_key(db, "auto_master_city_idx", "0")
     _set_key(db, "auto_master_keyword_idx", "0")
     _set_key(db, "auto_master_page_idx", "1")
-    return {"ok": True}
+    return {"ok": True, "message": "進捗をリセットしました"}
 
 
 @router.post("/clear-master-data")
@@ -193,65 +235,51 @@ def clear_master_data(
     db: Session = Depends(get_db),
 ):
     _require_system_admin(current_user)
-    deleted = db.query(CompanyMaster).filter(CompanyMaster.source == "auto_master").delete()
+    count = db.query(CompanyMaster).count()
+    db.query(CompanyMaster).delete()
     db.commit()
-    _set_key(db, "auto_master_pref_idx", "0")
+    _set_key(db, "auto_master_city_idx", "0")
     _set_key(db, "auto_master_keyword_idx", "0")
     _set_key(db, "auto_master_page_idx", "1")
     _set_key(db, "auto_master_last_count", "0")
     _set_key(db, "auto_master_total_collected", "0")
     _set_key(db, "auto_master_last_run", "")
-    return {"deleted": deleted, "ok": True}
+    return {"ok": True, "message": f"{count}件のマスターデータを削除しました"}
 
 
 @router.post("/run-now")
 def run_now(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     _require_system_admin(current_user)
+    from server.services.scheduler import _run_auto_master_collect
     job_id = str(uuid.uuid4())
-    job_update(job_id, type="progress", current=0, total=0,
-               message="マスターDB自動収集を開始しています...", status="running",
-               job_type="auto_master")
-
-    def run():
-        from server.services.scheduler import _run_auto_master_collect
-        _run_auto_master_collect(job_id=job_id)
-
-    threading.Thread(target=run, daemon=True).start()
-    return {"job_id": job_id}
+    job_update(job_id, type="progress", current=0, total=100, message="収集を開始しています...", status="running")
+    t = threading.Thread(target=_run_auto_master_collect, args=(job_id,), daemon=True)
+    t.start()
+    return {"job_id": job_id, "message": "収集を開始しました"}
 
 
-@router.get("/job-logs")
-def get_job_logs(
-    limit: int = 20,
+@router.get("/job-status/{job_id}")
+def get_job_status(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    _require_system_admin(current_user)
+    from server.services.collector import get_job_status as _get_status
+    return _get_status(job_id)
+
+
+@router.post("/run-enrich")
+def run_enrich(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     _require_system_admin(current_user)
-    from server.models import JobLog
-    rows = (
-        db.query(JobLog)
-        .order_by(JobLog.started_at.desc())
-        .limit(limit)
-        .all()
-    )
-    return {
-        "logs": [
-            {
-                "id": r.id,
-                "job_id": r.job_id,
-                "job_type": r.job_type,
-                "status": r.status,
-                "message": r.message,
-                "current": r.current,
-                "total": r.total,
-                "source_count": r.source_count,
-                "saved_count": r.saved_count,
-                "error_count": r.error_count,
-                "started_at": r.started_at.isoformat() if r.started_at else None,
-                "finished_at": r.finished_at.isoformat() if r.finished_at else None,
-            }
-            for r in rows
-        ]
-    }
+    from server.services.scheduler import _run_auto_master_enrich
+    job_id = str(uuid.uuid4())
+    job_update(job_id, type="progress", current=0, total=100, message="URL補完を開始しています...", status="running")
+    t = threading.Thread(target=_run_auto_master_enrich, args=(job_id,), daemon=True)
+    t.start()
+    return {"job_id": job_id, "message": "URL補完を開始しました"}

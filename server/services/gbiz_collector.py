@@ -50,7 +50,7 @@ def get_gbiz_token(org_id: int, db: Session) -> str | None:
     return decrypt_value(row.value) if row and row.value else None
 
 
-def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: int = 1) -> dict:
+def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: int = 1, pref_code: str = "", city_code: str = "") -> dict:
     headers = {
         "X-hojinInfo-api-token": token,
         "Accept": "application/json",
@@ -58,10 +58,12 @@ def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: 
     params = {"page": page}
     if name_keyword:
         params["name"] = name_keyword
-    if prefecture:
-        code = PREFECTURE_CODES.get(prefecture, "")
-        if code:
-            params["prefecture"] = code
+    # pref_code takes priority; fallback to prefecture name lookup
+    resolved_pref_code = pref_code or PREFECTURE_CODES.get(prefecture, "")
+    if resolved_pref_code:
+        params["prefecture"] = resolved_pref_code
+    if city_code and resolved_pref_code:
+        params["city"] = city_code
 
     resp = requests.get(GBIZ_BASE_URL, headers=headers, params=params, timeout=15)
     if resp.status_code in (400, 404):

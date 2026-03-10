@@ -1,0 +1,5918 @@
+[
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "100",
+    "city_name": "札幌市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "101",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "102",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "103",
+    "city_name": "東区"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "104",
+    "city_name": "白石区"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "105",
+    "city_name": "厚別区"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "106",
+    "city_name": "豊平区"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "107",
+    "city_name": "清田区"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "108",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "109",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "110",
+    "city_name": "手稲区"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "202",
+    "city_name": "函館市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "203",
+    "city_name": "小樽市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "204",
+    "city_name": "旭川市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "205",
+    "city_name": "室蘭市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "206",
+    "city_name": "釧路市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "207",
+    "city_name": "帯広市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "208",
+    "city_name": "北見市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "209",
+    "city_name": "夕張市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "210",
+    "city_name": "岩見沢市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "211",
+    "city_name": "網走市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "212",
+    "city_name": "留萌市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "213",
+    "city_name": "苫小牧市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "214",
+    "city_name": "稚内市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "215",
+    "city_name": "美唄市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "216",
+    "city_name": "芦別市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "217",
+    "city_name": "江別市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "218",
+    "city_name": "赤平市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "219",
+    "city_name": "紋別市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "220",
+    "city_name": "士別市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "221",
+    "city_name": "名寄市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "222",
+    "city_name": "三笠市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "223",
+    "city_name": "根室市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "224",
+    "city_name": "千歳市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "225",
+    "city_name": "滝川市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "226",
+    "city_name": "砂川市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "227",
+    "city_name": "歌志内市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "228",
+    "city_name": "深川市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "229",
+    "city_name": "富良野市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "230",
+    "city_name": "登別市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "231",
+    "city_name": "恵庭市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "233",
+    "city_name": "伊達市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "234",
+    "city_name": "北広島市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "235",
+    "city_name": "石狩市"
+  },
+  {
+    "pref_name": "北海道",
+    "pref_code": "01",
+    "city_code": "236",
+    "city_name": "北斗市"
+  },
+  {
+    "pref_name": "青森県",
+    "pref_code": "02",
+    "city_code": "201",
+    "city_name": "青森市"
+  },
+  {
+    "pref_name": "青森県",
+    "pref_code": "02",
+    "city_code": "202",
+    "city_name": "弘前市"
+  },
+  {
+    "pref_name": "青森県",
+    "pref_code": "02",
+    "city_code": "203",
+    "city_name": "八戸市"
+  },
+  {
+    "pref_name": "青森県",
+    "pref_code": "02",
+    "city_code": "204",
+    "city_name": "黒石市"
+  },
+  {
+    "pref_name": "青森県",
+    "pref_code": "02",
+    "city_code": "205",
+    "city_name": "五所川原市"
+  },
+  {
+    "pref_name": "青森県",
+    "pref_code": "02",
+    "city_code": "206",
+    "city_name": "十和田市"
+  },
+  {
+    "pref_name": "青森県",
+    "pref_code": "02",
+    "city_code": "207",
+    "city_name": "三沢市"
+  },
+  {
+    "pref_name": "青森県",
+    "pref_code": "02",
+    "city_code": "208",
+    "city_name": "むつ市"
+  },
+  {
+    "pref_name": "青森県",
+    "pref_code": "02",
+    "city_code": "209",
+    "city_name": "つがる市"
+  },
+  {
+    "pref_name": "青森県",
+    "pref_code": "02",
+    "city_code": "210",
+    "city_name": "平川市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "201",
+    "city_name": "盛岡市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "202",
+    "city_name": "宮古市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "203",
+    "city_name": "大船渡市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "205",
+    "city_name": "花巻市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "206",
+    "city_name": "北上市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "207",
+    "city_name": "久慈市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "208",
+    "city_name": "遠野市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "209",
+    "city_name": "一関市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "210",
+    "city_name": "陸前高田市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "211",
+    "city_name": "釜石市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "213",
+    "city_name": "二戸市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "214",
+    "city_name": "八幡平市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "215",
+    "city_name": "奥州市"
+  },
+  {
+    "pref_name": "岩手県",
+    "pref_code": "03",
+    "city_code": "216",
+    "city_name": "滝沢市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "100",
+    "city_name": "仙台市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "101",
+    "city_name": "青葉区"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "102",
+    "city_name": "宮城野区"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "103",
+    "city_name": "若林区"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "104",
+    "city_name": "太白区"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "105",
+    "city_name": "泉区"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "202",
+    "city_name": "石巻市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "203",
+    "city_name": "塩竈市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "205",
+    "city_name": "気仙沼市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "206",
+    "city_name": "白石市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "207",
+    "city_name": "名取市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "208",
+    "city_name": "角田市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "209",
+    "city_name": "多賀城市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "211",
+    "city_name": "岩沼市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "212",
+    "city_name": "登米市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "213",
+    "city_name": "栗原市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "214",
+    "city_name": "東松島市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "215",
+    "city_name": "大崎市"
+  },
+  {
+    "pref_name": "宮城県",
+    "pref_code": "04",
+    "city_code": "216",
+    "city_name": "富谷市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "201",
+    "city_name": "秋田市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "202",
+    "city_name": "能代市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "203",
+    "city_name": "横手市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "204",
+    "city_name": "大館市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "205",
+    "city_name": "男鹿市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "206",
+    "city_name": "湯沢市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "207",
+    "city_name": "鹿角市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "208",
+    "city_name": "由利本荘市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "209",
+    "city_name": "潟上市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "210",
+    "city_name": "大仙市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "211",
+    "city_name": "北秋田市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "212",
+    "city_name": "にかほ市"
+  },
+  {
+    "pref_name": "秋田県",
+    "pref_code": "05",
+    "city_code": "213",
+    "city_name": "仙北市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "201",
+    "city_name": "山形市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "202",
+    "city_name": "米沢市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "203",
+    "city_name": "鶴岡市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "204",
+    "city_name": "酒田市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "205",
+    "city_name": "新庄市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "206",
+    "city_name": "寒河江市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "207",
+    "city_name": "上山市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "208",
+    "city_name": "村山市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "209",
+    "city_name": "長井市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "210",
+    "city_name": "天童市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "211",
+    "city_name": "東根市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "212",
+    "city_name": "尾花沢市"
+  },
+  {
+    "pref_name": "山形県",
+    "pref_code": "06",
+    "city_code": "213",
+    "city_name": "南陽市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "201",
+    "city_name": "福島市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "202",
+    "city_name": "会津若松市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "203",
+    "city_name": "郡山市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "204",
+    "city_name": "いわき市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "205",
+    "city_name": "白河市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "207",
+    "city_name": "須賀川市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "208",
+    "city_name": "喜多方市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "209",
+    "city_name": "相馬市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "210",
+    "city_name": "二本松市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "211",
+    "city_name": "田村市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "212",
+    "city_name": "南相馬市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "213",
+    "city_name": "伊達市"
+  },
+  {
+    "pref_name": "福島県",
+    "pref_code": "07",
+    "city_code": "214",
+    "city_name": "本宮市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "201",
+    "city_name": "水戸市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "202",
+    "city_name": "日立市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "203",
+    "city_name": "土浦市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "204",
+    "city_name": "古河市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "205",
+    "city_name": "石岡市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "207",
+    "city_name": "結城市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "208",
+    "city_name": "龍ケ崎市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "210",
+    "city_name": "下妻市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "211",
+    "city_name": "常総市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "212",
+    "city_name": "常陸太田市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "214",
+    "city_name": "高萩市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "215",
+    "city_name": "北茨城市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "216",
+    "city_name": "笠間市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "217",
+    "city_name": "取手市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "219",
+    "city_name": "牛久市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "220",
+    "city_name": "つくば市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "221",
+    "city_name": "ひたちなか市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "222",
+    "city_name": "鹿嶋市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "223",
+    "city_name": "潮来市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "224",
+    "city_name": "守谷市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "225",
+    "city_name": "常陸大宮市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "226",
+    "city_name": "那珂市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "227",
+    "city_name": "筑西市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "228",
+    "city_name": "坂東市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "229",
+    "city_name": "稲敷市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "230",
+    "city_name": "かすみがうら市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "231",
+    "city_name": "桜川市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "232",
+    "city_name": "神栖市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "233",
+    "city_name": "行方市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "234",
+    "city_name": "鉾田市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "235",
+    "city_name": "つくばみらい市"
+  },
+  {
+    "pref_name": "茨城県",
+    "pref_code": "08",
+    "city_code": "236",
+    "city_name": "小美玉市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "201",
+    "city_name": "宇都宮市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "202",
+    "city_name": "足利市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "203",
+    "city_name": "栃木市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "204",
+    "city_name": "佐野市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "205",
+    "city_name": "鹿沼市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "206",
+    "city_name": "日光市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "208",
+    "city_name": "小山市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "209",
+    "city_name": "真岡市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "210",
+    "city_name": "大田原市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "211",
+    "city_name": "矢板市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "213",
+    "city_name": "那須塩原市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "214",
+    "city_name": "さくら市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "215",
+    "city_name": "那須烏山市"
+  },
+  {
+    "pref_name": "栃木県",
+    "pref_code": "09",
+    "city_code": "216",
+    "city_name": "下野市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "201",
+    "city_name": "前橋市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "202",
+    "city_name": "高崎市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "203",
+    "city_name": "桐生市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "204",
+    "city_name": "伊勢崎市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "205",
+    "city_name": "太田市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "206",
+    "city_name": "沼田市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "207",
+    "city_name": "館林市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "208",
+    "city_name": "渋川市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "209",
+    "city_name": "藤岡市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "210",
+    "city_name": "富岡市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "211",
+    "city_name": "安中市"
+  },
+  {
+    "pref_name": "群馬県",
+    "pref_code": "10",
+    "city_code": "212",
+    "city_name": "みどり市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "100",
+    "city_name": "さいたま市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "101",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "102",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "103",
+    "city_name": "大宮区"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "104",
+    "city_name": "見沼区"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "105",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "106",
+    "city_name": "桜区"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "107",
+    "city_name": "浦和区"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "108",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "109",
+    "city_name": "緑区"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "110",
+    "city_name": "岩槻区"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "202",
+    "city_name": "川越市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "203",
+    "city_name": "熊谷市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "204",
+    "city_name": "川口市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "206",
+    "city_name": "行田市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "207",
+    "city_name": "秩父市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "208",
+    "city_name": "所沢市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "209",
+    "city_name": "飯能市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "210",
+    "city_name": "加須市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "211",
+    "city_name": "本庄市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "212",
+    "city_name": "東松山市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "214",
+    "city_name": "春日部市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "215",
+    "city_name": "狭山市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "216",
+    "city_name": "羽生市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "217",
+    "city_name": "鴻巣市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "218",
+    "city_name": "深谷市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "219",
+    "city_name": "上尾市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "221",
+    "city_name": "草加市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "222",
+    "city_name": "越谷市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "223",
+    "city_name": "蕨市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "224",
+    "city_name": "戸田市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "225",
+    "city_name": "入間市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "227",
+    "city_name": "朝霞市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "228",
+    "city_name": "志木市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "229",
+    "city_name": "和光市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "230",
+    "city_name": "新座市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "231",
+    "city_name": "桶川市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "232",
+    "city_name": "久喜市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "233",
+    "city_name": "北本市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "234",
+    "city_name": "八潮市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "235",
+    "city_name": "富士見市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "237",
+    "city_name": "三郷市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "238",
+    "city_name": "蓮田市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "239",
+    "city_name": "坂戸市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "240",
+    "city_name": "幸手市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "241",
+    "city_name": "鶴ヶ島市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "242",
+    "city_name": "日高市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "243",
+    "city_name": "吉川市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "245",
+    "city_name": "ふじみ野市"
+  },
+  {
+    "pref_name": "埼玉県",
+    "pref_code": "11",
+    "city_code": "246",
+    "city_name": "白岡市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "100",
+    "city_name": "千葉市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "101",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "102",
+    "city_name": "花見川区"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "103",
+    "city_name": "稲毛区"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "104",
+    "city_name": "若葉区"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "105",
+    "city_name": "緑区"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "106",
+    "city_name": "美浜区"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "202",
+    "city_name": "銚子市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "203",
+    "city_name": "市川市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "204",
+    "city_name": "船橋市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "205",
+    "city_name": "館山市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "206",
+    "city_name": "木更津市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "207",
+    "city_name": "松戸市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "208",
+    "city_name": "野田市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "210",
+    "city_name": "茂原市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "211",
+    "city_name": "成田市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "212",
+    "city_name": "佐倉市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "213",
+    "city_name": "東金市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "215",
+    "city_name": "旭市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "216",
+    "city_name": "習志野市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "217",
+    "city_name": "柏市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "218",
+    "city_name": "勝浦市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "219",
+    "city_name": "市原市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "220",
+    "city_name": "流山市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "221",
+    "city_name": "八千代市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "222",
+    "city_name": "我孫子市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "223",
+    "city_name": "鴨川市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "224",
+    "city_name": "鎌ケ谷市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "225",
+    "city_name": "君津市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "226",
+    "city_name": "富津市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "227",
+    "city_name": "浦安市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "228",
+    "city_name": "四街道市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "229",
+    "city_name": "袖ケ浦市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "230",
+    "city_name": "八街市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "231",
+    "city_name": "印西市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "232",
+    "city_name": "白井市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "233",
+    "city_name": "富里市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "234",
+    "city_name": "南房総市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "235",
+    "city_name": "匝瑳市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "236",
+    "city_name": "香取市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "237",
+    "city_name": "山武市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "238",
+    "city_name": "いすみ市"
+  },
+  {
+    "pref_name": "千葉県",
+    "pref_code": "12",
+    "city_code": "239",
+    "city_name": "大網白里市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "101",
+    "city_name": "千代田区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "102",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "103",
+    "city_name": "港区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "104",
+    "city_name": "新宿区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "105",
+    "city_name": "文京区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "106",
+    "city_name": "台東区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "107",
+    "city_name": "墨田区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "108",
+    "city_name": "江東区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "109",
+    "city_name": "品川区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "110",
+    "city_name": "目黒区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "111",
+    "city_name": "大田区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "112",
+    "city_name": "世田谷区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "113",
+    "city_name": "渋谷区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "114",
+    "city_name": "中野区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "115",
+    "city_name": "杉並区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "116",
+    "city_name": "豊島区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "117",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "118",
+    "city_name": "荒川区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "119",
+    "city_name": "板橋区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "120",
+    "city_name": "練馬区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "121",
+    "city_name": "足立区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "122",
+    "city_name": "葛飾区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "123",
+    "city_name": "江戸川区"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "201",
+    "city_name": "八王子市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "202",
+    "city_name": "立川市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "203",
+    "city_name": "武蔵野市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "204",
+    "city_name": "三鷹市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "205",
+    "city_name": "青梅市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "206",
+    "city_name": "府中市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "207",
+    "city_name": "昭島市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "208",
+    "city_name": "調布市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "209",
+    "city_name": "町田市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "210",
+    "city_name": "小金井市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "211",
+    "city_name": "小平市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "212",
+    "city_name": "日野市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "213",
+    "city_name": "東村山市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "214",
+    "city_name": "国分寺市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "215",
+    "city_name": "国立市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "218",
+    "city_name": "福生市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "219",
+    "city_name": "狛江市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "220",
+    "city_name": "東大和市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "221",
+    "city_name": "清瀬市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "222",
+    "city_name": "東久留米市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "223",
+    "city_name": "武蔵村山市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "224",
+    "city_name": "多摩市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "225",
+    "city_name": "稲城市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "227",
+    "city_name": "羽村市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "228",
+    "city_name": "あきる野市"
+  },
+  {
+    "pref_name": "東京都",
+    "pref_code": "13",
+    "city_code": "229",
+    "city_name": "西東京市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "100",
+    "city_name": "横浜市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "101",
+    "city_name": "鶴見区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "102",
+    "city_name": "神奈川区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "103",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "104",
+    "city_name": "中区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "105",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "106",
+    "city_name": "保土ケ谷区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "107",
+    "city_name": "磯子区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "108",
+    "city_name": "金沢区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "109",
+    "city_name": "港北区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "110",
+    "city_name": "戸塚区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "111",
+    "city_name": "港南区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "112",
+    "city_name": "旭区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "113",
+    "city_name": "緑区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "114",
+    "city_name": "瀬谷区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "115",
+    "city_name": "栄区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "116",
+    "city_name": "泉区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "117",
+    "city_name": "青葉区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "118",
+    "city_name": "都筑区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "130",
+    "city_name": "川崎市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "131",
+    "city_name": "川崎区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "132",
+    "city_name": "幸区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "133",
+    "city_name": "中原区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "134",
+    "city_name": "高津区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "135",
+    "city_name": "多摩区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "136",
+    "city_name": "宮前区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "137",
+    "city_name": "麻生区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "150",
+    "city_name": "相模原市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "151",
+    "city_name": "緑区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "152",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "153",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "201",
+    "city_name": "横須賀市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "203",
+    "city_name": "平塚市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "204",
+    "city_name": "鎌倉市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "205",
+    "city_name": "藤沢市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "206",
+    "city_name": "小田原市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "207",
+    "city_name": "茅ヶ崎市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "208",
+    "city_name": "逗子市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "210",
+    "city_name": "三浦市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "211",
+    "city_name": "秦野市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "212",
+    "city_name": "厚木市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "213",
+    "city_name": "大和市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "214",
+    "city_name": "伊勢原市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "215",
+    "city_name": "海老名市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "216",
+    "city_name": "座間市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "217",
+    "city_name": "南足柄市"
+  },
+  {
+    "pref_name": "神奈川県",
+    "pref_code": "14",
+    "city_code": "218",
+    "city_name": "綾瀬市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "100",
+    "city_name": "新潟市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "101",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "102",
+    "city_name": "東区"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "103",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "104",
+    "city_name": "江南区"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "105",
+    "city_name": "秋葉区"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "106",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "107",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "108",
+    "city_name": "西蒲区"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "202",
+    "city_name": "長岡市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "204",
+    "city_name": "三条市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "205",
+    "city_name": "柏崎市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "206",
+    "city_name": "新発田市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "208",
+    "city_name": "小千谷市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "209",
+    "city_name": "加茂市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "210",
+    "city_name": "十日町市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "211",
+    "city_name": "見附市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "212",
+    "city_name": "村上市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "213",
+    "city_name": "燕市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "216",
+    "city_name": "糸魚川市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "217",
+    "city_name": "妙高市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "218",
+    "city_name": "五泉市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "222",
+    "city_name": "上越市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "223",
+    "city_name": "阿賀野市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "224",
+    "city_name": "佐渡市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "225",
+    "city_name": "魚沼市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "226",
+    "city_name": "南魚沼市"
+  },
+  {
+    "pref_name": "新潟県",
+    "pref_code": "15",
+    "city_code": "227",
+    "city_name": "胎内市"
+  },
+  {
+    "pref_name": "富山県",
+    "pref_code": "16",
+    "city_code": "201",
+    "city_name": "富山市"
+  },
+  {
+    "pref_name": "富山県",
+    "pref_code": "16",
+    "city_code": "202",
+    "city_name": "高岡市"
+  },
+  {
+    "pref_name": "富山県",
+    "pref_code": "16",
+    "city_code": "204",
+    "city_name": "魚津市"
+  },
+  {
+    "pref_name": "富山県",
+    "pref_code": "16",
+    "city_code": "205",
+    "city_name": "氷見市"
+  },
+  {
+    "pref_name": "富山県",
+    "pref_code": "16",
+    "city_code": "206",
+    "city_name": "滑川市"
+  },
+  {
+    "pref_name": "富山県",
+    "pref_code": "16",
+    "city_code": "207",
+    "city_name": "黒部市"
+  },
+  {
+    "pref_name": "富山県",
+    "pref_code": "16",
+    "city_code": "208",
+    "city_name": "砺波市"
+  },
+  {
+    "pref_name": "富山県",
+    "pref_code": "16",
+    "city_code": "209",
+    "city_name": "小矢部市"
+  },
+  {
+    "pref_name": "富山県",
+    "pref_code": "16",
+    "city_code": "210",
+    "city_name": "南砺市"
+  },
+  {
+    "pref_name": "富山県",
+    "pref_code": "16",
+    "city_code": "211",
+    "city_name": "射水市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "201",
+    "city_name": "金沢市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "202",
+    "city_name": "七尾市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "203",
+    "city_name": "小松市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "204",
+    "city_name": "輪島市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "205",
+    "city_name": "珠洲市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "206",
+    "city_name": "加賀市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "207",
+    "city_name": "羽咋市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "209",
+    "city_name": "かほく市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "210",
+    "city_name": "白山市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "211",
+    "city_name": "能美市"
+  },
+  {
+    "pref_name": "石川県",
+    "pref_code": "17",
+    "city_code": "212",
+    "city_name": "野々市市"
+  },
+  {
+    "pref_name": "福井県",
+    "pref_code": "18",
+    "city_code": "201",
+    "city_name": "福井市"
+  },
+  {
+    "pref_name": "福井県",
+    "pref_code": "18",
+    "city_code": "202",
+    "city_name": "敦賀市"
+  },
+  {
+    "pref_name": "福井県",
+    "pref_code": "18",
+    "city_code": "204",
+    "city_name": "小浜市"
+  },
+  {
+    "pref_name": "福井県",
+    "pref_code": "18",
+    "city_code": "205",
+    "city_name": "大野市"
+  },
+  {
+    "pref_name": "福井県",
+    "pref_code": "18",
+    "city_code": "206",
+    "city_name": "勝山市"
+  },
+  {
+    "pref_name": "福井県",
+    "pref_code": "18",
+    "city_code": "207",
+    "city_name": "鯖江市"
+  },
+  {
+    "pref_name": "福井県",
+    "pref_code": "18",
+    "city_code": "208",
+    "city_name": "あわら市"
+  },
+  {
+    "pref_name": "福井県",
+    "pref_code": "18",
+    "city_code": "209",
+    "city_name": "越前市"
+  },
+  {
+    "pref_name": "福井県",
+    "pref_code": "18",
+    "city_code": "210",
+    "city_name": "坂井市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "201",
+    "city_name": "甲府市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "202",
+    "city_name": "富士吉田市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "204",
+    "city_name": "都留市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "205",
+    "city_name": "山梨市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "206",
+    "city_name": "大月市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "207",
+    "city_name": "韮崎市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "208",
+    "city_name": "南アルプス市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "209",
+    "city_name": "北杜市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "210",
+    "city_name": "甲斐市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "211",
+    "city_name": "笛吹市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "212",
+    "city_name": "上野原市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "213",
+    "city_name": "甲州市"
+  },
+  {
+    "pref_name": "山梨県",
+    "pref_code": "19",
+    "city_code": "214",
+    "city_name": "中央市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "201",
+    "city_name": "長野市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "202",
+    "city_name": "松本市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "203",
+    "city_name": "上田市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "204",
+    "city_name": "岡谷市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "205",
+    "city_name": "飯田市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "206",
+    "city_name": "諏訪市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "207",
+    "city_name": "須坂市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "208",
+    "city_name": "小諸市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "209",
+    "city_name": "伊那市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "210",
+    "city_name": "駒ヶ根市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "211",
+    "city_name": "中野市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "212",
+    "city_name": "大町市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "213",
+    "city_name": "飯山市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "214",
+    "city_name": "茅野市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "215",
+    "city_name": "塩尻市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "217",
+    "city_name": "佐久市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "218",
+    "city_name": "千曲市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "219",
+    "city_name": "東御市"
+  },
+  {
+    "pref_name": "長野県",
+    "pref_code": "20",
+    "city_code": "220",
+    "city_name": "安曇野市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "201",
+    "city_name": "岐阜市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "202",
+    "city_name": "大垣市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "203",
+    "city_name": "高山市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "204",
+    "city_name": "多治見市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "205",
+    "city_name": "関市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "206",
+    "city_name": "中津川市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "207",
+    "city_name": "美濃市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "208",
+    "city_name": "瑞浪市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "209",
+    "city_name": "羽島市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "210",
+    "city_name": "恵那市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "211",
+    "city_name": "美濃加茂市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "212",
+    "city_name": "土岐市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "213",
+    "city_name": "各務原市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "214",
+    "city_name": "可児市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "215",
+    "city_name": "山県市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "216",
+    "city_name": "瑞穂市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "217",
+    "city_name": "飛騨市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "218",
+    "city_name": "本巣市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "219",
+    "city_name": "郡上市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "220",
+    "city_name": "下呂市"
+  },
+  {
+    "pref_name": "岐阜県",
+    "pref_code": "21",
+    "city_code": "221",
+    "city_name": "海津市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "100",
+    "city_name": "静岡市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "101",
+    "city_name": "葵区"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "102",
+    "city_name": "駿河区"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "103",
+    "city_name": "清水区"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "130",
+    "city_name": "浜松市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "131",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "132",
+    "city_name": "浜名区"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "133",
+    "city_name": "天竜区"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "203",
+    "city_name": "沼津市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "205",
+    "city_name": "熱海市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "206",
+    "city_name": "三島市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "207",
+    "city_name": "富士宮市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "208",
+    "city_name": "伊東市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "209",
+    "city_name": "島田市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "210",
+    "city_name": "富士市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "211",
+    "city_name": "磐田市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "212",
+    "city_name": "焼津市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "213",
+    "city_name": "掛川市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "214",
+    "city_name": "藤枝市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "215",
+    "city_name": "御殿場市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "216",
+    "city_name": "袋井市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "219",
+    "city_name": "下田市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "220",
+    "city_name": "裾野市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "221",
+    "city_name": "湖西市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "222",
+    "city_name": "伊豆市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "223",
+    "city_name": "御前崎市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "224",
+    "city_name": "菊川市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "225",
+    "city_name": "伊豆の国市"
+  },
+  {
+    "pref_name": "静岡県",
+    "pref_code": "22",
+    "city_code": "226",
+    "city_name": "牧之原市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "100",
+    "city_name": "名古屋市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "101",
+    "city_name": "千種区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "102",
+    "city_name": "東区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "103",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "104",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "105",
+    "city_name": "中村区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "106",
+    "city_name": "中区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "107",
+    "city_name": "昭和区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "108",
+    "city_name": "瑞穂区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "109",
+    "city_name": "熱田区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "110",
+    "city_name": "中川区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "111",
+    "city_name": "港区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "112",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "113",
+    "city_name": "守山区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "114",
+    "city_name": "緑区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "115",
+    "city_name": "名東区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "116",
+    "city_name": "天白区"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "202",
+    "city_name": "豊橋市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "203",
+    "city_name": "岡崎市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "204",
+    "city_name": "一宮市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "205",
+    "city_name": "瀬戸市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "206",
+    "city_name": "半田市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "207",
+    "city_name": "春日井市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "208",
+    "city_name": "豊川市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "209",
+    "city_name": "津島市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "210",
+    "city_name": "碧南市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "211",
+    "city_name": "刈谷市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "212",
+    "city_name": "豊田市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "213",
+    "city_name": "安城市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "214",
+    "city_name": "西尾市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "215",
+    "city_name": "蒲郡市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "216",
+    "city_name": "犬山市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "217",
+    "city_name": "常滑市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "218",
+    "city_name": "江南市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "220",
+    "city_name": "小牧市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "221",
+    "city_name": "稲沢市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "222",
+    "city_name": "新城市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "223",
+    "city_name": "東海市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "224",
+    "city_name": "大府市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "225",
+    "city_name": "知多市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "226",
+    "city_name": "知立市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "227",
+    "city_name": "尾張旭市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "228",
+    "city_name": "高浜市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "229",
+    "city_name": "岩倉市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "230",
+    "city_name": "豊明市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "231",
+    "city_name": "日進市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "232",
+    "city_name": "田原市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "233",
+    "city_name": "愛西市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "234",
+    "city_name": "清須市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "235",
+    "city_name": "北名古屋市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "236",
+    "city_name": "弥富市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "237",
+    "city_name": "みよし市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "238",
+    "city_name": "あま市"
+  },
+  {
+    "pref_name": "愛知県",
+    "pref_code": "23",
+    "city_code": "239",
+    "city_name": "長久手市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "201",
+    "city_name": "津市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "202",
+    "city_name": "四日市市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "203",
+    "city_name": "伊勢市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "204",
+    "city_name": "松阪市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "205",
+    "city_name": "桑名市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "207",
+    "city_name": "鈴鹿市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "208",
+    "city_name": "名張市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "209",
+    "city_name": "尾鷲市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "210",
+    "city_name": "亀山市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "211",
+    "city_name": "鳥羽市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "212",
+    "city_name": "熊野市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "214",
+    "city_name": "いなべ市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "215",
+    "city_name": "志摩市"
+  },
+  {
+    "pref_name": "三重県",
+    "pref_code": "24",
+    "city_code": "216",
+    "city_name": "伊賀市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "201",
+    "city_name": "大津市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "202",
+    "city_name": "彦根市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "203",
+    "city_name": "長浜市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "204",
+    "city_name": "近江八幡市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "206",
+    "city_name": "草津市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "207",
+    "city_name": "守山市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "208",
+    "city_name": "栗東市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "209",
+    "city_name": "甲賀市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "210",
+    "city_name": "野洲市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "211",
+    "city_name": "湖南市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "212",
+    "city_name": "高島市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "213",
+    "city_name": "東近江市"
+  },
+  {
+    "pref_name": "滋賀県",
+    "pref_code": "25",
+    "city_code": "214",
+    "city_name": "米原市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "100",
+    "city_name": "京都市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "101",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "102",
+    "city_name": "上京区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "103",
+    "city_name": "左京区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "104",
+    "city_name": "中京区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "105",
+    "city_name": "東山区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "106",
+    "city_name": "下京区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "107",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "108",
+    "city_name": "右京区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "109",
+    "city_name": "伏見区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "110",
+    "city_name": "山科区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "111",
+    "city_name": "西京区"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "201",
+    "city_name": "福知山市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "202",
+    "city_name": "舞鶴市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "203",
+    "city_name": "綾部市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "204",
+    "city_name": "宇治市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "205",
+    "city_name": "宮津市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "206",
+    "city_name": "亀岡市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "207",
+    "city_name": "城陽市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "208",
+    "city_name": "向日市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "209",
+    "city_name": "長岡京市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "210",
+    "city_name": "八幡市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "211",
+    "city_name": "京田辺市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "212",
+    "city_name": "京丹後市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "213",
+    "city_name": "南丹市"
+  },
+  {
+    "pref_name": "京都府",
+    "pref_code": "26",
+    "city_code": "214",
+    "city_name": "木津川市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "100",
+    "city_name": "大阪市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "101",
+    "city_name": "都島区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "102",
+    "city_name": "福島区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "103",
+    "city_name": "此花区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "104",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "105",
+    "city_name": "港区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "106",
+    "city_name": "大正区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "107",
+    "city_name": "天王寺区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "108",
+    "city_name": "浪速区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "109",
+    "city_name": "西淀川区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "110",
+    "city_name": "東淀川区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "111",
+    "city_name": "東成区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "112",
+    "city_name": "生野区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "113",
+    "city_name": "旭区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "114",
+    "city_name": "城東区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "115",
+    "city_name": "阿倍野区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "116",
+    "city_name": "住吉区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "117",
+    "city_name": "東住吉区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "118",
+    "city_name": "西成区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "119",
+    "city_name": "淀川区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "120",
+    "city_name": "鶴見区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "121",
+    "city_name": "住之江区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "122",
+    "city_name": "平野区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "123",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "124",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "140",
+    "city_name": "堺市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "141",
+    "city_name": "堺区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "142",
+    "city_name": "中区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "143",
+    "city_name": "東区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "144",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "145",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "146",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "147",
+    "city_name": "美原区"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "202",
+    "city_name": "岸和田市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "203",
+    "city_name": "豊中市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "204",
+    "city_name": "池田市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "205",
+    "city_name": "吹田市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "206",
+    "city_name": "泉大津市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "207",
+    "city_name": "高槻市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "208",
+    "city_name": "貝塚市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "209",
+    "city_name": "守口市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "210",
+    "city_name": "枚方市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "211",
+    "city_name": "茨木市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "212",
+    "city_name": "八尾市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "213",
+    "city_name": "泉佐野市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "214",
+    "city_name": "富田林市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "215",
+    "city_name": "寝屋川市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "216",
+    "city_name": "河内長野市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "217",
+    "city_name": "松原市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "218",
+    "city_name": "大東市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "219",
+    "city_name": "和泉市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "220",
+    "city_name": "箕面市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "221",
+    "city_name": "柏原市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "222",
+    "city_name": "羽曳野市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "223",
+    "city_name": "門真市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "224",
+    "city_name": "摂津市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "225",
+    "city_name": "高石市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "226",
+    "city_name": "藤井寺市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "227",
+    "city_name": "東大阪市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "228",
+    "city_name": "泉南市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "229",
+    "city_name": "四條畷市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "230",
+    "city_name": "交野市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "231",
+    "city_name": "大阪狭山市"
+  },
+  {
+    "pref_name": "大阪府",
+    "pref_code": "27",
+    "city_code": "232",
+    "city_name": "阪南市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "100",
+    "city_name": "神戸市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "101",
+    "city_name": "東灘区"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "102",
+    "city_name": "灘区"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "103",
+    "city_name": "兵庫区"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "104",
+    "city_name": "長田区"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "105",
+    "city_name": "須磨区"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "106",
+    "city_name": "垂水区"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "107",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "108",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "109",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "201",
+    "city_name": "姫路市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "202",
+    "city_name": "尼崎市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "203",
+    "city_name": "明石市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "204",
+    "city_name": "西宮市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "205",
+    "city_name": "洲本市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "206",
+    "city_name": "芦屋市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "207",
+    "city_name": "伊丹市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "208",
+    "city_name": "相生市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "209",
+    "city_name": "豊岡市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "210",
+    "city_name": "加古川市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "212",
+    "city_name": "赤穂市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "213",
+    "city_name": "西脇市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "214",
+    "city_name": "宝塚市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "215",
+    "city_name": "三木市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "216",
+    "city_name": "高砂市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "217",
+    "city_name": "川西市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "218",
+    "city_name": "小野市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "219",
+    "city_name": "三田市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "220",
+    "city_name": "加西市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "221",
+    "city_name": "丹波篠山市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "222",
+    "city_name": "養父市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "223",
+    "city_name": "丹波市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "224",
+    "city_name": "南あわじ市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "225",
+    "city_name": "朝来市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "226",
+    "city_name": "淡路市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "227",
+    "city_name": "宍粟市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "228",
+    "city_name": "加東市"
+  },
+  {
+    "pref_name": "兵庫県",
+    "pref_code": "28",
+    "city_code": "229",
+    "city_name": "たつの市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "201",
+    "city_name": "奈良市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "202",
+    "city_name": "大和高田市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "203",
+    "city_name": "大和郡山市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "204",
+    "city_name": "天理市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "205",
+    "city_name": "橿原市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "206",
+    "city_name": "桜井市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "207",
+    "city_name": "五條市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "208",
+    "city_name": "御所市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "209",
+    "city_name": "生駒市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "210",
+    "city_name": "香芝市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "211",
+    "city_name": "葛城市"
+  },
+  {
+    "pref_name": "奈良県",
+    "pref_code": "29",
+    "city_code": "212",
+    "city_name": "宇陀市"
+  },
+  {
+    "pref_name": "和歌山県",
+    "pref_code": "30",
+    "city_code": "201",
+    "city_name": "和歌山市"
+  },
+  {
+    "pref_name": "和歌山県",
+    "pref_code": "30",
+    "city_code": "202",
+    "city_name": "海南市"
+  },
+  {
+    "pref_name": "和歌山県",
+    "pref_code": "30",
+    "city_code": "203",
+    "city_name": "橋本市"
+  },
+  {
+    "pref_name": "和歌山県",
+    "pref_code": "30",
+    "city_code": "204",
+    "city_name": "有田市"
+  },
+  {
+    "pref_name": "和歌山県",
+    "pref_code": "30",
+    "city_code": "205",
+    "city_name": "御坊市"
+  },
+  {
+    "pref_name": "和歌山県",
+    "pref_code": "30",
+    "city_code": "206",
+    "city_name": "田辺市"
+  },
+  {
+    "pref_name": "和歌山県",
+    "pref_code": "30",
+    "city_code": "207",
+    "city_name": "新宮市"
+  },
+  {
+    "pref_name": "和歌山県",
+    "pref_code": "30",
+    "city_code": "208",
+    "city_name": "紀の川市"
+  },
+  {
+    "pref_name": "和歌山県",
+    "pref_code": "30",
+    "city_code": "209",
+    "city_name": "岩出市"
+  },
+  {
+    "pref_name": "鳥取県",
+    "pref_code": "31",
+    "city_code": "201",
+    "city_name": "鳥取市"
+  },
+  {
+    "pref_name": "鳥取県",
+    "pref_code": "31",
+    "city_code": "202",
+    "city_name": "米子市"
+  },
+  {
+    "pref_name": "鳥取県",
+    "pref_code": "31",
+    "city_code": "203",
+    "city_name": "倉吉市"
+  },
+  {
+    "pref_name": "鳥取県",
+    "pref_code": "31",
+    "city_code": "204",
+    "city_name": "境港市"
+  },
+  {
+    "pref_name": "島根県",
+    "pref_code": "32",
+    "city_code": "201",
+    "city_name": "松江市"
+  },
+  {
+    "pref_name": "島根県",
+    "pref_code": "32",
+    "city_code": "202",
+    "city_name": "浜田市"
+  },
+  {
+    "pref_name": "島根県",
+    "pref_code": "32",
+    "city_code": "203",
+    "city_name": "出雲市"
+  },
+  {
+    "pref_name": "島根県",
+    "pref_code": "32",
+    "city_code": "204",
+    "city_name": "益田市"
+  },
+  {
+    "pref_name": "島根県",
+    "pref_code": "32",
+    "city_code": "205",
+    "city_name": "大田市"
+  },
+  {
+    "pref_name": "島根県",
+    "pref_code": "32",
+    "city_code": "206",
+    "city_name": "安来市"
+  },
+  {
+    "pref_name": "島根県",
+    "pref_code": "32",
+    "city_code": "207",
+    "city_name": "江津市"
+  },
+  {
+    "pref_name": "島根県",
+    "pref_code": "32",
+    "city_code": "209",
+    "city_name": "雲南市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "100",
+    "city_name": "岡山市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "101",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "102",
+    "city_name": "中区"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "103",
+    "city_name": "東区"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "104",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "202",
+    "city_name": "倉敷市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "203",
+    "city_name": "津山市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "204",
+    "city_name": "玉野市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "205",
+    "city_name": "笠岡市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "207",
+    "city_name": "井原市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "208",
+    "city_name": "総社市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "209",
+    "city_name": "高梁市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "210",
+    "city_name": "新見市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "211",
+    "city_name": "備前市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "212",
+    "city_name": "瀬戸内市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "213",
+    "city_name": "赤磐市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "214",
+    "city_name": "真庭市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "215",
+    "city_name": "美作市"
+  },
+  {
+    "pref_name": "岡山県",
+    "pref_code": "33",
+    "city_code": "216",
+    "city_name": "浅口市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "100",
+    "city_name": "広島市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "101",
+    "city_name": "中区"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "102",
+    "city_name": "東区"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "103",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "104",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "105",
+    "city_name": "安佐南区"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "106",
+    "city_name": "安佐北区"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "107",
+    "city_name": "安芸区"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "108",
+    "city_name": "佐伯区"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "202",
+    "city_name": "呉市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "203",
+    "city_name": "竹原市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "204",
+    "city_name": "三原市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "205",
+    "city_name": "尾道市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "207",
+    "city_name": "福山市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "208",
+    "city_name": "府中市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "209",
+    "city_name": "三次市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "210",
+    "city_name": "庄原市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "211",
+    "city_name": "大竹市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "212",
+    "city_name": "東広島市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "213",
+    "city_name": "廿日市市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "214",
+    "city_name": "安芸高田市"
+  },
+  {
+    "pref_name": "広島県",
+    "pref_code": "34",
+    "city_code": "215",
+    "city_name": "江田島市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "201",
+    "city_name": "下関市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "202",
+    "city_name": "宇部市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "203",
+    "city_name": "山口市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "204",
+    "city_name": "萩市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "206",
+    "city_name": "防府市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "207",
+    "city_name": "下松市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "208",
+    "city_name": "岩国市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "210",
+    "city_name": "光市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "211",
+    "city_name": "長門市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "212",
+    "city_name": "柳井市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "213",
+    "city_name": "美祢市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "215",
+    "city_name": "周南市"
+  },
+  {
+    "pref_name": "山口県",
+    "pref_code": "35",
+    "city_code": "216",
+    "city_name": "山陽小野田市"
+  },
+  {
+    "pref_name": "徳島県",
+    "pref_code": "36",
+    "city_code": "201",
+    "city_name": "徳島市"
+  },
+  {
+    "pref_name": "徳島県",
+    "pref_code": "36",
+    "city_code": "202",
+    "city_name": "鳴門市"
+  },
+  {
+    "pref_name": "徳島県",
+    "pref_code": "36",
+    "city_code": "203",
+    "city_name": "小松島市"
+  },
+  {
+    "pref_name": "徳島県",
+    "pref_code": "36",
+    "city_code": "204",
+    "city_name": "阿南市"
+  },
+  {
+    "pref_name": "徳島県",
+    "pref_code": "36",
+    "city_code": "205",
+    "city_name": "吉野川市"
+  },
+  {
+    "pref_name": "徳島県",
+    "pref_code": "36",
+    "city_code": "206",
+    "city_name": "阿波市"
+  },
+  {
+    "pref_name": "徳島県",
+    "pref_code": "36",
+    "city_code": "207",
+    "city_name": "美馬市"
+  },
+  {
+    "pref_name": "徳島県",
+    "pref_code": "36",
+    "city_code": "208",
+    "city_name": "三好市"
+  },
+  {
+    "pref_name": "香川県",
+    "pref_code": "37",
+    "city_code": "201",
+    "city_name": "高松市"
+  },
+  {
+    "pref_name": "香川県",
+    "pref_code": "37",
+    "city_code": "202",
+    "city_name": "丸亀市"
+  },
+  {
+    "pref_name": "香川県",
+    "pref_code": "37",
+    "city_code": "203",
+    "city_name": "坂出市"
+  },
+  {
+    "pref_name": "香川県",
+    "pref_code": "37",
+    "city_code": "204",
+    "city_name": "善通寺市"
+  },
+  {
+    "pref_name": "香川県",
+    "pref_code": "37",
+    "city_code": "205",
+    "city_name": "観音寺市"
+  },
+  {
+    "pref_name": "香川県",
+    "pref_code": "37",
+    "city_code": "206",
+    "city_name": "さぬき市"
+  },
+  {
+    "pref_name": "香川県",
+    "pref_code": "37",
+    "city_code": "207",
+    "city_name": "東かがわ市"
+  },
+  {
+    "pref_name": "香川県",
+    "pref_code": "37",
+    "city_code": "208",
+    "city_name": "三豊市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "201",
+    "city_name": "松山市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "202",
+    "city_name": "今治市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "203",
+    "city_name": "宇和島市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "204",
+    "city_name": "八幡浜市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "205",
+    "city_name": "新居浜市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "206",
+    "city_name": "西条市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "207",
+    "city_name": "大洲市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "210",
+    "city_name": "伊予市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "213",
+    "city_name": "四国中央市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "214",
+    "city_name": "西予市"
+  },
+  {
+    "pref_name": "愛媛県",
+    "pref_code": "38",
+    "city_code": "215",
+    "city_name": "東温市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "201",
+    "city_name": "高知市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "202",
+    "city_name": "室戸市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "203",
+    "city_name": "安芸市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "204",
+    "city_name": "南国市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "205",
+    "city_name": "土佐市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "206",
+    "city_name": "須崎市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "208",
+    "city_name": "宿毛市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "209",
+    "city_name": "土佐清水市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "210",
+    "city_name": "四万十市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "211",
+    "city_name": "香南市"
+  },
+  {
+    "pref_name": "高知県",
+    "pref_code": "39",
+    "city_code": "212",
+    "city_name": "香美市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "100",
+    "city_name": "北九州市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "101",
+    "city_name": "門司区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "102",
+    "city_name": "若松区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "103",
+    "city_name": "戸畑区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "104",
+    "city_name": "小倉北区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "105",
+    "city_name": "小倉南区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "106",
+    "city_name": "八幡東区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "107",
+    "city_name": "八幡西区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "130",
+    "city_name": "福岡市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "131",
+    "city_name": "東区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "132",
+    "city_name": "博多区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "133",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "134",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "135",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "136",
+    "city_name": "城南区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "137",
+    "city_name": "早良区"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "202",
+    "city_name": "大牟田市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "203",
+    "city_name": "久留米市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "204",
+    "city_name": "直方市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "205",
+    "city_name": "飯塚市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "206",
+    "city_name": "田川市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "207",
+    "city_name": "柳川市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "210",
+    "city_name": "八女市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "211",
+    "city_name": "筑後市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "212",
+    "city_name": "大川市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "213",
+    "city_name": "行橋市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "214",
+    "city_name": "豊前市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "215",
+    "city_name": "中間市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "216",
+    "city_name": "小郡市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "217",
+    "city_name": "筑紫野市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "218",
+    "city_name": "春日市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "219",
+    "city_name": "大野城市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "220",
+    "city_name": "宗像市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "221",
+    "city_name": "太宰府市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "223",
+    "city_name": "古賀市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "224",
+    "city_name": "福津市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "225",
+    "city_name": "うきは市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "226",
+    "city_name": "宮若市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "227",
+    "city_name": "嘉麻市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "228",
+    "city_name": "朝倉市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "229",
+    "city_name": "みやま市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "230",
+    "city_name": "糸島市"
+  },
+  {
+    "pref_name": "福岡県",
+    "pref_code": "40",
+    "city_code": "231",
+    "city_name": "那珂川市"
+  },
+  {
+    "pref_name": "佐賀県",
+    "pref_code": "41",
+    "city_code": "201",
+    "city_name": "佐賀市"
+  },
+  {
+    "pref_name": "佐賀県",
+    "pref_code": "41",
+    "city_code": "202",
+    "city_name": "唐津市"
+  },
+  {
+    "pref_name": "佐賀県",
+    "pref_code": "41",
+    "city_code": "203",
+    "city_name": "鳥栖市"
+  },
+  {
+    "pref_name": "佐賀県",
+    "pref_code": "41",
+    "city_code": "204",
+    "city_name": "多久市"
+  },
+  {
+    "pref_name": "佐賀県",
+    "pref_code": "41",
+    "city_code": "205",
+    "city_name": "伊万里市"
+  },
+  {
+    "pref_name": "佐賀県",
+    "pref_code": "41",
+    "city_code": "206",
+    "city_name": "武雄市"
+  },
+  {
+    "pref_name": "佐賀県",
+    "pref_code": "41",
+    "city_code": "207",
+    "city_name": "鹿島市"
+  },
+  {
+    "pref_name": "佐賀県",
+    "pref_code": "41",
+    "city_code": "208",
+    "city_name": "小城市"
+  },
+  {
+    "pref_name": "佐賀県",
+    "pref_code": "41",
+    "city_code": "209",
+    "city_name": "嬉野市"
+  },
+  {
+    "pref_name": "佐賀県",
+    "pref_code": "41",
+    "city_code": "210",
+    "city_name": "神埼市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "201",
+    "city_name": "長崎市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "202",
+    "city_name": "佐世保市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "203",
+    "city_name": "島原市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "204",
+    "city_name": "諫早市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "205",
+    "city_name": "大村市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "207",
+    "city_name": "平戸市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "208",
+    "city_name": "松浦市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "209",
+    "city_name": "対馬市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "210",
+    "city_name": "壱岐市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "211",
+    "city_name": "五島市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "212",
+    "city_name": "西海市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "213",
+    "city_name": "雲仙市"
+  },
+  {
+    "pref_name": "長崎県",
+    "pref_code": "42",
+    "city_code": "214",
+    "city_name": "南島原市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "100",
+    "city_name": "熊本市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "101",
+    "city_name": "中央区"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "102",
+    "city_name": "東区"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "103",
+    "city_name": "西区"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "104",
+    "city_name": "南区"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "105",
+    "city_name": "北区"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "202",
+    "city_name": "八代市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "203",
+    "city_name": "人吉市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "204",
+    "city_name": "荒尾市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "205",
+    "city_name": "水俣市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "206",
+    "city_name": "玉名市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "208",
+    "city_name": "山鹿市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "210",
+    "city_name": "菊池市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "211",
+    "city_name": "宇土市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "212",
+    "city_name": "上天草市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "213",
+    "city_name": "宇城市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "214",
+    "city_name": "阿蘇市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "215",
+    "city_name": "天草市"
+  },
+  {
+    "pref_name": "熊本県",
+    "pref_code": "43",
+    "city_code": "216",
+    "city_name": "合志市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "201",
+    "city_name": "大分市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "202",
+    "city_name": "別府市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "203",
+    "city_name": "中津市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "204",
+    "city_name": "日田市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "205",
+    "city_name": "佐伯市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "206",
+    "city_name": "臼杵市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "207",
+    "city_name": "津久見市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "208",
+    "city_name": "竹田市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "209",
+    "city_name": "豊後高田市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "210",
+    "city_name": "杵築市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "211",
+    "city_name": "宇佐市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "212",
+    "city_name": "豊後大野市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "213",
+    "city_name": "由布市"
+  },
+  {
+    "pref_name": "大分県",
+    "pref_code": "44",
+    "city_code": "214",
+    "city_name": "国東市"
+  },
+  {
+    "pref_name": "宮崎県",
+    "pref_code": "45",
+    "city_code": "201",
+    "city_name": "宮崎市"
+  },
+  {
+    "pref_name": "宮崎県",
+    "pref_code": "45",
+    "city_code": "202",
+    "city_name": "都城市"
+  },
+  {
+    "pref_name": "宮崎県",
+    "pref_code": "45",
+    "city_code": "203",
+    "city_name": "延岡市"
+  },
+  {
+    "pref_name": "宮崎県",
+    "pref_code": "45",
+    "city_code": "204",
+    "city_name": "日南市"
+  },
+  {
+    "pref_name": "宮崎県",
+    "pref_code": "45",
+    "city_code": "205",
+    "city_name": "小林市"
+  },
+  {
+    "pref_name": "宮崎県",
+    "pref_code": "45",
+    "city_code": "206",
+    "city_name": "日向市"
+  },
+  {
+    "pref_name": "宮崎県",
+    "pref_code": "45",
+    "city_code": "207",
+    "city_name": "串間市"
+  },
+  {
+    "pref_name": "宮崎県",
+    "pref_code": "45",
+    "city_code": "208",
+    "city_name": "西都市"
+  },
+  {
+    "pref_name": "宮崎県",
+    "pref_code": "45",
+    "city_code": "209",
+    "city_name": "えびの市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "201",
+    "city_name": "鹿児島市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "203",
+    "city_name": "鹿屋市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "204",
+    "city_name": "枕崎市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "206",
+    "city_name": "阿久根市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "208",
+    "city_name": "出水市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "210",
+    "city_name": "指宿市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "213",
+    "city_name": "西之表市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "214",
+    "city_name": "垂水市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "215",
+    "city_name": "薩摩川内市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "216",
+    "city_name": "日置市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "217",
+    "city_name": "曽於市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "218",
+    "city_name": "霧島市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "219",
+    "city_name": "いちき串木野市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "220",
+    "city_name": "南さつま市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "221",
+    "city_name": "志布志市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "222",
+    "city_name": "奄美市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "223",
+    "city_name": "南九州市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "224",
+    "city_name": "伊佐市"
+  },
+  {
+    "pref_name": "鹿児島県",
+    "pref_code": "46",
+    "city_code": "225",
+    "city_name": "姶良市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "201",
+    "city_name": "那覇市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "205",
+    "city_name": "宜野湾市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "207",
+    "city_name": "石垣市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "208",
+    "city_name": "浦添市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "209",
+    "city_name": "名護市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "210",
+    "city_name": "糸満市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "211",
+    "city_name": "沖縄市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "212",
+    "city_name": "豊見城市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "213",
+    "city_name": "うるま市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "214",
+    "city_name": "宮古島市"
+  },
+  {
+    "pref_name": "沖縄県",
+    "pref_code": "47",
+    "city_code": "215",
+    "city_name": "南城市"
+  }
+]
