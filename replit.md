@@ -48,7 +48,7 @@ LeadHive utilizes a modern full-stack architecture.
 -   **Notifications:** In-app notification bell for follow-ups, daily email notifications, and Slack Webhook integration.
 -   **Dashboards & Analytics:** Organizational dashboards (collection count, approach rate, conversion rate, score distribution), team dashboards (admin/system_admin only), and keyword analysis.
 -   **Team Management:** Member invitation, permission management, profiles, and a 6-step onboarding wizard.
--   **Admin Functions (COOLWORKS Only):** Tenant, user, plan, billing management, centralized API key management, feature flag management, and master DB auto-collection scheduling.
+-   **Admin Functions (COOLWORKS Only):** Tenant, user, plan, billing management, centralized API key management, feature flag management, master DB auto-collection scheduling, and 特定商取引法 page management (/admin/legal → /legal/tokutei public page).
 -   **Production-Readiness Features (Implemented):** Stripe Webhook full handling (invoice.payment_failed, subscription.deleted/updated), Customer Portal, coupon codes, downgrade validation, API rate limiting (slowapi on login/register/forgot-password), JWT token_version session management, 2FA TOTP (pyotp + qrcode), account deletion with Stripe cancellation, GDPR data export, welcome email, usage alert emails (80%/100%), Sentry error monitoring, MRR/ARR admin dashboard, terms acceptance recording.
 
 ## External Dependencies

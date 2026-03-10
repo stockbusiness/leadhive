@@ -39,6 +39,7 @@ import {
   LifeBuoy,
   HelpCircle,
   Activity,
+  Scale,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -93,6 +94,8 @@ const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const Company = lazy(() => import("./pages/Company"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const Terms = lazy(() => import("./pages/Terms"));
+const SpecificCommercialTransaction = lazy(() => import("./pages/SpecificCommercialTransaction"));
+const AdminLegal = lazy(() => import("./pages/AdminLegal"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Faq = lazy(() => import("./pages/Faq"));
@@ -292,6 +295,7 @@ function AppContent() {
                 <SidebarLink to="/admin/smtp" icon={<Mail size={18} />} label="SMTP設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/email-templates" icon={<Mail size={18} />} label="メールテンプレート" onClick={closeSidebar} />
                 <SidebarLink to="/admin/contact-settings" icon={<Mail size={18} />} label="問い合わせフォーム設定" onClick={closeSidebar} />
+                <SidebarLink to="/admin/legal" icon={<Scale size={18} />} label="特定商取引法の表記" onClick={closeSidebar} />
                 <SidebarLink to="/admin/support" icon={<LifeBuoy size={18} />} label="サポートチケット管理" onClick={closeSidebar} />
                 <SidebarLink to="/admin/faq" icon={<HelpCircle size={18} />} label="FAQ管理" onClick={closeSidebar} />
                 <SidebarLink to="/admin/status" icon={<Activity size={18} />} label="ステータスページ" onClick={closeSidebar} />
@@ -417,6 +421,7 @@ function AppContent() {
               <Route path="/admin/auto-master" element={<AdminAutoMaster />} />
               <Route path="/admin/security" element={<AdminSecurity />} />
               <Route path="/admin/contact-settings" element={<AdminContact />} />
+              <Route path="/admin/legal" element={<AdminLegal />} />
               <Route path="/admin/support" element={<AdminSupport />} />
               <Route path="/admin/faq" element={<AdminFaq />} />
               <Route path="/admin/status" element={<AdminStatus />} />
@@ -483,6 +488,7 @@ function App() {
             <Route path="/company" element={<Company />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/legal/tokutei" element={<SpecificCommercialTransaction />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/contact" element={<Contact />} />

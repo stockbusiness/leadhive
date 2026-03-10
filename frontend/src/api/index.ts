@@ -535,6 +535,15 @@ export const api = {
     save: (data: Record<string, string>) => axios.put("/api/admin/contact-settings", data).then(r => r.data),
   },
 
+  adminLegal: {
+    get: () => axios.get<Record<string, string>>("/api/admin/legal-settings").then(r => r.data),
+    save: (data: Record<string, string>) => axios.put("/api/admin/legal-settings", data).then(r => r.data),
+  },
+
+  publicLegal: {
+    get: () => axios.get<Record<string, string>>("/api/public/legal").then(r => r.data),
+  },
+
   faq: {
     list: () => axios.get("/api/faq").then(r => r.data),
     search: (q: string) => axios.get("/api/faq/search", { params: { q } }).then(r => r.data),
