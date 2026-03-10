@@ -64,8 +64,8 @@ def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: 
             params["prefecture"] = code
 
     resp = requests.get(GBIZ_BASE_URL, headers=headers, params=params, timeout=15)
-    if resp.status_code == 404:
-        return {"companies": [], "total_page_count": 1, "is_last_page": True}
+    if resp.status_code in (400, 404):
+        return {"companies": [], "total_page_count": max(1, page - 1), "is_last_page": True}
     resp.raise_for_status()
     data = resp.json()
 
