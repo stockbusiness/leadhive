@@ -170,13 +170,15 @@ async def submit_contact(body: ContactBody, db: Session = Depends(get_db)):
         smtp = get_system_smtp_settings(db)
 
         if smtp.get("smtp_host"):
-            notify_to = settings.get("contact_notify_to") or "info@leadhive.work"
+            notify_to_raw = settings.get("contact_notify_to") or "info@leadhive.work"
+            notify_recipients = [e.strip() for e in notify_to_raw.split(",") if e.strip()]
             prefix = settings.get("contact_notify_subject_prefix") or "【LeadHive】"
             notify_subject = f"{prefix}{type_label}：{body.company_name} {body.name}様"
-            send_email(
-                notify_to, notify_subject, _notify_html(body, settings), smtp,
-                text_body=f"{type_label}\n{body.company_name} {body.name}\n{body.email}\n\n{body.message}",
-            )
+            for recipient in notify_recipients:
+                send_email(
+                    recipient, notify_subject, _notify_html(body, settings), smtp,
+                    text_body=f"{type_label}\n{body.company_name} {body.name}\n{body.email}\n\n{body.message}",
+                )
 
             autoreply_enabled = settings.get("contact_autoreply_enabled", "true").lower() not in ("false", "0", "no")
             if autoreply_enabled:

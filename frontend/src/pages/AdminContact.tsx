@@ -97,14 +97,14 @@ export default function AdminContact() {
         <div className="p-5 space-y-4">
           <Field
             label="通知先メールアドレス"
-            hint="フォームが送信されたとき、この宛先に通知が届きます"
+            hint="複数の宛先はカンマで区切ってください。例: info@example.com, sales@example.com"
           >
             <input
-              type="email"
+              type="text"
               value={form.contact_notify_to}
               onChange={update("contact_notify_to")}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="info@leadhive.work"
+              placeholder="info@leadhive.work, sales@leadhive.work"
             />
           </Field>
 

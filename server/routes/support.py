@@ -345,7 +345,8 @@ def _send_ticket_notification(ticket: SupportTicket, message: str, user: User, d
         return
 
     row = db.query(SystemSettings).filter(SystemSettings.key == "contact_notify_to").first()
-    notify_to = decrypt_value(row.value) if row and row.value else "info@leadhive.work"
+    notify_to_raw = decrypt_value(row.value) if row and row.value else "info@leadhive.work"
+    notify_recipients = [e.strip() for e in notify_to_raw.split(",") if e.strip()]
 
     html = f"""
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
@@ -362,7 +363,9 @@ def _send_ticket_notification(ticket: SupportTicket, message: str, user: User, d
       </div>
     </div>
     """
-    send_email(notify_to, f"【LeadHive】新規チケット {ticket.ticket_number}: {ticket.subject}", html, smtp)
+    subject = f"【LeadHive】新規チケット {ticket.ticket_number}: {ticket.subject}"
+    for recipient in notify_recipients:
+        send_email(recipient, subject, html, smtp)
 
 
 def _send_staff_reply_notification(ticket: SupportTicket, message: str, staff: User, db: Session):
