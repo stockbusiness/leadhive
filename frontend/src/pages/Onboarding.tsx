@@ -357,11 +357,11 @@ function StepProject({
           onChange={(e) => setProjectName(e.target.value)}
           autoFocus
           className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="例: 新規顧客開拓 / Shopify案件"
+          placeholder="例: 新規顧客開拓 / 関東エリア IT企業"
           onKeyDown={(e) => e.key === "Enter" && onNext()}
         />
         <div className="flex flex-wrap gap-2 mt-3">
-          {["新規顧客開拓", "Shopify制作会社", "EC支援案件"].map((ex) => (
+          {["新規顧客開拓", "関東 Web制作会社", "IT企業アプローチ", "Shopify案件"].map((ex) => (
             <button
               key={ex}
               onClick={() => setProjectName(ex)}
@@ -422,7 +422,7 @@ function StepKeywords({
           onChange={(e) => setKeywordInput(e.target.value)}
           autoFocus
           className="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="例: Shopify 制作会社 東京"
+          placeholder="例: Web制作 会社 東京　（業種 + 会社種別 + 地域）"
           onKeyDown={(e) => e.key === "Enter" && onAdd()}
         />
         <button
@@ -442,19 +442,25 @@ function StepKeywords({
             </button>
           </span>
         ))}
-        {keywords.length === 0 && (
-          <div className="flex flex-wrap gap-2">
-            {["Shopify 制作会社", "ECサイト 運営会社", "Webマーケティング"].map((ex) => (
-              <button
-                key={ex}
-                onClick={() => { setKeywordInput(ex); }}
-                className="text-xs px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-500 rounded-full transition-colors"
-              >
-                {ex}
-              </button>
-            ))}
-          </div>
-        )}
+      </div>
+      <div className="bg-slate-50 rounded-xl p-3 mb-3">
+        <p className="text-xs text-slate-400 mb-2 font-medium">入力例をクリックして使えます：</p>
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            "Web制作 会社 東京", "システム開発 会社 大阪",
+            "コンサルティング 中小企業", "Webマーケティング 会社",
+            "人材紹介 会社 名古屋", "Shopify 制作会社",
+            "EC コンサル", "不動産会社 福岡",
+          ].map((ex) => (
+            <button
+              key={ex}
+              onClick={() => setKeywordInput(ex)}
+              className="text-xs px-3 py-1.5 bg-white hover:bg-blue-50 hover:text-blue-700 text-slate-600 border border-slate-200 rounded-lg transition-colors"
+            >
+              {ex}
+            </button>
+          ))}
+        </div>
       </div>
       {done && (
         <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 rounded-xl p-3 mb-4 text-sm">

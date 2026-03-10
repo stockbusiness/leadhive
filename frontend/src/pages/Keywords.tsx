@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Search, BarChart2, List, TrendingUp, Zap, RefreshCw, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Search, BarChart2, List, TrendingUp, Zap, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Lightbulb, MapPin } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { api } from "../api";
-import { CATEGORIES, DEFAULT_KEYWORDS } from "../constants";
+import { CATEGORIES, DEFAULT_KEYWORDS, KEYWORD_SUGGESTIONS, REGION_SUGGESTIONS } from "../constants";
 import type { SearchKeyword, KeywordAnalytics, KeywordAnalyticsSummary } from "../types";
 import { useProject } from "../contexts/ProjectContext";
 
@@ -251,6 +251,8 @@ export default function Keywords() {
     region: "",
     exclude_keywords: "",
   });
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestIndustry, setActiveSuggestIndustry] = useState(0);
 
   const fetchKeywords = () => {
     api.keywords.list().then((data) => setKeywords(data.keywords));
@@ -310,17 +312,21 @@ export default function Keywords() {
 
       {tab === "manage" ? (
         <>
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-700 mb-3">新しいキーワードを追加</h3>
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 space-y-3">
+            <h3 className="font-semibold text-slate-700">新しいキーワードを追加</h3>
+
+            {/* メイン入力行 */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-              <input
-                type="text"
-                placeholder="検索キーワード"
-                value={form.keyword}
-                onChange={(e) => setForm({ ...form, keyword: e.target.value })}
-                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="md:col-span-2 relative">
+                <input
+                  type="text"
+                  placeholder="例: Web制作 会社 東京 　（業種 + 会社種別 + 地域）"
+                  value={form.keyword}
+                  onChange={(e) => setForm({ ...form, keyword: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
               <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -333,25 +339,101 @@ export default function Keywords() {
               </select>
               <input
                 type="text"
-                placeholder="対象地域"
+                placeholder="対象地域（例: 東京）"
                 value={form.region}
                 onChange={(e) => setForm({ ...form, region: e.target.value })}
                 className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <input
-                type="text"
-                placeholder="除外キーワード"
-                value={form.exclude_keywords}
-                onChange={(e) => setForm({ ...form, exclude_keywords: e.target.value })}
-                className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="除外キーワード"
+                  value={form.exclude_keywords}
+                  onChange={(e) => setForm({ ...form, exclude_keywords: e.target.value })}
+                  className="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={handleAdd}
+                  className="flex items-center justify-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors whitespace-nowrap"
+                >
+                  <Plus size={15} />
+                  追加
+                </button>
+              </div>
+            </div>
+
+            {/* 入力ヒントトグル */}
+            <div>
               <button
-                onClick={handleAdd}
-                className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                onClick={() => setShowSuggestions((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 transition-colors"
               >
-                <Plus size={16} />
-                追加
+                <Lightbulb size={13} />
+                キーワード入力例を見る
+                {showSuggestions ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               </button>
+
+              {showSuggestions && (
+                <div className="mt-3 border border-blue-100 rounded-lg bg-blue-50 p-3 space-y-3">
+                  <p className="text-xs text-slate-500 font-medium">
+                    「<span className="text-blue-700 font-semibold">業種キーワード</span>」＋「<span className="text-blue-700 font-semibold">会社 / 事務所</span>」＋「<span className="text-blue-700 font-semibold">地域</span>」の組み合わせが効果的です
+                  </p>
+
+                  {/* 業種タブ */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {KEYWORD_SUGGESTIONS.map((s, i) => (
+                      <button
+                        key={s.industry}
+                        onClick={() => setActiveSuggestIndustry(i)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                          activeSuggestIndustry === i
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-slate-600 border-slate-300 hover:border-blue-400 hover:text-blue-600"
+                        }`}
+                      >
+                        {s.industry}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 選択業種の例 */}
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1.5">クリックでキーワード欄に入力：</p>
+                    <div className="flex flex-wrap gap-2">
+                      {KEYWORD_SUGGESTIONS[activeSuggestIndustry].examples.map((ex) => (
+                        <button
+                          key={ex}
+                          onClick={() => setForm((f) => ({ ...f, keyword: ex }))}
+                          className="text-xs px-3 py-1.5 bg-white hover:bg-blue-100 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors"
+                        >
+                          {ex}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 地域クイック追加 */}
+                  <div className="pt-1 border-t border-blue-100">
+                    <p className="text-xs text-slate-400 mb-1.5 flex items-center gap-1">
+                      <MapPin size={11} />地域を末尾に追加：
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {REGION_SUGGESTIONS.map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setForm((f) => ({
+                            ...f,
+                            keyword: f.keyword ? `${f.keyword.trimEnd()} ${r}` : r,
+                          }))}
+                          className="text-xs px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-full transition-colors"
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
