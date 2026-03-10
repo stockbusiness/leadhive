@@ -82,6 +82,11 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
 - 担当者別アプローチ件数の棒グラフ（Recharts）
 - エンドポイント: `GET /api/dashboard/team`
 
+**管理者ダッシュボード (`/admin/dashboard`)** ※is_system_admin専用:
+- テナント数・ユーザー数・AIコスト・解約リスク検出
+- **収益セクション**: MRR（月間経常収益）・ARR（年間経常収益）・チャーン率・プラン別内訳の表示
+- AIコスト管理（組織別・月別トークン使用量グラフ）
+
 ### 候補企業一覧 (`/companies`)
 
 - カテゴリ・ステータス・スコアランク・問い合わせ有無・キーワード・タグでの絞り込み
@@ -159,6 +164,12 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
 - 「現在のプロジェクトに登録済み」フラグ表示
 - 複数選択 → 現在のプロジェクトにインポート
 
+### 特定商取引法ページ (`/legal/tokutei`) ※公開・認証不要
+
+- 特定商取引に関する法律に基づく販売業者情報の公開ページ
+- 販売業者名・代表者・住所・連絡先・価格・支払方法・キャンセルポリシー等を表示
+- データは `GET /api/public/legal`（認証不要）から取得
+
 ### プロジェクト管理 (`/projects`)
 
 - プロジェクトのCRUD
@@ -185,6 +196,12 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
 - 自動収集スケジュール（有効/無効・実行時刻）
 - フォローアップ通知設定（有効/無効・Slack/メール切替）
 - プラン・使用量セクション（プログレスバー付き）
+- **2FA TOTP設定**: Google Authenticator等でのワンタイムパスワード有効化・無効化
+- **Customer Portal**: Stripeカスタマーポータルへのリンク（有料プランのみ）
+- **DangerZone（アカウント危険操作）**:
+  - 全デバイスログアウト（token_versionをインクリメントして既存JWTを一括無効化）
+  - データエクスポート（GDPR対応、アカウント情報・企業データ等をJSONでダウンロード）
+  - アカウント削除（Stripeサブスクリプション解約 + データ削除 + JWT無効化）
 
 ---
 
@@ -194,9 +211,16 @@ EC・Shopify支援の代理店候補企業を**自動収集・評価・管理**�
 
 ```
 POST /api/auth/register → ユーザー作成 + 組織作成 → JWT発行
-POST /api/auth/login    → JWT発行
+POST /api/auth/login    → JWT発行（tvクレームにtoken_versionを埋め込み）
 リクエストヘッダー: Authorization: Bearer {token}
 ```
+
+### セキュリティ機能
+
+- **APIレート制限（slowapi）**: ログイン 10回/分、新規登録 5回/分、パスワードリセット 3回/分。超過時は HTTP 429
+- **JWT token_version**: ログイン時にJWTの `tv` クレームにユーザーの `token_version` を埋め込む。パスワード変更・2FA設定変更・全デバイスログアウト時に `token_version` を+1することで、旧トークンを一括無効化
+- **2FA TOTP**: pyotp + qrcode を使ったTOTPベースの二段階認証。有効化時はQRコードをSettings画面で表示し、Google Authenticator等で登録
+- **CORS**: 許可オリジンを `leadhive.work`, `*.replit.dev`, `localhost` に制限（`*` は不使用）
 
 ### 組織モデル
 
@@ -759,6 +783,9 @@ APScheduler 毎朝9時起動
 | GET | `/api/admin/feature-flags` | フィーチャーフラグ取得 |
 | PUT | `/api/admin/feature-flags` | フィーチャーフラグ更新 |
 | GET | `/api/admin/ai-costs` | AI使用コスト集計（組織別・月別・詳細テーブル） |
+| GET | `/api/admin/legal-settings` | 特定商取引法表示内容取得 |
+| PUT | `/api/admin/legal-settings` | 特定商取引法表示内容更新 |
+| GET | `/api/public/legal` | 特定商取引法表示内容取得（認証不要） |
 
 ---
 

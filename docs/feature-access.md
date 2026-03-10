@@ -1,6 +1,6 @@
 # LeadHive — 機能一覧・開放ロジック仕様書
 
-> 最終更新: 2026-03  /  対象バージョン: Phase 8 完了時点
+> 最終更新: 2026-03  /  対象バージョン: Phase 8 + セキュリティ強化 + 特定商取引法対応 完了時点
 
 ---
 
@@ -104,7 +104,7 @@
 | キーワード分析タブ | ログイン済み全員 | |
 | 収集効率ランキングカード | 収集実績データが存在する場合のみ表示 | データなし時はプレースホルダー |
 
-### 3-7. 設定
+### 3-7. 設定 (`/settings`)
 
 | 機能 | 開放条件 | 備考 |
 |------|---------|------|
@@ -112,6 +112,11 @@
 | チームメンバー招待・管理 | `role = "admin"` 以上 | プランのmax_members制限あり |
 | プランアップグレード | `feature_self_upgrade = ON` | Stripe連携 |
 | APIキー設定 (Serper・Anthropic・gBizINFO) | `is_system_admin = True` のみ | SystemSettings テーブル (org_id = NULL) |
+| **2FA TOTP** | ログイン済み全員 | pyotp + qrcode。有効化/無効化可。有効化時はJWT token_versionをインクリメント |
+| **Customer Portal** | 有料プラン（Stripeサブスクリプションあり） | Stripeカスタマーポータルへのリダイレクト |
+| **全デバイスログアウト** | ログイン済み全員 | token_version+1 → 全既存JWTを無効化 |
+| **データエクスポート** | ログイン済み全員 | GDPR対応。アカウント情報・組織・APIキー・企業数をJSON出力 |
+| **アカウント削除** | ログイン済み全員 | Stripeサブスクリプション解約 + DBレコード削除 + JWT無効化 |
 
 ### 3-8. 管理画面 (/admin/*)
 
@@ -119,7 +124,7 @@
 
 | ページ | URL | 機能 |
 |--------|-----|------|
-| 管理ダッシュボード | `/admin/dashboard` | テナント数・ユーザー数・AI利用コスト |
+| 管理ダッシュボード | `/admin/dashboard` | テナント数・ユーザー数・AI利用コスト・**MRR/ARR/チャーン率** |
 | テナント管理 | `/admin/tenants` | 組織一覧・プラン変更・リスク評価 |
 | ユーザー管理 | `/admin/users` | 全テナントのユーザー管理 |
 | プラン管理 | `/admin/plans` | プランCRUD・価格設定 |
@@ -131,6 +136,7 @@
 | 告知管理 | `/admin/announcements` | 全体・テナント別アナウンス |
 | システムログ | `/admin/logs` | 監査ログ |
 | Stripe設定 | `/admin/stripe` | Webhook・価格ID設定 |
+| **特定商取引法表記** | `/admin/legal` | 特定商取引法に基づく公開ページ (`/legal/tokutei`) の内容管理 |
 
 ---
 
@@ -234,7 +240,8 @@ companies = db.query(Company).filter(Company.project_id.in_(org_project_ids))
 |--------------|------|
 | `GET /api/public/roadmap-stats` | ロードマップページ用統計 |
 | `GET /api/public/unsubscribe` | ワンクリック配信停止 (HMAC-SHA256 トークン検証) |
-| `POST /api/auth/login` | ログイン |
-| `POST /api/auth/register` | 新規登録 |
-| `POST /api/auth/forgot-password` | パスワードリセットメール |
+| `GET /api/public/legal` | 特定商取引法に基づく表記データ取得（`/legal/tokutei` ページ用） |
+| `POST /api/auth/login` | ログイン（レート制限: 10回/分） |
+| `POST /api/auth/register` | 新規登録（レート制限: 5回/分） |
+| `POST /api/auth/forgot-password` | パスワードリセットメール（レート制限: 3回/分） |
 | `POST /api/auth/reset-password` | パスワードリセット実行 |
