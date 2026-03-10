@@ -874,6 +874,7 @@ def _scheduler_loop():
     last_master_enrich_date = None
     last_auto_gen_dates: dict = {}
     last_auto_close_date = None
+    last_usage_alert_date = None
 
     while _scheduler_running:
         try:
@@ -940,6 +941,11 @@ def _scheduler_loop():
                 last_master_enrich_date = today
                 logger.info("AutoMasterEnrich: Triggered at 05:00")
                 threading.Thread(target=_run_auto_master_enrich, daemon=True).start()
+
+            if now.hour == 8 and now.minute == 0 and last_usage_alert_date != today:
+                last_usage_alert_date = today
+                logger.info("UsageAlert: Triggered at 08:00")
+                threading.Thread(target=_run_usage_alert, daemon=True).start()
 
             if now.minute == 0:
                 from server.models import AppSetting, Organization
@@ -1034,6 +1040,79 @@ def _run_auto_close_tickets():
     except Exception as e:
         logger.error(f"AutoCloseTickets error: {e}")
         db.rollback()
+    finally:
+        db.close()
+
+
+def _run_usage_alert():
+    """プラン使用量が80%/100%に達した場合にアラートメールを送信する"""
+    from server.database import SessionLocal
+    from server.models import Organization, User, Plan, Company, Project, AppSetting
+    from server.services.mailer import get_smtp_settings, send_email
+
+    db = SessionLocal()
+    try:
+        orgs = db.query(Organization).all()
+        for org in orgs:
+            plan = db.query(Plan).filter(Plan.id == org.plan_id).first() if org.plan_id else None
+            if not plan:
+                continue
+
+            projects = db.query(Project).filter(Project.org_id == org.id).all()
+            project_ids = [p.id for p in projects]
+            company_count = db.query(Company).filter(Company.project_id.in_(project_ids)).count() if project_ids else 0
+            member_count = db.query(User).filter(User.org_id == org.id).count()
+
+            alerts = []
+            if plan.max_companies and plan.max_companies > 0:
+                pct = company_count / plan.max_companies * 100
+                if pct >= 100:
+                    alerts.append(f"企業数が上限に達しました ({company_count}/{plan.max_companies}社 — 100%)")
+                elif pct >= 80:
+                    alerts.append(f"企業数が上限の{int(pct)}%に達しました ({company_count}/{plan.max_companies}社)")
+
+            if plan.max_members and plan.max_members > 0:
+                pct = member_count / plan.max_members * 100
+                if pct >= 100:
+                    alerts.append(f"メンバー数が上限に達しました ({member_count}/{plan.max_members}人 — 100%)")
+                elif pct >= 80:
+                    alerts.append(f"メンバー数が上限の{int(pct)}%に達しました ({member_count}/{plan.max_members}人)")
+
+            if not alerts:
+                continue
+
+            admin = db.query(User).filter(User.org_id == org.id, User.role == "admin").first()
+            if not admin:
+                continue
+
+            smtp_cfg = get_smtp_settings(db, org.id)
+            if not smtp_cfg.get("smtp_host"):
+                continue
+
+            alert_items = "".join(f"<li>{a}</li>" for a in alerts)
+            html_body = f"""
+            <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+              <h2 style="color:#f59e0b">⚠ LeadHive 使用量アラート</h2>
+              <p>ご利用の組織「{org.name}」の使用量が閾値に達しました。</p>
+              <ul style="line-height:2">{alert_items}</ul>
+              <p>プランのアップグレードをご検討ください。</p>
+              <p>
+                <a href="https://leadhive.work/settings?tab=plan"
+                   style="background:#2563eb;color:white;padding:10px 20px;border-radius:6px;text-decoration:none">
+                  プランを確認する
+                </a>
+              </p>
+              <p style="color:#9ca3af;font-size:12px;margin-top:24px">LeadHive — COOLWORKS株式会社</p>
+            </div>
+            """
+            try:
+                send_email(admin.email, "【LeadHive】使用量アラート", html_body, smtp_cfg)
+                logger.info(f"UsageAlert: Sent to {admin.email} (org={org.id})")
+            except Exception as e:
+                logger.warning(f"UsageAlert: Failed to send to org {org.id}: {e}")
+
+    except Exception as e:
+        logger.error(f"UsageAlert error: {e}")
     finally:
         db.close()
 

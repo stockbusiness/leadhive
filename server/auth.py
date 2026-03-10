@@ -43,6 +43,7 @@ def get_current_user(
         user_id: int = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="無効なトークン")
+        token_version: Optional[int] = payload.get("tv")
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="無効なトークン")
 
@@ -51,6 +52,8 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="ユーザーが見つかりません")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="アカウントが停止されています。管理者にお問い合わせください。")
+    if token_version is not None and token_version != (user.token_version or 1):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="セッションが無効化されました。再ログインしてください。")
     return user
 
 

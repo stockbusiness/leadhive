@@ -37,6 +37,10 @@ class Organization(Base):
     phone = Column(String(50), nullable=True)
     corporate_number = Column(String(13), nullable=True)
     corporate_verified = Column(Boolean, default=False)
+    stripe_customer_id = Column(String(255), nullable=True)
+    stripe_subscription_id = Column(String(255), nullable=True)
+    subscription_status = Column(String(50), nullable=True)
+    plan_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -58,6 +62,10 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
     failed_login_count = Column(Integer, default=0)
     locked_until = Column(DateTime, nullable=True)
+    token_version = Column(Integer, default=1, nullable=False)
+    totp_secret = Column(String(255), nullable=True)
+    totp_enabled = Column(Boolean, default=False)
+    terms_accepted_at = Column(DateTime, nullable=True)
 
 
 class OrgInvitation(Base):

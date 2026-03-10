@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Crown, X, ArrowRight, MessageCircle, CreditCard, Loader2, ExternalLink } from "lucide-react";
+import { Crown, X, ArrowRight, MessageCircle, CreditCard, Loader2, ExternalLink, Tag, AlertTriangle } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { api } from "../../api";
 import type { PlanData } from "../../types";
@@ -25,6 +25,9 @@ export default function PlanLimitModal({ message, onClose }: Props) {
   const [paidPlans, setPaidPlans] = useState<PlanData[]>([]);
   const [checkoutLoading, setCheckoutLoading] = useState<number | null>(null);
   const [checkoutError, setCheckoutError] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [downgradeWarning, setDowngradeWarning] = useState<string | null>(null);
 
   useEffect(() => {
     api.plans.list().then((data) => {
@@ -43,8 +46,16 @@ export default function PlanLimitModal({ message, onClose }: Props) {
   const handleStripeCheckout = async (planId: number) => {
     setCheckoutLoading(planId);
     setCheckoutError("");
+    setDowngradeWarning(null);
     try {
-      const { url } = await api.stripe.createCheckout(planId);
+      const check = await api.stripe.downgradeCheck(planId).catch(() => null);
+      if (check && !check.can_downgrade) {
+        const items = check.warnings?.map((i: string) => `・${i}`).join("\n") || "";
+        setDowngradeWarning(`このプランに変更するには現在の使用量を削減してください:\n${items}`);
+        setCheckoutLoading(null);
+        return;
+      }
+      const { url } = await api.stripe.createCheckout(planId, couponCode || undefined);
       window.location.href = url;
     } catch (e: any) {
       setCheckoutError(e?.response?.data?.detail || "決済ページの作成に失敗しました");
@@ -122,10 +133,33 @@ export default function PlanLimitModal({ message, onClose }: Props) {
             </div>
           )}
 
+          {downgradeWarning && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg px-3 py-2 whitespace-pre-line flex items-start gap-2">
+              <AlertTriangle size={14} className="flex-shrink-0 mt-0.5 text-amber-600" />
+              {downgradeWarning}
+            </div>
+          )}
+
           {/* Stripe checkout — 管理者・メンバー両方に表示 */}
           {paidPlans.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Stripeで今すぐアップグレード</p>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="relative flex-1">
+                  <Tag size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={e => { setCouponCode(e.target.value); setCouponApplied(false); }}
+                    onBlur={() => couponCode && setCouponApplied(true)}
+                    placeholder="クーポンコード（任意）"
+                    className="w-full border border-slate-300 rounded-lg pl-7 pr-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  />
+                </div>
+                {couponApplied && couponCode && (
+                  <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">適用予定</span>
+                )}
+              </div>
               <div className="space-y-2">
                 {paidPlans.map((plan) => (
                   <button

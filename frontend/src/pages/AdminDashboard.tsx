@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Building2, Users, FolderKanban, Database, Zap, BarChart2, Loader2, RefreshCw, TrendingUp, Brain, DollarSign } from "lucide-react";
+import { LayoutDashboard, Building2, Users, FolderKanban, Database, Zap, BarChart2, Loader2, RefreshCw, TrendingUp, Brain, DollarSign, TrendingDown, CreditCard } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { api } from "../api";
 
@@ -24,6 +24,17 @@ type AiCostRow = {
   cost_usd: number;
 };
 
+type RevenueData = {
+  mrr: number;
+  arr: number;
+  paying_orgs: number;
+  new_this_month: number;
+  churn_count: number;
+  churn_rate: number;
+  plan_distribution: { name: string; count: number }[];
+  top_paying: { org_id: number; org_name: string; plan: string; mrr: number }[];
+};
+
 const PIE_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#64748b"];
 
 function StatCard({ icon, label, value, sub, color }: {
@@ -44,6 +55,7 @@ function StatCard({ icon, label, value, sub, color }: {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashStats | null>(null);
   const [aiCosts, setAiCosts] = useState<AiCostRow[]>([]);
+  const [revenue, setRevenue] = useState<RevenueData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -51,12 +63,14 @@ export default function AdminDashboard() {
     setLoading(true);
     setError("");
     try {
-      const [r, costsRes] = await Promise.all([
+      const [r, costsRes, revRes] = await Promise.all([
         api.adminDashboard.get(),
         api.adminDashboard.aiCosts().catch(() => ({ costs: [] })),
+        api.adminDashboard.revenue().catch(() => null),
       ]);
       setStats(r);
       setAiCosts(costsRes.costs);
+      setRevenue(revRes);
     } catch {
       setError("データの取得に失敗しました");
     } finally {
@@ -168,6 +182,76 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+
+      {/* ===== 収益指標セクション ===== */}
+      {revenue && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard size={18} className="text-emerald-600" />
+            <h2 className="text-lg font-bold text-slate-800">収益指標</h2>
+            <span className="text-xs text-slate-400 ml-1">有料プラン契約状況</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-emerald-600 font-medium">MRR</span>
+                <DollarSign size={16} className="text-emerald-500" />
+              </div>
+              <div className="text-2xl font-bold text-emerald-800">¥{revenue.mrr.toLocaleString()}</div>
+              <div className="text-xs text-emerald-400 mt-0.5">月次経常収益</div>
+            </div>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-blue-600 font-medium">ARR</span>
+                <TrendingUp size={16} className="text-blue-500" />
+              </div>
+              <div className="text-2xl font-bold text-blue-800">¥{revenue.arr.toLocaleString()}</div>
+              <div className="text-xs text-blue-400 mt-0.5">年次経常収益</div>
+            </div>
+            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-purple-600 font-medium">有料テナント</span>
+                <Building2 size={16} className="text-purple-500" />
+              </div>
+              <div className="text-2xl font-bold text-purple-800">{revenue.paying_orgs}</div>
+              <div className="text-xs text-purple-400 mt-0.5">今月新規: +{revenue.new_this_month}</div>
+            </div>
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-red-600 font-medium">チャーン率</span>
+                <TrendingDown size={16} className="text-red-500" />
+              </div>
+              <div className="text-2xl font-bold text-red-800">{revenue.churn_rate}%</div>
+              <div className="text-xs text-red-400 mt-0.5">先月解約: {revenue.churn_count}件</div>
+            </div>
+          </div>
+          {revenue.top_paying.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">有料テナント一覧 (上位)</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left px-3 py-2 text-slate-500 font-medium">組織名</th>
+                      <th className="text-left px-3 py-2 text-slate-500 font-medium">プラン</th>
+                      <th className="text-right px-3 py-2 text-slate-500 font-medium">MRR</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {revenue.top_paying.map((org, i) => (
+                      <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                        <td className="px-3 py-2 font-medium text-slate-700">{org.org_name}</td>
+                        <td className="px-3 py-2 text-slate-500">{org.plan}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-emerald-700">¥{org.mrr.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ===== AI コスト管理セクション ===== */}
       <div>

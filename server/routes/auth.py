@@ -1,8 +1,13 @@
 import os
 import uuid
 import logging
+import json
+import io
+import base64
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +16,7 @@ from pydantic import BaseModel
 from server.database import get_db
 from server.models import Organization, User, OrgInvitation, PasswordResetToken, EmailVerificationToken
 from server.auth import hash_password, verify_password, create_access_token, get_current_user
+from server.services.rate_limiter import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -22,10 +28,25 @@ class RegisterRequest(BaseModel):
     display_name: str = ""
     phone: str = ""
     corporate_number: str = ""
+    terms_accepted: bool = False
 
 
 class LoginRequest(BaseModel):
     email: str
+    password: str
+    totp_code: Optional[str] = None
+
+
+class TotpSetupConfirmRequest(BaseModel):
+    totp_code: str
+    secret: str
+
+
+class TotpDisableRequest(BaseModel):
+    password: str
+
+
+class DeleteAccountRequest(BaseModel):
     password: str
 
 
@@ -66,6 +87,8 @@ def _user_response(user: User, org: Organization) -> dict:
         "is_system_admin": bool(user.is_system_admin),
         "is_founder": bool(user.is_founder),
         "registration_number": user.registration_number,
+        "totp_enabled": bool(user.totp_enabled),
+        "terms_accepted_at": user.terms_accepted_at.isoformat() if user.terms_accepted_at else None,
     }
 
 
@@ -149,6 +172,7 @@ def _send_verification_email(user_email: str, token_str: str, base_url: str, db:
 
 
 @router.post("/register")
+@limiter.limit("5/minute")
 def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)):
     from sqlalchemy import func as sqlfunc
     from server.models import Plan
@@ -188,6 +212,7 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
         registration_number=reg_number,
         is_founder=is_founder,
         email_verified=False,
+        terms_accepted_at=datetime.utcnow() if body.terms_accepted else None,
     )
     db.add(user)
     db.commit()
@@ -234,7 +259,12 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     except Exception as _cr_err:
         logger.warning("CommitRev lead_created error: %s", _cr_err)
 
-    jwt = create_access_token({"sub": str(user.id)})
+    try:
+        _send_welcome_email(user.email, user.display_name or user.email, db, user.org_id)
+    except Exception as _we_err:
+        logger.warning("Welcome email error: %s", _we_err)
+
+    jwt = create_access_token({"sub": str(user.id), "tv": user.token_version or 1})
     return {
         "access_token": jwt,
         "token_type": "bearer",
@@ -284,6 +314,7 @@ LOCKOUT_MINUTES = 30
 
 
 @router.post("/login")
+@limiter.limit("10/minute")
 def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown")
     ua = request.headers.get("user-agent", "")
@@ -327,6 +358,16 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
             headers={"X-Verification-Required": "true"},
         )
 
+    if user.totp_enabled and user.totp_secret:
+        if not body.totp_code:
+            return {"requires_totp": True, "email": body.email}
+        import pyotp
+        totp = pyotp.TOTP(user.totp_secret)
+        if not totp.verify(body.totp_code, valid_window=1):
+            _log_security_event(db, "totp_failed", user_id=user.id, org_id=user.org_id,
+                                ip_address=ip, user_agent=ua, details={"email": body.email})
+            raise HTTPException(status_code=401, detail="2段階認証コードが正しくありません")
+
     user.failed_login_count = 0
     user.locked_until = None
     user.last_login_at = datetime.utcnow()
@@ -337,7 +378,7 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
                         details={"email": body.email})
 
     org = db.query(Organization).filter(Organization.id == user.org_id).first()
-    token = create_access_token({"sub": str(user.id)})
+    token = create_access_token({"sub": str(user.id), "tv": user.token_version or 1})
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -374,17 +415,20 @@ def update_profile(
         if len(body.new_password) < 8:
             raise HTTPException(status_code=400, detail="新しいパスワードは8文字以上で入力してください")
         current_user.password_hash = hash_password(body.new_password)
+        current_user.token_version = (current_user.token_version or 1) + 1
         _log_security_event(db, "password_changed", user_id=current_user.id, org_id=current_user.org_id,
                             details={"email": current_user.email})
 
     db.commit()
     db.refresh(current_user)
     org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
-    return {"message": "プロフィールを更新しました", "user": _user_response(current_user, org)}
+    new_token = create_access_token({"sub": str(current_user.id), "tv": current_user.token_version or 1})
+    return {"message": "プロフィールを更新しました", "user": _user_response(current_user, org), "access_token": new_token}
 
 
 @router.post("/forgot-password")
-def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     if not user:
         return {"message": "パスワードリセットメールを送信しました（アドレスが登録されている場合）"}
@@ -440,6 +484,7 @@ def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
 
     user.password_hash = hash_password(body.new_password)
+    user.token_version = (user.token_version or 1) + 1
     reset_token.used_at = datetime.utcnow()
     db.commit()
 
@@ -500,9 +545,209 @@ def accept_invitation(token: str, body: AcceptInviteRequest, db: Session = Depen
     db.refresh(user)
 
     org = db.query(Organization).filter(Organization.id == user.org_id).first()
-    token_str = create_access_token({"sub": str(user.id)})
+    token_str = create_access_token({"sub": str(user.id), "tv": user.token_version or 1})
     return {
         "access_token": token_str,
         "token_type": "bearer",
         "user": _user_response(user, org),
     }
+
+
+def _send_welcome_email(email: str, name: str, db, org_id: int):
+    from server.services.mailer import get_smtp_settings, send_email
+    smtp_cfg = get_smtp_settings(db, org_id)
+    if not smtp_cfg.get("smtp_host"):
+        return
+    html_body = f"""
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+      <h2 style="color:#2563eb">LeadHiveへようこそ！</h2>
+      <p>{name} さん、ご登録ありがとうございます。</p>
+      <p>LeadHiveは、BtoB営業に特化した見込み顧客リスト自動作成サービスです。</p>
+      <h3 style="color:#374151">まず始めてみましょう</h3>
+      <ol>
+        <li><strong>プロジェクトを作成</strong> — ダッシュボードからプロジェクトを作成してください</li>
+        <li><strong>キーワードを設定</strong> — 収集したい企業のキーワードを登録します</li>
+        <li><strong>自動収集を開始</strong> — スケジューラーが定期的に企業情報を収集します</li>
+      </ol>
+      <p>ご不明な点はFAQページ、またはサポートチケットからお気軽にお問い合わせください。</p>
+      <p style="margin-top:24px">
+        <a href="https://leadhive.work/dashboard" style="background:#2563eb;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;">
+          ダッシュボードを開く
+        </a>
+      </p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:32px">LeadHive — COOLWORKS株式会社</p>
+    </div>
+    """
+    send_email(email, "【LeadHive】ご登録ありがとうございます！", html_body, smtp_cfg)
+
+
+@router.post("/logout-all")
+def logout_all_devices(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.token_version = (current_user.token_version or 1) + 1
+    db.commit()
+    db.refresh(current_user)
+    new_token = create_access_token({"sub": str(current_user.id), "tv": current_user.token_version})
+    return {"message": "全デバイスからログアウトしました", "access_token": new_token}
+
+
+@router.post("/2fa/setup")
+def totp_setup(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    import pyotp
+    import qrcode
+    secret = pyotp.random_base32()
+    totp = pyotp.TOTP(secret)
+    uri = totp.provisioning_uri(name=current_user.email, issuer_name="LeadHive")
+    qr = qrcode.make(uri)
+    buf = io.BytesIO()
+    qr.save(buf, format="PNG")
+    qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    return {"secret": secret, "uri": uri, "qr_image": f"data:image/png;base64,{qr_b64}"}
+
+
+@router.post("/2fa/confirm")
+def totp_confirm(
+    body: TotpSetupConfirmRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    import pyotp
+    totp = pyotp.TOTP(body.secret)
+    if not totp.verify(body.totp_code, valid_window=1):
+        raise HTTPException(status_code=400, detail="認証コードが正しくありません")
+    current_user.totp_secret = body.secret
+    current_user.totp_enabled = True
+    current_user.token_version = (current_user.token_version or 1) + 1
+    db.commit()
+    db.refresh(current_user)
+    new_token = create_access_token({"sub": str(current_user.id), "tv": current_user.token_version})
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+    return {"message": "2段階認証を有効にしました", "access_token": new_token, "user": _user_response(current_user, org)}
+
+
+@router.post("/2fa/disable")
+def totp_disable(
+    body: TotpDisableRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(body.password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="パスワードが正しくありません")
+    current_user.totp_secret = None
+    current_user.totp_enabled = False
+    current_user.token_version = (current_user.token_version or 1) + 1
+    db.commit()
+    db.refresh(current_user)
+    new_token = create_access_token({"sub": str(current_user.id), "tv": current_user.token_version})
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+    return {"message": "2段階認証を無効にしました", "access_token": new_token, "user": _user_response(current_user, org)}
+
+
+@router.delete("/account")
+def delete_account(
+    body: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(body.password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="パスワードが正しくありません")
+
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+
+    if org and org.stripe_subscription_id:
+        try:
+            from server.routes.payments import get_stripe_client
+            stripe = get_stripe_client(db)
+            stripe.Subscription.delete(org.stripe_subscription_id)
+        except Exception as e:
+            logger.warning("Account deletion: failed to cancel Stripe subscription: %s", e)
+
+    org_members = db.query(User).filter(User.org_id == current_user.org_id).count()
+    if org_members <= 1 and org:
+        from server.models import Company, Project
+        org_project_ids = [p.id for p in db.query(Project).filter(Project.org_id == org.id).all()]
+        if org_project_ids:
+            db.query(Company).filter(Company.project_id.in_(org_project_ids)).delete(synchronize_session=False)
+        db.query(Project).filter(Project.org_id == org.id).delete(synchronize_session=False)
+
+    anon_email = f"deleted_{current_user.id}@deleted.invalid"
+    current_user.email = anon_email
+    current_user.password_hash = ""
+    current_user.display_name = "削除済みユーザー"
+    current_user.is_active = False
+    current_user.totp_secret = None
+    current_user.totp_enabled = False
+    current_user.token_version = (current_user.token_version or 1) + 1
+    db.commit()
+
+    return {"message": "アカウントを削除しました"}
+
+
+@router.get("/export-data")
+def export_data(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.models import Company, Project
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+    projects = db.query(Project).filter(Project.org_id == current_user.org_id).all()
+    project_ids = [p.id for p in projects]
+    companies = db.query(Company).filter(Company.project_id.in_(project_ids)).all() if project_ids else []
+
+    data = {
+        "exported_at": datetime.utcnow().isoformat(),
+        "user": {
+            "id": current_user.id,
+            "email": current_user.email,
+            "display_name": current_user.display_name,
+            "role": current_user.role,
+            "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+            "last_login_at": current_user.last_login_at.isoformat() if current_user.last_login_at else None,
+            "terms_accepted_at": current_user.terms_accepted_at.isoformat() if current_user.terms_accepted_at else None,
+        },
+        "organization": {
+            "id": org.id if org else None,
+            "name": org.name if org else None,
+            "phone": org.phone if org else None,
+            "corporate_number": org.corporate_number if org else None,
+            "created_at": org.created_at.isoformat() if org and org.created_at else None,
+        },
+        "projects": [{"id": p.id, "name": p.name, "description": p.description} for p in projects],
+        "companies": [
+            {
+                "id": c.id, "company_name": c.company_name, "domain": c.domain,
+                "website_url": c.website_url, "status": c.status,
+                "contact_email": c.contact_email, "phone": c.phone,
+                "prefecture": c.prefecture, "city": c.city,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in companies
+        ],
+    }
+    json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+    return StreamingResponse(
+        io.BytesIO(json_bytes),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=leadhive_export_{datetime.utcnow().strftime('%Y%m%d')}.json"},
+    )
+
+
+@router.post("/admin/users/{user_id}/force-logout")
+def admin_force_logout(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not current_user.is_system_admin:
+        raise HTTPException(status_code=403, detail="システム管理者権限が必要です")
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+    target.token_version = (target.token_version or 1) + 1
+    db.commit()
+    return {"message": f"ユーザー {target.email} の全セッションを無効化しました"}

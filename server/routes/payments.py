@@ -222,6 +222,7 @@ class CheckoutBody(BaseModel):
     plan_id: int
     success_url: str
     cancel_url: str
+    coupon_code: Optional[str] = None
 
 
 @router.post("/api/payments/checkout")
@@ -238,7 +239,8 @@ def create_checkout_session(
 
     stripe = get_stripe_client(db)
     try:
-        session = stripe.checkout.Session.create(
+        org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+        session_kwargs = dict(
             mode="subscription",
             line_items=[{"price": plan.stripe_price_id, "quantity": 1}],
             success_url=body.success_url + "?session_id={CHECKOUT_SESSION_ID}",
@@ -248,8 +250,21 @@ def create_checkout_session(
                 "plan_id": str(plan.id),
                 "user_id": str(current_user.id),
             },
-            customer_email=current_user.email,
+            allow_promotion_codes=True,
         )
+        if org and org.stripe_customer_id:
+            session_kwargs["customer"] = org.stripe_customer_id
+        else:
+            session_kwargs["customer_email"] = current_user.email
+        if body.coupon_code:
+            try:
+                promo = stripe.PromotionCode.list(code=body.coupon_code, active=True, limit=1)
+                if promo.data:
+                    session_kwargs["discounts"] = [{"promotion_code": promo.data[0].id}]
+                    session_kwargs.pop("allow_promotion_codes", None)
+            except Exception:
+                pass
+        session = stripe.checkout.Session.create(**session_kwargs)
         return {"url": session.url, "session_id": session.id}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -283,16 +298,26 @@ async def stripe_webhook(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    import logging as _log
+    _wh_logger = _log.getLogger(__name__)
+
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
         metadata = session.get("metadata", {})
         org_id = metadata.get("org_id")
         plan_id = metadata.get("plan_id")
         stripe_session_id = session.get("id", "")
+        customer_id = session.get("customer")
+        subscription_id = session.get("subscription")
         if org_id and plan_id:
             org = db.query(Organization).filter(Organization.id == int(org_id)).first()
             if org:
                 org.plan_id = int(plan_id)
+                org.subscription_status = "active"
+                if customer_id:
+                    org.stripe_customer_id = customer_id
+                if subscription_id:
+                    org.stripe_subscription_id = subscription_id
                 db.commit()
                 plan = db.query(Plan).filter(Plan.id == int(plan_id)).first()
                 plan_name = plan.name if plan else str(plan_id)
@@ -305,10 +330,152 @@ async def stripe_webhook(
                         stripe_session_id=stripe_session_id,
                     )
                 except Exception as _cr_err:
-                    import logging
-                    logging.getLogger(__name__).warning("CommitRev purchase_completed error: %s", _cr_err)
+                    _wh_logger.warning("CommitRev purchase_completed error: %s", _cr_err)
+
+    elif event["type"] == "customer.subscription.updated":
+        sub = event["data"]["object"]
+        sub_id = sub.get("id")
+        status = sub.get("status")
+        customer_id = sub.get("customer")
+        org = None
+        if sub_id:
+            org = db.query(Organization).filter(Organization.stripe_subscription_id == sub_id).first()
+        if not org and customer_id:
+            org = db.query(Organization).filter(Organization.stripe_customer_id == customer_id).first()
+        if org:
+            org.subscription_status = status
+            if status in ("canceled", "unpaid", "past_due"):
+                free_plan = db.query(Plan).filter(Plan.name == "フリー").first()
+                if free_plan and status == "canceled":
+                    org.plan_id = free_plan.id
+                    org.stripe_subscription_id = None
+            db.commit()
+            _wh_logger.info("subscription.updated: org=%s status=%s", org.id, status)
+
+    elif event["type"] == "customer.subscription.deleted":
+        sub = event["data"]["object"]
+        sub_id = sub.get("id")
+        customer_id = sub.get("customer")
+        org = None
+        if sub_id:
+            org = db.query(Organization).filter(Organization.stripe_subscription_id == sub_id).first()
+        if not org and customer_id:
+            org = db.query(Organization).filter(Organization.stripe_customer_id == customer_id).first()
+        if org:
+            org.subscription_status = "canceled"
+            org.stripe_subscription_id = None
+            free_plan = db.query(Plan).filter(Plan.name == "フリー").first()
+            if free_plan:
+                org.plan_id = free_plan.id
+            db.commit()
+            _wh_logger.info("subscription.deleted: org=%s downgraded to free", org.id)
+            try:
+                admin = db.query(User).filter(User.org_id == org.id, User.role == "admin").first()
+                if admin:
+                    from server.services.mailer import get_smtp_settings, send_email
+                    smtp_cfg = get_smtp_settings(db, org.id)
+                    if smtp_cfg.get("smtp_host"):
+                        html = """
+                        <p>LeadHiveのご利用ありがとうございます。</p>
+                        <p>ご利用のサブスクリプションがキャンセルされました。</p>
+                        <p>現在フリープランに移行しています。引き続きLeadHiveをご活用ください。</p>
+                        <p><a href="https://leadhive.work/settings?tab=plan">プランを確認する</a></p>
+                        """
+                        send_email(admin.email, "【LeadHive】サブスクリプションキャンセルのお知らせ", html, smtp_cfg)
+            except Exception as e:
+                _wh_logger.warning("Failed to send cancellation email: %s", e)
+
+    elif event["type"] == "invoice.payment_failed":
+        inv = event["data"]["object"]
+        customer_id = inv.get("customer")
+        attempt_count = inv.get("attempt_count", 1)
+        org = db.query(Organization).filter(Organization.stripe_customer_id == customer_id).first() if customer_id else None
+        if org:
+            org.subscription_status = "past_due"
+            db.commit()
+            _wh_logger.warning("payment_failed: org=%s attempt=%s", org.id, attempt_count)
+            try:
+                admin = db.query(User).filter(User.org_id == org.id, User.role == "admin").first()
+                if admin:
+                    from server.services.mailer import get_smtp_settings, send_email
+                    smtp_cfg = get_smtp_settings(db, org.id)
+                    if smtp_cfg.get("smtp_host"):
+                        html = f"""
+                        <p>LeadHiveのご利用ありがとうございます。</p>
+                        <p>お客様の決済が失敗しました（試行回数: {attempt_count}回）。</p>
+                        <p>お支払い情報をご確認の上、更新をお願いします。</p>
+                        <p><a href="https://leadhive.work/settings?tab=billing" style="background:#dc2626;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;">支払い情報を更新する</a></p>
+                        <p style="color:#9ca3af;font-size:12px">LeadHive — COOLWORKS株式会社</p>
+                        """
+                        send_email(admin.email, "【LeadHive】決済失敗のお知らせ", html, smtp_cfg)
+            except Exception as e:
+                _wh_logger.warning("Failed to send payment failed email: %s", e)
 
     return {"received": True}
+
+
+@router.post("/api/payments/customer-portal")
+def create_customer_portal(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+    if not org or not org.stripe_customer_id:
+        raise HTTPException(status_code=400, detail="Stripeのお客様情報が見つかりません。まず有料プランへのアップグレードが必要です。")
+
+    stripe = get_stripe_client(db)
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=org.stripe_customer_id,
+            return_url="https://leadhive.work/settings?tab=plan",
+        )
+        return {"url": session.url}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/api/payments/downgrade-check")
+def downgrade_check(
+    plan_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    target_plan = db.query(Plan).filter(Plan.id == plan_id).first()
+    if not target_plan:
+        raise HTTPException(status_code=404, detail="プランが見つかりません")
+
+    from server.models import Company, Project
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="組織が見つかりません")
+
+    projects = db.query(Project).filter(Project.org_id == org.id).all()
+    project_ids = [p.id for p in projects]
+    company_count = db.query(Company).filter(Company.project_id.in_(project_ids)).count() if project_ids else 0
+    member_count = db.query(User).filter(User.org_id == org.id).count()
+    project_count = len(projects)
+
+    warnings = []
+    can_downgrade = True
+
+    if target_plan.max_companies is not None and company_count > target_plan.max_companies:
+        warnings.append(f"登録企業数 ({company_count:,}社) がプラン上限 ({target_plan.max_companies:,}社) を超えています")
+        can_downgrade = False
+
+    if target_plan.max_members is not None and member_count > target_plan.max_members:
+        warnings.append(f"メンバー数 ({member_count}人) がプラン上限 ({target_plan.max_members}人) を超えています")
+        can_downgrade = False
+
+    if target_plan.max_projects is not None and project_count > target_plan.max_projects:
+        warnings.append(f"プロジェクト数 ({project_count}件) がプラン上限 ({target_plan.max_projects}件) を超えています")
+        can_downgrade = False
+
+    return {
+        "can_downgrade": can_downgrade,
+        "target_plan": {"id": target_plan.id, "name": target_plan.name, "price_monthly": target_plan.price_monthly},
+        "current_usage": {"companies": company_count, "members": member_count, "projects": project_count},
+        "warnings": warnings,
+    }
 
 
 class TenantUpdateBody(BaseModel):
@@ -845,6 +1012,60 @@ def get_billing_history(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/admin/revenue")
+def get_revenue_metrics(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from datetime import date
+    plans = {p.id: p for p in db.query(Plan).all()}
+    orgs = db.query(Organization).all()
+
+    paying_orgs = []
+    for org in orgs:
+        p = plans.get(org.plan_id) if org.plan_id else None
+        if p and p.price_monthly and p.price_monthly > 0:
+            paying_orgs.append({"org_id": org.id, "org_name": org.name, "plan": p.name, "mrr": p.price_monthly})
+
+    mrr = sum(o["mrr"] for o in paying_orgs)
+    arr = mrr * 12
+
+    this_month_start = date.today().replace(day=1)
+    from sqlalchemy import text
+    from datetime import timedelta
+    last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
+
+    new_this_month = db.query(Organization).filter(
+        Organization.created_at >= this_month_start.isoformat()
+    ).count()
+
+    churn_count = db.query(Organization).filter(
+        Organization.subscription_status == "canceled",
+        Organization.plan_expires_at >= last_month_start.isoformat(),
+        Organization.plan_expires_at < this_month_start.isoformat(),
+    ).count() if hasattr(Organization, "subscription_status") else 0
+
+    total_paying = len(paying_orgs)
+    churn_rate = round((churn_count / total_paying * 100), 1) if total_paying > 0 else 0
+
+    plan_dist = {}
+    for org in orgs:
+        p = plans.get(org.plan_id) if org.plan_id else None
+        pname = p.name if p else "未設定"
+        plan_dist[pname] = plan_dist.get(pname, 0) + 1
+
+    return {
+        "mrr": mrr,
+        "arr": arr,
+        "paying_orgs": total_paying,
+        "new_this_month": new_this_month,
+        "churn_count": churn_count,
+        "churn_rate": churn_rate,
+        "plan_distribution": [{"name": k, "count": v} for k, v in plan_dist.items()],
+        "top_paying": sorted(paying_orgs, key=lambda x: x["mrr"], reverse=True)[:10],
+    }
 
 
 # ──────────────────────────────────────────────────────────────

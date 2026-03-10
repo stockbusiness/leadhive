@@ -339,12 +339,24 @@ export const api = {
     testConnection: () =>
       axios.post<{ success: boolean; account_id: string; display_name: string }>("/api/admin/stripe-settings/test").then(r => r.data),
 
-    createCheckout: (planId: number) =>
+    createCheckout: (planId: number, couponCode?: string) =>
       axios.post<{ url: string; session_id: string }>("/api/payments/checkout", {
         plan_id: planId,
         success_url: `${window.location.origin}/settings?upgrade=success`,
         cancel_url: `${window.location.origin}/settings`,
+        coupon_code: couponCode || undefined,
       }).then(r => r.data),
+
+    createCustomerPortal: () =>
+      axios.post<{ url: string }>("/api/payments/customer-portal").then(r => r.data),
+
+    downgradeCheck: (planId: number) =>
+      axios.get<{
+        can_downgrade: boolean;
+        target_plan: { id: number; name: string; price_monthly: number | null };
+        current_usage: { companies: number; members: number; projects: number };
+        warnings: string[];
+      }>("/api/payments/downgrade-check", { params: { plan_id: planId } }).then(r => r.data),
   },
 
   commitrev: {
@@ -386,6 +398,27 @@ export const api = {
       axios.post<{ access_token: string; token_type: string; user: any }>(
         `/api/auth/invite/${token}/accept`, data
       ).then(r => r.data),
+
+    logoutAll: () =>
+      axios.post<{ message: string; access_token: string }>("/api/auth/logout-all").then(r => r.data),
+
+    setup2fa: () =>
+      axios.post<{ secret: string; uri: string; qr_image: string }>("/api/auth/2fa/setup").then(r => r.data),
+
+    confirm2fa: (totp_code: string, secret: string) =>
+      axios.post<{ message: string; access_token: string; user: any }>("/api/auth/2fa/confirm", { totp_code, secret }).then(r => r.data),
+
+    disable2fa: (password: string) =>
+      axios.post<{ message: string; access_token: string; user: any }>("/api/auth/2fa/disable", { password }).then(r => r.data),
+
+    deleteAccount: (password: string) =>
+      axios.delete("/api/auth/account", { data: { password } }).then(r => r.data),
+
+    exportData: () =>
+      axios.get("/api/auth/export-data", { responseType: "blob" }).then(r => r.data),
+
+    adminForceLogout: (userId: number) =>
+      axios.post<{ message: string }>(`/api/auth/admin/users/${userId}/force-logout`).then(r => r.data),
   },
 
   tenants: {
@@ -407,6 +440,12 @@ export const api = {
       total_input_tokens: number; total_output_tokens: number;
       call_count: number; cost_usd: number;
     }> }>("/api/admin/ai-costs").then(r => r.data),
+    revenue: () => axios.get<{
+      mrr: number; arr: number; paying_orgs: number;
+      new_this_month: number; churn_count: number; churn_rate: number;
+      plan_distribution: { name: string; count: number }[];
+      top_paying: { org_id: number; org_name: string; plan: string; mrr: number }[];
+    }>("/api/admin/revenue").then(r => r.data),
   },
 
   dashboard: {

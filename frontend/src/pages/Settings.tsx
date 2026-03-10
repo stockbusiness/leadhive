@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, DatabaseZap } from "lucide-react";
+import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, DatabaseZap, ShieldCheck, Trash2, Download, LogOut, ExternalLink, AlertTriangle, QrCode } from "lucide-react";
+import axios from "axios";
 import HelpTooltip from "../components/HelpTooltip";
 import { api } from "../api";
 import type { PlanData, PlanUsage } from "../types";
@@ -103,6 +104,24 @@ function PlanCurrentSection() {
           </div>
           {plan.description && (
             <p className="text-sm text-slate-500">{plan.description}</p>
+          )}
+          {plan.price_monthly !== null && plan.price_monthly > 0 && (
+            <div className="pt-1">
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await api.stripe.createCustomerPortal();
+                    window.location.href = res.url;
+                  } catch {
+                    alert("サブスクリプション管理ページを開けませんでした。まず有料プランへのアップグレードが必要です。");
+                  }
+                }}
+                className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                <ExternalLink size={14} />
+                サブスクリプションを管理する（請求・解約）
+              </button>
+            </div>
           )}
           {usage && (
             <div className="space-y-3 pt-1">
@@ -622,6 +641,304 @@ export default function Settings() {
         <SaveButton saving={saving} onClick={handleSave} />
       </div>
 
+      <TwoFactorSection />
+      <DangerZoneSection />
+
+    </div>
+  );
+}
+
+
+function TwoFactorSection() {
+  const [user, setUser] = useState<{ totp_enabled?: boolean } | null>(null);
+  const [step, setStep] = useState<"idle" | "setup" | "confirm">("idle");
+  const [qrImage, setQrImage] = useState("");
+  const [secret, setSecret] = useState("");
+  const [code, setCode] = useState("");
+  const [disablePassword, setDisablePassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<MessageState | null>(null);
+
+  useEffect(() => {
+    api.auth.me().then(u => setUser(u)).catch(() => {});
+  }, []);
+
+  const handleSetup = async () => {
+    setLoading(true);
+    setMsg(null);
+    try {
+      const res = await api.auth.setup2fa();
+      setQrImage(res.qr_image);
+      setSecret(res.secret);
+      setStep("setup");
+    } catch {
+      setMsg({ type: "error", text: "セットアップの開始に失敗しました" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!code || code.length !== 6) {
+      setMsg({ type: "error", text: "6桁のコードを入力してください" });
+      return;
+    }
+    setLoading(true);
+    setMsg(null);
+    try {
+      const res = await api.auth.confirm2fa(code, secret);
+      localStorage.setItem("access_token", res.access_token);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${res.access_token}`;
+      setUser(res.user);
+      setStep("idle");
+      setCode("");
+      setMsg({ type: "success", text: "2段階認証を有効にしました" });
+    } catch (e: any) {
+      setMsg({ type: "error", text: e?.response?.data?.detail || "コードが正しくありません" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    if (!disablePassword) {
+      setMsg({ type: "error", text: "パスワードを入力してください" });
+      return;
+    }
+    if (!confirm("2段階認証を無効にしますか？")) return;
+    setLoading(true);
+    setMsg(null);
+    try {
+      const res = await api.auth.disable2fa(disablePassword);
+      localStorage.setItem("access_token", res.access_token);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${res.access_token}`;
+      setUser(res.user);
+      setDisablePassword("");
+      setMsg({ type: "success", text: "2段階認証を無効にしました" });
+    } catch (e: any) {
+      setMsg({ type: "error", text: e?.response?.data?.detail || "無効化に失敗しました" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
+      <SectionHeader icon={<ShieldCheck size={20} className="text-blue-600" />} title="2段階認証（TOTP）" />
+      <p className="text-sm text-slate-500">
+        Google Authenticatorなどの認証アプリを使って、ログイン時に追加の確認コードを要求します。
+      </p>
+
+      {msg && <MessageBox msg={msg} />}
+
+      {user?.totp_enabled ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium">
+            <CheckCircle size={16} />
+            2段階認証は有効です
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">無効化するにはパスワードを入力</label>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={disablePassword}
+                onChange={e => setDisablePassword(e.target.value)}
+                placeholder="パスワード"
+                className="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={handleDisable}
+                disabled={loading}
+                className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={14} className="animate-spin" /> : "無効化"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : step === "idle" ? (
+        <button
+          onClick={handleSetup}
+          disabled={loading}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={16} />}
+          2段階認証を設定する
+        </button>
+      ) : step === "setup" ? (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">1. 認証アプリ（Google Authenticator等）でQRコードをスキャンしてください。</p>
+          {qrImage && <img src={qrImage} alt="QR Code" className="border rounded-lg p-2 w-48 h-48" />}
+          <p className="text-xs text-slate-500">手動入力する場合のシークレット: <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">{secret}</code></p>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">2. 認証アプリに表示された6桁のコードを入力</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="123456"
+                maxLength={6}
+                className="w-32 border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-center tracking-widest font-mono"
+              />
+              <button
+                onClick={handleConfirm}
+                disabled={loading || code.length !== 6}
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={14} className="animate-spin" /> : "確認して有効化"}
+              </button>
+              <button onClick={() => setStep("idle")} className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+import axios from "axios";
+
+function DangerZoneSection() {
+  const [logoutLoading, setLogoutLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [msg, setMsg] = useState<MessageState | null>(null);
+
+  const handleLogoutAll = async () => {
+    if (!confirm("他の全デバイスからログアウトします。現在のセッションは継続されます。")) return;
+    setLogoutLoading(true);
+    try {
+      const res = await api.auth.logoutAll();
+      localStorage.setItem("access_token", res.access_token);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${res.access_token}`;
+      setMsg({ type: "success", text: "全デバイスからログアウトしました" });
+    } catch {
+      setMsg({ type: "error", text: "操作に失敗しました" });
+    } finally {
+      setLogoutLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      const blob = await api.auth.exportData();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `leadhive_export_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMsg({ type: "success", text: "データをエクスポートしました" });
+    } catch {
+      setMsg({ type: "error", text: "エクスポートに失敗しました" });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setMsg({ type: "error", text: "パスワードを入力してください" });
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await api.auth.deleteAccount(deletePassword);
+      localStorage.removeItem("access_token");
+      delete axios.defaults.headers.common["Authorization"];
+      window.location.href = "/";
+    } catch (e: any) {
+      setMsg({ type: "error", text: e?.response?.data?.detail || "削除に失敗しました" });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6 space-y-5">
+      <div className="flex items-center gap-2 border-b border-red-100 pb-3">
+        <AlertTriangle size={20} className="text-red-500" />
+        <h3 className="font-semibold text-red-700">アカウント管理</h3>
+      </div>
+
+      {msg && <MessageBox msg={msg} />}
+
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4 py-3 border-b border-slate-100">
+          <div>
+            <p className="text-sm font-medium text-slate-700">全デバイスからログアウト</p>
+            <p className="text-xs text-slate-500 mt-0.5">他のすべてのデバイスのセッションを無効にします</p>
+          </div>
+          <button
+            onClick={handleLogoutAll}
+            disabled={logoutLoading}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap"
+          >
+            {logoutLoading ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
+            ログアウト
+          </button>
+        </div>
+
+        <div className="flex items-start justify-between gap-4 py-3 border-b border-slate-100">
+          <div>
+            <p className="text-sm font-medium text-slate-700">データをエクスポート</p>
+            <p className="text-xs text-slate-500 mt-0.5">登録企業・プロジェクト情報をJSON形式でダウンロード（GDPR対応）</p>
+          </div>
+          <button
+            onClick={handleExport}
+            disabled={exportLoading}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap"
+          >
+            {exportLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            エクスポート
+          </button>
+        </div>
+
+        <div className="py-3">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-red-700">アカウントを削除</p>
+              <p className="text-xs text-slate-500 mt-0.5">アカウントと全データを削除します。この操作は取り消せません。</p>
+            </div>
+            <button
+              onClick={() => setShowDeleteConfirm(v => !v)}
+              className="flex items-center gap-2 px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 whitespace-nowrap"
+            >
+              <Trash2 size={14} />
+              削除する
+            </button>
+          </div>
+          {showDeleteConfirm && (
+            <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-lg space-y-3">
+              <p className="text-sm text-red-700 font-medium">本当にアカウントを削除しますか？</p>
+              <p className="text-xs text-red-600">全データが削除され、Stripeサブスクリプションもキャンセルされます。</p>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={e => setDeletePassword(e.target.value)}
+                  placeholder="現在のパスワードを入力"
+                  className="flex-1 border border-red-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                />
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteLoading}
+                  className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleteLoading ? <Loader2 size={14} className="animate-spin" /> : "削除確認"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

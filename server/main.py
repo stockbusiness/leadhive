@@ -18,6 +18,28 @@ from server.routes import support
 from server.routes import faq
 from server.routes import status_page
 from server.services.scheduler import start_scheduler, stop_scheduler
+from server.services.rate_limiter import limiter, _rate_limit_exceeded_handler, RateLimitExceeded
+
+
+def _init_sentry():
+    sentry_dsn = os.environ.get("SENTRY_DSN", "")
+    if sentry_dsn:
+        try:
+            import sentry_sdk
+            from sentry_sdk.integrations.fastapi import FastApiIntegration
+            from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+            sentry_sdk.init(
+                dsn=sentry_dsn,
+                traces_sample_rate=0.1,
+                integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+                environment=os.environ.get("APP_ENV", "production"),
+            )
+            print("[LeadHive] Sentry initialized")
+        except Exception as e:
+            print(f"[LeadHive] Sentry init failed: {e}")
+
+
+_init_sentry()
 
 
 DEFAULT_PLANS = [
@@ -109,6 +131,14 @@ def run_db_migrations():
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS phone VARCHAR(50)",
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS corporate_number VARCHAR(13)",
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS corporate_verified BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50)",
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMP",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(255)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMP",
             "ALTER TABLE companies ADD COLUMN IF NOT EXISTS cms_type VARCHAR(50)",
             "ALTER TABLE companies ADD COLUMN IF NOT EXISTS cms_detected_at TIMESTAMP",
             "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sns_links JSONB",
@@ -287,6 +317,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="LeadHive", lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
