@@ -117,6 +117,8 @@ export default function Company() {
         </section>
 
         <div className="flex flex-wrap gap-4 text-sm text-slate-400 justify-center">
+          <Link to="/contact" className="hover:text-slate-700 transition-colors">お問い合わせ</Link>
+          <span>·</span>
           <Link to="/terms" className="hover:text-slate-700 transition-colors">利用規約</Link>
           <span>·</span>
           <Link to="/privacy-policy" className="hover:text-slate-700 transition-colors">プライバシーポリシー</Link>

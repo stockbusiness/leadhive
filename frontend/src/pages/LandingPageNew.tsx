@@ -451,6 +451,7 @@ export default function LandingPageNew() {
               ロードマップ
             </Link>
             <Link to="/company" className="hover:text-white transition-colors">会社概要</Link>
+            <Link to="/contact" className="hover:text-white transition-colors">お問い合わせ</Link>
             <Link to="/privacy-policy" className="hover:text-white transition-colors">プライバシーポリシー</Link>
             <Link to="/terms" className="hover:text-white transition-colors">利用規約</Link>
             <Link to="/login" className="hover:text-white transition-colors">ログイン</Link>
