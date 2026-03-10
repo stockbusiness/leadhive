@@ -1293,3 +1293,91 @@ def save_feature_flags(
             set_setting(db, key, "true" if body.flags[key] else "false")
     db.commit()
     return {"message": "保存しました"}
+
+
+# ========== 特定商取引法に基づく表記 ==========
+
+LEGAL_KEYS = [
+    "legal_seller_name",
+    "legal_representative",
+    "legal_address",
+    "legal_phone",
+    "legal_email",
+    "legal_url",
+    "legal_service_name",
+    "legal_price_note",
+    "legal_payment_method",
+    "legal_payment_timing",
+    "legal_delivery_timing",
+    "legal_cancellation",
+    "legal_environment",
+    "legal_other",
+]
+
+LEGAL_DEFAULTS = {
+    "legal_seller_name": "COOLWORKS株式会社",
+    "legal_representative": "田中 智一郎",
+    "legal_address": "〒651-0084 兵庫県神戸市中央区磯辺通１丁目１番１８号 カサベラ国際プラザビル７０７号室",
+    "legal_phone": "",
+    "legal_email": "info@leadhive.work",
+    "legal_url": "https://leadhive.work",
+    "legal_service_name": "LeadHive",
+    "legal_price_note": "スターター: ¥4,980/月、プロ: ¥14,800/月（税込）。詳細はプランページをご参照ください。",
+    "legal_payment_method": "クレジットカード決済（Visa / Mastercard / American Express / JCB）",
+    "legal_payment_timing": "月額サブスクリプション形式。お申し込み月の決済完了後、翌月以降は毎月自動更新されます。",
+    "legal_delivery_timing": "決済完了後、即時サービスをご利用いただけます。",
+    "legal_cancellation": "月額プランはマイページよりいつでも解約可能です。解約後は次回更新日以降の請求は発生しません。サービスの性質上、既払い料金の返金は原則として承っておりません。ただし、サービスに重大な欠陥がある場合は個別にご相談ください。",
+    "legal_environment": "最新版のGoogle Chrome / Mozilla Firefox / Microsoft Edge / Safari（PCブラウザ推奨）、安定したインターネット接続環境",
+    "legal_other": "",
+}
+
+
+@router.get("/api/public/legal")
+def get_legal_public(db: Session = Depends(get_db)):
+    data = {}
+    for key in LEGAL_KEYS:
+        val = get_setting(db, key)
+        data[key] = val if val is not None else LEGAL_DEFAULTS.get(key, "")
+    return data
+
+
+@router.get("/api/admin/legal-settings")
+def get_legal_settings(
+    current_user: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    data = {}
+    for key in LEGAL_KEYS:
+        val = get_setting(db, key)
+        data[key] = val if val is not None else LEGAL_DEFAULTS.get(key, "")
+    return data
+
+
+class LegalSettingsBody(BaseModel):
+    legal_seller_name: str = ""
+    legal_representative: str = ""
+    legal_address: str = ""
+    legal_phone: str = ""
+    legal_email: str = ""
+    legal_url: str = ""
+    legal_service_name: str = ""
+    legal_price_note: str = ""
+    legal_payment_method: str = ""
+    legal_payment_timing: str = ""
+    legal_delivery_timing: str = ""
+    legal_cancellation: str = ""
+    legal_environment: str = ""
+    legal_other: str = ""
+
+
+@router.put("/api/admin/legal-settings")
+def save_legal_settings(
+    body: LegalSettingsBody,
+    current_user: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    for key in LEGAL_KEYS:
+        val = getattr(body, key, "")
+        set_setting(db, key, val)
+    db.commit()
+    return {"message": "特定商取引法の内容を保存しました"}
