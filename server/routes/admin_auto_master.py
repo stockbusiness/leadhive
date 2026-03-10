@@ -37,6 +37,7 @@ SETTINGS_KEYS = [
     "auto_master_page_idx",
     "auto_master_max_companies",
     "auto_master_max_enrich",
+    "auto_master_max_pages_per_combo",
     "auto_master_schedule_hour",
     "auto_master_last_run",
     "auto_master_last_count",
@@ -56,6 +57,7 @@ DEFAULTS = {
     "auto_master_page_idx": "1",
     "auto_master_max_companies": "1000",
     "auto_master_max_enrich": "10",
+    "auto_master_max_pages_per_combo": "10",
     "auto_master_schedule_hour": "3",
     "auto_master_last_run": "",
     "auto_master_last_count": "0",
@@ -105,6 +107,7 @@ def get_status(
     city_idx = int(settings.get("auto_master_city_idx", "0")) % max(TOTAL_CITIES, 1)
     keyword_idx = int(settings.get("auto_master_keyword_idx", "0")) % len(AUTO_MASTER_KEYWORDS)
     page_idx = max(1, int(settings.get("auto_master_page_idx", "1")))
+    max_pages_per_combo = max(1, min(100, int(settings.get("auto_master_max_pages_per_combo", "10"))))
 
     current_city = MUNICIPALITIES[city_idx] if MUNICIPALITIES else {"pref_name": "-", "city_name": "-"}
     master_count = db.query(CompanyMaster).count()
@@ -144,7 +147,8 @@ def get_status(
         "enrich_total": int(settings.get("auto_master_enrich_total", "0")),
         "no_url_count": no_url_count,
         "scheduler_timezone": settings.get("scheduler_timezone", "Asia/Tokyo"),
-        "estimated_max": ESTIMATED_MAX,
+        "max_pages_per_combo": max_pages_per_combo,
+        "estimated_max": TOTAL_CITIES * len(AUTO_MASTER_KEYWORDS) * max_pages_per_combo * 100,
         "total_combinations": TOTAL_CITIES * len(AUTO_MASTER_KEYWORDS),
     }
 
@@ -158,7 +162,8 @@ def update_settings(
     _require_system_admin(current_user)
     allowed = {
         "auto_master_enabled", "auto_master_max_companies", "auto_master_max_enrich",
-        "auto_master_schedule_hour", "auto_master_enrich_enabled", "auto_master_enrich_max",
+        "auto_master_max_pages_per_combo", "auto_master_schedule_hour",
+        "auto_master_enrich_enabled", "auto_master_enrich_max",
         "scheduler_timezone", "gbizinfo_api_token",
     }
     for key, val in data.items():

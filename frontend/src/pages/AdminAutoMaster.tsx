@@ -46,6 +46,7 @@ interface Status {
   scheduler_timezone: string;
   estimated_max: number;
   total_combinations: number;
+  max_pages_per_combo: number;
 }
 
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
@@ -80,6 +81,7 @@ export default function AdminAutoMaster() {
     enabled: false,
     max_companies: 1000,
     max_enrich: 10,
+    max_pages_per_combo: 10,
     schedule_hour: 3,
     enrich_enabled: true,
     enrich_max: 100,
@@ -108,6 +110,7 @@ export default function AdminAutoMaster() {
         enabled: s.enabled,
         max_companies: s.max_companies,
         max_enrich: s.max_enrich,
+        max_pages_per_combo: s.max_pages_per_combo ?? 10,
         schedule_hour: s.schedule_hour,
         enrich_enabled: s.enrich_enabled ?? true,
         enrich_max: s.enrich_max ?? 100,
@@ -137,6 +140,7 @@ export default function AdminAutoMaster() {
       auto_master_enabled: form.enabled ? "true" : "false",
       auto_master_max_companies: String(form.max_companies),
       auto_master_max_enrich: String(form.max_enrich),
+      auto_master_max_pages_per_combo: String(form.max_pages_per_combo),
       auto_master_schedule_hour: String(form.schedule_hour),
       auto_master_enrich_enabled: form.enrich_enabled ? "true" : "false",
       auto_master_enrich_max: String(form.enrich_max),
@@ -274,12 +278,12 @@ export default function AdminAutoMaster() {
         <div className="bg-white border border-blue-200 rounded-xl p-4 shadow-sm">
           <div className="text-xs font-medium text-blue-600 mb-1">推定収集可能企業数</div>
           <p className="text-2xl font-bold text-blue-700">{(status?.estimated_max ?? 0).toLocaleString()}<span className="text-sm font-normal text-slate-500 ml-1">社</span></p>
-          <p className="text-xs text-slate-400 mt-1">{status?.total_cities ?? 0}市区町村 × {status?.keywords?.length ?? 12}キーワード × 100件</p>
+          <p className="text-xs text-slate-400 mt-1">{status?.total_cities ?? 0}市区町村 × {status?.keywords?.length ?? 12}キーワード × {status?.max_pages_per_combo ?? 10}ページ × 100件</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
           <div className="text-xs font-medium text-slate-500 mb-1">全組み合わせ数</div>
           <p className="text-2xl font-bold text-slate-700">{(status?.total_combinations ?? 0).toLocaleString()}<span className="text-sm font-normal text-slate-500 ml-1">通り</span></p>
-          <p className="text-xs text-slate-400 mt-1">市区町村 × キーワードの総組み合わせ</p>
+          <p className="text-xs text-slate-400 mt-1">市区町村 × キーワード（各最大{status?.max_pages_per_combo ?? 10}ページ）</p>
         </div>
       </div>
 
@@ -346,7 +350,7 @@ export default function AdminAutoMaster() {
           <Toggle enabled={form.enabled} onChange={(v) => setForm((f) => ({ ...f, enabled: v }))} />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">実行時刻（時）</label>
             <select
@@ -372,6 +376,23 @@ export default function AdminAutoMaster() {
                 <option key={n} value={n}>{n.toLocaleString()}件</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              1コンボあたり最大ページ数 <span className="text-slate-400">（ページ × 100社）</span>
+            </label>
+            <select
+              value={form.max_pages_per_combo}
+              onChange={(e) => setForm((f) => ({ ...f, max_pages_per_combo: Number(e.target.value) }))}
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+            >
+              {[1, 3, 5, 10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>{n}ページ（最大{(n * 100).toLocaleString()}社/コンボ）</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 mt-1">
+              設定ページ数を超えたら次の市区町村へ移動。推定収集可能数: <strong className="text-blue-600">{(986 * 12 * form.max_pages_per_combo * 100).toLocaleString()}社</strong>
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">
@@ -472,8 +493,8 @@ export default function AdminAutoMaster() {
           <span>進捗: <strong className="text-green-600">{(status?.city_idx ?? 0) + 1}</strong> / {status?.total_cities ?? 0} 市区町村</span>
         </div>
         <p className="text-xs text-slate-500">
-          市区町村単位で順番に収集します。目標件数に達したら続きのページから再開。全ページ完了で次の市区町村へ進みます。
-          全{status?.total_cities ?? 0}市区町村 × {status?.keywords?.length ?? 12}キーワードで最大{(status?.estimated_max ?? 0).toLocaleString()}社を網羅します。
+          市区町村単位で順番に収集します。1コンボあたり最大{status?.max_pages_per_combo ?? 10}ページ（最大{((status?.max_pages_per_combo ?? 10) * 100).toLocaleString()}社）収集したら次の市区町村へ移動します。
+          目標件数に達したら続きのページから再開。全{status?.total_cities ?? 0}市区町村 × {status?.keywords?.length ?? 12}キーワード × {status?.max_pages_per_combo ?? 10}ページで最大{(status?.estimated_max ?? 0).toLocaleString()}社を網羅します。
         </p>
 
         {/* 進捗バー */}

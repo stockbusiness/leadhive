@@ -354,19 +354,12 @@ def _run_auto_master_collect(job_id: str = None):
         start_page = max(1, int(_sys_get(db, "auto_master_page_idx", "1")))
         max_companies = max(100, min(50000, int(_sys_get(db, "auto_master_max_companies", "1000"))))
         max_enrich = max(0, min(50, int(_sys_get(db, "auto_master_max_enrich", "10"))))
-
-        current_city = MUNICIPALITIES[city_idx]
-        current_keyword = AUTO_MASTER_KEYWORDS[keyword_idx]
-        location_label = f"{current_city['pref_name']}・{current_city['city_name']}"
+        max_pages_per_combo = max(1, min(100, int(_sys_get(db, "auto_master_max_pages_per_combo", "10"))))
 
         logger.info(
-            f"AutoMaster: Starting {location_label}/{current_keyword} page={start_page} "
-            f"city_idx={city_idx}/{TOTAL_CITIES} max_companies={max_companies}"
+            f"AutoMaster: Starting city_idx={city_idx}/{TOTAL_CITIES} "
+            f"max_companies={max_companies} max_pages_per_combo={max_pages_per_combo}"
         )
-        if job_id:
-            job_update(job_id, type="progress", current=0, total=max_companies,
-                       message=f"{location_label}・{current_keyword}（p{start_page}〜）の収集を開始しています...",
-                       status="running")
 
         existing_corp_nums = set(
             row[0] for row in
@@ -387,141 +380,173 @@ def _run_auto_master_collect(job_id: str = None):
         enriched = 0
         enrich_count = 0
         total_fetched = 0
-        combo_finished = False
-        next_page = start_page
+        resume_page = start_page
+        next_label = ""
 
-        for page in range(start_page, start_page + 9999):
-            if saved >= max_companies:
-                break
-            try:
-                result = search_gbiz(
-                    token,
-                    name_keyword=current_keyword,
-                    pref_code=current_city["pref_code"],
-                    city_code=current_city["city_code"],
-                    page=page,
-                )
-                batch = result.get("companies", [])
-                if not batch:
+        def _advance_combo(ci, ki):
+            new_ci = ci + 1
+            new_ki = ki
+            if new_ci >= TOTAL_CITIES:
+                new_ci = 0
+                new_ki = ki + 1
+                if new_ki >= len(AUTO_MASTER_KEYWORDS):
+                    new_ki = 0
+                    logger.info("AutoMaster: Full cycle complete! Restarting from city=0, keyword=0")
+            return new_ci, new_ki
+
+        while saved < max_companies:
+            current_city = MUNICIPALITIES[city_idx]
+            current_keyword = AUTO_MASTER_KEYWORDS[keyword_idx]
+            location_label = f"{current_city['pref_name']}・{current_city['city_name']}"
+
+            logger.info(f"AutoMaster: Combo {location_label}/{current_keyword} p{start_page}〜 (max {max_pages_per_combo}p)")
+            if job_id:
+                job_update(job_id, type="progress", current=saved, total=max_companies,
+                           message=f"{location_label}・{current_keyword}（p{start_page}〜）の収集中...",
+                           status="running")
+
+            combo_finished = False
+            pages_this_combo = 0
+            resume_page = start_page
+
+            for page in range(start_page, start_page + 9999):
+                if saved >= max_companies:
+                    resume_page = page
+                    break
+                if pages_this_combo >= max_pages_per_combo:
                     combo_finished = True
                     break
-                total_fetched += len(batch)
-                next_page = page + 1
-
-                for company in batch:
-                    if saved >= max_companies:
+                try:
+                    result = search_gbiz(
+                        token,
+                        name_keyword=current_keyword,
+                        pref_code=current_city["pref_code"],
+                        city_code=current_city["city_code"],
+                        page=page,
+                    )
+                    batch = result.get("companies", [])
+                    if not batch:
+                        combo_finished = True
                         break
-                    try:
-                        corp_num = company.get("corporate_number") or None
-                        if corp_num and corp_num in existing_corp_nums:
-                            skipped += 1
-                            continue
+                    total_fetched += len(batch)
+                    pages_this_combo += 1
+                    resume_page = page + 1
 
-                        url = company.get("company_url", "") or ""
-                        if not url and enrich_count < max_enrich:
-                            from server.services.gbiz_collector import find_website_for_company
-                            location = company.get("location", "") or ""
-                            enrich_count += 1
-                            url = find_website_for_company(company["name"], location, db=db, org_id=None)
-                            if url:
-                                time.sleep(0.5)
+                    for company in batch:
+                        if saved >= max_companies:
+                            break
+                        try:
+                            corp_num = company.get("corporate_number") or None
+                            if corp_num and corp_num in existing_corp_nums:
+                                skipped += 1
+                                continue
 
-                        loc = company.get("location", "") or ""
-                        pref_name = current_city["pref_name"]
-                        city_name = current_city["city_name"]
-                        if loc:
-                            for pref in PREFECTURES:
-                                if loc.startswith(pref):
-                                    pref_name = pref
-                                    city_name = loc[len(pref):].split("　")[0][:30]
-                                    break
+                            url = company.get("company_url", "") or ""
+                            if not url and enrich_count < max_enrich:
+                                from server.services.gbiz_collector import find_website_for_company
+                                location = company.get("location", "") or ""
+                                enrich_count += 1
+                                url = find_website_for_company(company["name"], location, db=db, org_id=None)
+                                if url:
+                                    time.sleep(0.5)
 
-                        if not url:
-                            company_data = {
-                                "company_name": company.get("name", ""),
-                                "prefecture": pref_name or None,
-                                "city": city_name or None,
-                                "corporate_number": corp_num,
-                                "score_total": 0,
-                                "score_rank": "D",
-                            }
-                            _upsert_company_master(db, company_data, domain=None, source="auto_master", corporate_number=corp_num)
+                            loc = company.get("location", "") or ""
+                            pref_name = current_city["pref_name"]
+                            city_name = current_city["city_name"]
+                            if loc:
+                                for pref in PREFECTURES:
+                                    if loc.startswith(pref):
+                                        pref_name = pref
+                                        city_name = loc[len(pref):].split("　")[0][:30]
+                                        break
+
+                            if not url:
+                                company_data = {
+                                    "company_name": company.get("name", ""),
+                                    "prefecture": pref_name or None,
+                                    "city": city_name or None,
+                                    "corporate_number": corp_num,
+                                    "score_total": 0,
+                                    "score_rank": "D",
+                                }
+                                _upsert_company_master(db, company_data, domain=None, source="auto_master", corporate_number=corp_num)
+                                if corp_num:
+                                    existing_corp_nums.add(corp_num)
+                                saved += 1
+                                continue
+
+                            domain = normalize_domain(url)
+                            if not domain or is_aggregator_site(domain):
+                                continue
+
+                            if domain in existing_domains:
+                                skipped += 1
+                                continue
+
+                            scraped = scrape_company_info(url) or {}
+                            scraped["company_name"] = company.get("name", "")
+                            scraped["website_url"] = url
+                            scraped["domain"] = domain
+                            scraped["corporate_number"] = corp_num
+                            if not scraped.get("prefecture"):
+                                scraped["prefecture"] = pref_name or None
+                                scraped["city"] = city_name or None
+
+                            full_text = scraped.get("full_text", "") or ""
+                            cat_main, cat_sub = categorize_company(full_text)
+                            cms_type = scraped.get("cms_type") or None
+                            flags = detect_flags(full_text, cms_type=cms_type)
+                            scraped.update({"category_main": cat_main, "category_sub": cat_sub, **flags})
+                            score, rank = calculate_score(scraped)
+                            scraped["score_total"] = score
+                            scraped["score_rank"] = rank
+
+                            _upsert_company_master(db, scraped, domain, source="auto_master", corporate_number=corp_num)
+                            existing_domains.add(domain)
                             if corp_num:
                                 existing_corp_nums.add(corp_num)
                             saved += 1
-                            continue
+                            if not company.get("company_url"):
+                                enriched += 1
+                            time.sleep(random.uniform(2.0, 4.0))
+                        except Exception as e:
+                            logger.warning(f"AutoMaster: company error: {e}")
+                            try:
+                                db.rollback()
+                            except Exception:
+                                pass
 
-                        domain = normalize_domain(url)
-                        if not domain or is_aggregator_site(domain):
-                            continue
+                    if job_id:
+                        job_update(job_id, current=saved, total=max_companies,
+                                   message=f"p{page} — {location_label}・{current_keyword} 新規{saved}件 / スキップ{skipped}件")
 
-                        if domain in existing_domains:
-                            skipped += 1
-                            continue
-
-                        scraped = scrape_company_info(url) or {}
-                        scraped["company_name"] = company.get("name", "")
-                        scraped["website_url"] = url
-                        scraped["domain"] = domain
-                        scraped["corporate_number"] = corp_num
-                        if not scraped.get("prefecture"):
-                            scraped["prefecture"] = pref_name or None
-                            scraped["city"] = city_name or None
-
-                        full_text = scraped.get("full_text", "") or ""
-                        cat_main, cat_sub = categorize_company(full_text)
-                        cms_type = scraped.get("cms_type") or None
-                        flags = detect_flags(full_text, cms_type=cms_type)
-                        scraped.update({"category_main": cat_main, "category_sub": cat_sub, **flags})
-                        score, rank = calculate_score(scraped)
-                        scraped["score_total"] = score
-                        scraped["score_rank"] = rank
-
-                        _upsert_company_master(db, scraped, domain, source="auto_master", corporate_number=corp_num)
-                        existing_domains.add(domain)
-                        if corp_num:
-                            existing_corp_nums.add(corp_num)
-                        saved += 1
-                        if not company.get("company_url"):
-                            enriched += 1
-                        time.sleep(random.uniform(2.0, 4.0))
-                    except Exception as e:
-                        logger.warning(f"AutoMaster: company error: {e}")
-                        try:
-                            db.rollback()
-                        except Exception:
-                            pass
-
-                if job_id:
-                    job_update(job_id, current=saved, total=max_companies,
-                               message=f"p{page} — {location_label}・{current_keyword} 新規{saved}件 / スキップ{skipped}件")
-
-                if result.get("is_last_page"):
-                    combo_finished = True
+                    if result.get("is_last_page"):
+                        combo_finished = True
+                        break
+                    time.sleep(0.5)
+                except Exception as e:
+                    logger.warning(f"AutoMaster: page {page} fetch failed: {e}")
                     break
-                time.sleep(0.5)
-            except Exception as e:
-                logger.warning(f"AutoMaster: page {page} fetch failed: {e}")
+
+            if saved >= max_companies:
+                # 目標件数達成 - 現在のページから再開
+                _sys_set(db, "auto_master_page_idx", str(resume_page))
                 break
 
-        # 次のインデックス計算 (city → keyword の順で繰り上げ)
-        if combo_finished:
-            new_city_idx = city_idx + 1
-            new_keyword_idx = keyword_idx
-            if new_city_idx >= TOTAL_CITIES:
-                new_city_idx = 0
-                new_keyword_idx = keyword_idx + 1
-                if new_keyword_idx >= len(AUTO_MASTER_KEYWORDS):
-                    new_keyword_idx = 0
-                    logger.info("AutoMaster: Full cycle complete! Restarting from city=0, keyword=0")
-            _sys_set(db, "auto_master_city_idx", str(new_city_idx))
-            _sys_set(db, "auto_master_keyword_idx", str(new_keyword_idx))
-            _sys_set(db, "auto_master_page_idx", "1")
-            next_city = MUNICIPALITIES[new_city_idx]
-            next_label = f"{next_city['pref_name']}・{next_city['city_name']}/{AUTO_MASTER_KEYWORDS[new_keyword_idx]}（p1〜）"
-        else:
-            _sys_set(db, "auto_master_page_idx", str(next_page))
-            next_label = f"{location_label}/{current_keyword}（p{next_page}〜）"
+            if combo_finished:
+                # このコンボ完了 - 次のコンボへ
+                city_idx, keyword_idx = _advance_combo(city_idx, keyword_idx)
+                start_page = 1
+                _sys_set(db, "auto_master_city_idx", str(city_idx))
+                _sys_set(db, "auto_master_keyword_idx", str(keyword_idx))
+                _sys_set(db, "auto_master_page_idx", "1")
+            else:
+                # エラー等で中断 - 現在のページを保存
+                _sys_set(db, "auto_master_page_idx", str(resume_page))
+                break
+
+        next_city = MUNICIPALITIES[city_idx]
+        next_label = f"{next_city['pref_name']}・{next_city['city_name']}/{AUTO_MASTER_KEYWORDS[keyword_idx]}（p{resume_page}〜）"
 
         _sys_set(db, "auto_master_last_run", datetime.utcnow().isoformat())
         _sys_set(db, "auto_master_last_count", str(saved))
