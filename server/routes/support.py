@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from server.database import get_db
-from server.auth import get_current_user, require_admin
+from server.auth import get_current_user, require_admin, require_system_admin
 from server.models import SupportTicket, SupportTicketMessage, User, SystemSettings
 
 router = APIRouter(tags=["support"])
@@ -239,7 +239,7 @@ def close_ticket(
 @router.get("/api/admin/support/tickets")
 def admin_list_tickets(
     status: Optional[str] = None,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     query = db.query(SupportTicket)
@@ -259,7 +259,7 @@ def admin_list_tickets(
 @router.get("/api/admin/support/tickets/{ticket_id}")
 def admin_get_ticket(
     ticket_id: int,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
@@ -285,7 +285,7 @@ def admin_get_ticket(
 def admin_add_message(
     ticket_id: int,
     body: AddMessageBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
@@ -319,7 +319,7 @@ def admin_add_message(
 def admin_update_status(
     ticket_id: int,
     body: UpdateStatusBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     if body.status not in STATUSES:
@@ -399,7 +399,7 @@ def _send_staff_reply_notification(ticket: SupportTicket, message: str, staff: U
 
 @router.get("/api/admin/support/settings")
 def get_support_settings(
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     from server.services.encryption import decrypt_value
@@ -420,7 +420,7 @@ class SupportSettingsBody(BaseModel):
 @router.put("/api/admin/support/settings")
 def update_support_settings(
     body: SupportSettingsBody,
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     from server.services.encryption import encrypt_value

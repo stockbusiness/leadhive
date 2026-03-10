@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 from server.database import get_db
-from server.auth import require_admin
+from server.auth import require_admin, require_system_admin
 
 router = APIRouter(tags=["contact"])
 logger = logging.getLogger(__name__)
@@ -210,7 +210,7 @@ class ContactSettingsBody(BaseModel):
 
 @router.get("/api/admin/contact-settings")
 def get_contact_settings(
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     return _get_all_contact_settings(db)
@@ -219,7 +219,7 @@ def get_contact_settings(
 @router.put("/api/admin/contact-settings")
 def save_contact_settings(
     body: ContactSettingsBody,
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     for key in CONTACT_SETTING_KEYS:

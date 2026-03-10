@@ -10,7 +10,7 @@ from sqlalchemy import func as sa_func, desc
 from pydantic import BaseModel
 from server.database import get_db
 from server.models import SystemSettings, Plan, Organization, User, Company, Project, SystemLog, Announcement, CollectionLog, ApiUsageLog, AiUsageLog
-from server.auth import get_current_user, require_admin
+from server.auth import get_current_user, require_admin, require_system_admin
 
 router = APIRouter(tags=["payments"])
 
@@ -53,7 +53,7 @@ def get_stripe_client(db: Session):
 
 @router.get("/api/admin/stripe-settings")
 def get_stripe_settings(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     data = {}
@@ -82,7 +82,7 @@ class StripeSettingsBody(BaseModel):
 @router.put("/api/admin/stripe-settings")
 def update_stripe_settings(
     body: StripeSettingsBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     updates = body.model_dump(exclude_none=True)
@@ -100,7 +100,7 @@ def update_stripe_settings(
 
 @router.post("/api/admin/stripe-settings/test")
 def test_stripe_connection(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     try:
@@ -127,7 +127,7 @@ COMMITREV_SETTINGS_KEYS = [
 
 @router.get("/api/admin/commitrev-settings")
 def get_commitrev_settings(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     data = {}
@@ -145,7 +145,7 @@ def get_commitrev_settings(
 @router.put("/api/admin/commitrev-settings")
 def update_commitrev_settings(
     payload: dict,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     updated = []
@@ -162,7 +162,7 @@ def update_commitrev_settings(
 
 @router.post("/api/admin/commitrev-settings/test")
 def test_commitrev_settings(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     from server.services.commitrev import _get_commitrev_config, send_event
@@ -183,7 +183,7 @@ def test_commitrev_settings(
 
 @router.get("/api/admin/api-settings")
 def get_api_settings(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     data = {}
@@ -202,7 +202,7 @@ def get_api_settings(
 @router.put("/api/admin/api-settings")
 def update_api_settings(
     payload: dict,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     updated = []
@@ -485,7 +485,7 @@ class TenantUpdateBody(BaseModel):
 
 @router.get("/api/admin/tenants")
 def list_tenants(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     orgs = db.query(Organization).order_by(Organization.id).all()
@@ -543,7 +543,7 @@ def list_tenants(
 
 @router.get("/api/admin/ai-costs")
 def admin_ai_costs(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     rows = (
@@ -584,7 +584,7 @@ def admin_ai_costs(
 def update_tenant(
     org_id: int,
     body: TenantUpdateBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     org = db.query(Organization).filter(Organization.id == org_id).first()
@@ -615,7 +615,7 @@ def write_system_log(db: Session, action: str, actor_email: str = "", actor_org:
 # ──────────────────────────────────────────────────────────────
 @router.get("/api/admin/dashboard")
 def admin_dashboard(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     org_count = db.query(Organization).count()
@@ -677,7 +677,7 @@ class UserRoleBody(BaseModel):
 
 @router.get("/api/admin/all-users")
 def list_all_users(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
     search: str = Query(""),
     role: str = Query(""),
@@ -717,7 +717,7 @@ def list_all_users(
 def resend_verification_admin(
     user_id: int,
     request: Request,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     from server.models import EmailVerificationToken
@@ -741,7 +741,7 @@ def resend_verification_admin(
 @router.post("/api/admin/unverified-users/resend-all")
 def resend_all_unverified(
     request: Request,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     from server.models import EmailVerificationToken
@@ -766,7 +766,7 @@ def resend_all_unverified(
 
 @router.delete("/api/admin/unverified-users/cleanup")
 def cleanup_unverified_users(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
     days: int = Query(7, ge=1, le=365),
 ):
@@ -800,7 +800,7 @@ def cleanup_unverified_users(
 def update_user_role(
     user_id: int,
     body: UserRoleBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     if body.role not in ("member", "admin"):
@@ -820,7 +820,7 @@ def update_user_role(
 @router.delete("/api/admin/all-users/{user_id}")
 def delete_user_admin(
     user_id: int,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     if user_id == current_user.id:
@@ -840,7 +840,7 @@ def delete_user_admin(
 # ──────────────────────────────────────────────────────────────
 @router.get("/api/admin/logs")
 def list_system_logs(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1),
     limit: int = Query(50, le=200),
@@ -889,7 +889,7 @@ class AnnouncementBody(BaseModel):
 
 @router.get("/api/admin/announcements")
 def list_announcements_admin(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     items = db.query(Announcement).order_by(desc(Announcement.created_at)).all()
@@ -913,7 +913,7 @@ def list_announcements_admin(
 @router.post("/api/admin/announcements")
 def create_announcement(
     body: AnnouncementBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     a = Announcement(title=body.title, content=body.content, target_org_id=body.target_org_id, is_active=body.is_active)
@@ -927,7 +927,7 @@ def create_announcement(
 def update_announcement(
     ann_id: int,
     body: AnnouncementBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     a = db.query(Announcement).filter(Announcement.id == ann_id).first()
@@ -944,7 +944,7 @@ def update_announcement(
 @router.delete("/api/admin/announcements/{ann_id}")
 def delete_announcement(
     ann_id: int,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     a = db.query(Announcement).filter(Announcement.id == ann_id).first()
@@ -977,7 +977,7 @@ def get_user_announcements(
 # ──────────────────────────────────────────────────────────────
 @router.get("/api/admin/billing")
 def get_billing_history(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     try:
@@ -1016,7 +1016,7 @@ def get_billing_history(
 
 @router.get("/api/admin/revenue")
 def get_revenue_metrics(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     from datetime import date
@@ -1076,7 +1076,7 @@ SMTP_KEYS = ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_from_
 
 @router.get("/api/admin/smtp-settings")
 def get_smtp_settings(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     data: dict = {}
@@ -1102,7 +1102,7 @@ class SmtpSettingsBody(BaseModel):
 @router.put("/api/admin/smtp-settings")
 def save_smtp_settings(
     body: SmtpSettingsBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     for key in SMTP_KEYS:
@@ -1117,7 +1117,7 @@ def save_smtp_settings(
 
 @router.post("/api/admin/smtp-settings/test")
 def test_smtp(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     host = get_setting(db, "smtp_host")
@@ -1188,7 +1188,7 @@ TEMPLATE_VARS_HINT = [
 
 @router.get("/api/admin/email-templates")
 def get_email_templates(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     result = {}
@@ -1217,7 +1217,7 @@ class EmailTemplateBody(BaseModel):
 def save_email_template(
     template_id: str,
     body: EmailTemplateBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     if template_id not in EMAIL_TEMPLATES:
@@ -1239,7 +1239,7 @@ def save_email_template(
 @router.delete("/api/admin/email-templates/{template_id}")
 def reset_email_template(
     template_id: str,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     if template_id not in EMAIL_TEMPLATES:
@@ -1268,7 +1268,7 @@ FEATURE_FLAGS = [
 
 @router.get("/api/admin/feature-flags")
 def get_feature_flags(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     data = {}
@@ -1285,7 +1285,7 @@ class FeatureFlagsBody(BaseModel):
 @router.put("/api/admin/feature-flags")
 def save_feature_flags(
     body: FeatureFlagsBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     for key in FEATURE_FLAGS:

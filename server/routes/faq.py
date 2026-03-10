@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 from server.database import get_db
-from server.auth import require_admin
+from server.auth import require_admin, require_system_admin
 from server.models import FaqItem
 
 router = APIRouter(tags=["faq"])
@@ -54,7 +54,7 @@ def search_faq(q: str = "", db: Session = Depends(get_db)):
 
 @router.get("/api/admin/faq")
 def admin_list_faq(
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     items = db.query(FaqItem).order_by(FaqItem.display_order.asc(), FaqItem.id.asc()).all()
@@ -72,7 +72,7 @@ class FaqBody(BaseModel):
 @router.post("/api/admin/faq")
 def create_faq(
     body: FaqBody,
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     if not body.question.strip() or not body.answer.strip():
@@ -94,7 +94,7 @@ def create_faq(
 def update_faq(
     item_id: int,
     body: FaqBody,
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     item = db.query(FaqItem).filter(FaqItem.id == item_id).first()
@@ -113,7 +113,7 @@ def update_faq(
 @router.delete("/api/admin/faq/{item_id}")
 def delete_faq(
     item_id: int,
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     item = db.query(FaqItem).filter(FaqItem.id == item_id).first()

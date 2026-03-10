@@ -6,7 +6,7 @@ from sqlalchemy import func
 from pydantic import BaseModel
 from server.database import get_db
 from server.models import Plan, Organization, User, Project, Company
-from server.auth import get_current_user, require_admin
+from server.auth import get_current_user, require_admin, require_system_admin
 
 router = APIRouter(prefix="/api/plans", tags=["plans"])
 
@@ -162,7 +162,7 @@ def get_current_plan(
 
 @router.get("/organizations")
 def list_organizations(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     orgs = db.query(Organization).order_by(Organization.id).all()
@@ -191,7 +191,7 @@ def list_plans(
 @router.post("")
 def create_plan(
     body: PlanBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     plan = Plan(**body.model_dump())
@@ -205,7 +205,7 @@ def create_plan(
 def update_plan(
     plan_id: int,
     body: PlanBody,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     plan = db.query(Plan).filter(Plan.id == plan_id).first()
@@ -221,7 +221,7 @@ def update_plan(
 @router.delete("/{plan_id}")
 def delete_plan(
     plan_id: int,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     plan = db.query(Plan).filter(Plan.id == plan_id).first()
@@ -242,7 +242,7 @@ def delete_plan(
 def assign_plan(
     plan_id: int,
     data: dict,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     org_id = data.get("org_id", current_user.org_id)
@@ -261,7 +261,7 @@ def assign_plan(
 def unassign_plan(
     plan_id: int,
     org_id: int,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     org = db.query(Organization).filter(Organization.id == org_id).first()

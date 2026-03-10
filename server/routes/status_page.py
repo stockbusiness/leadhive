@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 from server.database import get_db
-from server.auth import require_admin
+from server.auth import require_admin, require_system_admin
 from server.models import StatusIncident
 
 router = APIRouter(tags=["status"])
@@ -52,7 +52,7 @@ def get_status(db: Session = Depends(get_db)):
 
 @router.get("/api/admin/status-incidents")
 def admin_list(
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     items = db.query(StatusIncident).order_by(StatusIncident.created_at.desc()).all()
@@ -69,7 +69,7 @@ class IncidentBody(BaseModel):
 @router.post("/api/admin/status-incidents")
 def create_incident(
     body: IncidentBody,
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     if not body.title.strip():
@@ -90,7 +90,7 @@ def create_incident(
 def update_incident(
     inc_id: int,
     body: IncidentBody,
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     inc = db.query(StatusIncident).filter(StatusIncident.id == inc_id).first()
@@ -110,7 +110,7 @@ def update_incident(
 @router.delete("/api/admin/status-incidents/{inc_id}")
 def delete_incident(
     inc_id: int,
-    current_user=Depends(require_admin),
+    current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     inc = db.query(StatusIncident).filter(StatusIncident.id == inc_id).first()
