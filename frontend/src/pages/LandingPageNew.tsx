@@ -450,6 +450,8 @@ export default function LandingPageNew() {
               <Map size={13} />
               ロードマップ
             </Link>
+            <Link to="/faq" className="hover:text-white transition-colors">よくある質問</Link>
+            <Link to="/status" className="hover:text-white transition-colors">システム状況</Link>
             <Link to="/company" className="hover:text-white transition-colors">会社概要</Link>
             <Link to="/contact" className="hover:text-white transition-colors">お問い合わせ</Link>
             <Link to="/privacy-policy" className="hover:text-white transition-colors">プライバシーポリシー</Link>

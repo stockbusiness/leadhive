@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LifeBuoy, Loader2, Send, AlertCircle, Shield, User as UserIcon, ChevronLeft, XCircle, CheckCircle2, InboxIcon } from "lucide-react";
+import { LifeBuoy, Loader2, Send, AlertCircle, Shield, User as UserIcon, ChevronLeft, XCircle, CheckCircle2, InboxIcon, Settings, X, Save } from "lucide-react";
 import { api } from "../api";
 
 type Message = {
@@ -73,6 +73,10 @@ export default function AdminSupport() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [autoCloseDays, setAutoCloseDays] = useState(7);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState("");
 
   const loadTickets = async (status = statusFilter) => {
     setLoading(true);
@@ -94,7 +98,10 @@ export default function AdminSupport() {
     }
   };
 
-  useEffect(() => { loadTickets(); }, []);
+  useEffect(() => {
+    loadTickets();
+    api.adminSupport.getSettings().then((s: any) => setAutoCloseDays(s.ticket_auto_close_days ?? 7)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (selected) {
@@ -122,6 +129,21 @@ export default function AdminSupport() {
       loadTickets();
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    setSettingsMsg("");
+    try {
+      await api.adminSupport.saveSettings({ ticket_auto_close_days: autoCloseDays });
+      setSettingsMsg("保存しました");
+      setTimeout(() => setSettingsMsg(""), 3000);
+    } catch {
+      setSettingsMsg("保存に失敗しました");
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -153,9 +175,18 @@ export default function AdminSupport() {
       {/* 左: チケット一覧 */}
       <div className="w-80 flex-shrink-0 border-r border-slate-200 flex flex-col bg-white">
         <div className="px-4 py-3 border-b border-slate-100">
-          <div className="flex items-center gap-2 mb-3">
-            <LifeBuoy size={16} className="text-blue-600" />
-            <h1 className="text-sm font-bold text-slate-900">サポートチケット</h1>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <LifeBuoy size={16} className="text-blue-600" />
+              <h1 className="text-sm font-bold text-slate-900">サポートチケット</h1>
+            </div>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
+              title="自動クローズ設定"
+            >
+              <Settings size={14} />
+            </button>
           </div>
           <div className="flex gap-1 flex-wrap">
             {STATUS_FILTERS.map((f) => (
@@ -314,6 +345,52 @@ export default function AdminSupport() {
           </>
         ) : null}
       </div>
+
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900">チケット自動クローズ設定</h2>
+              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveSettings} className="p-5 space-y-4">
+              <p className="text-xs text-slate-500">返信のないチケットを自動的にクローズします。毎日 02:30 に実行されます。</p>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">
+                  自動クローズまでの日数（日）
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={autoCloseDays}
+                    onChange={(e) => setAutoCloseDays(Number(e.target.value))}
+                    className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+                  />
+                  <span className="text-sm text-slate-500">日間返信がないチケット</span>
+                </div>
+              </div>
+              {settingsMsg && (
+                <div className={`text-xs px-3 py-2 rounded-lg ${settingsMsg.includes("失敗") ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+                  {settingsMsg}
+                </div>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setShowSettings(false)} className="flex-1 border border-slate-300 text-slate-700 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50">
+                  閉じる
+                </button>
+                <button type="submit" disabled={savingSettings} className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold">
+                  {savingSettings ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  保存
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

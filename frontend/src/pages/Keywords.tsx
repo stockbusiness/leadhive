@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Search, BarChart2, List, TrendingUp, Zap, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Lightbulb, MapPin } from "lucide-react";
+import HelpTooltip from "../components/HelpTooltip";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { api } from "../api";
 import { CATEGORIES, DEFAULT_KEYWORDS, KEYWORD_SUGGESTIONS, REGION_SUGGESTIONS } from "../constants";
@@ -281,7 +282,10 @@ export default function Keywords() {
   return (
     <div className="p-3 md:p-6 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-xl md:text-2xl font-bold text-slate-800">検索条件管理</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800">検索条件管理</h2>
+          <HelpTooltip text="キーワードと業種・地域を設定して企業を自動収集します。キーワードは複数登録でき、スケジュール収集にも使われます。" />
+        </div>
         {tab === "manage" && (
           <button
             onClick={addDefaultKeywords}

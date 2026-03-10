@@ -273,3 +273,27 @@ Dashboard.tsx: チームタブを `isSystemAdmin || user?.role === "admin"` に�
 
 ### Phase 8: 収集効率ランキングカード (2026-03)
 Keywords.tsx 分析タブに「成功率 上位キーワード (緑)」「要改善キーワード (赤)」カード追加。フロントエンドのみ、API変更なし。
+
+### Phase 9: サポート負担軽減機能 (2026-03)
+
+**FAQページ + チケット前サジェスト**
+- `faq_items` DBテーブル。`server/routes/faq.py`: `GET /api/faq`, `GET /api/faq/search`, CRUD `/api/admin/faq`。
+- `Faq.tsx` (`/faq`): アコーディオン形式・カテゴリフィルター・全文検索。公開ページ。
+- `AdminFaq.tsx` (`/admin/faq`): FAQ CRUD管理。
+- `Support.tsx` 更新: 件名入力時400msデバウンスでFAQ候補をBlueboxで表示。
+- LandingPageフッター・App.tsxサイドバーにFAQリンク追加。
+
+**アプリ内ツールチップ**
+- `components/HelpTooltip.tsx`: `?` アイコン・ホバー+クリックでテキスト表示。
+- Dashboard.tsx / Keywords.tsx / Scraper.tsx / Settings.tsx の見出しに追加。
+
+**ステータスページ**
+- `status_incidents` DBテーブル (severity: minor/major/critical, status: investigating/identified/monitoring/resolved)。
+- `server/routes/status_page.py`: `GET /api/status-page`, CRUD `/api/admin/status-incidents`。
+- `Status.tsx` (`/status`): 稼働状況ヘッダー・インシデント一覧。公開ページ。
+- `AdminStatus.tsx` (`/admin/status`): インシデント管理。
+
+**チケット自動クローズ**
+- `_run_auto_close_tickets()`: scheduler.pyに追加。毎日02:30実行。`ticket_auto_close_days`日間(デフォルト7日)返信なしのチケットを自動closed。クローズ時ユーザーへ通知メール送信。
+- `GET/PUT /api/admin/support/settings`: 自動クローズ日数設定API (SystemSettingsに暗号化保存)。
+- `AdminSupport.tsx` 更新: 歯車ボタン→設定モーダルで日数変更可能。

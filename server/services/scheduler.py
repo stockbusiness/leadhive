@@ -873,6 +873,7 @@ def _scheduler_loop():
     last_enrich_date = None
     last_master_enrich_date = None
     last_auto_gen_dates: dict = {}
+    last_auto_close_date = None
 
     while _scheduler_running:
         try:
@@ -925,6 +926,11 @@ def _scheduler_loop():
                 logger.info("Auto-suspend: Triggered at 02:00")
                 _run_suspend_inactive_users()
 
+            if now.hour == 2 and now.minute == 30 and last_auto_close_date != today:
+                last_auto_close_date = today
+                logger.info("AutoCloseTickets: Triggered at 02:30")
+                threading.Thread(target=_run_auto_close_tickets, daemon=True).start()
+
             if now.hour == 4 and now.minute == 0 and last_enrich_date != today:
                 last_enrich_date = today
                 logger.info("AutoEnrich: Triggered at 04:00")
@@ -967,6 +973,69 @@ def _scheduler_loop():
             logger.error(f"Scheduler error: {e}")
 
         time.sleep(30)
+
+
+def _run_auto_close_tickets():
+    from server.database import SessionLocal
+    from server.models import SupportTicket, SupportTicketMessage, SystemSettings, User
+    from server.services.encryption import decrypt_value
+    from datetime import timedelta
+
+    db = SessionLocal()
+    try:
+        days_row = db.query(SystemSettings).filter(SystemSettings.key == "ticket_auto_close_days").first()
+        days = int(decrypt_value(days_row.value)) if days_row and days_row.value else 7
+        cutoff = datetime.now() - timedelta(days=days)
+
+        tickets = db.query(SupportTicket).filter(
+            SupportTicket.status.in_(["open", "in_progress", "resolved"]),
+            SupportTicket.updated_at < cutoff,
+        ).all()
+
+        if not tickets:
+            return
+
+        logger.info(f"AutoCloseTickets: Found {len(tickets)} tickets to close")
+
+        for ticket in tickets:
+            ticket.status = "closed"
+            ticket.resolved_at = datetime.now()
+            db.flush()
+
+            try:
+                creator = db.query(User).filter(User.id == ticket.user_id).first()
+                if creator:
+                    from server.services.mailer import get_system_smtp_settings, send_email
+                    smtp = get_system_smtp_settings(db)
+                    if smtp.get("smtp_host"):
+                        html = f"""
+                        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                          <div style="background:#64748b;padding:16px 20px;">
+                            <h2 style="color:#fff;margin:0;font-size:16px;">サポートチケットが自動クローズされました</h2>
+                          </div>
+                          <div style="padding:20px;font-size:14px;color:#334155;">
+                            <p>チケット <strong>{ticket.ticket_number}</strong>「{ticket.subject}」は、{days}日間応答がなかったため自動クローズされました。</p>
+                            <p>引き続きお困りの場合は、新しいサポートチケットを作成してください。</p>
+                            <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+                            <p style="font-size:12px;color:#94a3b8;">LeadHive / COOLWORKS株式会社</p>
+                          </div>
+                        </div>
+                        """
+                        send_email(
+                            creator.email,
+                            f"【LeadHive】チケット {ticket.ticket_number} が自動クローズされました",
+                            html, smtp
+                        )
+            except Exception as e:
+                logger.error(f"AutoClose notification error for ticket {ticket.id}: {e}")
+
+        db.commit()
+        logger.info(f"AutoCloseTickets: Closed {len(tickets)} tickets")
+    except Exception as e:
+        logger.error(f"AutoCloseTickets error: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 
 def start_scheduler():

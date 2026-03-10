@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle, Crown, Users, AlertTriangle, Lock } from "lucide-react";
+import HelpTooltip from "../components/HelpTooltip";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
@@ -98,7 +99,10 @@ export default function Dashboard() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-2xl font-bold text-slate-800">ダッシュボード</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-slate-800">ダッシュボード</h2>
+            <HelpTooltip text="現在のプロジェクトの収集状況・スコア分布・フォローアップ予定をまとめて確認できます。" />
+          </div>
           {currentPlan && (
             <span className="flex items-center gap-1.5 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
               <Crown size={12} />

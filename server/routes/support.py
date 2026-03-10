@@ -6,7 +6,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from server.database import get_db
 from server.auth import get_current_user, require_admin
-from server.models import SupportTicket, SupportTicketMessage, User
+from server.models import SupportTicket, SupportTicketMessage, User, SystemSettings
 
 router = APIRouter(tags=["support"])
 logger = logging.getLogger(__name__)
@@ -395,3 +395,43 @@ def _send_staff_reply_notification(ticket: SupportTicket, message: str, staff: U
     </div>
     """
     send_email(creator.email, f"【LeadHive】チケット {ticket.ticket_number} に返信があります", html, smtp)
+
+
+@router.get("/api/admin/support/settings")
+def get_support_settings(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from server.services.encryption import decrypt_value
+    days_row = db.query(SystemSettings).filter(SystemSettings.key == "ticket_auto_close_days").first()
+    days = 7
+    if days_row and days_row.value:
+        try:
+            days = int(decrypt_value(days_row.value))
+        except Exception:
+            pass
+    return {"ticket_auto_close_days": days}
+
+
+class SupportSettingsBody(BaseModel):
+    ticket_auto_close_days: int
+
+
+@router.put("/api/admin/support/settings")
+def update_support_settings(
+    body: SupportSettingsBody,
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from server.services.encryption import encrypt_value
+    if body.ticket_auto_close_days < 1:
+        raise HTTPException(status_code=400, detail="1日以上を指定してください")
+    row = db.query(SystemSettings).filter(SystemSettings.key == "ticket_auto_close_days").first()
+    val = encrypt_value(str(body.ticket_auto_close_days))
+    if row:
+        row.value = val
+    else:
+        row = SystemSettings(key="ticket_auto_close_days", value=val)
+        db.add(row)
+    db.commit()
+    return {"message": "保存しました", "ticket_auto_close_days": body.ticket_auto_close_days}

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   LifeBuoy, Plus, ChevronRight, Loader2, X, Send, AlertCircle,
-  CheckCircle2, Clock, AlertTriangle, InboxIcon
+  CheckCircle2, Clock, AlertTriangle, InboxIcon, HelpCircle, ExternalLink
 } from "lucide-react";
 import { api } from "../api";
 
@@ -70,6 +70,9 @@ export default function Support() {
   const [form, setForm] = useState({ subject: "", category: "general", priority: "normal", message: "" });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [faqSuggestions, setFaqSuggestions] = useState<{ id: number; question: string; answer: string }[]>([]);
+  const [faqLoading, setFaqLoading] = useState(false);
+  const faqTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = async (status = statusFilter) => {
     setLoading(true);
@@ -86,6 +89,21 @@ export default function Support() {
   const handleFilterChange = (s: string) => {
     setStatusFilter(s);
     load(s);
+  };
+
+  const handleSubjectChange = (value: string) => {
+    setForm((f) => ({ ...f, subject: value }));
+    if (faqTimerRef.current) clearTimeout(faqTimerRef.current);
+    if (value.trim().length < 3) { setFaqSuggestions([]); return; }
+    faqTimerRef.current = setTimeout(async () => {
+      setFaqLoading(true);
+      try {
+        const results = await api.faq.search(value);
+        setFaqSuggestions(results);
+      } finally {
+        setFaqLoading(false);
+      }
+    }, 400);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -241,10 +259,36 @@ export default function Support() {
                 <input
                   type="text"
                   value={form.subject}
-                  onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+                  onChange={(e) => handleSubjectChange(e.target.value)}
                   placeholder="問題や質問の概要を入力してください"
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                {(faqLoading || faqSuggestions.length > 0) && (
+                  <div className="mt-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <HelpCircle size={13} className="text-blue-500" />
+                      <span className="text-xs font-semibold text-blue-700">関連するFAQが見つかりました</span>
+                      {faqLoading && <Loader2 size={11} className="animate-spin text-blue-500 ml-1" />}
+                    </div>
+                    <ul className="space-y-1.5">
+                      {faqSuggestions.map((faq) => (
+                        <li key={faq.id}>
+                          <details className="group">
+                            <summary className="flex items-center justify-between cursor-pointer text-xs font-medium text-blue-800 hover:text-blue-600 list-none">
+                              <span>{faq.question}</span>
+                              <ChevronRight size={12} className="text-blue-400 group-open:rotate-90 transition-transform flex-shrink-0 ml-1" />
+                            </summary>
+                            <p className="mt-1.5 text-xs text-slate-600 leading-relaxed pl-2 border-l-2 border-blue-200">{faq.answer}</p>
+                          </details>
+                        </li>
+                      ))}
+                    </ul>
+                    <Link to="/faq" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-2 font-medium" target="_blank">
+                      <ExternalLink size={11} />
+                      FAQをすべて見る
+                    </Link>
+                  </div>
+                )}
               </div>
 
               <div>

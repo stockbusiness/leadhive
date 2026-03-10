@@ -37,6 +37,8 @@ import {
   GanttChartSquare,
   Shield,
   LifeBuoy,
+  HelpCircle,
+  Activity,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -93,6 +95,10 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const Contact = lazy(() => import("./pages/Contact"));
+const Faq = lazy(() => import("./pages/Faq"));
+const Status = lazy(() => import("./pages/Status"));
+const AdminFaq = lazy(() => import("./pages/AdminFaq"));
+const AdminStatus = lazy(() => import("./pages/AdminStatus"));
 
 function PageLoader() {
   return (
@@ -287,6 +293,8 @@ function AppContent() {
                 <SidebarLink to="/admin/email-templates" icon={<Mail size={18} />} label="メールテンプレート" onClick={closeSidebar} />
                 <SidebarLink to="/admin/contact-settings" icon={<Mail size={18} />} label="問い合わせフォーム設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/support" icon={<LifeBuoy size={18} />} label="サポートチケット管理" onClick={closeSidebar} />
+                <SidebarLink to="/admin/faq" icon={<HelpCircle size={18} />} label="FAQ管理" onClick={closeSidebar} />
+                <SidebarLink to="/admin/status" icon={<Activity size={18} />} label="ステータスページ" onClick={closeSidebar} />
                 <SidebarLink to="/admin/features" icon={<Sliders size={18} />} label="機能フラグ" onClick={closeSidebar} />
                 <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/auto-master" icon={<DatabaseZap size={18} />} label="マスターDB自動収集" onClick={closeSidebar} />
@@ -410,6 +418,8 @@ function AppContent() {
               <Route path="/admin/security" element={<AdminSecurity />} />
               <Route path="/admin/contact-settings" element={<AdminContact />} />
               <Route path="/admin/support" element={<AdminSupport />} />
+              <Route path="/admin/faq" element={<AdminFaq />} />
+              <Route path="/admin/status" element={<AdminStatus />} />
               <Route path="/support" element={<Support />} />
               <Route path="/support/:id" element={<SupportTicket />} />
               <Route path="/sales-ai" element={<SalesAI />} />
@@ -476,6 +486,8 @@ function App() {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/faq" element={<Faq />} />
+            <Route path="/status" element={<Status />} />
             <Route path="/*" element={<HomeRoute />} />
           </Routes>
         </Suspense>

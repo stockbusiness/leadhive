@@ -482,6 +482,31 @@ class SupportTicketMessage(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class FaqItem(Base):
+    __tablename__ = "faq_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    question = Column(String(500), nullable=False)
+    answer = Column(Text, nullable=False)
+    category = Column(String(100), nullable=False, default="general")
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class StatusIncident(Base):
+    __tablename__ = "status_incidents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(300), nullable=False)
+    body = Column(Text, nullable=True)
+    severity = Column(String(20), nullable=False, default="minor")
+    status = Column(String(20), nullable=False, default="investigating")
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+    resolved_at = Column(DateTime, nullable=True)
+
+
 class OptOutList(Base):
     __tablename__ = "opt_out_list"
 

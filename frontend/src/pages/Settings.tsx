@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, DatabaseZap } from "lucide-react";
+import HelpTooltip from "../components/HelpTooltip";
 import { api } from "../api";
 import type { PlanData, PlanUsage } from "../types";
 
@@ -300,7 +301,10 @@ export default function Settings() {
 
   return (
     <div className="p-6 space-y-6 max-w-2xl">
-      <h2 className="text-2xl font-bold text-slate-800">設定</h2>
+      <div className="flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-slate-800">設定</h2>
+        <HelpTooltip text="Google API・自動収集スケジュール・通知設定など、LeadHiveの動作をカスタマイズできます。" />
+      </div>
 
       {upgradeSuccess && (
         <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-300 rounded-xl px-5 py-4">

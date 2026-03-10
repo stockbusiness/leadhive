@@ -496,6 +496,33 @@ export const api = {
     save: (data: Record<string, string>) => axios.put("/api/admin/contact-settings", data).then(r => r.data),
   },
 
+  faq: {
+    list: () => axios.get("/api/faq").then(r => r.data),
+    search: (q: string) => axios.get("/api/faq/search", { params: { q } }).then(r => r.data),
+  },
+
+  adminFaq: {
+    list: () => axios.get("/api/admin/faq").then(r => r.data),
+    create: (data: { question: string; answer: string; category: string; display_order: number; is_active: boolean }) =>
+      axios.post("/api/admin/faq", data).then(r => r.data),
+    update: (id: number, data: { question: string; answer: string; category: string; display_order: number; is_active: boolean }) =>
+      axios.put(`/api/admin/faq/${id}`, data).then(r => r.data),
+    delete: (id: number) => axios.delete(`/api/admin/faq/${id}`).then(r => r.data),
+  },
+
+  statusPage: {
+    get: () => axios.get("/api/status-page").then(r => r.data),
+  },
+
+  adminStatus: {
+    list: () => axios.get("/api/admin/status-incidents").then(r => r.data),
+    create: (data: { title: string; body: string; severity: string; status: string }) =>
+      axios.post("/api/admin/status-incidents", data).then(r => r.data),
+    update: (id: number, data: { title: string; body: string; severity: string; status: string }) =>
+      axios.put(`/api/admin/status-incidents/${id}`, data).then(r => r.data),
+    delete: (id: number) => axios.delete(`/api/admin/status-incidents/${id}`).then(r => r.data),
+  },
+
   support: {
     list: (status?: string) => axios.get("/api/support/tickets", { params: status ? { status } : {} }).then(r => r.data),
     create: (data: { subject: string; category: string; priority: string; message: string }) =>
@@ -513,6 +540,9 @@ export const api = {
       axios.post(`/api/admin/support/tickets/${id}/messages`, { body }).then(r => r.data),
     updateStatus: (id: number, status: string) =>
       axios.put(`/api/admin/support/tickets/${id}/status`, { status }).then(r => r.data),
+    getSettings: () => axios.get("/api/admin/support/settings").then(r => r.data),
+    saveSettings: (data: { ticket_auto_close_days: number }) =>
+      axios.put("/api/admin/support/settings", data).then(r => r.data),
   },
 
   onboarding: {

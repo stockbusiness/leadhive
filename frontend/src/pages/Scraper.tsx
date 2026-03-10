@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2, Search, ChevronDown, ChevronUp, DatabaseZap } from "lucide-react";
+import HelpTooltip from "../components/HelpTooltip";
 import { api } from "../api";
 import { ResultRow } from "../components/common";
 import { useProject } from "../contexts/ProjectContext";
@@ -174,7 +175,10 @@ export default function Scraper() {
 
   return (
     <div className="p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-slate-800">URL収集・スクレイピング</h2>
+      <div className="flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-slate-800">URL収集・スクレイピング</h2>
+        <HelpTooltip text="キーワードや業種に基づいて企業のウェブサイトURLを自動収集します。GoogleまたはSerperのAPIキーが必要です。" />
+      </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200">
         <div className="flex border-b border-slate-200 overflow-x-auto">
