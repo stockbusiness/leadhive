@@ -491,6 +491,11 @@ export const api = {
     save: (flags: Record<string, boolean>) => axios.put("/api/admin/feature-flags", { flags }).then(r => r.data),
   },
 
+  adminContact: {
+    get: () => axios.get("/api/admin/contact-settings").then(r => r.data),
+    save: (data: Record<string, string>) => axios.put("/api/admin/contact-settings", data).then(r => r.data),
+  },
+
   onboarding: {
     complete: () => axios.post("/api/onboarding/complete").then(r => r.data),
     updateOrgName: (orgName: string) =>
