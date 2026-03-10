@@ -270,10 +270,11 @@ def collect_google_maps(
         return {"error": "Google Places APIキーが設定されていません。設定画面で登録してください。"}
 
     from server.services.google_places import search_google_maps
+    from server.services.encryption import decrypt_value as _dv
     places = search_google_maps(
         keyword=keyword,
         region=region,
-        api_key=api_key_row.setting_value,
+        api_key=_dv(api_key_row.setting_value),
         max_results=max_results,
     )
     if not places:
@@ -401,7 +402,8 @@ def collect_urls_preview(
         if not api_key_row or not api_key_row.setting_value:
             return {"error": "Google Places APIキーが設定されていません。"}
         from server.services.google_places import search_google_maps
-        places = search_google_maps(keyword=keyword, region=region, api_key=api_key_row.setting_value, max_results=max_results)
+        from server.services.encryption import decrypt_value as _dv
+        places = search_google_maps(keyword=keyword, region=region, api_key=_dv(api_key_row.setting_value), max_results=max_results)
         if not places:
             return {"error": "結果が見つかりませんでした。"}
         urls = [{"url": p["url"], "name": p.get("title", ""), "source": f"Googleマップ: {keyword}"} for p in places if p.get("url")]
@@ -495,11 +497,12 @@ def collect_urls_preview(
         if not cx_row or not cx_row.setting_value:
             return {"error": "Search Engine IDが設定されていません。"}
 
+        from server.services.encryption import decrypt_value as _dv
         urls = []
         seen = set()
         for kw in keywords_data:
             query = kw.keyword + (f" {kw.region}" if kw.region else "")
-            results = search_google(api_key_row.setting_value, cx_row.setting_value, query, db, num=10)
+            results = search_google(_dv(api_key_row.setting_value), _dv(cx_row.setting_value), query, db, num=10)
             for r in results:
                 url = r.get("url", "")
                 if url and url not in seen:

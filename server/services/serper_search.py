@@ -49,9 +49,10 @@ def get_serper_api_key() -> Optional[str]:
         from server.models import SystemSettings
         db = SessionLocal()
         try:
+            from server.services.encryption import decrypt_value
             row = db.query(SystemSettings).filter(SystemSettings.key == "serper_api_key").first()
             if row and row.value:
-                return row.value
+                return decrypt_value(row.value)
         finally:
             db.close()
     except Exception:

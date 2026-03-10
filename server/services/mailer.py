@@ -7,20 +7,22 @@ from typing import Optional
 
 def get_smtp_settings(db, org_id: int) -> dict:
     from server.models import AppSetting
+    from server.services.encryption import decrypt_value
     keys = ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_from_email", "smtp_from_name", "smtp_use_tls"]
     settings = db.query(AppSetting).filter(
         AppSetting.setting_key.in_(keys),
         AppSetting.org_id == org_id,
     ).all()
-    result = {s.setting_key: s.setting_value for s in settings}
+    result = {s.setting_key: decrypt_value(s.setting_value or "") for s in settings}
     return result
 
 
 def get_system_smtp_settings(db) -> dict:
     from server.models import SystemSettings
+    from server.services.encryption import decrypt_value
     keys = ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_from_email", "smtp_from_name"]
     rows = db.query(SystemSettings).filter(SystemSettings.key.in_(keys)).all()
-    raw = {r.key: r.value for r in rows}
+    raw = {r.key: decrypt_value(r.value or "") for r in rows}
     return {
         "smtp_host": raw.get("smtp_host", ""),
         "smtp_port": raw.get("smtp_port", "587"),

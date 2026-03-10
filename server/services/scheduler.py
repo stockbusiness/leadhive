@@ -189,8 +189,9 @@ def _run_followup_notify():
                     AppSetting.org_id == org.id,
                 ).first()
                 if webhook and webhook.setting_value:
+                    from server.services.encryption import decrypt_value as _dv
                     slack_msg = f"📅 *LeadHive フォローアップ通知* ({today.strftime('%Y/%m/%d')})\n{summary_text}"
-                    send_slack_notification(slack_msg, webhook.setting_value)
+                    send_slack_notification(slack_msg, _dv(webhook.setting_value))
 
             if channel in ("email", "both"):
                 admins = db.query(User).filter(
@@ -313,11 +314,13 @@ def _run_auto_master_collect(job_id: str = None):
     db = SessionLocal()
     try:
         import os
+        from server.services.encryption import decrypt_value as _dv_enc
+        _raw_token = _sys_get(db, "gbizinfo_api_token")
         token = (
             os.environ.get("GbizAPIkey")
             or os.environ.get("GBIZINFO_API_TOKEN")
             or os.environ.get("GBIZ_API_TOKEN")
-            or _sys_get(db, "gbizinfo_api_token")
+            or (_dv_enc(_raw_token) if _raw_token else None)
         )
         if not token:
             msg = "gBizINFO APIトークンが設定されていません"

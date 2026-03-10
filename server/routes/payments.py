@@ -23,16 +23,19 @@ STRIPE_SETTINGS_KEYS = [
 
 
 def get_setting(db: Session, key: str) -> Optional[str]:
+    from server.services.encryption import decrypt_value
     row = db.query(SystemSettings).filter(SystemSettings.key == key).first()
-    return row.value if row else None
+    return decrypt_value(row.value) if row and row.value else None
 
 
 def set_setting(db: Session, key: str, value: Optional[str]):
+    from server.services.encryption import encrypt_value, should_encrypt
+    store_value = encrypt_value(value) if value and should_encrypt(key) else value
     row = db.query(SystemSettings).filter(SystemSettings.key == key).first()
     if row:
-        row.value = value
+        row.value = store_value
     else:
-        db.add(SystemSettings(key=key, value=value))
+        db.add(SystemSettings(key=key, value=store_value))
 
 
 def get_stripe_client(db: Session):

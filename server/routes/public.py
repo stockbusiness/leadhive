@@ -31,8 +31,9 @@ def lookup_corporate(number: str, db: Session = Depends(get_db)):
     if not number.isdigit() or len(number) != 13:
         raise HTTPException(status_code=400, detail="法人番号は13桁の数字で入力してください")
 
+    from server.services.encryption import decrypt_value
     token_row = db.query(SystemSettings).filter(SystemSettings.key == "gbizinfo_api_token").first()
-    token = token_row.value if token_row and token_row.value else None
+    token = decrypt_value(token_row.value) if token_row and token_row.value else None
 
     if not token:
         return {"error": "lookup_unavailable", "message": "法人番号は保存されますが自動取得は現在利用できません"}

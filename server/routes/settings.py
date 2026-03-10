@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from server.database import get_db
 from server.models import AppSetting, User
 from server.auth import get_current_user
+from server.services.encryption import encrypt_value, decrypt_value, should_encrypt
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -39,8 +40,9 @@ def get_settings(
     ).all()
     result = {}
     for s in settings:
+        raw = decrypt_value(s.setting_value or "")
         result[s.setting_key] = {
-            "value": mask_value(s.setting_key, s.setting_value or ""),
+            "value": mask_value(s.setting_key, raw),
             "is_set": bool(s.setting_value),
         }
     for key in SETTING_KEYS:
@@ -59,14 +61,15 @@ def update_settings(
     for key, value in data.items():
         if key not in SETTING_KEYS:
             continue
+        store_value = encrypt_value(value) if should_encrypt(key) and value else value
         setting = db.query(AppSetting).filter(
             AppSetting.setting_key == key,
             AppSetting.org_id == current_user.org_id,
         ).first()
         if setting:
-            setting.setting_value = value
+            setting.setting_value = store_value
         else:
-            setting = AppSetting(setting_key=key, setting_value=value, org_id=current_user.org_id)
+            setting = AppSetting(setting_key=key, setting_value=store_value, org_id=current_user.org_id)
             db.add(setting)
         updated.append(key)
     db.commit()
@@ -91,7 +94,8 @@ def test_slack(
     ).first()
     if not webhook or not webhook.setting_value:
         return {"success": False, "message": "Slack Webhook URLが設定されていません"}
-    ok = send_slack_notification("🔔 LeadHiveからのテスト通知です。Slack連携が正常に動作しています！", webhook.setting_value)
+    webhook_url = decrypt_value(webhook.setting_value)
+    ok = send_slack_notification("🔔 LeadHiveからのテスト通知です。Slack連携が正常に動作しています！", webhook_url)
     if ok:
         return {"success": True, "message": "Slack通知を送信しました"}
     return {"success": False, "message": "送信に失敗しました。Webhook URLを確認してください"}
@@ -137,15 +141,13 @@ def test_connection(
     if not cx_setting or not cx_setting.setting_value:
         return {"success": False, "message": "Search Engine ID (cx)が設定されていません"}
 
+    api_key = decrypt_value(api_key_setting.setting_value)
+    cx = decrypt_value(cx_setting.setting_value)
+
     try:
         resp = requests.get(
             "https://www.googleapis.com/customsearch/v1",
-            params={
-                "key": api_key_setting.setting_value,
-                "cx": cx_setting.setting_value,
-                "q": "test",
-                "num": 1,
-            },
+            params={"key": api_key, "cx": cx, "q": "test", "num": 1},
             timeout=10,
         )
         if resp.status_code == 200:

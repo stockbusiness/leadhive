@@ -70,11 +70,13 @@ def _get_all(db: Session) -> dict:
 
 
 def _set_key(db: Session, key: str, value: str):
+    from server.services.encryption import encrypt_value, should_encrypt
+    store_value = encrypt_value(value) if should_encrypt(key) and value else value
     row = db.query(SystemSettings).filter(SystemSettings.key == key).first()
     if row:
-        row.value = value
+        row.value = store_value
     else:
-        db.add(SystemSettings(key=key, value=value))
+        db.add(SystemSettings(key=key, value=store_value))
     db.commit()
 
 

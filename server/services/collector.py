@@ -170,9 +170,10 @@ def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> 
             return {"error": "検索APIが設定されていません。管理画面でSerper APIキーを設定するか、Google API Keyを設定してください。"}
         if not cx_setting or not cx_setting.setting_value:
             return {"error": "Search Engine ID (cx)が設定されていません。設定画面で登録してください。"}
+        from server.services.encryption import decrypt_value as _dv
         search_results = search_google(
-            api_key_setting.setting_value,
-            cx_setting.setting_value,
+            _dv(api_key_setting.setting_value),
+            _dv(cx_setting.setting_value),
             query,
             db,
             num=10,
@@ -219,6 +220,7 @@ def _send_collection_slack(db: Session, project_id, source: str, summary: dict, 
             return
         from server.services.slack import send_slack_notification
         from server.models import Project
+        from server.services.encryption import decrypt_value as _dv
         project_name = "不明"
         if project_id:
             p = db.query(Project).filter(Project.id == project_id).first()
@@ -230,7 +232,7 @@ def _send_collection_slack(db: Session, project_id, source: str, summary: dict, 
             f"✅ 収集完了: {project_name} / {source}\n"
             f"新規 {summary['success']}件  除外 {summary['rejected']}件  重複 {summary['duplicate']}件"
         )
-        send_slack_notification(msg, webhook_row.setting_value)
+        send_slack_notification(msg, _dv(webhook_row.setting_value))
     except Exception as e:
         logger.warning(f"Slack通知エラー: {e}")
 

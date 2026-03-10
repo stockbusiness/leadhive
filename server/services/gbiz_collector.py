@@ -45,8 +45,9 @@ def get_gbiz_token(org_id: int, db: Session) -> str | None:
     env_token = os.environ.get("GbizAPIkey") or os.environ.get("GBIZINFO_API_TOKEN") or os.environ.get("GBIZ_API_TOKEN")
     if env_token:
         return env_token
+    from server.services.encryption import decrypt_value
     row = db.query(SystemSettings).filter(SystemSettings.key == "gbizinfo_api_token").first()
-    return row.value if row and row.value else None
+    return decrypt_value(row.value) if row and row.value else None
 
 
 def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: int = 1) -> dict:
