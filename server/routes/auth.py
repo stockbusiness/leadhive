@@ -1,7 +1,11 @@
 import os
 import uuid
+import logging
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+
+logger = logging.getLogger(__name__)
+
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from server.database import get_db
@@ -223,6 +227,13 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     db.refresh(user)
 
     org = db.query(Organization).filter(Organization.id == user.org_id).first()
+
+    try:
+        from server.services.commitrev import send_lead_created
+        send_lead_created(db, user_id=user.id, email=user.email, org_name=org.name if org else "")
+    except Exception as _cr_err:
+        logger.warning("CommitRev lead_created error: %s", _cr_err)
+
     jwt = create_access_token({"sub": str(user.id)})
     return {
         "access_token": jwt,

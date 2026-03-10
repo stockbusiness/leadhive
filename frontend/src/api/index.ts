@@ -347,6 +347,15 @@ export const api = {
       }).then(r => r.data),
   },
 
+  commitrev: {
+    getSettings: () =>
+      axios.get<Record<string, string | boolean>>("/api/admin/commitrev-settings").then(r => r.data),
+    updateSettings: (data: Record<string, string>) =>
+      axios.put("/api/admin/commitrev-settings", data).then(r => r.data),
+    testConnection: () =>
+      axios.post<{ success: boolean; message: string }>("/api/admin/commitrev-settings/test").then(r => r.data),
+  },
+
   admin: {
     getApiSettings: () =>
       axios.get<Record<string, string | boolean>>("/api/admin/api-settings").then(r => r.data),

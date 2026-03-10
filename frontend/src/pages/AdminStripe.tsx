@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   CreditCard, Eye, EyeOff, Save, Loader2, CheckCircle2,
-  AlertCircle, RefreshCw, ExternalLink, X, Zap,
+  AlertCircle, RefreshCw, ExternalLink, X, Zap, Link2,
 } from "lucide-react";
 import { api } from "../api";
 import type { PlanData } from "../types";
@@ -359,6 +359,206 @@ export default function AdminStripe() {
           <li>イベント「<span className="font-mono">checkout.session.completed</span>」を選択</li>
           <li>作成後、「署名シークレット」をコピーして上記の「Webhookシークレット」欄に貼り付け</li>
         </ol>
+      </div>
+
+      <CommitRevSection />
+    </div>
+  );
+}
+
+function CommitRevSection() {
+  const [settings, setSettings] = useState({
+    commitrev_hmac_secret: "",
+    commitrev_tenant_id: "",
+    commitrev_product_code: "",
+    commitrev_base_url: "",
+    commitrev_hmac_secret_set: false,
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [showSecret, setShowSecret] = useState(false);
+
+  useEffect(() => {
+    api.commitrev.getSettings().then((data) => {
+      setSettings({
+        commitrev_hmac_secret: (data.commitrev_hmac_secret as string) || "",
+        commitrev_tenant_id: (data.commitrev_tenant_id as string) || "",
+        commitrev_product_code: (data.commitrev_product_code as string) || "",
+        commitrev_base_url: (data.commitrev_base_url as string) || "",
+        commitrev_hmac_secret_set: !!(data.commitrev_hmac_secret_set),
+      });
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError("");
+    setSaveSuccess(false);
+    try {
+      const payload: Record<string, string> = {
+        commitrev_tenant_id: settings.commitrev_tenant_id,
+        commitrev_product_code: settings.commitrev_product_code,
+        commitrev_base_url: settings.commitrev_base_url,
+      };
+      if (settings.commitrev_hmac_secret && !settings.commitrev_hmac_secret.includes("••")) {
+        payload.commitrev_hmac_secret = settings.commitrev_hmac_secret;
+      }
+      await api.commitrev.updateSettings(payload);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      const data = await api.commitrev.getSettings();
+      setSettings({
+        commitrev_hmac_secret: (data.commitrev_hmac_secret as string) || "",
+        commitrev_tenant_id: (data.commitrev_tenant_id as string) || "",
+        commitrev_product_code: (data.commitrev_product_code as string) || "",
+        commitrev_base_url: (data.commitrev_base_url as string) || "",
+        commitrev_hmac_secret_set: !!(data.commitrev_hmac_secret_set),
+      });
+    } catch (e: any) {
+      setSaveError(e?.response?.data?.detail || "保存に失敗しました");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await api.commitrev.testConnection();
+      setTestResult({ success: true, message: result.message });
+    } catch (e: any) {
+      setTestResult({ success: false, message: e?.response?.data?.detail || "接続テストに失敗しました" });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  if (loading) return null;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+      <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
+        <Link2 size={18} className="text-blue-500" />
+        <div>
+          <h3 className="font-semibold text-slate-700">CommitRev 連携設定</h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            パートナー紹介トラッキング — ユーザー登録・決済完了時に自動でイベントを送信します
+          </p>
+        </div>
+      </div>
+
+      <div className="p-5 space-y-4">
+        {saveError && (
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+            <AlertCircle size={15} />
+            {saveError}
+            <button onClick={() => setSaveError("")} className="ml-auto"><X size={14} /></button>
+          </div>
+        )}
+        {saveSuccess && (
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700">
+            <CheckCircle2 size={15} />
+            CommitRev設定を保存しました
+          </div>
+        )}
+        {testResult && (
+          <div className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm border ${testResult.success ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+            {testResult.success ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+            {testResult.message}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              HMAC シークレットキー
+              {settings.commitrev_hmac_secret_set && (
+                <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">設定済み</span>
+              )}
+            </label>
+            <div className="relative">
+              <input
+                type={showSecret ? "text" : "password"}
+                value={settings.commitrev_hmac_secret}
+                onChange={(e) => setSettings((s) => ({ ...s, commitrev_hmac_secret: e.target.value }))}
+                placeholder={settings.commitrev_hmac_secret_set ? "（変更する場合のみ入力）" : "CommitRevのHMACシークレットキー"}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={() => setShowSecret((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {showSecret ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">テナントID</label>
+            <input
+              type="text"
+              value={settings.commitrev_tenant_id}
+              onChange={(e) => setSettings((s) => ({ ...s, commitrev_tenant_id: e.target.value }))}
+              placeholder="例: 42"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">プロダクトコード</label>
+            <input
+              type="text"
+              value={settings.commitrev_product_code}
+              onChange={(e) => setSettings((s) => ({ ...s, commitrev_product_code: e.target.value }))}
+              placeholder="例: leadhive_starter"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              ベースURL
+              <span className="ml-2 text-xs text-slate-400">（変更不要な場合は空欄）</span>
+            </label>
+            <input
+              type="text"
+              value={settings.commitrev_base_url}
+              onChange={(e) => setSettings((s) => ({ ...s, commitrev_base_url: e.target.value }))}
+              placeholder="https://app.commitrev.com"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1">
+          <p className="font-medium text-slate-600 mb-1">送信されるイベント</p>
+          <p>• <span className="font-mono text-blue-600">lead_created</span> — メールアドレス認証完了時（新規ユーザー登録確定）</p>
+          <p>• <span className="font-mono text-blue-600">purchase_completed</span> — Stripe 決済完了時（プラン購入）</p>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleTest}
+            disabled={testing}
+            className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            {testing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            接続テスト
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            保存
+          </button>
+        </div>
       </div>
     </div>
   );

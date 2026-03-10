@@ -117,6 +117,69 @@ def test_stripe_connection(
 
 SYSTEM_API_KEYS = ["gbizinfo_api_token", "anthropic_api_key", "serper_api_key"]
 
+COMMITREV_SETTINGS_KEYS = [
+    "commitrev_hmac_secret",
+    "commitrev_tenant_id",
+    "commitrev_product_code",
+    "commitrev_base_url",
+]
+
+
+@router.get("/api/admin/commitrev-settings")
+def get_commitrev_settings(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    data = {}
+    for key in COMMITREV_SETTINGS_KEYS:
+        value = get_setting(db, key)
+        if key == "commitrev_hmac_secret" and value:
+            masked = value[:4] + "••••••••" + value[-4:] if len(value) > 8 else "••••••••"
+            data[key] = masked
+            data["commitrev_hmac_secret_set"] = True
+        else:
+            data[key] = value or ""
+    return data
+
+
+@router.put("/api/admin/commitrev-settings")
+def update_commitrev_settings(
+    payload: dict,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    updated = []
+    for key in COMMITREV_SETTINGS_KEYS:
+        if key in payload:
+            val = payload[key]
+            if key == "commitrev_hmac_secret" and "••" in str(val):
+                continue
+            set_setting(db, key, val)
+            updated.append(key)
+    db.commit()
+    return {"message": "CommitRev設定を保存しました", "updated": updated}
+
+
+@router.post("/api/admin/commitrev-settings/test")
+def test_commitrev_settings(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from server.services.commitrev import _get_commitrev_config, send_event
+    config = _get_commitrev_config(db)
+    if not config:
+        raise HTTPException(status_code=400, detail="CommitRev設定が未完了です（HMAC Secret・テナントID・プロダクトコードが必要）")
+    ok = send_event(
+        db=db,
+        event_type="lead_created",
+        idempotency_key="test_connection_check",
+        extra_payload={"test": True},
+    )
+    if ok:
+        return {"success": True, "message": "CommitRevへの接続に成功しました"}
+    else:
+        raise HTTPException(status_code=400, detail="CommitRevへの送信に失敗しました。設定を確認してください。")
+
 
 @router.get("/api/admin/api-settings")
 def get_api_settings(
@@ -225,11 +288,25 @@ async def stripe_webhook(
         metadata = session.get("metadata", {})
         org_id = metadata.get("org_id")
         plan_id = metadata.get("plan_id")
+        stripe_session_id = session.get("id", "")
         if org_id and plan_id:
             org = db.query(Organization).filter(Organization.id == int(org_id)).first()
             if org:
                 org.plan_id = int(plan_id)
                 db.commit()
+                plan = db.query(Plan).filter(Plan.id == int(plan_id)).first()
+                plan_name = plan.name if plan else str(plan_id)
+                try:
+                    from server.services.commitrev import send_purchase_completed
+                    send_purchase_completed(
+                        db=db,
+                        org_id=int(org_id),
+                        plan_name=plan_name,
+                        stripe_session_id=stripe_session_id,
+                    )
+                except Exception as _cr_err:
+                    import logging
+                    logging.getLogger(__name__).warning("CommitRev purchase_completed error: %s", _cr_err)
 
     return {"received": True}
 
