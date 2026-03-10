@@ -36,6 +36,7 @@ import {
   Bot,
   GanttChartSquare,
   Shield,
+  LifeBuoy,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -73,6 +74,9 @@ const AdminSmtp = lazy(() => import("./pages/AdminSmtp"));
 const AdminEmailTemplates = lazy(() => import("./pages/AdminEmailTemplates"));
 const AdminFeatures = lazy(() => import("./pages/AdminFeatures"));
 const AdminContact = lazy(() => import("./pages/AdminContact"));
+const Support = lazy(() => import("./pages/Support"));
+const SupportTicket = lazy(() => import("./pages/SupportTicket"));
+const AdminSupport = lazy(() => import("./pages/AdminSupport"));
 const AdminAutoMaster = lazy(() => import("./pages/AdminAutoMaster"));
 const AdminSecurity = lazy(() => import("./pages/AdminSecurity"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
@@ -261,6 +265,7 @@ function AppContent() {
             {user?.role === "admin" && (
               <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
             )}
+            <SidebarLink to="/support" icon={<LifeBuoy size={18} />} label="サポート" onClick={closeSidebar} />
           </div>
 
           {user?.role === "admin" && (
@@ -281,6 +286,7 @@ function AppContent() {
                 <SidebarLink to="/admin/smtp" icon={<Mail size={18} />} label="SMTP設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/email-templates" icon={<Mail size={18} />} label="メールテンプレート" onClick={closeSidebar} />
                 <SidebarLink to="/admin/contact-settings" icon={<Mail size={18} />} label="問い合わせフォーム設定" onClick={closeSidebar} />
+                <SidebarLink to="/admin/support" icon={<LifeBuoy size={18} />} label="サポートチケット管理" onClick={closeSidebar} />
                 <SidebarLink to="/admin/features" icon={<Sliders size={18} />} label="機能フラグ" onClick={closeSidebar} />
                 <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/auto-master" icon={<DatabaseZap size={18} />} label="マスターDB自動収集" onClick={closeSidebar} />
@@ -403,6 +409,9 @@ function AppContent() {
               <Route path="/admin/auto-master" element={<AdminAutoMaster />} />
               <Route path="/admin/security" element={<AdminSecurity />} />
               <Route path="/admin/contact-settings" element={<AdminContact />} />
+              <Route path="/admin/support" element={<AdminSupport />} />
+              <Route path="/support" element={<Support />} />
+              <Route path="/support/:id" element={<SupportTicket />} />
               <Route path="/sales-ai" element={<SalesAI />} />
               <Route path="/pipeline" element={<Pipeline />} />
               <Route path="/roadmap" element={<Roadmap />} />

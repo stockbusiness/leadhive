@@ -455,6 +455,33 @@ class AuditLog(Base):
     note = Column(Text, nullable=True)
 
 
+class SupportTicket(Base):
+    __tablename__ = "support_tickets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_number = Column(String(20), unique=True, nullable=False)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    subject = Column(String(500), nullable=False)
+    category = Column(String(50), nullable=False, default="general")
+    priority = Column(String(20), nullable=False, default="normal")
+    status = Column(String(20), nullable=False, default="open")
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    resolved_at = Column(DateTime, nullable=True)
+
+
+class SupportTicketMessage(Base):
+    __tablename__ = "support_ticket_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("support_tickets.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    is_staff = Column(Boolean, nullable=False, default=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class OptOutList(Base):
     __tablename__ = "opt_out_list"
 

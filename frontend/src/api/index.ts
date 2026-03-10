@@ -496,6 +496,25 @@ export const api = {
     save: (data: Record<string, string>) => axios.put("/api/admin/contact-settings", data).then(r => r.data),
   },
 
+  support: {
+    list: (status?: string) => axios.get("/api/support/tickets", { params: status ? { status } : {} }).then(r => r.data),
+    create: (data: { subject: string; category: string; priority: string; message: string }) =>
+      axios.post("/api/support/tickets", data).then(r => r.data),
+    get: (id: number) => axios.get(`/api/support/tickets/${id}`).then(r => r.data),
+    addMessage: (id: number, body: string) =>
+      axios.post(`/api/support/tickets/${id}/messages`, { body }).then(r => r.data),
+    close: (id: number) => axios.put(`/api/support/tickets/${id}/close`).then(r => r.data),
+  },
+
+  adminSupport: {
+    list: (status?: string) => axios.get("/api/admin/support/tickets", { params: status ? { status } : {} }).then(r => r.data),
+    get: (id: number) => axios.get(`/api/admin/support/tickets/${id}`).then(r => r.data),
+    addMessage: (id: number, body: string) =>
+      axios.post(`/api/admin/support/tickets/${id}/messages`, { body }).then(r => r.data),
+    updateStatus: (id: number, status: string) =>
+      axios.put(`/api/admin/support/tickets/${id}/status`, { status }).then(r => r.data),
+  },
+
   onboarding: {
     complete: () => axios.post("/api/onboarding/complete").then(r => r.data),
     updateOrgName: (orgName: string) =>
