@@ -836,32 +836,45 @@ def _run_auto_master_enrich(force: bool = False):
 
     total_targets = len(targets_raw)
     logger.info(f"AutoMasterEnrich: {total_targets}社のURL補完を開始")
-    _fresh_set("auto_master_enrich_progress", f"0/{total_targets}")
+    _fresh_set("auto_master_enrich_progress", f"0/{total_targets} 処理中...")
 
     enriched = 0
     skipped = 0
+    processed = 0
+    DDG_FAIL_LIMIT = 5
+    ddg_fail_counter = [0]
 
     for company_id, company_name, prefecture, city, corporate_number in targets_raw:
+        processed += 1
+        ddg_disabled = ddg_fail_counter[0] >= DDG_FAIL_LIMIT
+        if ddg_disabled and ddg_fail_counter[0] == DDG_FAIL_LIMIT:
+            logger.warning(f"AutoMasterEnrich: DuckDuckGo連続失敗{DDG_FAIL_LIMIT}回 → 以降スキップ")
+            ddg_fail_counter[0] += 1
+
         db = SessionLocal()
         try:
             location = f"{prefecture or ''}{city or ''}"
-            url = find_website_for_company(company_name, location, db=db, org_id=None)
+            url = find_website_for_company(
+                company_name, location, db=db, org_id=None,
+                ddg_disabled=ddg_disabled,
+                ddg_fail_counter=ddg_fail_counter,
+            )
             if not url:
                 skipped += 1
-                _fresh_set("auto_master_enrich_progress", f"{enriched}/{total_targets} (スキップ:{skipped})")
+                _fresh_set("auto_master_enrich_progress", f"{processed}/{total_targets} 処理中（URL発見:{enriched}件）")
                 continue
 
             from urllib.parse import urlparse as _up2
             domain = normalize_domain(_up2(url).netloc)
             if not domain or is_aggregator_site(url)[0]:
                 skipped += 1
-                _fresh_set("auto_master_enrich_progress", f"{enriched}/{total_targets} (スキップ:{skipped})")
+                _fresh_set("auto_master_enrich_progress", f"{processed}/{total_targets} 処理中（URL発見:{enriched}件）")
                 continue
 
             existing = db.query(CompanyMaster).filter(CompanyMaster.domain == domain).first()
             if existing and existing.id != company_id:
                 skipped += 1
-                _fresh_set("auto_master_enrich_progress", f"{enriched}/{total_targets} (スキップ:{skipped})")
+                _fresh_set("auto_master_enrich_progress", f"{processed}/{total_targets} 処理中（URL発見:{enriched}件）")
                 continue
 
             scraped = scrape_company_info(url) or {}
@@ -885,14 +898,15 @@ def _run_auto_master_enrich(force: bool = False):
 
             _upsert_company_master(db, scraped, domain, source="auto_master_enrich", corporate_number=corporate_number)
             enriched += 1
-            logger.info(f"AutoMasterEnrich: [{enriched}/{total_targets}] {company_name} → {domain}")
+            logger.info(f"AutoMasterEnrich: [{processed}/{total_targets}] {company_name} → {domain}")
 
-            _fresh_set("auto_master_enrich_progress", f"{enriched}/{total_targets} (スキップ:{skipped})")
+            _fresh_set("auto_master_enrich_progress", f"{processed}/{total_targets} 処理中（URL発見:{enriched}件）")
 
-            _time.sleep(random.uniform(1.5, 3.0))
+            _time.sleep(random.uniform(1.0, 2.0))
         except Exception as e:
             logger.warning(f"AutoMasterEnrich: {company_name} error: {e}")
             skipped += 1
+            _fresh_set("auto_master_enrich_progress", f"{processed}/{total_targets} 処理中（URL発見:{enriched}件）")
         finally:
             try:
                 db.close()
@@ -903,7 +917,7 @@ def _run_auto_master_enrich(force: bool = False):
     _fresh_set("auto_master_enrich_total", str(prev_total + enriched))
     _fresh_set("auto_master_enrich_last_run", datetime.now().strftime("%Y-%m-%d %H:%M"))
     _fresh_set("auto_master_enrich_progress", "")
-    logger.info(f"AutoMasterEnrich: 完了 — 補完{enriched}社 / スキップ{skipped}社 / 合計{total_targets}社")
+    logger.info(f"AutoMasterEnrich: 完了 — URL発見{enriched}社 / スキップ{skipped}社 / 合計{total_targets}社")
 
 
 def _scheduler_loop():

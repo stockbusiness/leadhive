@@ -91,7 +91,7 @@ def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: 
     }
 
 
-def find_website_for_company(company_name: str, location: str = "", db: Session = None, org_id: int = None) -> str | None:
+def find_website_for_company(company_name: str, location: str = "", db: Session = None, org_id: int = None, ddg_disabled: bool = False, ddg_fail_counter: list = None) -> str | None:
     from urllib.parse import urlparse as _urlparse
     city = ""
     for pref in PREFECTURES:
@@ -161,29 +161,38 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
             logger.warning(f"Google API search failed for {company_name}: {e}")
 
     # DuckDuckGo検索（フォールバック）
-    try:
-        from ddgs import DDGS
-        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+    if not ddg_disabled:
+        try:
+            from ddgs import DDGS
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
-        def _ddg_fetch():
-            with DDGS(timeout=10) as ddgs:
-                return list(ddgs.text(query_loose, max_results=5, region="jp-ja"))
+            def _ddg_fetch():
+                with DDGS(timeout=5) as ddgs:
+                    return list(ddgs.text(query_loose, max_results=5, region="jp-ja"))
 
-        with ThreadPoolExecutor(max_workers=1) as _ex:
-            _future = _ex.submit(_ddg_fetch)
-            try:
-                ddg_results = _future.result(timeout=15)
-            except FuturesTimeout:
-                _future.cancel()
-                logger.warning(f"DuckDuckGo timeout for {company_name}")
-                ddg_results = []
+            with ThreadPoolExecutor(max_workers=1) as _ex:
+                _future = _ex.submit(_ddg_fetch)
+                try:
+                    ddg_results = _future.result(timeout=6)
+                except FuturesTimeout:
+                    _future.cancel()
+                    logger.warning(f"DuckDuckGo timeout for {company_name}")
+                    ddg_results = []
+                    if ddg_fail_counter is not None:
+                        ddg_fail_counter[0] += 1
 
-        for r in ddg_results:
-            url = r.get("href", "")
-            if _is_valid_company_url(url):
-                return url
-    except Exception as e:
-        logger.warning(f"DuckDuckGo search failed for {company_name}: {e}")
+            for r in ddg_results:
+                url = r.get("href", "")
+                if _is_valid_company_url(url):
+                    if ddg_fail_counter is not None:
+                        ddg_fail_counter[0] = 0
+                    return url
+            if ddg_fail_counter is not None and not ddg_results:
+                ddg_fail_counter[0] += 1
+        except Exception as e:
+            logger.warning(f"DuckDuckGo search failed for {company_name}: {e}")
+            if ddg_fail_counter is not None:
+                ddg_fail_counter[0] += 1
 
     # 最終フォールバック: 直接スクレイピング
     try:
