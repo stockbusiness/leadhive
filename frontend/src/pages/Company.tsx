@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Building2, Calendar, User, MapPin, ChevronLeft, Mail, Globe } from "lucide-react";
+import { Building2, Calendar, User, MapPin, ChevronLeft, Mail, Globe, Zap, Target, TrendingUp } from "lucide-react";
 
 const BUSINESSES = [
   {
@@ -47,6 +47,66 @@ export default function Company() {
           <h1 className="text-3xl font-extrabold text-slate-900">会社概要</h1>
         </div>
 
+        {/* ブランドストーリー */}
+        <section className="mb-8">
+          <div className="relative bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl overflow-hidden px-8 py-10 text-white shadow-lg mb-6">
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-4 right-8 text-8xl font-black tracking-tighter select-none">LH</div>
+            </div>
+            <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-3">Brand Concept</p>
+            <p className="text-sm text-blue-100 leading-relaxed mb-6 max-w-xl">
+              LeadHive は、ビジネスの成長に必要なリードを継続的に生み出す<br className="hidden sm:block" />
+              <strong className="text-white">リードジェネレーションエンジン</strong>です。
+            </p>
+            <div className="border-t border-white/20 pt-5">
+              <p className="text-2xl font-extrabold tracking-tight leading-snug">Lead Generation Engine</p>
+              <p className="text-blue-200 text-sm mt-1 font-medium">Turn Attention into Leads</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 mb-4">
+            <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-4">Brand Story</p>
+            <h2 className="text-xl font-extrabold text-slate-900 mb-5 leading-snug">
+              営業の「仕組み」がない企業に、<br />
+              リードを生み出す力を。
+            </h2>
+            <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
+              <p>
+                多くの企業が抱える共通の課題があります。それは「<strong className="text-slate-800">安定したリード獲得</strong>」です。
+                広告、SNS、コンテンツマーケティング——様々な手法が存在しますが、
+                継続的にリードを生み出す仕組みを持つ企業は多くありません。
+              </p>
+              <p>
+                LeadHive は、この課題を解決するために生まれました。
+                リード獲得の仕組みを構築し、企業が継続的に見込み顧客を集め、
+                営業活動に集中できる環境をつくる——それが私たちのミッションです。
+              </p>
+              <p>
+                AI技術と自動化を組み合わせ、これまで手作業で行われてきた
+                「営業先リストの作成・スコアリング・進捗管理」をクラウド上で一元化。
+                中小規模のBtoB営業チームが、大企業と同じスピードで動ける世界を目指しています。
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { icon: <Zap size={18} className="text-blue-500" />, title: "自動収集", desc: "gBizINFO・Googleマップから営業先を自動取得" },
+              { icon: <Target size={18} className="text-indigo-500" />, title: "AIスコアリング", desc: "企業をA〜Dランクに自動評価・優先順位付け" },
+              { icon: <TrendingUp size={18} className="text-green-500" />, title: "進捗管理", desc: "カンバンとチームダッシュボードで成果を可視化" },
+            ].map((item) => (
+              <div key={item.title} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 text-center">
+                <div className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center mx-auto mb-2">
+                  {item.icon}
+                </div>
+                <p className="text-xs font-bold text-slate-800 mb-1">{item.title}</p>
+                <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* 基本情報 */}
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
           <div className="px-6 py-4 border-b border-slate-100">
             <h2 className="font-bold text-slate-700 text-base">基本情報</h2>
@@ -99,6 +159,7 @@ export default function Company() {
           </div>
         </section>
 
+        {/* 事業内容 */}
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-10">
           <div className="px-6 py-4 border-b border-slate-100">
             <h2 className="font-bold text-slate-700 text-base">事業内容</h2>
