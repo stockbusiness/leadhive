@@ -92,6 +92,7 @@ def search_gbiz(token: str, name_keyword: str = "", prefecture: str = "", page: 
 
 
 def find_website_for_company(company_name: str, location: str = "", db: Session = None, org_id: int = None) -> str | None:
+    from urllib.parse import urlparse as _urlparse
     city = ""
     for pref in PREFECTURES:
         if location.startswith(pref):
@@ -100,22 +101,45 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
             city = m.group(1) if m else rest[:6]
             break
 
-    query = f'"{company_name}" {city} 公式サイト'.strip()
+    def _extract_domain(url: str) -> str:
+        try:
+            netloc = _urlparse(url).netloc or ""
+            return normalize_domain(netloc)
+        except Exception:
+            return ""
+
+    def _is_valid_company_url(url: str) -> bool:
+        if not url or url.startswith("error"):
+            return False
+        domain = _extract_domain(url)
+        if not domain:
+            return False
+        return not is_aggregator_site(url)[0]
+
+    query_strict = f'"{company_name}" {city} 公式サイト'.strip()
+    query_loose = f'{company_name} {city} 公式サイト'.strip() if city else f'{company_name} 公式サイト'
 
     # Serper API を最優先使用（システム管理者設定）
+    serper_key = None
     try:
         from server.services.serper_search import get_serper_api_key, search_serper
         serper_key = get_serper_api_key()
-        if serper_key:
-            results = search_serper(serper_key, query, num=3)
-            for r in results:
-                url = r.get("url", "")
-                domain = normalize_domain(url)
-                if domain and not is_aggregator_site(domain)[0]:
-                    return url
-            return None
-    except Exception as e:
-        logger.warning(f"Serper search failed for {company_name}: {e}")
+    except Exception:
+        pass
+
+    if serper_key:
+        for q in [query_strict, query_loose]:
+            try:
+                results = search_serper(serper_key, q, num=5)
+                for r in results:
+                    url = r.get("url", "")
+                    if _is_valid_company_url(url):
+                        logger.debug(f"Serper found: {company_name} → {_extract_domain(url)}")
+                        return url
+            except Exception as e:
+                logger.warning(f"Serper search failed for {company_name} query={q!r}: {e}")
+                break
+        logger.debug(f"Serper: no valid URL for {company_name}")
 
     # Google Custom Search API（クライアント設定）にフォールバック
     if db and org_id:
@@ -128,24 +152,22 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
                 AppSetting.org_id == org_id, AppSetting.setting_key == "google_cx"
             ).first()
             if api_key_row and api_key_row.setting_value and cx_row and cx_row.setting_value:
-                results = search_google(api_key_row.setting_value, cx_row.setting_value, query, db, num=3)
+                results = search_google(api_key_row.setting_value, cx_row.setting_value, query_loose, db, num=5)
                 for r in results:
                     url = r.get("url", "")
-                    domain = normalize_domain(url)
-                    if domain and not is_aggregator_site(domain)[0]:
+                    if _is_valid_company_url(url):
                         return url
-                return None
         except Exception as e:
             logger.warning(f"Google API search failed for {company_name}: {e}")
 
-    # DuckDuckGo検索（無料・ブロックなし）
+    # DuckDuckGo検索（フォールバック）
     try:
         from ddgs import DDGS
         from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
         def _ddg_fetch():
             with DDGS(timeout=10) as ddgs:
-                return list(ddgs.text(query, max_results=5, region="jp-ja"))
+                return list(ddgs.text(query_loose, max_results=5, region="jp-ja"))
 
         with ThreadPoolExecutor(max_workers=1) as _ex:
             _future = _ex.submit(_ddg_fetch)
@@ -158,8 +180,7 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
 
         for r in ddg_results:
             url = r.get("href", "")
-            domain = normalize_domain(url)
-            if domain and not is_aggregator_site(domain)[0]:
+            if _is_valid_company_url(url):
                 return url
     except Exception as e:
         logger.warning(f"DuckDuckGo search failed for {company_name}: {e}")
@@ -167,11 +188,10 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
     # 最終フォールバック: 直接スクレイピング
     try:
         from server.services.google_scrape import scrape_google_search
-        results = scrape_google_search(query, num=3)
+        results = scrape_google_search(query_loose, num=3)
         for r in results:
             url = r.get("url", "")
-            domain = normalize_domain(url)
-            if domain and not is_aggregator_site(domain)[0]:
+            if _is_valid_company_url(url):
                 return url
     except Exception as e:
         logger.warning(f"Website scrape search failed for {company_name}: {e}")

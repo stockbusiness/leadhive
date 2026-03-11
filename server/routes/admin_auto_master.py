@@ -209,23 +209,27 @@ def get_job_logs(
 ):
     _require_system_admin(current_user)
     from server.models import SystemLog
-    logs = (
-        db.query(SystemLog)
-        .filter(SystemLog.event_type.in_(["auto_master_collect", "auto_master_enrich"]))
-        .order_by(SystemLog.created_at.desc())
-        .limit(limit)
-        .all()
-    )
-    return [
-        {
-            "id": log.id,
-            "event_type": log.event_type,
-            "message": log.message,
-            "details": log.details,
-            "created_at": log.created_at.isoformat() if log.created_at else None,
-        }
-        for log in logs
-    ]
+    try:
+        logs = (
+            db.query(SystemLog)
+            .filter(SystemLog.action.in_(["auto_master_collect", "auto_master_enrich"]))
+            .order_by(SystemLog.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "id": log.id,
+                "event_type": log.action,
+                "message": log.detail,
+                "details": log.detail,
+                "created_at": log.created_at.isoformat() if log.created_at else None,
+            }
+            for log in logs
+        ]
+    except Exception as e:
+        logger.warning(f"job-logs query error: {e}")
+        return {"logs": []}
 
 
 @router.post("/reset-progress")

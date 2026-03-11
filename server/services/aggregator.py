@@ -36,6 +36,22 @@ KNOWN_AGGREGATOR_DOMAINS = [
     "ekiten.jp", "hotpepper.jp", "gnavi.co.jp",
     "tabelog.com", "jalan.net", "tripadvisor.jp",
     "yelp.com",
+    # ナビ・地図・住所検索
+    "navitime.co.jp", "yahoo.co.jp",
+    "map.yahoo.co.jp", "openstreetmap.org",
+    "chizumaru.com", "zenrin.co.jp",
+    # 求人サイト追加
+    "recruit.co.jp", "r-agent.com", "staffservice.co.jp",
+    "hellowork.mhlw.go.jp", "job.rikunabi.com", "next.rikunabi.com",
+    "careerlink.jp", "townwork.net", "job-terminal.com",
+    "hatarako.net", "gakujo.ne.jp", "baito.mynavi.jp",
+    # ニュース・プレス
+    "businessinsider.jp", "techcrunch.com", "forbes.com",
+    "nhk.or.jp", "asahi.com", "yomiuri.co.jp", "mainichi.jp",
+    # レビュー・口コミ
+    "review.google.com", "goo.gl",
+    # ショッピング・ポータル
+    "amazon.com", "ebay.com", "yahoo.com",
     # ローカルページ管理
     "locaop.jp", "maps.google.com", "google.com",
     # プレスリリース・ニュース

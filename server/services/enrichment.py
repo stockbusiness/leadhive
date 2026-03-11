@@ -101,8 +101,9 @@ def enrich_companies_batch(
                 no_url += 1
                 continue
 
-            domain = normalize_domain(url)
-            if not domain or is_aggregator_site(domain)[0]:
+            from urllib.parse import urlparse as _up
+            domain = normalize_domain(_up(url).netloc)
+            if not domain or is_aggregator_site(url)[0]:
                 no_url += 1
                 continue
 
