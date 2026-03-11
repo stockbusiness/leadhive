@@ -285,6 +285,6 @@ def run_enrich(
     from server.services.scheduler import _run_auto_master_enrich
     job_id = str(uuid.uuid4())
     job_update(job_id, type="progress", current=0, total=100, message="URL補完を開始しています...", status="running")
-    t = threading.Thread(target=_run_auto_master_enrich, args=(job_id,), daemon=True)
+    t = threading.Thread(target=_run_auto_master_enrich, daemon=True)
     t.start()
     return {"job_id": job_id, "message": "URL補完を開始しました"}
