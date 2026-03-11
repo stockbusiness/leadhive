@@ -49,6 +49,7 @@ SETTINGS_KEYS = [
     "auto_master_enrich_total",
     "auto_master_enrich_progress",
     "scheduler_timezone",
+    "serper_api_key",
 ]
 
 DEFAULTS = {
@@ -70,6 +71,7 @@ DEFAULTS = {
     "auto_master_enrich_total": "0",
     "auto_master_enrich_progress": "",
     "scheduler_timezone": "Asia/Tokyo",
+    "serper_api_key": "",
 }
 
 
@@ -148,6 +150,7 @@ def get_status(
         "enrich_last_run": settings.get("auto_master_enrich_last_run", ""),
         "enrich_total": int(settings.get("auto_master_enrich_total", "0")),
         "enrich_progress": settings.get("auto_master_enrich_progress", ""),
+        "has_serper_key": bool(os.environ.get("SERPER_API_KEY") or settings.get("serper_api_key")),
         "no_url_count": no_url_count,
         "scheduler_timezone": settings.get("scheduler_timezone", "Asia/Tokyo"),
         "max_pages_per_combo": max_pages_per_combo,
@@ -167,7 +170,7 @@ def update_settings(
         "auto_master_enabled", "auto_master_max_companies", "auto_master_max_enrich",
         "auto_master_max_pages_per_combo", "auto_master_schedule_hour",
         "auto_master_enrich_enabled", "auto_master_enrich_max",
-        "scheduler_timezone", "gbizinfo_api_token",
+        "scheduler_timezone", "gbizinfo_api_token", "serper_api_key",
     }
     for key, val in data.items():
         if key in allowed:

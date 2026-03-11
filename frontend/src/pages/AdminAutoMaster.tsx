@@ -43,6 +43,7 @@ interface Status {
   enrich_last_run: string;
   enrich_total: number;
   enrich_progress: string;
+  has_serper_key: boolean;
   no_url_count: number;
   scheduler_timezone: string;
   estimated_max: number;
@@ -87,6 +88,7 @@ export default function AdminAutoMaster() {
     enrich_enabled: true,
     enrich_max: 100,
     scheduler_timezone: "Asia/Tokyo",
+    serper_api_key: "",
   });
   const [serverTime, setServerTime] = useState<{ server_time: string; utc_offset: string } | null>(null);
 
@@ -122,6 +124,7 @@ export default function AdminAutoMaster() {
         enrich_enabled: s.enrich_enabled ?? true,
         enrich_max: s.enrich_max ?? 100,
         scheduler_timezone: s.scheduler_timezone ?? "Asia/Tokyo",
+        serper_api_key: "",
       });
     }).finally(() => setLoading(false));
   };
@@ -152,6 +155,7 @@ export default function AdminAutoMaster() {
       auto_master_enrich_enabled: form.enrich_enabled ? "true" : "false",
       auto_master_enrich_max: String(form.enrich_max),
       scheduler_timezone: form.scheduler_timezone,
+      ...(form.serper_api_key ? { serper_api_key: form.serper_api_key } : {}),
     }).then(() => {
       setSaveMsg("保存しました");
       load();
@@ -532,6 +536,22 @@ export default function AdminAutoMaster() {
           </select>
           <p className="text-xs text-slate-400 mt-1">1社あたりGoogle検索 + スクレイピングで2〜4秒かかります。100社 ≈ 約5分。</p>
         </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            Serper API Key
+            {status?.has_serper_key && <span className="ml-2 text-green-600 font-semibold">✓ 設定済み</span>}
+          </label>
+          <input
+            type="password"
+            value={form.serper_api_key}
+            onChange={(e) => setForm((f) => ({ ...f, serper_api_key: e.target.value }))}
+            placeholder={status?.has_serper_key ? "変更する場合のみ入力" : "Serper APIキーを入力（Google検索精度向上）"}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+          />
+          <p className="text-xs text-slate-400 mt-1">
+            設定するとDuckDuckGo代わりにGoogle検索APIを使用。serper.dev で無料取得可能（500回/月）。
+          </p>
+        </div>
         <div className="flex items-center gap-3 pt-1 flex-wrap">
           <button
             onClick={handleSave}
@@ -543,7 +563,7 @@ export default function AdminAutoMaster() {
           </button>
           <button
             onClick={handleRunEnrich}
-            disabled={runningEnrich || !form.enrich_enabled}
+            disabled={runningEnrich}
             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-40 transition-colors"
           >
             {runningEnrich ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}

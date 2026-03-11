@@ -141,8 +141,21 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
     # DuckDuckGo検索（無料・ブロックなし）
     try:
         from ddgs import DDGS
-        with DDGS() as ddgs:
-            ddg_results = list(ddgs.text(query, max_results=5, region="jp-ja"))
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+
+        def _ddg_fetch():
+            with DDGS(timeout=10) as ddgs:
+                return list(ddgs.text(query, max_results=5, region="jp-ja"))
+
+        with ThreadPoolExecutor(max_workers=1) as _ex:
+            _future = _ex.submit(_ddg_fetch)
+            try:
+                ddg_results = _future.result(timeout=15)
+            except FuturesTimeout:
+                _future.cancel()
+                logger.warning(f"DuckDuckGo timeout for {company_name}")
+                ddg_results = []
+
         for r in ddg_results:
             url = r.get("href", "")
             domain = normalize_domain(url)
