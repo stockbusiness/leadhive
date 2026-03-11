@@ -69,6 +69,22 @@ def check_smtp_allowed(org_id: int, db: Session):
         )
 
 
+def check_slack_allowed(org_id: int, db: Session):
+    """Slack通知が許可されているプランか確認する。フリープランは不可 (402)。"""
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org or not org.plan_id:
+        return
+    plan = db.query(Plan).filter(Plan.id == org.plan_id).first()
+    if not plan:
+        return
+    allowed = getattr(plan, "allow_slack_notify", True)
+    if allowed is False:
+        raise HTTPException(
+            status_code=402,
+            detail=f"プラン「{plan.name}」ではSlack通知はご利用いただけません。スターター以上のプランにアップグレードしてください。"
+        )
+
+
 class PlanBody(BaseModel):
     name: str
     description: Optional[str] = None
@@ -98,6 +114,7 @@ def plan_to_dict(plan: Plan) -> dict:
         "max_csv_export": plan.max_csv_export,
         "api_daily_limit": plan.api_daily_limit,
         "allow_smtp_send": getattr(plan, "allow_smtp_send", True),
+        "allow_slack_notify": getattr(plan, "allow_slack_notify", True),
         "stripe_price_id": plan.stripe_price_id,
         "is_active": plan.is_active,
         "created_at": plan.created_at.isoformat() if plan.created_at else None,

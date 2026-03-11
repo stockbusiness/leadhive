@@ -57,6 +57,9 @@ def update_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if "slack_webhook_url" in data and data["slack_webhook_url"]:
+        from server.routes.plans import check_slack_allowed
+        check_slack_allowed(current_user.org_id, db)
     updated = []
     for key, value in data.items():
         if key not in SETTING_KEYS:
@@ -87,6 +90,8 @@ def test_slack(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    from server.routes.plans import check_slack_allowed
+    check_slack_allowed(current_user.org_id, db)
     from server.services.slack import send_slack_notification
     webhook = db.query(AppSetting).filter(
         AppSetting.setting_key == "slack_webhook_url",

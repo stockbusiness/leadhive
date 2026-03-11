@@ -19,7 +19,7 @@ const AVAILABLE_NOW = [
   { icon: <Globe size={16} />, label: "企業一覧・詳細閲覧・ステータス管理", color: "text-cyan-400" },
   { icon: <Zap size={16} />, label: "9段階カンバンパイプライン", color: "text-violet-400" },
   { icon: <Bell size={16} />, label: "フォローアップ通知（アプリ内・メール・Slack）", color: "text-orange-400" },
-  { icon: <Brain size={16} />, label: "AI企業分析・AIメール生成（月3回）", color: "text-rose-400" },
+  { icon: <Brain size={16} />, label: "AI企業分析・AIメール生成（月2回）", color: "text-rose-400" },
   { icon: <BarChart3 size={16} />, label: "キーワード分析・収集効率レポート", color: "text-teal-400" },
 ];
 
@@ -30,6 +30,7 @@ const COMING_SOON = [
   { icon: <FileSpreadsheet size={16} />, label: "CSVエクスポート 無制限", tier: "スターター〜" },
   { icon: <Sparkles size={16} />, label: "半自動メール生成スケジュール", tier: "スターター〜" },
   { icon: <Users size={16} />, label: "チームダッシュボード（担当者別成果）", tier: "スターター〜" },
+  { icon: <Bell size={16} />, label: "Slack通知・フォローアップ自動通知", tier: "スターター〜" },
 ];
 
 const FOUNDER_BENEFITS = [

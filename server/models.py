@@ -19,6 +19,7 @@ class Plan(Base):
     max_csv_export = Column(Integer, nullable=True)
     api_daily_limit = Column(Integer, nullable=True)
     allow_smtp_send = Column(Boolean, default=True)
+    allow_slack_notify = Column(Boolean, default=True)
     stripe_price_id = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
