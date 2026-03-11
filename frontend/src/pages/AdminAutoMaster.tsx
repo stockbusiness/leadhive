@@ -110,7 +110,7 @@ export default function AdminAutoMaster() {
       .finally(() => setJobLogsLoading(false));
   }, []);
 
-  const load = () => {
+  const load = (autoResumeEnrich = false) => {
     setLoading(true);
     axios.get("/api/admin/auto-master/status").then((r) => {
       const s: Status = r.data;
@@ -126,6 +126,12 @@ export default function AdminAutoMaster() {
         scheduler_timezone: s.scheduler_timezone ?? "Asia/Tokyo",
         serper_api_key: "",
       });
+      // ページ読み込み時に補完が実行中ならポーリングを自動再開
+      if (autoResumeEnrich && s.enrich_progress) {
+        setRunningEnrich(true);
+        setProgressMsgEnrich(s.enrich_progress);
+        _startEnrichPolling(s.enrich_total ?? 0, s.enrich_last_run ?? "");
+      }
     }).finally(() => setLoading(false));
   };
 
@@ -136,7 +142,7 @@ export default function AdminAutoMaster() {
   }, []);
 
   useEffect(() => {
-    load();
+    load(true);
     loadJobLogs();
     fetchServerTime();
     const stTimer = setInterval(fetchServerTime, 15000);
@@ -240,6 +246,56 @@ export default function AdminAutoMaster() {
     }
   };
 
+  const _startEnrichPolling = (prevTotal: number, prevLastRun: string) => {
+    stopEnrichPolling();
+    let progressStarted = false;
+    let lastProgressVal = "";
+    let lastProgressChangedAt = Date.now();
+    const WATCHDOG_MS = 5 * 60 * 1000; // 5分間進捗変化なし → クラッシュ扱い
+    const MAX_POLL_MS = 2 * 60 * 60 * 1000; // 最大2時間
+
+    const startedAt = Date.now();
+
+    enrichPollRef.current = setInterval(() => {
+      axios.get("/api/admin/auto-master/status").then((r) => {
+        const s: Status = r.data;
+        const elapsed = Date.now() - startedAt;
+
+        if (s.enrich_progress) {
+          progressStarted = true;
+          if (s.enrich_progress !== lastProgressVal) {
+            lastProgressVal = s.enrich_progress;
+            lastProgressChangedAt = Date.now();
+          }
+          setProgressMsgEnrich(s.enrich_progress);
+          setStatus(s);
+          return;
+        }
+
+        // 完了検出条件
+        const completedNormally = progressStarted && !s.enrich_progress;
+        const lastRunChanged = s.enrich_last_run !== prevLastRun;
+        const totalIncreased = (s.enrich_total ?? 0) > prevTotal;
+        const watchdogFired = progressStarted && (Date.now() - lastProgressChangedAt > WATCHDOG_MS);
+        const hardTimeout = elapsed >= MAX_POLL_MS;
+
+        const done = completedNormally || lastRunChanged || totalIncreased || watchdogFired || hardTimeout;
+
+        if (done) {
+          stopEnrichPolling();
+          const saved = (s.enrich_total ?? 0) - prevTotal;
+          setRunEnrichResult({ saved: Math.max(saved, 0) });
+          setProgressMsgEnrich("");
+          setRunningEnrich(false);
+          setStatus(s);
+          loadJobLogs();
+        } else if (!progressStarted) {
+          setProgressMsgEnrich("処理開始待機中...");
+        }
+      }).catch(() => {});
+    }, 3000);
+  };
+
   const handleRunEnrich = () => {
     setRunningEnrich(true);
     setRunEnrichResult(null);
@@ -249,42 +305,10 @@ export default function AdminAutoMaster() {
 
     const prevTotal = status?.enrich_total ?? 0;
     const prevLastRun = status?.enrich_last_run ?? "";
-    let progressStarted = false;
 
     axios.post("/api/admin/auto-master/run-enrich").then(() => {
       setProgressMsgEnrich("処理開始待機中...");
-      let elapsed = 0;
-      enrichPollRef.current = setInterval(() => {
-        elapsed += 3;
-        axios.get("/api/admin/auto-master/status").then((r) => {
-          const s: Status = r.data;
-
-          if (s.enrich_progress) {
-            progressStarted = true;
-            setProgressMsgEnrich(s.enrich_progress);
-            setStatus(s);
-            return;
-          }
-
-          const done =
-            (progressStarted && !s.enrich_progress) ||
-            s.enrich_last_run !== prevLastRun ||
-            (s.enrich_total ?? 0) > prevTotal ||
-            elapsed >= 900;
-
-          if (done) {
-            stopEnrichPolling();
-            const saved = (s.enrich_total ?? 0) - prevTotal;
-            setRunEnrichResult({ saved: Math.max(saved, 0) });
-            setProgressMsgEnrich("");
-            setRunningEnrich(false);
-            setStatus(s);
-            loadJobLogs();
-          } else if (!progressStarted) {
-            setProgressMsgEnrich("処理開始待機中...");
-          }
-        }).catch(() => {});
-      }, 3000);
+      _startEnrichPolling(prevTotal, prevLastRun);
     }).catch((err) => {
       setRunEnrichError(err.response?.data?.detail || "実行に失敗しました");
       setProgressMsgEnrich("");
