@@ -89,6 +89,12 @@ export default function AdminAutoMaster() {
   });
   const [serverTime, setServerTime] = useState<{ server_time: string; utc_offset: string } | null>(null);
 
+  const [runningEnrich, setRunningEnrich] = useState(false);
+  const [progressMsgEnrich, setProgressMsgEnrich] = useState("");
+  const [runEnrichResult, setRunEnrichResult] = useState<{ saved: number } | null>(null);
+  const [runEnrichError, setRunEnrichError] = useState<string | null>(null);
+  const enrichPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const [jobLogs, setJobLogs] = useState<JobLogEntry[]>([]);
   const [jobLogsOpen, setJobLogsOpen] = useState(false);
   const [jobLogsLoading, setJobLogsLoading] = useState(false);
@@ -130,7 +136,7 @@ export default function AdminAutoMaster() {
     loadJobLogs();
     fetchServerTime();
     const stTimer = setInterval(fetchServerTime, 15000);
-    return () => { stopPolling(); clearInterval(stTimer); };
+    return () => { stopPolling(); stopEnrichPolling(); clearInterval(stTimer); };
   }, [loadJobLogs, fetchServerTime]);
 
   const handleSave = () => {
@@ -219,6 +225,60 @@ export default function AdminAutoMaster() {
       setRunError(err.response?.data?.detail || "実行に失敗しました");
       setProgressMsg("");
       setRunning(false);
+    });
+  };
+
+  const stopEnrichPolling = () => {
+    if (enrichPollRef.current) {
+      clearInterval(enrichPollRef.current);
+      enrichPollRef.current = null;
+    }
+  };
+
+  const handleRunEnrich = () => {
+    setRunningEnrich(true);
+    setRunEnrichResult(null);
+    setRunEnrichError(null);
+    setProgressMsgEnrich("URL補完を開始しています...");
+    stopEnrichPolling();
+
+    const prevTotal = status?.enrich_total ?? 0;
+    const prevLastRun = status?.enrich_last_run ?? "";
+
+    axios.post("/api/admin/auto-master/run-enrich").then(() => {
+      setProgressMsgEnrich("URL補完実行中...");
+      let elapsed = 0;
+      enrichPollRef.current = setInterval(() => {
+        elapsed += 3;
+        axios.get("/api/admin/auto-master/status").then((r) => {
+          const s: Status = r.data;
+          const done =
+            s.enrich_last_run !== prevLastRun ||
+            (s.enrich_total ?? 0) > prevTotal ||
+            elapsed >= 600;
+          if (done) {
+            stopEnrichPolling();
+            const saved = (s.enrich_total ?? 0) - prevTotal;
+            setRunEnrichResult({ saved: Math.max(saved, 0) });
+            setProgressMsgEnrich("");
+            setRunningEnrich(false);
+            setStatus(s);
+            loadJobLogs();
+          } else {
+            const msgs = [
+              "URL補完実行中...",
+              "Google検索でURLを検索中...",
+              "スクレイピングでデータを取得中...",
+              "マスターDBを更新中...",
+            ];
+            setProgressMsgEnrich(msgs[Math.floor(elapsed / 5) % msgs.length]);
+          }
+        }).catch(() => {});
+      }, 3000);
+    }).catch((err) => {
+      setRunEnrichError(err.response?.data?.detail || "実行に失敗しました");
+      setProgressMsgEnrich("");
+      setRunningEnrich(false);
     });
   };
 
@@ -466,7 +526,7 @@ export default function AdminAutoMaster() {
           </select>
           <p className="text-xs text-slate-400 mt-1">1社あたりGoogle検索 + スクレイピングで2〜4秒かかります。100社 ≈ 約5分。</p>
         </div>
-        <div className="flex items-center gap-3 pt-1">
+        <div className="flex items-center gap-3 pt-1 flex-wrap">
           <button
             onClick={handleSave}
             disabled={saving}
@@ -475,12 +535,39 @@ export default function AdminAutoMaster() {
             {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
             設定を保存
           </button>
+          <button
+            onClick={handleRunEnrich}
+            disabled={runningEnrich || !form.enrich_enabled}
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-40 transition-colors"
+          >
+            {runningEnrich ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+            今すぐ実行
+          </button>
           {saveMsg && (
             <span className="text-sm text-green-600 flex items-center gap-1">
               <CheckCircle size={14} />{saveMsg}
             </span>
           )}
         </div>
+
+        {runningEnrich && progressMsgEnrich && (
+          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-sm text-indigo-700">
+            <Loader2 size={16} className="animate-spin flex-shrink-0" />
+            <span>{progressMsgEnrich}</span>
+          </div>
+        )}
+        {runEnrichError && (
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700">
+            <XCircle size={15} className="flex-shrink-0" />
+            {runEnrichError}
+          </div>
+        )}
+        {runEnrichResult && (
+          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+            <p className="font-semibold mb-1 flex items-center gap-1"><CheckCircle size={14} /> URL補完完了</p>
+            <p>補完済み: <strong>+{runEnrichResult.saved}社</strong>（累計: {(status?.enrich_total ?? 0).toLocaleString()}社）</p>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
