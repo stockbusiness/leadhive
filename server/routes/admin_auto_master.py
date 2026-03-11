@@ -286,8 +286,17 @@ def run_enrich(
 ):
     _require_system_admin(current_user)
     from server.services.scheduler import _run_auto_master_enrich
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
+
+    def _safe_enrich():
+        try:
+            _run_auto_master_enrich(force=True)
+        except Exception as e:
+            _logger.error(f"AutoMasterEnrich crashed in thread: {e}", exc_info=True)
+
     job_id = str(uuid.uuid4())
     job_update(job_id, type="progress", current=0, total=100, message="URL補完を開始しています...", status="running")
-    t = threading.Thread(target=_run_auto_master_enrich, daemon=True)
+    t = threading.Thread(target=_safe_enrich, daemon=True)
     t.start()
     return {"job_id": job_id, "message": "URL補完を開始しました"}

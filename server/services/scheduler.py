@@ -754,7 +754,7 @@ def _run_auto_enrich_all():
         db.close()
 
 
-def _run_auto_master_enrich():
+def _run_auto_master_enrich(force: bool = False):
     from server.database import SessionLocal
     from server.models import SystemSettings, CompanyMaster
     from server.services.gbiz_collector import find_website_for_company
@@ -764,6 +764,7 @@ def _run_auto_master_enrich():
     from server.services.scorer import calculate_score
     from server.services.collector import _upsert_company_master
     import time as _time
+    logger.info(f"AutoMasterEnrich: 開始 (force={force})")
 
     def _fresh_get(key, default=""):
         db = SessionLocal()
@@ -794,9 +795,11 @@ def _run_auto_master_enrich():
             db.close()
 
     enrich_enabled = _fresh_get("auto_master_enrich_enabled", "true")
-    if enrich_enabled == "false":
-        logger.info("AutoMasterEnrich: 無効のためスキップ")
+    if enrich_enabled == "false" and not force:
+        logger.info("AutoMasterEnrich: 無効のためスキップ (force=Falseにより)")
         return
+    elif enrich_enabled == "false" and force:
+        logger.info("AutoMasterEnrich: 無効設定だが force=True により強制実行")
 
     max_enrich = max(1, min(500, int(_fresh_get("auto_master_enrich_max", "100"))))
 
