@@ -55,15 +55,14 @@ def collect_shopify_partners_via_google(
             url = item.get("url", "")
             if not url:
                 continue
-            domain = normalize_domain(url)
+            domain = normalize_domain(urlparse(url).netloc)
             if not domain:
                 continue
-            if is_aggregator_site(domain)[0]:
+            if is_aggregator_site(url)[0]:
                 continue
             if domain in seen_domains:
                 continue
-            parsed = urlparse(url)
-            if any(skip in parsed.netloc for skip in ["shopify.com", "google.com", "youtube.com"]):
+            if any(skip in urlparse(url).netloc for skip in ["shopify.com", "google.com", "youtube.com"]):
                 continue
             seen_domains.add(domain)
             results.append({

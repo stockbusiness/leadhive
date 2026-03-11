@@ -261,7 +261,7 @@ def clear_master_data(
     _set_key(db, "auto_master_last_count", "0")
     _set_key(db, "auto_master_total_collected", "0")
     _set_key(db, "auto_master_last_run", "")
-    return {"ok": True, "message": f"{count}件のマスターデータを削除しました"}
+    return {"ok": True, "deleted": count, "message": f"{count}件のマスターデータを削除しました"}
 
 
 @router.post("/run-now")

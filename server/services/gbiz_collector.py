@@ -314,7 +314,8 @@ def collect_from_gbiz(
                 })
                 continue
 
-            domain = normalize_domain(url)
+            from urllib.parse import urlparse as _up3
+            domain = normalize_domain(_up3(url).netloc)
             if not domain:
                 skipped += 1
                 continue
@@ -324,7 +325,7 @@ def collect_from_gbiz(
                 results.append({"url": url, "name": company["name"], "status": "duplicate", "message": "重複"})
                 continue
 
-            if is_aggregator_site(domain)[0]:
+            if is_aggregator_site(url)[0]:
                 rejected_domains.add(domain)
                 skipped += 1
                 results.append({"url": url, "name": company["name"], "status": "rejected", "message": "アグリゲーターサイト"})
