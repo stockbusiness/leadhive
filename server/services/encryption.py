@@ -71,6 +71,8 @@ SENSITIVE_SETTING_KEYS = {
     "anthropic_api_key",
     "stripe_secret_key",
     "stripe_webhook_secret",
+    "hubsrev_api_key",
+    "hubsrev_webhook_url",
 }
 
 

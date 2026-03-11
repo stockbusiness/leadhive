@@ -153,6 +153,23 @@ def create_ticket(
     except Exception as e:
         logger.error("Ticket notification error: %s", e)
 
+    try:
+        from server.services.hubsrev import send_to_hubsrev
+        from server.models import Organization
+        org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+        send_to_hubsrev(
+            db,
+            sender_name=current_user.display_name or current_user.email,
+            sender_email=current_user.email,
+            sender_company=org.name if org else None,
+            subject=f"[{ticket.ticket_number}] {body.subject.strip()}",
+            body_text=body.message.strip(),
+            source_system="LeadHive サポート",
+            source_type="form",
+        )
+    except Exception as e:
+        logger.error("Hubsrev forward error (ticket create): %s", e)
+
     return _ticket_to_dict(ticket, current_user)
 
 
@@ -214,6 +231,21 @@ def add_message(
     ticket.updated_at = datetime.now()
     db.commit()
     db.refresh(msg)
+
+    try:
+        from server.services.hubsrev import send_to_hubsrev
+        send_to_hubsrev(
+            db,
+            sender_name=current_user.display_name or current_user.email,
+            sender_email=current_user.email,
+            subject=f"[{ticket.ticket_number}] 返信: {ticket.subject}",
+            body_text=body.body.strip(),
+            source_system="LeadHive サポート",
+            source_type="ticket_reply",
+        )
+    except Exception as e:
+        logger.error("Hubsrev forward error (ticket reply): %s", e)
+
     return _message_to_dict(msg, current_user)
 
 

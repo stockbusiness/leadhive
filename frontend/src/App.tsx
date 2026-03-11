@@ -40,6 +40,7 @@ import {
   HelpCircle,
   Activity,
   Scale,
+  Link2,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -77,6 +78,7 @@ const AdminSmtp = lazy(() => import("./pages/AdminSmtp"));
 const AdminEmailTemplates = lazy(() => import("./pages/AdminEmailTemplates"));
 const AdminFeatures = lazy(() => import("./pages/AdminFeatures"));
 const AdminContact = lazy(() => import("./pages/AdminContact"));
+const AdminHubsrev = lazy(() => import("./pages/AdminHubsrev"));
 const Support = lazy(() => import("./pages/Support"));
 const SupportTicket = lazy(() => import("./pages/SupportTicket"));
 const AdminSupport = lazy(() => import("./pages/AdminSupport"));
@@ -295,6 +297,7 @@ function AppContent() {
                 <SidebarLink to="/admin/smtp" icon={<Mail size={18} />} label="SMTP設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/email-templates" icon={<Mail size={18} />} label="メールテンプレート" onClick={closeSidebar} />
                 <SidebarLink to="/admin/contact-settings" icon={<Mail size={18} />} label="問い合わせフォーム設定" onClick={closeSidebar} />
+                <SidebarLink to="/admin/hubsrev" icon={<Link2 size={18} />} label="Hubsrev 連携" onClick={closeSidebar} />
                 <SidebarLink to="/admin/legal" icon={<Scale size={18} />} label="特定商取引法の表記" onClick={closeSidebar} />
                 <SidebarLink to="/admin/support" icon={<LifeBuoy size={18} />} label="サポートチケット管理" onClick={closeSidebar} />
                 <SidebarLink to="/admin/faq" icon={<HelpCircle size={18} />} label="FAQ管理" onClick={closeSidebar} />
@@ -421,6 +424,7 @@ function AppContent() {
               <Route path="/admin/auto-master" element={<AdminAutoMaster />} />
               <Route path="/admin/security" element={<AdminSecurity />} />
               <Route path="/admin/contact-settings" element={<AdminContact />} />
+              <Route path="/admin/hubsrev" element={<AdminHubsrev />} />
               <Route path="/admin/legal" element={<AdminLegal />} />
               <Route path="/admin/support" element={<AdminSupport />} />
               <Route path="/admin/faq" element={<AdminFaq />} />

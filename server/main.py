@@ -15,6 +15,7 @@ from server.routes import admin_auto_master, segments, sales_ai, notifications
 from server.routes import security
 from server.routes import contact
 from server.routes import support
+from server.routes import admin_hubsrev
 from server.routes import faq
 from server.routes import status_page
 from server.services.scheduler import start_scheduler, stop_scheduler
@@ -352,6 +353,7 @@ app.include_router(notifications.router)
 app.include_router(security.router)
 app.include_router(contact.router)
 app.include_router(support.router)
+app.include_router(admin_hubsrev.router)
 app.include_router(faq.router)
 app.include_router(status_page.router)
 

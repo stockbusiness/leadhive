@@ -196,6 +196,22 @@ async def submit_contact(body: ContactBody, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error("Contact form email error: %s", e)
 
+    try:
+        from server.services.hubsrev import send_to_hubsrev
+        type_label = INQUIRY_TYPES.get(body.inquiry_type, body.inquiry_type)
+        send_to_hubsrev(
+            db,
+            sender_name=body.name.strip(),
+            sender_email=body.email.strip(),
+            sender_company=body.company_name.strip() or None,
+            subject=f"[{type_label}] {body.company_name} {body.name}",
+            body_text=body.message.strip(),
+            source_system="LeadHive 公式サイト",
+            source_type="form",
+        )
+    except Exception as e:
+        logger.error("Hubsrev forward error (contact): %s", e)
+
     return {"message": "お問い合わせを受け付けました"}
 
 
