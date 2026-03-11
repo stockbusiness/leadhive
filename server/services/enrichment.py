@@ -102,7 +102,7 @@ def enrich_companies_batch(
                 continue
 
             domain = normalize_domain(url)
-            if not domain or is_aggregator_site(domain):
+            if not domain or is_aggregator_site(domain)[0]:
                 no_url += 1
                 continue
 

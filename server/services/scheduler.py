@@ -476,7 +476,7 @@ def _run_auto_master_collect(job_id: str = None):
                                 continue
 
                             domain = normalize_domain(url)
-                            if not domain or is_aggregator_site(domain):
+                            if not domain or is_aggregator_site(domain)[0]:
                                 continue
 
                             if domain in existing_domains:
@@ -848,7 +848,7 @@ def _run_auto_master_enrich():
                 continue
 
             domain = normalize_domain(url)
-            if not domain or is_aggregator_site(domain):
+            if not domain or is_aggregator_site(domain)[0]:
                 skipped += 1
                 _fresh_set("auto_master_enrich_progress", f"{enriched}/{total_targets} (スキップ:{skipped})")
                 continue

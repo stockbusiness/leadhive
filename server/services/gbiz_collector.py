@@ -111,7 +111,7 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
             for r in results:
                 url = r.get("url", "")
                 domain = normalize_domain(url)
-                if domain and not is_aggregator_site(domain):
+                if domain and not is_aggregator_site(domain)[0]:
                     return url
             return None
     except Exception as e:
@@ -132,7 +132,7 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
                 for r in results:
                     url = r.get("url", "")
                     domain = normalize_domain(url)
-                    if domain and not is_aggregator_site(domain):
+                    if domain and not is_aggregator_site(domain)[0]:
                         return url
                 return None
         except Exception as e:
@@ -145,7 +145,7 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
         for r in results:
             url = r.get("url", "")
             domain = normalize_domain(url)
-            if domain and not is_aggregator_site(domain):
+            if domain and not is_aggregator_site(domain)[0]:
                 return url
     except Exception as e:
         logger.warning(f"Website scrape search failed for {company_name}: {e}")
@@ -278,7 +278,7 @@ def collect_from_gbiz(
                 results.append({"url": url, "name": company["name"], "status": "duplicate", "message": "重複"})
                 continue
 
-            if is_aggregator_site(domain):
+            if is_aggregator_site(domain)[0]:
                 rejected_domains.add(domain)
                 skipped += 1
                 results.append({"url": url, "name": company["name"], "status": "rejected", "message": "アグリゲーターサイト"})

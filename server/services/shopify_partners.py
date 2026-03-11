@@ -58,7 +58,7 @@ def collect_shopify_partners_via_google(
             domain = normalize_domain(url)
             if not domain:
                 continue
-            if is_aggregator_site(domain):
+            if is_aggregator_site(domain)[0]:
                 continue
             if domain in seen_domains:
                 continue
