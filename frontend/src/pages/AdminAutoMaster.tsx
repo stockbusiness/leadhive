@@ -42,6 +42,7 @@ interface Status {
   enrich_max: number;
   enrich_last_run: string;
   enrich_total: number;
+  enrich_progress: string;
   no_url_count: number;
   scheduler_timezone: string;
   estimated_max: number;
@@ -244,18 +245,29 @@ export default function AdminAutoMaster() {
 
     const prevTotal = status?.enrich_total ?? 0;
     const prevLastRun = status?.enrich_last_run ?? "";
+    let progressStarted = false;
 
     axios.post("/api/admin/auto-master/run-enrich").then(() => {
-      setProgressMsgEnrich("URL補完実行中...");
+      setProgressMsgEnrich("処理開始待機中...");
       let elapsed = 0;
       enrichPollRef.current = setInterval(() => {
         elapsed += 3;
         axios.get("/api/admin/auto-master/status").then((r) => {
           const s: Status = r.data;
+
+          if (s.enrich_progress) {
+            progressStarted = true;
+            setProgressMsgEnrich(s.enrich_progress);
+            setStatus(s);
+            return;
+          }
+
           const done =
+            (progressStarted && !s.enrich_progress) ||
             s.enrich_last_run !== prevLastRun ||
             (s.enrich_total ?? 0) > prevTotal ||
-            elapsed >= 600;
+            elapsed >= 900;
+
           if (done) {
             stopEnrichPolling();
             const saved = (s.enrich_total ?? 0) - prevTotal;
@@ -264,14 +276,8 @@ export default function AdminAutoMaster() {
             setRunningEnrich(false);
             setStatus(s);
             loadJobLogs();
-          } else {
-            const msgs = [
-              "URL補完実行中...",
-              "Google検索でURLを検索中...",
-              "スクレイピングでデータを取得中...",
-              "マスターDBを更新中...",
-            ];
-            setProgressMsgEnrich(msgs[Math.floor(elapsed / 5) % msgs.length]);
+          } else if (!progressStarted) {
+            setProgressMsgEnrich("処理開始待機中...");
           }
         }).catch(() => {});
       }, 3000);
@@ -550,22 +556,51 @@ export default function AdminAutoMaster() {
           )}
         </div>
 
-        {runningEnrich && progressMsgEnrich && (
-          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-sm text-indigo-700">
-            <Loader2 size={16} className="animate-spin flex-shrink-0" />
-            <span>{progressMsgEnrich}</span>
-          </div>
-        )}
+        {runningEnrich && (() => {
+          const match = progressMsgEnrich.match(/^(\d+)\/(\d+)/);
+          const current = match ? parseInt(match[1]) : 0;
+          const total = match ? parseInt(match[2]) : 0;
+          const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+          const isWaiting = !match;
+          return (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm text-indigo-700 font-medium">
+                <Loader2 size={15} className="animate-spin flex-shrink-0" />
+                <span>{isWaiting ? progressMsgEnrich : `URL補完実行中...`}</span>
+              </div>
+              {!isWaiting && (
+                <>
+                  <div className="flex justify-between text-xs text-indigo-600 font-semibold">
+                    <span>{current}社補完完了 / {total}社対象</span>
+                    <span>{pct}%</span>
+                  </div>
+                  <div className="w-full bg-indigo-100 rounded-full h-2">
+                    <div
+                      className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  {progressMsgEnrich.includes("スキップ") && (
+                    <p className="text-xs text-indigo-500">{progressMsgEnrich.replace(/^\d+\/\d+\s*/, "")}</p>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })()}
         {runEnrichError && (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700">
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
             <XCircle size={15} className="flex-shrink-0" />
-            {runEnrichError}
+            <div>
+              <p className="font-semibold">実行エラー</p>
+              <p className="text-xs mt-0.5">{runEnrichError}</p>
+            </div>
           </div>
         )}
         {runEnrichResult && (
           <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
             <p className="font-semibold mb-1 flex items-center gap-1"><CheckCircle size={14} /> URL補完完了</p>
-            <p>補完済み: <strong>+{runEnrichResult.saved}社</strong>（累計: {(status?.enrich_total ?? 0).toLocaleString()}社）</p>
+            <p>補完済み: <strong>+{runEnrichResult.saved}社</strong>　累計: {(status?.enrich_total ?? 0).toLocaleString()}社</p>
           </div>
         )}
       </div>

@@ -47,6 +47,7 @@ SETTINGS_KEYS = [
     "auto_master_enrich_max",
     "auto_master_enrich_last_run",
     "auto_master_enrich_total",
+    "auto_master_enrich_progress",
     "scheduler_timezone",
 ]
 
@@ -67,6 +68,7 @@ DEFAULTS = {
     "auto_master_enrich_max": "100",
     "auto_master_enrich_last_run": "",
     "auto_master_enrich_total": "0",
+    "auto_master_enrich_progress": "",
     "scheduler_timezone": "Asia/Tokyo",
 }
 
@@ -145,6 +147,7 @@ def get_status(
         "enrich_max": int(settings.get("auto_master_enrich_max", "100")),
         "enrich_last_run": settings.get("auto_master_enrich_last_run", ""),
         "enrich_total": int(settings.get("auto_master_enrich_total", "0")),
+        "enrich_progress": settings.get("auto_master_enrich_progress", ""),
         "no_url_count": no_url_count,
         "scheduler_timezone": settings.get("scheduler_timezone", "Asia/Tokyo"),
         "max_pages_per_combo": max_pages_per_combo,
