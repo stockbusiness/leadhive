@@ -54,7 +54,7 @@ export default function AdminSmtp() {
     setSaving(true);
     setError(""); setSuccess("");
     try {
-      await api.adminSmtp.save(form);
+      await api.adminSmtp.save(form as any);
       setSuccess("SMTP設定を保存しました");
       setTimeout(() => setSuccess(""), 3000);
     } catch (e: any) {

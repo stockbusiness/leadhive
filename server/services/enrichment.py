@@ -1,6 +1,7 @@
 import time
 import random
 import logging
+import threading as _threading
 import requests
 from sqlalchemy.orm import Session
 
@@ -91,9 +92,30 @@ def enrich_companies_batch(
                 if company.city:
                     parts.append(company.city)
                 location = "".join(parts)
-                url = find_website_for_company(
-                    company.company_name, location, db=db, org_id=org_id
-                )
+
+                # DNS/ソケットハング対策: 独立スレッドで30秒タイムアウト
+                _url_result = [None]
+                _cname_snap = company.company_name
+                _loc_snap = location
+                _oid_snap = org_id
+                def _find_url_thread(_r=_url_result, _cn=_cname_snap, _lc=_loc_snap, _oid=_oid_snap):
+                    from server.database import SessionLocal as _SL
+                    _db2 = _SL()
+                    try:
+                        _r[0] = find_website_for_company(_cn, _lc, db=_db2, org_id=_oid)
+                    except Exception as _e:
+                        logger.warning(f"find_website thread error for {_cn}: {_e}")
+                    finally:
+                        try:
+                            _db2.close()
+                        except Exception:
+                            pass
+                _ft = _threading.Thread(target=_find_url_thread, daemon=True)
+                _ft.start()
+                _ft.join(timeout=30)
+                if _ft.is_alive():
+                    logger.warning(f"find_website_for_company timeout for {company.company_name}")
+                url = _url_result[0]
                 if url:
                     time.sleep(random.uniform(1.0, 2.0))
 
@@ -115,7 +137,20 @@ def enrich_companies_batch(
                 message=f"({i + 1}/{total}) 「{company.company_name}」をスクレイピング中...",
             )
 
-            scraped = scrape_company_info(url)
+            # scrape_company_info も20秒タイムアウト
+            _scraped_result = [None]
+            _url_snap = url
+            def _scrape_thread(_r=_scraped_result, _u=_url_snap):
+                try:
+                    _r[0] = scrape_company_info(_u)
+                except Exception as _e:
+                    logger.warning(f"scrape_company_info error for {_u}: {_e}")
+            _st = _threading.Thread(target=_scrape_thread, daemon=True)
+            _st.start()
+            _st.join(timeout=20)
+            if _st.is_alive():
+                logger.warning(f"scrape_company_info timeout for {url}")
+            scraped = _scraped_result[0]
             if not scraped:
                 company.website_url = url
                 company.domain = domain

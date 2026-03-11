@@ -800,8 +800,6 @@ function TwoFactorSection() {
   );
 }
 
-import axios from "axios";
-
 function DangerZoneSection() {
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);

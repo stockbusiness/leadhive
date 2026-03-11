@@ -232,7 +232,7 @@ interface KanbanCardProps {
   card: PipelineCard;
   statuses: string[];
   isUpdating: boolean;
-  menuRef?: React.RefObject<HTMLDivElement>;
+  menuRef?: React.RefObject<HTMLDivElement | null>;
   isMenuOpen: boolean;
   onMenuToggle: () => void;
   onStatusChange: (status: string) => void;

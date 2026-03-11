@@ -167,7 +167,7 @@ export default function AdminDashboard() {
                   outerRadius={80}
                   dataKey="count"
                   nameKey="name"
-                  label={({ name, count }) => `${name}: ${count}`}
+                  label={({ name, ...rest }: any) => `${name}: ${rest.count ?? rest.value ?? ""}`}
                   labelLine={false}
                 >
                   {stats.plan_distribution.map((_, i) => (
@@ -336,7 +336,7 @@ export default function AdminDashboard() {
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} />
                   <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={(v) => `$${v.toFixed(3)}`} />
                   <Tooltip
-                    formatter={(v: any, name: string) => [name === "cost" ? `$${Number(v).toFixed(4)}` : v, name === "cost" ? "コスト" : "API呼び出し"]}
+                    formatter={(v: any, name: any) => [name === "cost" ? `$${Number(v).toFixed(4)}` : v, name === "cost" ? "コスト" : "API呼び出し"] as any}
                     contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
                   />
                   <Bar dataKey="cost" name="cost" fill="#6366f1" radius={[4, 4, 0, 0]} />

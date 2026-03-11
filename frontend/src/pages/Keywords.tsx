@@ -243,7 +243,7 @@ function AnalyticsTab({ projectId }: { projectId: number | null }) {
 }
 
 export default function Keywords() {
-  const { selectedProject } = useProject();
+  const { currentProject: selectedProject } = useProject();
   const [tab, setTab] = useState<"manage" | "analytics">("manage");
   const [keywords, setKeywords] = useState<SearchKeyword[]>([]);
   const [form, setForm] = useState({

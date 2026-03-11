@@ -89,7 +89,7 @@ function TemplateEditor({
     };
     let rendered = html;
     for (const [k, v] of Object.entries(sampleVars)) {
-      rendered = rendered.replaceAll(k, v);
+      rendered = rendered.split(k).join(v);
     }
     return rendered;
   };

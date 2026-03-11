@@ -383,7 +383,7 @@ export default function SalesAI() {
     if (!currentProject) return;
     try {
       const res = await api.companies.list({ project_id: currentProject.id, per_page: 200, sort: "score_total", order: "desc" });
-      setCompanies(res.companies || []);
+      setCompanies((res.companies || []) as any);
     } catch {}
   }, [currentProject]);
 
