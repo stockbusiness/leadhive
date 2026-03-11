@@ -18,6 +18,33 @@ KNOWN_AGGREGATOR_DOMAINS = [
     "amebaownd.com", "ameblo.jp", "livedoor.com",
     "fc2.com", "seesaa.net", "jugem.jp",
     "wix.com", "jimdo.com", "weebly.com",
+    # 求人・転職サイト
+    "en-gage.net", "engage.jp", "en-japan.com",
+    "mynavi.jp", "rikunabi.com", "doda.jp",
+    "type.jp", "indeed.com", "glassdoor.com",
+    "openwork.jp", "vorkers.com", "jobtalk.jp",
+    "jobs.rakuten.co.jp", "careerconnection.jp",
+    "wantedly.com", "green-japan.com",
+    "kuchikomi-kaisha.jp", "kaisha.jp",
+    # 企業情報・信用調査
+    "tsr-net.co.jp", "teikoku-databank.co.jp",
+    "ullet.com", "shikiho.jp", "buffett-code.com",
+    "edinet-fsa.go.jp", "nikkei.com",
+    "minkabu.jp", "kabutan.jp", "kabuplus.com",
+    # 地域・店舗情報
+    "itp.ne.jp", "townpage.com", "mapion.co.jp",
+    "ekiten.jp", "hotpepper.jp", "gnavi.co.jp",
+    "tabelog.com", "jalan.net", "tripadvisor.jp",
+    "yelp.com",
+    # ローカルページ管理
+    "locaop.jp", "maps.google.com", "google.com",
+    # プレスリリース・ニュース
+    "prtimes.jp", "atpress.ne.jp", "dreamnews.jp",
+    "sankeibiz.jp", "jiji.com", "kyodo.co.jp",
+    # 電話帳・住所録
+    "mapfan.com", "goo.ne.jp", "nuvilog.jp",
+    # SNS・コミュニティ
+    "pinterest.com", "tiktok.com", "line.me",
 ]
 
 AGGREGATOR_TITLE_PATTERNS = [

@@ -138,7 +138,20 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
         except Exception as e:
             logger.warning(f"Google API search failed for {company_name}: {e}")
 
-    # フォールバック: 直接スクレイピング
+    # DuckDuckGo検索（無料・ブロックなし）
+    try:
+        from ddgs import DDGS
+        with DDGS() as ddgs:
+            ddg_results = list(ddgs.text(query, max_results=5, region="jp-ja"))
+        for r in ddg_results:
+            url = r.get("href", "")
+            domain = normalize_domain(url)
+            if domain and not is_aggregator_site(domain)[0]:
+                return url
+    except Exception as e:
+        logger.warning(f"DuckDuckGo search failed for {company_name}: {e}")
+
+    # 最終フォールバック: 直接スクレイピング
     try:
         from server.services.google_scrape import scrape_google_search
         results = scrape_google_search(query, num=3)
