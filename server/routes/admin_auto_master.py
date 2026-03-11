@@ -217,16 +217,18 @@ def get_job_logs(
             .limit(limit)
             .all()
         )
-        return [
-            {
-                "id": log.id,
-                "event_type": log.action,
-                "message": log.detail,
-                "details": log.detail,
-                "created_at": log.created_at.isoformat() if log.created_at else None,
-            }
-            for log in logs
-        ]
+        return {
+            "logs": [
+                {
+                    "id": log.id,
+                    "event_type": log.action,
+                    "message": log.detail,
+                    "details": log.detail,
+                    "created_at": log.created_at.isoformat() if log.created_at else None,
+                }
+                for log in logs
+            ]
+        }
     except Exception as e:
         logger.warning(f"job-logs query error: {e}")
         return {"logs": []}
