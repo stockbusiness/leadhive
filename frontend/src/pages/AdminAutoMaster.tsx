@@ -582,6 +582,8 @@ export default function AdminAutoMaster() {
           const total = match ? parseInt(match[2]) : 0;
           const pct = total > 0 ? Math.round((current / total) * 100) : 0;
           const isWaiting = !match;
+          const foundMatch = progressMsgEnrich.match(/URL発見[:：](\d+)件/);
+          const foundCount = foundMatch ? parseInt(foundMatch[1]) : null;
           return (
             <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-4 space-y-2">
               <div className="flex items-center gap-2 text-sm text-indigo-700 font-medium">
@@ -591,7 +593,10 @@ export default function AdminAutoMaster() {
               {!isWaiting && (
                 <>
                   <div className="flex justify-between text-xs text-indigo-600 font-semibold">
-                    <span>{current}社補完完了 / {total}社対象</span>
+                    <span>
+                      {current}社処理済み / {total}社対象
+                      {foundCount !== null && <span className="ml-2 text-green-600">（URL発見: {foundCount}件）</span>}
+                    </span>
                     <span>{pct}%</span>
                   </div>
                   <div className="w-full bg-indigo-100 rounded-full h-2">
@@ -600,9 +605,6 @@ export default function AdminAutoMaster() {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  {progressMsgEnrich.includes("スキップ") && (
-                    <p className="text-xs text-indigo-500">{progressMsgEnrich.replace(/^\d+\/\d+\s*/, "")}</p>
-                  )}
                 </>
               )}
             </div>

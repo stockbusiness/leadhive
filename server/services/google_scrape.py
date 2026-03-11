@@ -61,7 +61,7 @@ def _fetch_google_page(query: str, start: int = 0, lang: str = "ja") -> list[dic
     }
 
     try:
-        resp = requests.get(url, headers=headers, timeout=15)
+        resp = requests.get(url, headers=headers, timeout=8)
         if resp.status_code != 200:
             logger.warning(f"Google scrape: HTTP {resp.status_code}")
             return []

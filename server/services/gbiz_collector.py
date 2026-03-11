@@ -170,16 +170,19 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
                 with DDGS(timeout=5) as ddgs:
                     return list(ddgs.text(query_loose, max_results=5, region="jp-ja"))
 
-            with ThreadPoolExecutor(max_workers=1) as _ex:
-                _future = _ex.submit(_ddg_fetch)
-                try:
-                    ddg_results = _future.result(timeout=6)
-                except FuturesTimeout:
-                    _future.cancel()
-                    logger.warning(f"DuckDuckGo timeout for {company_name}")
-                    ddg_results = []
-                    if ddg_fail_counter is not None:
-                        ddg_fail_counter[0] += 1
+            # shutdown(wait=False)を使いスレッドのハングでブロックしない
+            _ex = ThreadPoolExecutor(max_workers=1)
+            _future = _ex.submit(_ddg_fetch)
+            try:
+                ddg_results = _future.result(timeout=6)
+            except FuturesTimeout:
+                _future.cancel()
+                logger.warning(f"DuckDuckGo timeout for {company_name}")
+                ddg_results = []
+                if ddg_fail_counter is not None:
+                    ddg_fail_counter[0] += 1
+            finally:
+                _ex.shutdown(wait=False)  # ハング中スレッドを待たずに解放
 
             for r in ddg_results:
                 url = r.get("href", "")
