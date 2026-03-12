@@ -1205,7 +1205,7 @@ def _run_log_cleanup():
     try:
         cutoff = datetime.utcnow() - timedelta(days=90)
         deleted_events = db.query(SecurityEvent).filter(SecurityEvent.created_at < cutoff).delete()
-        deleted_jobs = db.query(JobLog).filter(JobLog.created_at < cutoff).delete()
+        deleted_jobs = db.query(JobLog).filter(JobLog.started_at < cutoff).delete()
         db.commit()
         logger.info(f"LogCleanup: Deleted {deleted_events} security events, {deleted_jobs} job logs older than 90 days")
     except Exception as e:

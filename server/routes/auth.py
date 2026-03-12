@@ -758,5 +758,5 @@ def refresh_token(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    new_token = create_access_token({"sub": str(current_user.id), "v": current_user.token_version or 1})
+    new_token = create_access_token({"sub": str(current_user.id), "tv": current_user.token_version or 1})
     return {"access_token": new_token, "token_type": "bearer"}
