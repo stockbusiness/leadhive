@@ -49,6 +49,7 @@ import { api } from "./api";
 import PlanLimitModal from "./components/common/PlanLimitModal";
 import AnnouncementBanner from "./components/common/AnnouncementBanner";
 import NotificationPanel from "./components/common/NotificationPanel";
+import CookieBanner from "./components/common/CookieBanner";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Companies = lazy(() => import("./pages/Companies"));
@@ -103,6 +104,8 @@ const Contact = lazy(() => import("./pages/Contact"));
 const Faq = lazy(() => import("./pages/Faq"));
 const Status = lazy(() => import("./pages/Status"));
 const AdminFaq = lazy(() => import("./pages/AdminFaq"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Webhooks = lazy(() => import("./pages/Webhooks"));
 const AdminStatus = lazy(() => import("./pages/AdminStatus"));
 
 function PageLoader() {
@@ -276,6 +279,9 @@ function AppContent() {
             {user?.role === "admin" && (
               <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
             )}
+            {user?.role === "admin" && (
+              <SidebarLink to="/webhooks" icon={<Link2 size={18} />} label="Webhook設定" onClick={closeSidebar} />
+            )}
             <SidebarLink to="/support" icon={<LifeBuoy size={18} />} label="サポート" onClick={closeSidebar} />
           </div>
 
@@ -434,6 +440,8 @@ function AppContent() {
               <Route path="/sales-ai" element={<SalesAI />} />
               <Route path="/pipeline" element={<Pipeline />} />
               <Route path="/roadmap" element={<Roadmap />} />
+              <Route path="/webhooks" element={<Webhooks />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </main>
@@ -498,9 +506,11 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/faq" element={<Faq />} />
             <Route path="/status" element={<Status />} />
+            <Route path="/" element={<HomeRoute />} />
             <Route path="/*" element={<HomeRoute />} />
           </Routes>
         </Suspense>
+        <CookieBanner />
       </AuthProvider>
     </ThemeProvider>
   );

@@ -949,6 +949,7 @@ def _scheduler_loop():
     last_auto_gen_dates: dict = {}
     last_auto_close_date = None
     last_usage_alert_date = None
+    last_log_cleanup_date = None
 
     while _scheduler_running:
         try:
@@ -1020,6 +1021,11 @@ def _scheduler_loop():
                 last_usage_alert_date = today
                 logger.info("UsageAlert: Triggered at 08:00")
                 threading.Thread(target=_run_usage_alert, daemon=True).start()
+
+            if now.hour == 3 and now.minute == 0 and last_log_cleanup_date != today:
+                last_log_cleanup_date = today
+                logger.info("LogCleanup: Triggered at 03:00")
+                threading.Thread(target=_run_log_cleanup, daemon=True).start()
 
             if now.minute == 0:
                 from server.models import AppSetting, Organization
@@ -1187,6 +1193,23 @@ def _run_usage_alert():
 
     except Exception as e:
         logger.error(f"UsageAlert error: {e}")
+    finally:
+        db.close()
+
+
+def _run_log_cleanup():
+    from datetime import timedelta
+    from server.database import SessionLocal
+    from server.models import SecurityEvent, JobLog
+    db = SessionLocal()
+    try:
+        cutoff = datetime.utcnow() - timedelta(days=90)
+        deleted_events = db.query(SecurityEvent).filter(SecurityEvent.created_at < cutoff).delete()
+        deleted_jobs = db.query(JobLog).filter(JobLog.created_at < cutoff).delete()
+        db.commit()
+        logger.info(f"LogCleanup: Deleted {deleted_events} security events, {deleted_jobs} job logs older than 90 days")
+    except Exception as e:
+        logger.error(f"LogCleanup error: {e}")
     finally:
         db.close()
 

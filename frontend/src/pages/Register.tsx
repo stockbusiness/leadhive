@@ -91,6 +91,22 @@ export default function Register() {
       setError("パスワードは8文字以上で入力してください");
       return;
     }
+    if (!/[A-Z]/.test(password)) {
+      setError("パスワードに大文字を1文字以上含めてください");
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setError("パスワードに小文字を1文字以上含めてください");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setError("パスワードに数字を1文字以上含めてください");
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      setError("パスワードに記号（!@#$など）を1文字以上含めてください");
+      return;
+    }
     if (!agreed) {
       setError("利用規約とプライバシーポリシーへの同意が必要です");
       return;
@@ -127,7 +143,7 @@ export default function Register() {
         <h2 className="text-xl font-semibold text-slate-700 mb-6">新規アカウント登録</h2>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
+          <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
             {error}
           </div>
         )}
@@ -236,7 +252,7 @@ export default function Register() {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              パスワード（8文字以上） <span className="text-red-500">*</span>
+              パスワード <span className="text-red-500">*</span>
             </label>
             <input
               type="password"
@@ -244,9 +260,13 @@ export default function Register() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={8}
+              aria-describedby="password-hint"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="••••••••"
             />
+            <p id="password-hint" className="text-xs text-slate-500 mt-1">
+              8文字以上・大文字・小文字・数字・記号（!@#$など）を各1文字以上含めてください
+            </p>
           </div>
 
           <div className="flex items-start gap-2 pt-1">

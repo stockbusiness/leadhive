@@ -297,6 +297,24 @@ export const api = {
 
     delete: (userId: number) =>
       axios.delete(`/api/users/${userId}`).then(r => r.data),
+
+    transferOwnership: (newOwnerId: number) =>
+      axios.post<{ message: string }>("/api/users/transfer-ownership", { new_owner_id: newOwnerId }).then(r => r.data),
+  },
+
+  webhooks: {
+    list: () =>
+      axios.get<any[]>("/api/webhooks").then(r => r.data),
+    create: (data: { name: string; url: string; secret?: string; events: string[]; is_active: boolean }) =>
+      axios.post<any>("/api/webhooks", data).then(r => r.data),
+    update: (id: number, data: Partial<{ name: string; url: string; secret: string; events: string[]; is_active: boolean }>) =>
+      axios.put<any>(`/api/webhooks/${id}`, data).then(r => r.data),
+    delete: (id: number) =>
+      axios.delete(`/api/webhooks/${id}`).then(r => r.data),
+    test: (id: number) =>
+      axios.post<{ success: boolean; status_code?: number; error?: string }>(`/api/webhooks/${id}/test`).then(r => r.data),
+    listEvents: () =>
+      axios.get<{ events: string[] }>("/api/webhooks/events").then(r => r.data),
   },
 
   plans: {

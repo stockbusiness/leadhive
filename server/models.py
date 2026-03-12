@@ -526,3 +526,20 @@ class OptOutList(Base):
     reason = Column(Text, nullable=True)
     added_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     added_at = Column(DateTime, server_default=func.now())
+
+
+class OutboundWebhook(Base):
+    __tablename__ = "outbound_webhooks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    url = Column(String(1000), nullable=False)
+    secret = Column(String(200), nullable=True)
+    events = Column(JSON, nullable=False, default=list)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    last_triggered_at = Column(DateTime, nullable=True)
+    last_status_code = Column(Integer, nullable=True)
+    failure_count = Column(Integer, nullable=False, default=0)

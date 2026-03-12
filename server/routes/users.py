@@ -170,3 +170,28 @@ def delete_user(
     db.delete(user)
     db.commit()
     return {"message": "ユーザーを削除しました"}
+
+
+class TransferOwnerRequest(BaseModel):
+    new_owner_id: int
+
+
+@router.post("/transfer-ownership")
+def transfer_ownership(
+    body: TransferOwnerRequest,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    if body.new_owner_id == current_user.id:
+        raise HTTPException(status_code=400, detail="自分自身への移譲はできません")
+    new_owner = db.query(User).filter(
+        User.id == body.new_owner_id,
+        User.org_id == current_user.org_id,
+        User.is_active == True,
+    ).first()
+    if not new_owner:
+        raise HTTPException(status_code=404, detail="対象ユーザーが見つかりません")
+    current_user.role = "member"
+    new_owner.role = "admin"
+    db.commit()
+    return {"message": f"{new_owner.display_name or new_owner.email} にオーナー権限を移譲しました"}

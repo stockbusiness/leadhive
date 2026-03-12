@@ -137,6 +137,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(prev => prev ? { ...prev, ...updates } : null);
   }, []);
 
+  useEffect(() => {
+    function getTokenExp(t: string): number | null {
+      try {
+        const payload = JSON.parse(atob(t.split(".")[1]));
+        return payload.exp ?? null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function tryRefresh() {
+      const t = localStorage.getItem("leadhive_token");
+      if (!t) return;
+      const exp = getTokenExp(t);
+      if (!exp) return;
+      const nowSec = Math.floor(Date.now() / 1000);
+      const remainingSec = exp - nowSec;
+      if (remainingSec > 60 * 60 * 24) return;
+      try {
+        const res = await axios.post("/api/auth/refresh");
+        const newToken = res.data.access_token;
+        localStorage.setItem("leadhive_token", newToken);
+        setToken(newToken);
+      } catch {
+        /* keep using current token */
+      }
+    }
+
+    tryRefresh();
+    const id = setInterval(tryRefresh, 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <AuthContext.Provider value={{ user, token, loading, login, register, loginFromToken, logout, updateUser }}>
       {children}

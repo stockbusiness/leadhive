@@ -18,6 +18,10 @@ export default function ResetPassword() {
     e.preventDefault();
     setError("");
     if (password.length < 8) { setError("パスワードは8文字以上で入力してください"); return; }
+    if (!/[A-Z]/.test(password)) { setError("パスワードに大文字を1文字以上含めてください"); return; }
+    if (!/[a-z]/.test(password)) { setError("パスワードに小文字を1文字以上含めてください"); return; }
+    if (!/[0-9]/.test(password)) { setError("パスワードに数字を1文字以上含めてください"); return; }
+    if (!/[^A-Za-z0-9]/.test(password)) { setError("パスワードに記号（!@#$など）を1文字以上含めてください"); return; }
     if (password !== confirmPassword) { setError("パスワードが一致しません"); return; }
 
     setLoading(true);

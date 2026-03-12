@@ -18,6 +18,7 @@ from server.routes import support
 from server.routes import admin_hubsrev
 from server.routes import faq
 from server.routes import status_page
+from server.routes import webhooks
 from server.services.scheduler import start_scheduler, stop_scheduler
 from server.services.rate_limiter import limiter, _rate_limit_exceeded_handler, RateLimitExceeded
 
@@ -330,6 +331,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    return response
+
+
+@app.get("/api/health", tags=["system"])
+def health_check():
+    from datetime import datetime as _dt
+    return {"status": "ok", "timestamp": _dt.utcnow().isoformat() + "Z"}
+
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(companies.router)
@@ -356,6 +374,7 @@ app.include_router(support.router)
 app.include_router(admin_hubsrev.router)
 app.include_router(faq.router)
 app.include_router(status_page.router)
+app.include_router(webhooks.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 

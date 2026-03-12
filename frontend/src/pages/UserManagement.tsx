@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Users, UserPlus, Trash2, Shield, ShieldCheck, Loader2, Copy, CheckCircle, XCircle, Clock, Mail, Lock } from "lucide-react";
+import { Users, UserPlus, Trash2, Shield, ShieldCheck, Loader2, Copy, CheckCircle, XCircle, Clock, Mail, Lock, Crown } from "lucide-react";
 import { api } from "../api";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -91,6 +91,18 @@ export default function UserManagement() {
       setMessage({ text: err.response?.data?.detail || "削除に失敗しました", type: "error" });
     }
     setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleTransferOwnership = async (userId: number, email: string) => {
+    if (!confirm(`${email} にオーナー権限を移譲しますか？\n移譲後、あなたの権限はメンバーに変更されます。`)) return;
+    try {
+      const res = await api.users.transferOwnership(userId);
+      setMessage({ text: res.message, type: "success" });
+      await loadUsers();
+    } catch (err: any) {
+      setMessage({ text: err.response?.data?.detail || "移譲に失敗しました", type: "error" });
+    }
+    setTimeout(() => setMessage(null), 4000);
   };
 
   const handleCancelInvite = async (id: number) => {
@@ -222,6 +234,13 @@ export default function UserManagement() {
                     <option value="member">メンバー</option>
                     <option value="admin">管理者</option>
                   </select>
+                  <button
+                    onClick={() => handleTransferOwnership(u.id, u.email)}
+                    title="オーナー権限を移譲"
+                    className="text-slate-400 hover:text-amber-500 transition-colors"
+                  >
+                    <Crown size={15} />
+                  </button>
                   <button onClick={() => handleDeleteUser(u.id, u.email)} className="text-slate-400 hover:text-red-500 transition-colors">
                     <Trash2 size={16} />
                   </button>
