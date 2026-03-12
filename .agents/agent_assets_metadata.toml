@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "PVaG2kwsZl0UjW9UcVBXl"
+uri = "file://LeadHive_営業資料.md"
+type = "text"
+title = "LeadHive 営業資料（2026年3月版）"
