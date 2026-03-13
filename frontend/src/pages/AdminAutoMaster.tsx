@@ -656,15 +656,15 @@ export default function AdminAutoMaster() {
                 <button
                   onClick={() => {
                     stopEnrichPolling();
-                    axios.post("/api/admin/auto-master/clear-enrich-progress").catch(() => {});
+                    axios.post("/api/admin/auto-master/abort-enrich").catch(() => {});
                     setProgressMsgEnrich("");
                     setRunningEnrich(false);
-                    load();
+                    setTimeout(() => load(), 1500);
                   }}
-                  className="text-xs text-slate-400 hover:text-red-500 transition-colors whitespace-nowrap"
-                  title="表示をリセット（バックグラウンド処理は継続します）"
+                  className="text-xs text-red-400 hover:text-red-600 font-medium transition-colors whitespace-nowrap border border-red-200 rounded px-2 py-0.5 hover:bg-red-50"
+                  title="実行中のURL補完を中止します"
                 >
-                  ✕ 強制クリア
+                  ■ 実行を中止
                 </button>
               </div>
               {!isWaiting && (

@@ -5,7 +5,13 @@ from sqlalchemy.orm import sessionmaker
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=5,      # コネクション取得最大5秒待機（スレッドのDB待機ブロック防止）
+    pool_pre_ping=True,  # 切断済みコネクションを再利用しない
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

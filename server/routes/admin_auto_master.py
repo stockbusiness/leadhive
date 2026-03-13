@@ -263,6 +263,17 @@ def clear_enrich_progress(
     return {"ok": True, "message": "URL補完の進捗フラグをクリアしました"}
 
 
+@router.post("/abort-enrich")
+def abort_enrich(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    _set_key(db, "auto_master_enrich_abort", "1")
+    _set_key(db, "auto_master_enrich_progress", "")
+    return {"ok": True, "message": "中止フラグをセットしました。次のループで停止します"}
+
+
 @router.post("/clear-master-data")
 def clear_master_data(
     current_user: User = Depends(get_current_user),

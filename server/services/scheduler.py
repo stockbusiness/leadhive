@@ -855,6 +855,12 @@ def _run_auto_master_enrich(force: bool = False):
                 logger.warning(f"AutoMasterEnrich: DuckDuckGo連続失敗{DDG_FAIL_LIMIT}回 → 以降スキップ")
                 ddg_fail_counter[0] += 1
 
+            # 中止フラグチェック
+            if _fresh_get("auto_master_enrich_abort", "0") == "1":
+                logger.info(f"AutoMasterEnrich: 中止フラグ検出 ({processed-1}/{total_targets}) → ループ終了")
+                _fresh_set("auto_master_enrich_abort", "0")
+                break
+
             # 進捗をループ先頭で先に書き込む（hang中でも表示が進む）
             _fresh_set("auto_master_enrich_progress", f"{processed}/{total_targets} 処理中（URL発見:{enriched}件）")
 
