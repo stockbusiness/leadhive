@@ -962,9 +962,13 @@ def _scheduler_loop():
                 schedule = db.query(AppSetting).filter(AppSetting.setting_key == "auto_collect_time").first()
                 master_enabled_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_enabled").first()
                 master_hour_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_schedule_hour").first()
+                enrich_hour_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_enrich_schedule_hour").first()
+                enrich_last_date_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_enrich_last_run_date").first()
                 tz_row = db.query(SystemSettings).filter(SystemSettings.key == "scheduler_timezone").first()
                 master_enabled = master_enabled_row and master_enabled_row.value == "true"
                 master_hour = int(master_hour_row.value) if master_hour_row and master_hour_row.value else 3
+                enrich_hour = int(enrich_hour_row.value) if enrich_hour_row and enrich_hour_row.value else 5
+                enrich_last_run_date = enrich_last_date_row.value if enrich_last_date_row and enrich_last_date_row.value else ""
                 tz_name = (tz_row.value if tz_row and tz_row.value else None) or "Asia/Tokyo"
             finally:
                 db.close()
@@ -1012,9 +1016,13 @@ def _scheduler_loop():
                 logger.info("AutoEnrich: Triggered at 04:00")
                 threading.Thread(target=_run_auto_enrich_all, daemon=True).start()
 
-            if now.hour == 5 and now.minute == 0 and last_master_enrich_date != today:
+            today_str = today.isoformat()
+            _enrich_on_schedule = (now.hour == enrich_hour and now.minute == 0)
+            _enrich_catchup = (now.hour > enrich_hour and last_master_enrich_date != today)
+            if (_enrich_on_schedule or _enrich_catchup) and enrich_last_run_date != today_str and last_master_enrich_date != today:
                 last_master_enrich_date = today
-                logger.info("AutoMasterEnrich: Triggered at 05:00")
+                _fresh_set("auto_master_enrich_last_run_date", today_str)
+                logger.info(f"AutoMasterEnrich: Triggered at {now.strftime('%H:%M')} (scheduled={enrich_hour}:00)")
                 threading.Thread(target=_run_auto_master_enrich, daemon=True).start()
 
             if now.hour == 8 and now.minute == 0 and last_usage_alert_date != today:

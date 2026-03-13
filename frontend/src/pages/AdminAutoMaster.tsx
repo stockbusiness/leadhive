@@ -40,6 +40,7 @@ interface Status {
   has_gbiz_token: boolean;
   enrich_enabled: boolean;
   enrich_max: number;
+  enrich_schedule_hour: number;
   enrich_last_run: string;
   enrich_total: number;
   enrich_progress: string;
@@ -87,6 +88,7 @@ export default function AdminAutoMaster() {
     schedule_hour: 3,
     enrich_enabled: true,
     enrich_max: 100,
+    enrich_schedule_hour: 5,
     scheduler_timezone: "Asia/Tokyo",
     serper_api_key: "",
   });
@@ -123,6 +125,7 @@ export default function AdminAutoMaster() {
         schedule_hour: s.schedule_hour,
         enrich_enabled: s.enrich_enabled ?? true,
         enrich_max: s.enrich_max ?? 100,
+        enrich_schedule_hour: s.enrich_schedule_hour ?? 5,
         scheduler_timezone: s.scheduler_timezone ?? "Asia/Tokyo",
         serper_api_key: "",
       });
@@ -160,6 +163,7 @@ export default function AdminAutoMaster() {
       auto_master_schedule_hour: String(form.schedule_hour),
       auto_master_enrich_enabled: form.enrich_enabled ? "true" : "false",
       auto_master_enrich_max: String(form.enrich_max),
+      auto_master_enrich_schedule_hour: String(form.enrich_schedule_hour),
       scheduler_timezone: form.scheduler_timezone,
       ...(form.serper_api_key ? { serper_api_key: form.serper_api_key } : {}),
     }).then(() => {
@@ -524,9 +528,11 @@ export default function AdminAutoMaster() {
       <div className="bg-white border border-indigo-200 rounded-xl shadow-sm p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
+            <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2 flex-wrap">
               <span className="text-indigo-600">✦</span> マスターDB 自動URL補完
-              <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">AM 5:00 実行</span>
+              <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                {form.enrich_schedule_hour}:00 実行
+              </span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">URLが未取得のマスターDB企業をGoogle検索で自動補完し、スクレイピングでCMS・メール・スコアを付与します。</p>
           </div>
@@ -546,20 +552,35 @@ export default function AdminAutoMaster() {
             <div className="text-sm font-semibold text-slate-700">{status?.enrich_last_run || "未実行"}</div>
           </div>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">1回の補完件数 <span className="text-slate-400">（最大）</span></label>
-          <select
-            value={form.enrich_max}
-            onChange={(e) => setForm((f) => ({ ...f, enrich_max: Number(e.target.value) }))}
-            disabled={!form.enrich_enabled}
-            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm disabled:opacity-50 disabled:bg-slate-100"
-          >
-            {[50, 100, 200, 300, 500].map((n) => (
-              <option key={n} value={n}>{n}社 / 日</option>
-            ))}
-          </select>
-          <p className="text-xs text-slate-400 mt-1">1社あたりGoogle検索 + スクレイピングで2〜4秒かかります。100社 ≈ 約5分。</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">実行時刻（時）</label>
+            <select
+              value={form.enrich_schedule_hour}
+              onChange={(e) => setForm((f) => ({ ...f, enrich_schedule_hour: Number(e.target.value) }))}
+              disabled={!form.enrich_enabled}
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm disabled:opacity-50 disabled:bg-slate-100"
+            >
+              {Array.from({ length: 24 }, (_, i) => (
+                <option key={i} value={i}>{i}:00</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">1回の補完件数 <span className="text-slate-400">（最大）</span></label>
+            <select
+              value={form.enrich_max}
+              onChange={(e) => setForm((f) => ({ ...f, enrich_max: Number(e.target.value) }))}
+              disabled={!form.enrich_enabled}
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm disabled:opacity-50 disabled:bg-slate-100"
+            >
+              {[50, 100, 200, 300, 500].map((n) => (
+                <option key={n} value={n}>{n}社 / 日</option>
+              ))}
+            </select>
+          </div>
         </div>
+        <p className="text-xs text-slate-400 -mt-2">1社あたりGoogle検索 + スクレイピングで2〜4秒かかります。100社 ≈ 約5分。</p>
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">
             Serper API Key

@@ -45,7 +45,9 @@ SETTINGS_KEYS = [
     "gbizinfo_api_token",
     "auto_master_enrich_enabled",
     "auto_master_enrich_max",
+    "auto_master_enrich_schedule_hour",
     "auto_master_enrich_last_run",
+    "auto_master_enrich_last_run_date",
     "auto_master_enrich_total",
     "auto_master_enrich_progress",
     "scheduler_timezone",
@@ -67,7 +69,9 @@ DEFAULTS = {
     "gbizinfo_api_token": "",
     "auto_master_enrich_enabled": "true",
     "auto_master_enrich_max": "100",
+    "auto_master_enrich_schedule_hour": "5",
     "auto_master_enrich_last_run": "",
+    "auto_master_enrich_last_run_date": "",
     "auto_master_enrich_total": "0",
     "auto_master_enrich_progress": "",
     "scheduler_timezone": "Asia/Tokyo",
@@ -147,6 +151,7 @@ def get_status(
         "has_gbiz_token": has_token,
         "enrich_enabled": settings.get("auto_master_enrich_enabled", "true") != "false",
         "enrich_max": int(settings.get("auto_master_enrich_max", "100")),
+        "enrich_schedule_hour": int(settings.get("auto_master_enrich_schedule_hour", "5")),
         "enrich_last_run": settings.get("auto_master_enrich_last_run", ""),
         "enrich_total": int(settings.get("auto_master_enrich_total", "0")),
         "enrich_progress": settings.get("auto_master_enrich_progress", ""),
@@ -169,7 +174,7 @@ def update_settings(
     allowed = {
         "auto_master_enabled", "auto_master_max_companies", "auto_master_max_enrich",
         "auto_master_max_pages_per_combo", "auto_master_schedule_hour",
-        "auto_master_enrich_enabled", "auto_master_enrich_max",
+        "auto_master_enrich_enabled", "auto_master_enrich_max", "auto_master_enrich_schedule_hour",
         "scheduler_timezone", "gbizinfo_api_token", "serper_api_key",
     }
     for key, val in data.items():
