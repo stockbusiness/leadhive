@@ -552,7 +552,7 @@ export default function MasterDB() {
                 )}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[780px] text-sm table-fixed">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-3 py-2 w-8">
@@ -563,14 +563,14 @@ export default function MasterDB() {
                           className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                         />
                       </th>
-                      <th className="text-left px-3 py-2 font-medium text-slate-600">会社名</th>
-                      <th className="text-left px-3 py-2 font-medium text-slate-600">CMS</th>
-                      <th className="text-left px-3 py-2 font-medium text-slate-600">カテゴリ</th>
-                      <th className="text-center px-3 py-2 font-medium text-slate-600">スコア</th>
-                      <th className="text-left px-3 py-2 font-medium text-slate-600">所在地</th>
-                      <th className="text-left px-3 py-2 font-medium text-slate-600">電話</th>
-                      <th className="text-center px-3 py-2 font-medium text-slate-600">情報</th>
-                      <th className="text-center px-3 py-2 font-medium text-slate-600 whitespace-nowrap" title="このプロジェクトに追加済みかどうかを示します">このPJ</th>
+                      <th className="text-left px-3 py-2 font-medium text-slate-600 w-44">会社名</th>
+                      <th className="text-left px-3 py-2 font-medium text-slate-600 w-24 whitespace-nowrap">CMS</th>
+                      <th className="text-left px-3 py-2 font-medium text-slate-600 w-28 whitespace-nowrap">カテゴリ</th>
+                      <th className="text-center px-3 py-2 font-medium text-slate-600 w-16 whitespace-nowrap">スコア</th>
+                      <th className="text-left px-3 py-2 font-medium text-slate-600 w-28 whitespace-nowrap">所在地</th>
+                      <th className="text-left px-3 py-2 font-medium text-slate-600 w-28 whitespace-nowrap">電話</th>
+                      <th className="text-center px-3 py-2 font-medium text-slate-600 w-16 whitespace-nowrap">情報</th>
+                      <th className="text-center px-3 py-2 font-medium text-slate-600 w-16 whitespace-nowrap" title="このプロジェクトに追加済みかどうかを示します">PJ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -588,8 +588,8 @@ export default function MasterDB() {
                             className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                           />
                         </td>
-                        <td className="px-3 py-2">
-                          <div className="font-medium text-slate-800">
+                        <td className="px-3 py-2 max-w-0">
+                          <div className="font-medium text-slate-800 truncate" title={item.company_name || item.domain || ""}>
                             {item.company_name || item.domain || "—"}
                           </div>
                           {(item.website_url || item.domain) ? (
@@ -597,9 +597,9 @@ export default function MasterDB() {
                               href={item.website_url || `https://${item.domain}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-xs text-blue-500 hover:underline flex items-center gap-1"
+                              className="text-xs text-blue-500 hover:underline flex items-center gap-1 truncate"
                             >
-                              {item.domain || item.website_url} <ExternalLink size={10} />
+                              {item.domain || item.website_url} <ExternalLink size={10} className="shrink-0" />
                             </a>
                           ) : (
                             <span className="text-xs text-slate-300">URLなし</span>
@@ -619,7 +619,7 @@ export default function MasterDB() {
                             <span className="text-xs text-slate-300">—</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-slate-600">{item.category_main || "-"}</td>
+                        <td className="px-3 py-2 text-slate-600 truncate max-w-0" title={item.category_main || ""}>{item.category_main || "-"}</td>
                         <td className="px-3 py-2 text-center">
                           <ScoreBadge score={item.score_total} rank={item.score_rank} />
                         </td>
