@@ -273,17 +273,29 @@ export default function AdminAutoMaster() {
           }
           setProgressMsgEnrich(s.enrich_progress);
           setStatus(s);
+
+          // ウォッチドッグ: progress が設定されていても長時間変化なし → 完了/クラッシュ扱い
+          const watchdogFired = Date.now() - lastProgressChangedAt > WATCHDOG_MS;
+          const hardTimeout = elapsed >= MAX_POLL_MS;
+          if (watchdogFired || hardTimeout) {
+            stopEnrichPolling();
+            const saved = (s.enrich_total ?? 0) - prevTotal;
+            setRunEnrichResult({ saved: Math.max(saved, 0) });
+            setProgressMsgEnrich("");
+            setRunningEnrich(false);
+            setStatus(s);
+            loadJobLogs();
+          }
           return;
         }
 
-        // 完了検出条件
+        // 完了検出条件（enrich_progressが空になった場合）
         const completedNormally = progressStarted && !s.enrich_progress;
         const lastRunChanged = s.enrich_last_run !== prevLastRun;
         const totalIncreased = (s.enrich_total ?? 0) > prevTotal;
-        const watchdogFired = progressStarted && (Date.now() - lastProgressChangedAt > WATCHDOG_MS);
         const hardTimeout = elapsed >= MAX_POLL_MS;
 
-        const done = completedNormally || lastRunChanged || totalIncreased || watchdogFired || hardTimeout;
+        const done = completedNormally || lastRunChanged || totalIncreased || hardTimeout;
 
         if (done) {
           stopEnrichPolling();

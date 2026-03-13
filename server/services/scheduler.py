@@ -847,95 +847,100 @@ def _run_auto_master_enrich(force: bool = False):
 
     import threading as _threading
 
-    for company_id, company_name, prefecture, city, corporate_number in targets_raw:
-        processed += 1
-        ddg_disabled = ddg_fail_counter[0] >= DDG_FAIL_LIMIT
-        if ddg_disabled and ddg_fail_counter[0] == DDG_FAIL_LIMIT:
-            logger.warning(f"AutoMasterEnrich: DuckDuckGo連続失敗{DDG_FAIL_LIMIT}回 → 以降スキップ")
-            ddg_fail_counter[0] += 1
+    try:
+        for company_id, company_name, prefecture, city, corporate_number in targets_raw:
+            processed += 1
+            ddg_disabled = ddg_fail_counter[0] >= DDG_FAIL_LIMIT
+            if ddg_disabled and ddg_fail_counter[0] == DDG_FAIL_LIMIT:
+                logger.warning(f"AutoMasterEnrich: DuckDuckGo連続失敗{DDG_FAIL_LIMIT}回 → 以降スキップ")
+                ddg_fail_counter[0] += 1
 
-        # 進捗をループ先頭で先に書き込む（hang中でも表示が進む）
-        _fresh_set("auto_master_enrich_progress", f"{processed}/{total_targets} 処理中（URL発見:{enriched}件）")
-
-        location = f"{prefecture or ''}{city or ''}"
-        result_holder = {"url": None, "enriched": False, "error": None}
-
-        def _process_company(
-            _cid=company_id, _cname=company_name, _loc=location,
-            _corp=corporate_number, _pref=prefecture, _city=city,
-            _ddg_dis=ddg_disabled, _counter=ddg_fail_counter,
-            _holder=result_holder, _proc=processed,
-        ):
-            db = SessionLocal()
-            try:
-                url = find_website_for_company(
-                    _cname, _loc, db=db, org_id=None,
-                    ddg_disabled=_ddg_dis,
-                    ddg_fail_counter=_counter,
-                )
-                if not url:
-                    return
-
-                from urllib.parse import urlparse as _up2
-                domain = normalize_domain(_up2(url).netloc)
-                if not domain or is_aggregator_site(url)[0]:
-                    return
-
-                existing = db.query(CompanyMaster).filter(CompanyMaster.domain == domain).first()
-                if existing and existing.id != _cid:
-                    return
-
-                scraped = scrape_company_info(url) or {}
-                scraped["company_name"] = _cname
-                scraped["website_url"] = url
-                scraped["domain"] = domain
-                if _corp:
-                    scraped["corporate_number"] = _corp
-                if not scraped.get("prefecture"):
-                    scraped["prefecture"] = _pref
-                    scraped["city"] = _city
-
-                full_text = scraped.get("full_text", "") or ""
-                cat_main, cat_sub = categorize_company(full_text)
-                cms_type = scraped.get("cms_type") or None
-                flags = detect_flags(full_text, cms_type=cms_type)
-                scraped.update({"category_main": cat_main, "category_sub": cat_sub, **flags})
-                score, rank = calculate_score(scraped)
-                scraped["score_total"] = score
-                scraped["score_rank"] = rank
-
-                _upsert_company_master(db, scraped, domain, source="auto_master_enrich", corporate_number=_corp)
-                _holder["url"] = url
-                _holder["enriched"] = True
-                logger.info(f"AutoMasterEnrich: [{_proc}/{total_targets}] {_cname} → {domain}")
-            except Exception as e:
-                _holder["error"] = str(e)
-                logger.warning(f"AutoMasterEnrich: {_cname} error: {e}")
-            finally:
-                try:
-                    db.close()
-                except Exception:
-                    pass
-
-        # 壁時計タイムアウト付きで実行（DNS/ソケットハング対策）
-        _t = _threading.Thread(target=_process_company, daemon=True)
-        _t.start()
-        _t.join(timeout=PER_COMPANY_TIMEOUT)
-        if _t.is_alive():
-            logger.warning(f"AutoMasterEnrich: {company_name} → {PER_COMPANY_TIMEOUT}秒タイムアウト、スキップ")
-
-        if result_holder["enriched"]:
-            enriched += 1
+            # 進捗をループ先頭で先に書き込む（hang中でも表示が進む）
             _fresh_set("auto_master_enrich_progress", f"{processed}/{total_targets} 処理中（URL発見:{enriched}件）")
-            _time.sleep(random.uniform(0.5, 1.0))
-        else:
-            skipped += 1
 
-    prev_total = int(_fresh_get("auto_master_enrich_total", "0"))
-    _fresh_set("auto_master_enrich_total", str(prev_total + enriched))
-    _fresh_set("auto_master_enrich_last_run", datetime.now().strftime("%Y-%m-%d %H:%M"))
-    _fresh_set("auto_master_enrich_progress", "")
-    logger.info(f"AutoMasterEnrich: 完了 — URL発見{enriched}社 / スキップ{skipped}社 / 合計{total_targets}社")
+            location = f"{prefecture or ''}{city or ''}"
+            result_holder = {"url": None, "enriched": False, "error": None}
+
+            def _process_company(
+                _cid=company_id, _cname=company_name, _loc=location,
+                _corp=corporate_number, _pref=prefecture, _city=city,
+                _ddg_dis=ddg_disabled, _counter=ddg_fail_counter,
+                _holder=result_holder, _proc=processed,
+            ):
+                db = SessionLocal()
+                try:
+                    url = find_website_for_company(
+                        _cname, _loc, db=db, org_id=None,
+                        ddg_disabled=_ddg_dis,
+                        ddg_fail_counter=_counter,
+                    )
+                    if not url:
+                        return
+
+                    from urllib.parse import urlparse as _up2
+                    domain = normalize_domain(_up2(url).netloc)
+                    if not domain or is_aggregator_site(url)[0]:
+                        return
+
+                    existing = db.query(CompanyMaster).filter(CompanyMaster.domain == domain).first()
+                    if existing and existing.id != _cid:
+                        return
+
+                    scraped = scrape_company_info(url) or {}
+                    scraped["company_name"] = _cname
+                    scraped["website_url"] = url
+                    scraped["domain"] = domain
+                    if _corp:
+                        scraped["corporate_number"] = _corp
+                    if not scraped.get("prefecture"):
+                        scraped["prefecture"] = _pref
+                        scraped["city"] = _city
+
+                    full_text = scraped.get("full_text", "") or ""
+                    cat_main, cat_sub = categorize_company(full_text)
+                    cms_type = scraped.get("cms_type") or None
+                    flags = detect_flags(full_text, cms_type=cms_type)
+                    scraped.update({"category_main": cat_main, "category_sub": cat_sub, **flags})
+                    score, rank = calculate_score(scraped)
+                    scraped["score_total"] = score
+                    scraped["score_rank"] = rank
+
+                    _upsert_company_master(db, scraped, domain, source="auto_master_enrich", corporate_number=_corp)
+                    _holder["url"] = url
+                    _holder["enriched"] = True
+                    logger.info(f"AutoMasterEnrich: [{_proc}/{total_targets}] {_cname} → {domain}")
+                except Exception as e:
+                    _holder["error"] = str(e)
+                    logger.warning(f"AutoMasterEnrich: {_cname} error: {e}")
+                finally:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
+
+            # 壁時計タイムアウト付きで実行（DNS/ソケットハング対策）
+            _t = _threading.Thread(target=_process_company, daemon=True)
+            _t.start()
+            _t.join(timeout=PER_COMPANY_TIMEOUT)
+            if _t.is_alive():
+                logger.warning(f"AutoMasterEnrich: {company_name} → {PER_COMPANY_TIMEOUT}秒タイムアウト、スキップ")
+
+            if result_holder["enriched"]:
+                enriched += 1
+                _fresh_set("auto_master_enrich_progress", f"{processed}/{total_targets} 処理中（URL発見:{enriched}件）")
+                _time.sleep(random.uniform(0.5, 1.0))
+            else:
+                skipped += 1
+
+        prev_total = int(_fresh_get("auto_master_enrich_total", "0"))
+        _fresh_set("auto_master_enrich_total", str(prev_total + enriched))
+        _fresh_set("auto_master_enrich_last_run", datetime.now().strftime("%Y-%m-%d %H:%M"))
+        logger.info(f"AutoMasterEnrich: 完了 — URL発見{enriched}社 / スキップ{skipped}社 / 合計{total_targets}社")
+    except Exception as _loop_err:
+        logger.error(f"AutoMasterEnrich: ループ中に予期しないエラー: {_loop_err}", exc_info=True)
+    finally:
+        # 正常完了・例外・クラッシュどの場合でも必ずprogress をクリア
+        _fresh_set("auto_master_enrich_progress", "")
 
 
 def _write_sys_setting(key: str, value: str):
