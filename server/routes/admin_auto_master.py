@@ -253,6 +253,16 @@ def reset_progress(
     return {"ok": True, "message": "進捗をリセットしました"}
 
 
+@router.post("/clear-enrich-progress")
+def clear_enrich_progress(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    _set_key(db, "auto_master_enrich_progress", "")
+    return {"ok": True, "message": "URL補完の進捗フラグをクリアしました"}
+
+
 @router.post("/clear-master-data")
 def clear_master_data(
     current_user: User = Depends(get_current_user),

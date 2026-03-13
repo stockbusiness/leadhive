@@ -133,7 +133,7 @@ export default function AdminAutoMaster() {
       if (autoResumeEnrich && s.enrich_progress) {
         setRunningEnrich(true);
         setProgressMsgEnrich(s.enrich_progress);
-        _startEnrichPolling(s.enrich_total ?? 0, s.enrich_last_run ?? "");
+        _startEnrichPolling(s.enrich_total ?? 0, s.enrich_last_run ?? "", true);
       }
     }).finally(() => setLoading(false));
   };
@@ -250,13 +250,18 @@ export default function AdminAutoMaster() {
     }
   };
 
-  const _startEnrichPolling = (prevTotal: number, prevLastRun: string) => {
+  const _startEnrichPolling = (prevTotal: number, prevLastRun: string, isPageLoadResume = false) => {
     stopEnrichPolling();
     let progressStarted = false;
     let lastProgressVal = "";
-    let lastProgressChangedAt = Date.now();
-    const WATCHDOG_MS = 5 * 60 * 1000; // 5分間進捗変化なし → クラッシュ扱い
+    // ページリロードによる自動再開の場合、進捗が最後にいつ更新されたか不明なため
+    // ウォッチドッグを短く設定（60秒変化なし → 古い進捗と判定してクリア）
+    const WATCHDOG_MS = isPageLoadResume ? 60 * 1000 : 5 * 60 * 1000;
     const MAX_POLL_MS = 2 * 60 * 60 * 1000; // 最大2時間
+    // リロード再開時はウォッチドッグタイマーを「すでに4分経過済み」として開始
+    let lastProgressChangedAt = isPageLoadResume
+      ? Date.now() - (4 * 60 * 1000)
+      : Date.now();
 
     const startedAt = Date.now();
 
@@ -643,9 +648,24 @@ export default function AdminAutoMaster() {
           const foundCount = foundMatch ? parseInt(foundMatch[1]) : null;
           return (
             <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-4 space-y-2">
-              <div className="flex items-center gap-2 text-sm text-indigo-700 font-medium">
-                <Loader2 size={15} className="animate-spin flex-shrink-0" />
-                <span>{isWaiting ? progressMsgEnrich : `URL補完実行中...`}</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm text-indigo-700 font-medium">
+                  <Loader2 size={15} className="animate-spin flex-shrink-0" />
+                  <span>{isWaiting ? progressMsgEnrich : `URL補完実行中...`}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    stopEnrichPolling();
+                    axios.post("/api/admin/auto-master/clear-enrich-progress").catch(() => {});
+                    setProgressMsgEnrich("");
+                    setRunningEnrich(false);
+                    load();
+                  }}
+                  className="text-xs text-slate-400 hover:text-red-500 transition-colors whitespace-nowrap"
+                  title="表示をリセット（バックグラウンド処理は継続します）"
+                >
+                  ✕ 強制クリア
+                </button>
               </div>
               {!isWaiting && (
                 <>
