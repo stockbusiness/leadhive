@@ -938,6 +938,27 @@ def _run_auto_master_enrich(force: bool = False):
     logger.info(f"AutoMasterEnrich: 完了 — URL発見{enriched}社 / スキップ{skipped}社 / 合計{total_targets}社")
 
 
+def _write_sys_setting(key: str, value: str):
+    from server.database import SessionLocal
+    from server.models import SystemSettings
+    db = SessionLocal()
+    try:
+        row = db.query(SystemSettings).filter(SystemSettings.key == key).first()
+        if row:
+            row.value = str(value)
+        else:
+            db.add(SystemSettings(key=key, value=str(value)))
+        db.commit()
+    except Exception as e:
+        logger.warning(f"_write_sys_setting({key}) error: {e}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+
 def _scheduler_loop():
     global _scheduler_running
     last_collect_date = None
@@ -962,13 +983,17 @@ def _scheduler_loop():
                 schedule = db.query(AppSetting).filter(AppSetting.setting_key == "auto_collect_time").first()
                 master_enabled_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_enabled").first()
                 master_hour_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_schedule_hour").first()
+                master_last_date_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_last_run_date").first()
                 enrich_hour_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_enrich_schedule_hour").first()
                 enrich_last_date_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_master_enrich_last_run_date").first()
+                enrich_all_date_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_enrich_all_last_run_date").first()
                 tz_row = db.query(SystemSettings).filter(SystemSettings.key == "scheduler_timezone").first()
                 master_enabled = master_enabled_row and master_enabled_row.value == "true"
                 master_hour = int(master_hour_row.value) if master_hour_row and master_hour_row.value else 3
+                master_last_run_date = master_last_date_row.value if master_last_date_row and master_last_date_row.value else ""
                 enrich_hour = int(enrich_hour_row.value) if enrich_hour_row and enrich_hour_row.value else 5
                 enrich_last_run_date = enrich_last_date_row.value if enrich_last_date_row and enrich_last_date_row.value else ""
+                enrich_all_last_run_date = enrich_all_date_row.value if enrich_all_date_row and enrich_all_date_row.value else ""
                 tz_name = (tz_row.value if tz_row and tz_row.value else None) or "Asia/Tokyo"
             finally:
                 db.close()
@@ -980,6 +1005,7 @@ def _scheduler_loop():
             except Exception:
                 now = datetime.now()
             today = now.date()
+            today_str = today.isoformat()
 
             if enabled and enabled.setting_value == "true" and schedule and schedule.setting_value:
                 try:
@@ -991,9 +1017,12 @@ def _scheduler_loop():
                 except (ValueError, AttributeError):
                     pass
 
-            if master_enabled and now.hour == master_hour and now.minute == 0 and last_master_date != today:
+            _master_on_schedule = master_enabled and now.hour == master_hour and now.minute == 0
+            _master_catchup = master_enabled and now.hour > master_hour and last_master_date != today
+            if (_master_on_schedule or _master_catchup) and master_last_run_date != today_str and last_master_date != today:
                 last_master_date = today
-                logger.info(f"AutoMaster: Triggered at {now.strftime('%H:%M')}")
+                _write_sys_setting("auto_master_last_run_date", today_str)
+                logger.info(f"AutoMaster: Triggered at {now.strftime('%H:%M')} (scheduled={master_hour}:00)")
                 threading.Thread(target=_run_auto_master_collect, daemon=True).start()
 
             if now.hour == 9 and now.minute == 0 and last_notify_date != today:
@@ -1011,17 +1040,19 @@ def _scheduler_loop():
                 logger.info("AutoCloseTickets: Triggered at 02:30")
                 threading.Thread(target=_run_auto_close_tickets, daemon=True).start()
 
-            if now.hour == 4 and now.minute == 0 and last_enrich_date != today:
+            _enrich_all_on_schedule = (now.hour == 4 and now.minute == 0)
+            _enrich_all_catchup = (now.hour > 4 and last_enrich_date != today)
+            if (_enrich_all_on_schedule or _enrich_all_catchup) and enrich_all_last_run_date != today_str and last_enrich_date != today:
                 last_enrich_date = today
-                logger.info("AutoEnrich: Triggered at 04:00")
+                _write_sys_setting("auto_enrich_all_last_run_date", today_str)
+                logger.info(f"AutoEnrich: Triggered at {now.strftime('%H:%M')}")
                 threading.Thread(target=_run_auto_enrich_all, daemon=True).start()
 
-            today_str = today.isoformat()
             _enrich_on_schedule = (now.hour == enrich_hour and now.minute == 0)
             _enrich_catchup = (now.hour > enrich_hour and last_master_enrich_date != today)
             if (_enrich_on_schedule or _enrich_catchup) and enrich_last_run_date != today_str and last_master_enrich_date != today:
                 last_master_enrich_date = today
-                _fresh_set("auto_master_enrich_last_run_date", today_str)
+                _write_sys_setting("auto_master_enrich_last_run_date", today_str)
                 logger.info(f"AutoMasterEnrich: Triggered at {now.strftime('%H:%M')} (scheduled={enrich_hour}:00)")
                 threading.Thread(target=_run_auto_master_enrich, daemon=True).start()
 
@@ -1035,33 +1066,34 @@ def _scheduler_loop():
                 logger.info("LogCleanup: Triggered at 03:00")
                 threading.Thread(target=_run_log_cleanup, daemon=True).start()
 
-            if now.minute == 0:
-                from server.models import AppSetting, Organization
-                db2 = SessionLocal()
-                try:
-                    orgs = db2.query(Organization).all()
-                    for org in orgs:
-                        ag_enabled = db2.query(AppSetting).filter(
-                            AppSetting.setting_key == "auto_generate_enabled",
-                            AppSetting.org_id == org.id,
-                        ).first()
-                        if not ag_enabled or ag_enabled.setting_value != "true":
-                            continue
-                        ag_hour_row = db2.query(AppSetting).filter(
-                            AppSetting.setting_key == "auto_generate_hour",
-                            AppSetting.org_id == org.id,
-                        ).first()
-                        ag_hour = int(ag_hour_row.setting_value) if ag_hour_row and ag_hour_row.setting_value else 8
-                        if now.hour == ag_hour and last_auto_gen_dates.get(org.id) != today:
-                            last_auto_gen_dates[org.id] = today
-                            logger.info(f"AutoGenerate: Triggered for org={org.id} at {now.strftime('%H:%M')}")
-                            threading.Thread(
-                                target=_run_auto_generate_for_org,
-                                args=(org.id,),
-                                daemon=True,
-                            ).start()
-                finally:
-                    db2.close()
+            from server.models import AppSetting, Organization
+            db2 = SessionLocal()
+            try:
+                orgs = db2.query(Organization).all()
+                for org in orgs:
+                    ag_enabled = db2.query(AppSetting).filter(
+                        AppSetting.setting_key == "auto_generate_enabled",
+                        AppSetting.org_id == org.id,
+                    ).first()
+                    if not ag_enabled or ag_enabled.setting_value != "true":
+                        continue
+                    ag_hour_row = db2.query(AppSetting).filter(
+                        AppSetting.setting_key == "auto_generate_hour",
+                        AppSetting.org_id == org.id,
+                    ).first()
+                    ag_hour = int(ag_hour_row.setting_value) if ag_hour_row and ag_hour_row.setting_value else 8
+                    _ag_on_schedule = (now.hour == ag_hour and now.minute == 0)
+                    _ag_catchup = (now.hour > ag_hour and last_auto_gen_dates.get(org.id) != today)
+                    if (_ag_on_schedule or _ag_catchup) and last_auto_gen_dates.get(org.id) != today:
+                        last_auto_gen_dates[org.id] = today
+                        logger.info(f"AutoGenerate: Triggered for org={org.id} at {now.strftime('%H:%M')} (scheduled={ag_hour}:00)")
+                        threading.Thread(
+                            target=_run_auto_generate_for_org,
+                            args=(org.id,),
+                            daemon=True,
+                        ).start()
+            finally:
+                db2.close()
 
         except Exception as e:
             logger.error(f"Scheduler error: {e}")
