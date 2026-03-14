@@ -122,10 +122,33 @@ export default function AdminHubsrev() {
           </button>
         </div>
 
+        {/* Hubsrev側のOutbound Webhook設定用URL */}
+        <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
+          <div className="text-xs font-semibold text-blue-700 mb-1.5 flex items-center gap-1">
+            <span>🔗</span> Hubsrev の「Outbound Webhook」に設定するURL（LeadHive受信エンドポイント）
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 bg-white border border-blue-200 rounded px-3 py-2 text-xs text-slate-700 font-mono select-all break-all">
+              https://leadhive.work/api/webhooks/hubsrev
+            </code>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText("https://leadhive.work/api/webhooks/hubsrev");
+              }}
+              className="text-xs bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition-colors whitespace-nowrap"
+            >
+              コピー
+            </button>
+          </div>
+          <p className="text-xs text-blue-600 mt-1.5">
+            Hubsrev管理画面 → Webhook設定 → 新規Webhook作成 → エンドポイントURL にこのURLを貼り付けてください
+          </p>
+        </div>
+
         {/* Webhook URL */}
         <div className="px-6 py-5">
           <label className="text-xs font-semibold text-slate-600 block mb-1.5">
-            Webhook URL <span className="text-red-500">*</span>
+            Hubsrev Webhook URL <span className="text-red-500">*</span>
           </label>
           <input
             type="url"
@@ -135,7 +158,7 @@ export default function AdminHubsrev() {
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
             disabled={!enabled}
           />
-          <p className="text-xs text-slate-400 mt-1.5">Hubsrev の管理画面から取得したエンドポイント URL を入力してください</p>
+          <p className="text-xs text-slate-400 mt-1.5">Hubsrev 管理画面の「Webhook設定」→「受信用エンドポイント」から取得した URL を入力してください（LeadHive → Hubsrev への送信先）</p>
         </div>
 
         {/* API Key */}

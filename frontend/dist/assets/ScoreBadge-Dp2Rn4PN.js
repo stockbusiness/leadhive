@@ -1,1 +1,0 @@
-import{j as t}from"./index-BinC2zqu.js";import{S as r}from"./index-DteK7YGi.js";function i({score:s,rank:e}){return t.jsxs("span",{className:`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${r[e]||r.D}`,children:[e," ",s]})}export{i as S};

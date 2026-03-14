@@ -1,7 +1,7 @@
 import logging
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, Header
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any, Dict
 from sqlalchemy.orm import Session
 from server.database import get_db
 from server.auth import require_system_admin
@@ -93,3 +93,41 @@ def test_hubsrev(
         return {"message": "テスト送信に成功しました。Hubsrevの受信ボックスをご確認ください。"}
     from fastapi import HTTPException
     raise HTTPException(status_code=400, detail="送信に失敗しました。WebhookURLとAPIキーを確認してください。")
+
+
+# ─── Hubsrev → LeadHive 受信Webhook ─────────────────────────────────────────
+
+@router.post("/api/webhooks/hubsrev")
+async def hubsrev_inbound_webhook(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Hubsrev の Outbound Webhook を受信するエンドポイント。
+    Hubsrev管理画面 → Webhook設定 → エンドポイントURL に
+    https://leadhive.work/api/webhooks/hubsrev を設定してください。
+    """
+    import json as _json
+    from fastapi import HTTPException
+
+    # ── APIキー認証（設定済みの場合のみ検証） ──────────────────────────
+    stored_key = _get(db, "hubsrev_api_key").strip()
+    if stored_key:
+        token = ""
+        if authorization and authorization.lower().startswith("bearer "):
+            token = authorization[7:].strip()
+        if token != stored_key:
+            logger.warning("Hubsrev inbound: 認証失敗 (token不一致)")
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # ── ペイロード取得 ──────────────────────────────────────────────────
+    try:
+        payload: Dict[str, Any] = await request.json()
+    except Exception:
+        payload = {}
+
+    event = payload.get("event") or payload.get("type") or "unknown"
+    logger.info(f"Hubsrev inbound webhook 受信: event={event} payload={_json.dumps(payload, ensure_ascii=False)[:300]}")
+
+    return {"ok": True, "received": event}
