@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link2, Save, Loader2, CheckCircle, AlertCircle, Send, Eye, EyeOff, ToggleLeft, ToggleRight } from "lucide-react";
+import { Link2, Save, Loader2, CheckCircle, AlertCircle, Send, Eye, EyeOff } from "lucide-react";
 import axios from "axios";
 
 type Settings = {
@@ -115,11 +115,10 @@ export default function AdminHubsrev() {
           </div>
           <button
             onClick={() => setSettings((s) => ({ ...s, hubsrev_enabled: enabled ? "false" : "true" }))}
-            className="text-slate-500 hover:text-indigo-600 transition-colors"
+            className={`relative inline-flex h-7 w-13 w-[52px] items-center rounded-full transition-colors duration-200 focus:outline-none ${enabled ? "bg-indigo-600" : "bg-slate-300"}`}
+            title={enabled ? "ON（クリックでOFF）" : "OFF（クリックでON）"}
           >
-            {enabled
-              ? <ToggleRight size={36} className="text-indigo-600" />
-              : <ToggleLeft size={36} />}
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ${enabled ? "translate-x-[28px]" : "translate-x-1"}`} />
           </button>
         </div>
 
