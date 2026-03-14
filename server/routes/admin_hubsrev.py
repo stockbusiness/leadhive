@@ -11,7 +11,7 @@ from server.services.encryption import encrypt_value, decrypt_value, should_encr
 router = APIRouter(tags=["admin_hubsrev"])
 logger = logging.getLogger(__name__)
 
-HUBSREV_KEYS = ["hubsrev_enabled", "hubsrev_webhook_url", "hubsrev_api_key"]
+HUBSREV_KEYS = ["hubsrev_enabled", "hubsrev_webhook_url", "hubsrev_api_key", "hubsrev_webhook_secret"]
 
 
 def _get(db: Session, key: str) -> str:
@@ -30,24 +30,29 @@ def _set(db: Session, key: str, value: str):
         db.add(SystemSettings(key=key, value=stored))
 
 
+def _mask(raw: str) -> str:
+    if not raw:
+        return ""
+    if len(raw) <= 8:
+        return "****"
+    return raw[:6] + "*" * (len(raw) - 10) + raw[-4:]
+
+
 @router.get("/api/admin/hubsrev/settings")
 def get_hubsrev_settings(
     current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     api_key_raw = _get(db, "hubsrev_api_key")
-    masked_key = ""
-    if api_key_raw:
-        if len(api_key_raw) <= 8:
-            masked_key = "****"
-        else:
-            masked_key = api_key_raw[:6] + "*" * (len(api_key_raw) - 10) + api_key_raw[-4:]
+    secret_raw = _get(db, "hubsrev_webhook_secret")
 
     return {
         "hubsrev_enabled": _get(db, "hubsrev_enabled") or "true",
         "hubsrev_webhook_url": _get(db, "hubsrev_webhook_url"),
         "hubsrev_api_key_set": bool(api_key_raw),
-        "hubsrev_api_key_masked": masked_key,
+        "hubsrev_api_key_masked": _mask(api_key_raw),
+        "hubsrev_webhook_secret_set": bool(secret_raw),
+        "hubsrev_webhook_secret_masked": _mask(secret_raw),
     }
 
 
@@ -55,6 +60,7 @@ class HubsrevSettingsBody(BaseModel):
     hubsrev_enabled: Optional[str] = None
     hubsrev_webhook_url: Optional[str] = None
     hubsrev_api_key: Optional[str] = None
+    hubsrev_webhook_secret: Optional[str] = None
 
 
 @router.put("/api/admin/hubsrev/settings")
@@ -69,6 +75,8 @@ def save_hubsrev_settings(
         _set(db, "hubsrev_webhook_url", body.hubsrev_webhook_url.strip())
     if body.hubsrev_api_key is not None and body.hubsrev_api_key.strip():
         _set(db, "hubsrev_api_key", body.hubsrev_api_key.strip())
+    if body.hubsrev_webhook_secret is not None and body.hubsrev_webhook_secret.strip():
+        _set(db, "hubsrev_webhook_secret", body.hubsrev_webhook_secret.strip())
     db.commit()
     return {"message": "Hubsrev設定を保存しました"}
 
@@ -101,6 +109,8 @@ def test_hubsrev(
 async def hubsrev_inbound_webhook(
     request: Request,
     authorization: Optional[str] = Header(None),
+    x_hubsrev_signature: Optional[str] = Header(None, alias="x-hubsrev-signature"),
+    x_hub_signature_256: Optional[str] = Header(None, alias="x-hub-signature-256"),
     db: Session = Depends(get_db),
 ):
     """
@@ -109,21 +119,29 @@ async def hubsrev_inbound_webhook(
     https://leadhive.work/api/webhooks/hubsrev を設定してください。
     """
     import json as _json
+    import hmac as _hmac
+    import hashlib as _hashlib
     from fastapi import HTTPException
 
-    # ── APIキー認証（設定済みの場合のみ検証） ──────────────────────────
-    stored_key = _get(db, "hubsrev_api_key").strip()
-    if stored_key:
-        token = ""
-        if authorization and authorization.lower().startswith("bearer "):
-            token = authorization[7:].strip()
-        if token != stored_key:
-            logger.warning("Hubsrev inbound: 認証失敗 (token不一致)")
-            raise HTTPException(status_code=401, detail="Unauthorized")
+    # ── 生ボディ取得（署名検証のため先に読む） ─────────────────────────
+    raw_body = await request.body()
+
+    # ── 署名シークレットによる検証（設定済みの場合のみ） ──────────────
+    stored_secret = _get(db, "hubsrev_webhook_secret").strip()
+    if stored_secret:
+        sig_header = x_hubsrev_signature or x_hub_signature_256 or ""
+        # "sha256=xxxxxx" 形式に対応
+        sig_value = sig_header.removeprefix("sha256=").strip()
+        expected = _hmac.new(
+            stored_secret.encode(), raw_body, _hashlib.sha256
+        ).hexdigest()
+        if not _hmac.compare_digest(expected, sig_value):
+            logger.warning(f"Hubsrev inbound: 署名検証失敗 header={sig_header!r}")
+            raise HTTPException(status_code=401, detail="Invalid signature")
 
     # ── ペイロード取得 ──────────────────────────────────────────────────
     try:
-        payload: Dict[str, Any] = await request.json()
+        payload: Dict[str, Any] = _json.loads(raw_body)
     except Exception:
         payload = {}
 

@@ -72,6 +72,7 @@ SENSITIVE_SETTING_KEYS = {
     "stripe_secret_key",
     "stripe_webhook_secret",
     "hubsrev_api_key",
+    "hubsrev_webhook_secret",
     "hubsrev_webhook_url",
 }
 

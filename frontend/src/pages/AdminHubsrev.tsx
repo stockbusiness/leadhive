@@ -7,6 +7,8 @@ type Settings = {
   hubsrev_webhook_url: string;
   hubsrev_api_key_set: boolean;
   hubsrev_api_key_masked: string;
+  hubsrev_webhook_secret_set: boolean;
+  hubsrev_webhook_secret_masked: string;
 };
 
 export default function AdminHubsrev() {
@@ -15,9 +17,13 @@ export default function AdminHubsrev() {
     hubsrev_webhook_url: "",
     hubsrev_api_key_set: false,
     hubsrev_api_key_masked: "",
+    hubsrev_webhook_secret_set: false,
+    hubsrev_webhook_secret_masked: "",
   });
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [webhookSecret, setWebhookSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -44,10 +50,15 @@ export default function AdminHubsrev() {
         hubsrev_webhook_url: settings.hubsrev_webhook_url,
       };
       if (apiKey.trim()) payload.hubsrev_api_key = apiKey.trim();
+      if (webhookSecret.trim()) payload.hubsrev_webhook_secret = webhookSecret.trim();
       await axios.put("/api/admin/hubsrev/settings", payload);
       if (apiKey.trim()) {
         setSettings((s) => ({ ...s, hubsrev_api_key_set: true, hubsrev_api_key_masked: apiKey.slice(0, 6) + "****" + apiKey.slice(-4) }));
         setApiKey("");
+      }
+      if (webhookSecret.trim()) {
+        setSettings((s) => ({ ...s, hubsrev_webhook_secret_set: true, hubsrev_webhook_secret_masked: webhookSecret.slice(0, 6) + "****" + webhookSecret.slice(-4) }));
+        setWebhookSecret("");
       }
       showMsg("設定を保存しました");
     } catch (e: any) {
@@ -187,6 +198,34 @@ export default function AdminHubsrev() {
             </button>
           </div>
           <p className="text-xs text-slate-400 mt-1.5">Hubsrev 管理画面の「API Key管理」から発行できます。値は暗号化して保存されます。</p>
+        </div>
+
+        {/* Webhook署名シークレット */}
+        <div className="px-6 py-5 border-t border-slate-100">
+          <label className="text-xs font-semibold text-slate-600 block mb-1.5">
+            Webhook 署名シークレット <span className="text-red-500">*</span>
+            {settings.hubsrev_webhook_secret_set && (
+              <span className="ml-2 text-green-600 font-normal">（設定済み：{settings.hubsrev_webhook_secret_masked}）</span>
+            )}
+          </label>
+          <div className="relative">
+            <input
+              type={showSecret ? "text" : "password"}
+              value={webhookSecret}
+              onChange={(e) => setWebhookSecret(e.target.value)}
+              placeholder={settings.hubsrev_webhook_secret_set ? "変更する場合のみ入力" : "whsec_xxxxxxxxxxxxxxxxxxxxxxxx"}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
+              disabled={!enabled}
+            />
+            <button
+              type="button"
+              onClick={() => setShowSecret((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              {showSecret ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          </div>
+          <p className="text-xs text-slate-400 mt-1.5">Hubsrev の「Outbound Webhook設定」で発行された署名シークレットキーを入力してください。受信時に HMAC-SHA256 で署名検証します。値は暗号化して保存されます。</p>
         </div>
 
         {/* 転送タイミング説明 */}
