@@ -5,6 +5,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 HUBSREV_KEYS = ["hubsrev_enabled", "hubsrev_webhook_url", "hubsrev_api_key"]
+HUBSREV_DEFAULT_INBOX_URL = "https://hubsrev.com/api/webhook/inbox"
 
 
 def _get_hubsrev_settings(db) -> dict:
@@ -33,10 +34,10 @@ def send_to_hubsrev(
         if settings.get("hubsrev_enabled", "true") == "false":
             return False
 
-        webhook_url = settings.get("hubsrev_webhook_url", "").strip()
+        webhook_url = settings.get("hubsrev_webhook_url", "").strip() or HUBSREV_DEFAULT_INBOX_URL
         api_key = settings.get("hubsrev_api_key", "").strip()
 
-        if not webhook_url or not api_key:
+        if not api_key:
             return False
 
         payload = {

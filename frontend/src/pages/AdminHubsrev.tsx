@@ -159,17 +159,20 @@ export default function AdminHubsrev() {
         {/* Webhook URL */}
         <div className="px-6 py-5">
           <label className="text-xs font-semibold text-slate-600 block mb-1.5">
-            Hubsrev Webhook URL <span className="text-red-500">*</span>
+            送信先 URL
+            <span className="ml-2 text-xs text-slate-400 font-normal">（空欄時は標準エンドポイントを使用）</span>
           </label>
           <input
             type="url"
             value={settings.hubsrev_webhook_url}
             onChange={(e) => setSettings((s) => ({ ...s, hubsrev_webhook_url: e.target.value }))}
-            placeholder="https://your-hubsrev-domain/api/webhook/inbox"
+            placeholder="https://hubsrev.com/api/webhook/inbox"
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
             disabled={!enabled}
           />
-          <p className="text-xs text-slate-400 mt-1.5">Hubsrev 管理画面の「Webhook設定」→「受信用エンドポイント」から取得した URL を入力してください（LeadHive → Hubsrev への送信先）</p>
+          <p className="text-xs text-slate-400 mt-1.5">
+            LeadHive → Hubsrev への送信先。通常は変更不要（標準: <code className="bg-slate-100 px-1 rounded">https://hubsrev.com/api/webhook/inbox</code>）
+          </p>
         </div>
 
         {/* API Key */}
@@ -260,7 +263,7 @@ export default function AdminHubsrev() {
         </button>
         <button
           onClick={test}
-          disabled={testing || !settings.hubsrev_api_key_set || !settings.hubsrev_webhook_url}
+          disabled={testing || !settings.hubsrev_api_key_set}
           className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50 transition-colors"
         >
           {testing ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
