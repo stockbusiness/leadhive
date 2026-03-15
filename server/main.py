@@ -1,14 +1,16 @@
 import os
 import sys
+import threading
 from pathlib import Path
 from contextlib import asynccontextmanager
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates, projects, master
 from server.routes import auth, users, plans, payments, onboarding, public
 from server.routes import admin_auto_master, segments, sales_ai, notifications
@@ -314,7 +316,7 @@ def run_db_migrations():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    run_db_migrations()
+    threading.Thread(target=run_db_migrations, daemon=True).start()
     start_scheduler()
     yield
     stop_scheduler()
@@ -324,6 +326,8 @@ app = FastAPI(title="LeadHive", lifespan=lifespan)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.add_middleware(
     CORSMiddleware,
@@ -335,13 +339,25 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def add_security_headers(request, call_next):
+async def add_security_and_cache_headers(request: Request, call_next):
     response = await call_next(request)
+    path = request.url.path
+
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+    if path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif path in ("/favicon.svg", "/favicon.ico", "/robots.txt", "/sitemap.xml"):
+        response.headers["Cache-Control"] = "public, max-age=86400"
+    elif path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    else:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+
     return response
 
 
