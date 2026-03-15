@@ -843,9 +843,18 @@ def _run_auto_master_enrich(force: bool = False):
     processed = 0
     DDG_FAIL_LIMIT = 5
     ddg_fail_counter = [0]
-    PER_COMPANY_TIMEOUT = 30  # 1社あたりの壁時計タイムアウト（秒）
+    PER_COMPANY_TIMEOUT = 20  # 1社あたりの壁時計タイムアウト（秒）
+    MAX_LIVE_THREADS = 4      # 同時実行スレッド上限（DB接続プール枯渇防止）
 
     import threading as _threading
+    import socket as _socket
+
+    # ソケットレベルのグローバルタイムアウトを設定（DNS解決ハング防止）
+    # requests の timeout= はDNS解決をカバーしないため、socket レベルで制限する
+    _old_socket_timeout = _socket.getdefaulttimeout()
+    _socket.setdefaulttimeout(12)
+
+    _live_threads: list = []  # 実行中スレッドの追跡
 
     try:
         for company_id, company_name, prefecture, city, corporate_number in targets_raw:
@@ -863,6 +872,13 @@ def _run_auto_master_enrich(force: bool = False):
 
             # 進捗をループ先頭で先に書き込む（hang中でも表示が進む）
             _fresh_set("auto_master_enrich_progress", f"{processed}/{total_targets} 処理中（URL発見:{enriched}件）")
+
+            # 生存スレッドを整理し、上限を超えていれば最古スレッドの終了を少し待つ
+            _live_threads = [t for t in _live_threads if t.is_alive()]
+            if len(_live_threads) >= MAX_LIVE_THREADS:
+                logger.debug(f"AutoMasterEnrich: 生存スレッド{len(_live_threads)}本 → 古いスレッドの終了を待機")
+                _live_threads[0].join(timeout=5)
+                _live_threads = [t for t in _live_threads if t.is_alive()]
 
             location = f"{prefecture or ''}{city or ''}"
             result_holder = {"url": None, "enriched": False, "error": None}
@@ -924,12 +940,15 @@ def _run_auto_master_enrich(force: bool = False):
                     except Exception:
                         pass
 
-            # 壁時計タイムアウト付きで実行（DNS/ソケットハング対策）
+            # 壁時計タイムアウト付きで実行
             _t = _threading.Thread(target=_process_company, daemon=True)
             _t.start()
+            _live_threads.append(_t)
             _t.join(timeout=PER_COMPANY_TIMEOUT)
             if _t.is_alive():
                 logger.warning(f"AutoMasterEnrich: {company_name} → {PER_COMPANY_TIMEOUT}秒タイムアウト、スキップ")
+                # タイムアウトしたスレッドがDB接続を保持している可能性があるため少し待つ
+                _time.sleep(1)
 
             if result_holder["enriched"]:
                 enriched += 1
@@ -946,6 +965,11 @@ def _run_auto_master_enrich(force: bool = False):
     except Exception as _loop_err:
         logger.error(f"AutoMasterEnrich: ループ中に予期しないエラー: {_loop_err}", exc_info=True)
     finally:
+        # ソケットタイムアウトを元の値に戻す
+        try:
+            _socket.setdefaulttimeout(_old_socket_timeout)
+        except Exception:
+            pass
         # 正常完了・例外・クラッシュどの場合でも必ずprogress をクリア
         _fresh_set("auto_master_enrich_progress", "")
 
