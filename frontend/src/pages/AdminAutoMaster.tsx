@@ -374,6 +374,16 @@ export default function AdminAutoMaster() {
     });
   };
 
+  const handleResetToday = () => {
+    if (!window.confirm("本日の自動実行記録をリセットします。\n次のスケジュール時刻に自動実行されるようになります。\n続行しますか？")) return;
+    axios.post("/api/admin/auto-master/reset-today")
+      .then(() => {
+        alert("リセットしました。次のスケジュール時刻に自動実行されます。");
+        load();
+      })
+      .catch(() => alert("リセットに失敗しました"));
+  };
+
 
   const formatDateTime = (iso: string) => {
     if (!iso) return "未実行";
@@ -667,6 +677,13 @@ export default function AdminAutoMaster() {
           >
             {runningEnrich ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
             今すぐ実行
+          </button>
+          <button
+            onClick={handleResetToday}
+            className="flex items-center gap-2 border border-amber-400 text-amber-600 px-3 py-2 rounded-lg text-xs hover:bg-amber-50 transition-colors"
+            title="本日の自動実行記録をクリアして、次のスケジュール時刻に再実行させます"
+          >
+            本日の記録をリセット
           </button>
           {saveMsg && (
             <span className="text-sm text-green-600 flex items-center gap-1">

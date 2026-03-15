@@ -179,10 +179,41 @@ def update_settings(
         "auto_master_enrich_enabled", "auto_master_enrich_max", "auto_master_enrich_schedule_hour",
         "scheduler_timezone", "gbizinfo_api_token", "serper_api_key",
     }
+
+    old_enrich_hour = None
+    old_master_hour = None
+    settings = _get_all(db)
+
+    if "auto_master_enrich_schedule_hour" in data:
+        old_enrich_hour = settings.get("auto_master_enrich_schedule_hour", "5")
+    if "auto_master_schedule_hour" in data:
+        old_master_hour = settings.get("auto_master_schedule_hour", "3")
+
     for key, val in data.items():
         if key in allowed:
             _set_key(db, key, str(val))
+
+    if old_enrich_hour is not None and str(data.get("auto_master_enrich_schedule_hour")) != str(old_enrich_hour):
+        _set_key(db, "auto_master_enrich_last_run_date", "")
+        logger.info(f"AutoMasterEnrich: スケジュール変更 ({old_enrich_hour}→{data['auto_master_enrich_schedule_hour']}) → 本日の実行記録をリセット")
+
+    if old_master_hour is not None and str(data.get("auto_master_schedule_hour")) != str(old_master_hour):
+        _set_key(db, "auto_master_last_run_date", "")
+        logger.info(f"AutoMaster: スケジュール変更 ({old_master_hour}→{data['auto_master_schedule_hour']}) → 本日の実行記録をリセット")
+
     return {"ok": True}
+
+
+@router.post("/reset-today")
+def reset_today_run(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    _set_key(db, "auto_master_enrich_last_run_date", "")
+    _set_key(db, "auto_master_last_run_date", "")
+    logger.info(f"AutoMaster: 本日の実行記録を手動リセット (by user={current_user.id})")
+    return {"ok": True, "message": "本日の実行記録をリセットしました。次のスケジュール時刻に自動実行されます。"}
 
 
 @router.get("/server-time")

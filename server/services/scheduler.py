@@ -941,6 +941,7 @@ def _run_auto_master_enrich(force: bool = False):
         prev_total = int(_fresh_get("auto_master_enrich_total", "0"))
         _fresh_set("auto_master_enrich_total", str(prev_total + enriched))
         _fresh_set("auto_master_enrich_last_run", datetime.now().strftime("%Y-%m-%d %H:%M"))
+        _fresh_set("auto_master_enrich_last_run_date", datetime.now().strftime("%Y-%m-%d"))
         logger.info(f"AutoMasterEnrich: 完了 — URL発見{enriched}社 / スキップ{skipped}社 / 合計{total_targets}社")
     except Exception as _loop_err:
         logger.error(f"AutoMasterEnrich: ループ中に予期しないエラー: {_loop_err}", exc_info=True)
@@ -1059,11 +1060,10 @@ def _scheduler_loop():
                 logger.info(f"AutoEnrich: Triggered at {now.strftime('%H:%M')}")
                 threading.Thread(target=_run_auto_enrich_all, daemon=True).start()
 
-            _enrich_on_schedule = (now.hour == enrich_hour and now.minute == 0)
+            _enrich_on_schedule = (now.hour == enrich_hour and now.minute < 2)
             _enrich_catchup = (now.hour > enrich_hour and last_master_enrich_date != today)
             if (_enrich_on_schedule or _enrich_catchup) and enrich_last_run_date != today_str and last_master_enrich_date != today:
                 last_master_enrich_date = today
-                _write_sys_setting("auto_master_enrich_last_run_date", today_str)
                 logger.info(f"AutoMasterEnrich: Triggered at {now.strftime('%H:%M')} (scheduled={enrich_hour}:00)")
                 threading.Thread(target=_run_auto_master_enrich, daemon=True).start()
 
