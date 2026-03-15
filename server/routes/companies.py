@@ -122,6 +122,9 @@ def create_company(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    from server.routes.plans import check_plan_limit
+    check_plan_limit(current_user.org_id, "companies", db)
+
     existing = db.query(Company).filter(Company.website_url == data.get("website_url")).first()
     if existing:
         return {"error": "この企業URLは既に登録されています", "company": company_to_dict(existing, db)}
@@ -135,6 +138,18 @@ def create_company(
     db.commit()
     db.refresh(company)
     cache_invalidate("dashboard")
+
+    try:
+        from server.routes.webhooks import fire_event
+        fire_event(db, current_user.org_id, "company.created", {
+            "company_id": company.id,
+            "company_name": company.company_name,
+            "domain": company.domain,
+            "score_rank": company.score_rank,
+            "score_total": company.score_total,
+        })
+    except Exception:
+        pass
 
     if rank == "A":
         try:
@@ -530,6 +545,16 @@ def patch_status(
         ))
         db.commit()
         cache_invalidate("dashboard")
+        try:
+            from server.routes.webhooks import fire_event
+            fire_event(db, current_user.org_id, "company.stage_changed", {
+                "company_id": company.id,
+                "company_name": company.company_name,
+                "old_status": old_status,
+                "new_status": new_status,
+            })
+        except Exception:
+            pass
     return {"id": company.id, "status": company.status}
 
 

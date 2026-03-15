@@ -117,6 +117,14 @@ def collect_async(
                 }
             cache_invalidate("dashboard")
             job_update(job_id, type="done", result=result, message="収集完了")
+            try:
+                from server.routes.webhooks import fire_event
+                fire_event(db, current_user.org_id, "collection.completed", {
+                    "total_success": result.get("total_success", result.get("summary", {}).get("success", 0)),
+                    "job_id": job_id,
+                })
+            except Exception:
+                pass
         except Exception as e:
             job_update(job_id, type="error", message=str(e))
         finally:
