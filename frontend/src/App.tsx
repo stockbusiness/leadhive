@@ -107,6 +107,7 @@ const AdminFaq = lazy(() => import("./pages/AdminFaq"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Webhooks = lazy(() => import("./pages/Webhooks"));
 const AdminStatus = lazy(() => import("./pages/AdminStatus"));
+const AdminScoringRules = lazy(() => import("./pages/AdminScoringRules"));
 
 function PageLoader() {
   return (
@@ -311,6 +312,7 @@ function AppContent() {
                 <SidebarLink to="/admin/features" icon={<Sliders size={18} />} label="機能フラグ" onClick={closeSidebar} />
                 <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/auto-master" icon={<DatabaseZap size={18} />} label="マスターDB自動収集" onClick={closeSidebar} />
+                <SidebarLink to="/admin/scoring-rules" icon={<Star size={18} />} label="スコアリングルール" onClick={closeSidebar} />
                 <SidebarLink to="/admin/security" icon={<Shield size={18} />} label="セキュリティ管理" onClick={closeSidebar} />
                 <SidebarLink to="/admin/logs" icon={<ScrollText size={18} />} label="システムログ" onClick={closeSidebar} />
               </div>
@@ -431,6 +433,7 @@ function AppContent() {
               <Route path="/admin/security" element={<AdminSecurity />} />
               <Route path="/admin/contact-settings" element={<AdminContact />} />
               <Route path="/admin/hubsrev" element={<AdminHubsrev />} />
+              <Route path="/admin/scoring-rules" element={<AdminScoringRules />} />
               <Route path="/admin/legal" element={<AdminLegal />} />
               <Route path="/admin/support" element={<AdminSupport />} />
               <Route path="/admin/faq" element={<AdminFaq />} />

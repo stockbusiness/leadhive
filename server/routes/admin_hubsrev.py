@@ -1,11 +1,12 @@
 import logging
+from datetime import datetime
 from fastapi import APIRouter, Depends, Request, Header
 from pydantic import BaseModel
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 from sqlalchemy.orm import Session
 from server.database import get_db
 from server.auth import require_system_admin
-from server.models import SystemSettings
+from server.models import SystemSettings, HubsrevEventLog, SystemLog
 from server.services.encryption import encrypt_value, decrypt_value, should_encrypt
 
 router = APIRouter(tags=["admin_hubsrev"])
@@ -146,6 +147,68 @@ async def hubsrev_inbound_webhook(
         payload = {}
 
     event = payload.get("event") or payload.get("type") or "unknown"
+    data = payload.get("data") or {}
     logger.info(f"Hubsrev inbound webhook 受信: event={event} payload={_json.dumps(payload, ensure_ascii=False)[:300]}")
 
+    # ── イベントログをDBに保存 ──────────────────────────────────────────
+    try:
+        ev_log = HubsrevEventLog(
+            event=event,
+            ticket_id=data.get("ticketId"),
+            ticket_no=data.get("ticketNo"),
+            subject=data.get("subject"),
+            customer_name=data.get("customerName"),
+            payload=payload,
+        )
+        db.add(ev_log)
+        # 重要イベントはSystemLogにも記録
+        if event in ("ticket.created", "ticket.replied", "ticket.status_changed", "ticket.resolved", "inbox.item_created"):
+            label = {
+                "ticket.created": "新規チケット作成",
+                "ticket.replied": "チケット返信",
+                "ticket.status_changed": "チケットステータス変更",
+                "ticket.resolved": "チケット解決",
+                "inbox.item_created": "受信ボックス新規アイテム",
+            }.get(event, event)
+            detail = f"{label}: {data.get('ticketNo') or data.get('ticketId') or ''} {data.get('subject') or data.get('customerName') or ''}"
+            db.add(SystemLog(
+                action="hubsrev_event",
+                actor_email="Hubsrev",
+                actor_org="Hubsrev",
+                target=event,
+                detail=detail.strip(),
+            ))
+        db.commit()
+    except Exception as e:
+        logger.error(f"Hubsrev inbound: DBへの保存に失敗: {e}")
+        db.rollback()
+
     return {"ok": True, "received": event}
+
+
+# ─── 受信イベント一覧 ──────────────────────────────────────────────────────────
+
+@router.get("/api/admin/hubsrev/events")
+def get_hubsrev_events(
+    limit: int = 50,
+    current_user=Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(HubsrevEventLog)
+        .order_by(HubsrevEventLog.received_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "event": r.event,
+            "ticket_id": r.ticket_id,
+            "ticket_no": r.ticket_no,
+            "subject": r.subject,
+            "customer_name": r.customer_name,
+            "received_at": r.received_at.isoformat() if r.received_at else None,
+        }
+        for r in rows
+    ]

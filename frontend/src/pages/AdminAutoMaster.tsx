@@ -3,7 +3,32 @@ import axios from "axios";
 import {
   DatabaseZap, Play, RotateCcw, CheckCircle, XCircle,
   Loader2, RefreshCw, MapPin, Calendar, Layers, History, ChevronDown, ChevronRight,
+  BarChart2, Globe, Phone, Mail, Link, Cpu,
 } from "lucide-react";
+
+interface QualityStats {
+  total: number;
+  has_url: number;
+  has_contact: number;
+  has_email: number;
+  has_phone: number;
+  has_cms: number;
+  by_rank: Record<string, number>;
+  by_prefecture: { prefecture: string; count: number }[];
+  by_category: { category: string; count: number }[];
+  last_created_at: string | null;
+  last_scraped_at: string | null;
+  recent_jobs: {
+    job_id: string;
+    job_type: string | null;
+    status: string;
+    source_count: number;
+    saved_count: number;
+    error_count: number;
+    started_at: string | null;
+    finished_at: string | null;
+  }[];
+}
 
 interface JobLogEntry {
   id: number;
@@ -104,12 +129,24 @@ export default function AdminAutoMaster() {
   const [jobLogsOpen, setJobLogsOpen] = useState(false);
   const [jobLogsLoading, setJobLogsLoading] = useState(false);
 
+  const [qualityStats, setQualityStats] = useState<QualityStats | null>(null);
+  const [qualityStatsOpen, setQualityStatsOpen] = useState(false);
+  const [qualityStatsLoading, setQualityStatsLoading] = useState(false);
+
   const loadJobLogs = useCallback(() => {
     setJobLogsLoading(true);
     axios.get("/api/admin/auto-master/job-logs?limit=20")
       .then((r) => setJobLogs(r.data.logs))
       .catch(() => {})
       .finally(() => setJobLogsLoading(false));
+  }, []);
+
+  const loadQualityStats = useCallback(() => {
+    setQualityStatsLoading(true);
+    axios.get("/api/admin/auto-master/quality-stats")
+      .then((r) => setQualityStats(r.data))
+      .catch(() => {})
+      .finally(() => setQualityStatsLoading(false));
   }, []);
 
   const load = (autoResumeEnrich = false) => {
@@ -790,6 +827,137 @@ export default function AdminAutoMaster() {
             <XCircle size={15} className="shrink-0" />{runError}
           </div>
         )}
+
+        {/* Collection Quality Dashboard */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <button
+            onClick={() => {
+              const next = !qualityStatsOpen;
+              setQualityStatsOpen(next);
+              if (next && !qualityStats) loadQualityStats();
+            }}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <BarChart2 size={15} className="text-violet-500" />
+              収集品質ダッシュボード
+            </span>
+            <div className="flex items-center gap-2">
+              {qualityStats && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); loadQualityStats(); }}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <RefreshCw size={13} />
+                </button>
+              )}
+              {qualityStatsOpen ? <ChevronDown size={15} className="text-slate-400" /> : <ChevronRight size={15} className="text-slate-400" />}
+            </div>
+          </button>
+
+          {qualityStatsOpen && (
+            <div className="border-t border-slate-100 p-4 space-y-5">
+              {qualityStatsLoading && !qualityStats ? (
+                <div className="flex items-center gap-2 text-sm text-slate-400 py-4">
+                  <Loader2 size={14} className="animate-spin" /> 読み込み中...
+                </div>
+              ) : qualityStats ? (
+                <>
+                  {/* URL completion rate */}
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">URL補完率・情報充足率</div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {[
+                        { label: "総件数", value: qualityStats.total.toLocaleString(), icon: <Layers size={14} />, color: "text-blue-600", bar: 1 },
+                        { label: "URL有り", value: `${qualityStats.has_url.toLocaleString()} (${qualityStats.total ? Math.round(qualityStats.has_url / qualityStats.total * 100) : 0}%)`, icon: <Globe size={14} />, color: "text-indigo-600", bar: qualityStats.total ? qualityStats.has_url / qualityStats.total : 0 },
+                        { label: "問い合わせURL有り", value: `${qualityStats.has_contact.toLocaleString()} (${qualityStats.total ? Math.round(qualityStats.has_contact / qualityStats.total * 100) : 0}%)`, icon: <Link size={14} />, color: "text-violet-600", bar: qualityStats.total ? qualityStats.has_contact / qualityStats.total : 0 },
+                        { label: "メール有り", value: `${qualityStats.has_email.toLocaleString()} (${qualityStats.total ? Math.round(qualityStats.has_email / qualityStats.total * 100) : 0}%)`, icon: <Mail size={14} />, color: "text-sky-600", bar: qualityStats.total ? qualityStats.has_email / qualityStats.total : 0 },
+                        { label: "電話番号有り", value: `${qualityStats.has_phone.toLocaleString()} (${qualityStats.total ? Math.round(qualityStats.has_phone / qualityStats.total * 100) : 0}%)`, icon: <Phone size={14} />, color: "text-teal-600", bar: qualityStats.total ? qualityStats.has_phone / qualityStats.total : 0 },
+                        { label: "CMS検出済み", value: `${qualityStats.has_cms.toLocaleString()} (${qualityStats.total ? Math.round(qualityStats.has_cms / qualityStats.total * 100) : 0}%)`, icon: <Cpu size={14} />, color: "text-emerald-600", bar: qualityStats.total ? qualityStats.has_cms / qualityStats.total : 0 },
+                      ].map((item) => (
+                        <div key={item.label} className="bg-slate-50 rounded-lg p-3 space-y-1">
+                          <div className={`flex items-center gap-1.5 text-xs font-medium ${item.color}`}>
+                            {item.icon}
+                            {item.label}
+                          </div>
+                          <div className="text-sm font-bold text-slate-700">{item.value}</div>
+                          {item.bar < 1 && (
+                            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div className="h-full bg-current rounded-full transition-all" style={{ width: `${Math.round(item.bar * 100)}%` }} />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Score rank distribution */}
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">スコアランク分布</div>
+                    <div className="flex gap-2 flex-wrap">
+                      {["A","B","C","D"].map((rank) => {
+                        const count = qualityStats.by_rank[rank] ?? 0;
+                        const pct = qualityStats.total ? Math.round(count / qualityStats.total * 100) : 0;
+                        const color = rank === "A" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : rank === "B" ? "bg-blue-100 text-blue-700 border-blue-200" : rank === "C" ? "bg-yellow-100 text-yellow-700 border-yellow-200" : "bg-slate-100 text-slate-600 border-slate-200";
+                        return (
+                          <div key={rank} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${color}`}>
+                            <span className="font-bold">{rank}ランク</span>
+                            <span className="font-mono">{count.toLocaleString()}件</span>
+                            <span className="text-xs opacity-70">({pct}%)</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* By prefecture + category */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">都道府県別（Top10）</div>
+                      <div className="space-y-1">
+                        {qualityStats.by_prefecture.map((row) => (
+                          <div key={row.prefecture} className="flex items-center justify-between text-xs">
+                            <span className="text-slate-600 truncate max-w-[120px]">{row.prefecture}</span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${qualityStats.by_prefecture[0]?.count ? Math.round(row.count / qualityStats.by_prefecture[0].count * 100) : 0}%` }} />
+                              </div>
+                              <span className="text-slate-500 w-12 text-right font-mono">{row.count.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">業種別（Top10）</div>
+                      <div className="space-y-1">
+                        {qualityStats.by_category.map((row) => (
+                          <div key={row.category} className="flex items-center justify-between text-xs">
+                            <span className="text-slate-600 truncate max-w-[120px]">{row.category}</span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-violet-400 rounded-full" style={{ width: `${qualityStats.by_category[0]?.count ? Math.round(row.count / qualityStats.by_category[0].count * 100) : 0}%` }} />
+                              </div>
+                              <span className="text-slate-500 w-12 text-right font-mono">{row.count.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Last timestamps */}
+                  <div className="flex flex-wrap gap-4 text-xs text-slate-500 pt-1 border-t border-slate-100">
+                    <span>最終登録日時: <strong className="text-slate-700">{qualityStats.last_created_at ? new Date(qualityStats.last_created_at).toLocaleString("ja-JP") : "—"}</strong></span>
+                    <span>最終スクレイプ: <strong className="text-slate-700">{qualityStats.last_scraped_at ? new Date(qualityStats.last_scraped_at).toLocaleString("ja-JP") : "—"}</strong></span>
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-slate-400 py-4">データがありません</div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Job History */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">

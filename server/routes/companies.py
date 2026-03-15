@@ -309,6 +309,92 @@ def get_pipeline(
     }
 
 
+@router.get("/export.xlsx")
+def export_companies_xlsx_v2(
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    score_rank: Optional[str] = None,
+    search: Optional[str] = None,
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    query = db.query(Company)
+    if project_id:
+        query = query.filter(Company.project_id == project_id)
+    else:
+        project_ids = _owned_projects(current_user, db)
+        query = query.filter(Company.project_id.in_(project_ids))
+
+    if category:
+        query = query.filter(Company.category_main == category)
+    if status:
+        query = query.filter(Company.status == status)
+    if score_rank:
+        query = query.filter(Company.score_rank == score_rank)
+    if search:
+        query = query.filter(
+            Company.company_name.ilike(f"%{search}%")
+            | Company.website_url.ilike(f"%{search}%")
+            | Company.domain.ilike(f"%{search}%")
+        )
+
+    companies = query.order_by(desc(Company.score_total)).limit(5000).all()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "企業リスト"
+
+    headers = ["会社名", "ドメイン", "WebサイトURL", "問い合わせURL", "電話番号", "メールアドレス",
+               "都道府県", "市区町村", "カテゴリ", "ステータス", "スコア", "ランク",
+               "担当者", "フォローアップ日", "メモ", "登録日"]
+    header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for ci, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=ci, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+
+    for c in companies:
+        ws.append([
+            c.company_name or "",
+            c.domain or "",
+            c.website_url or "",
+            c.contact_url or "",
+            c.phone or "",
+            c.email or "",
+            c.prefecture or "",
+            c.city or "",
+            c.category_main or "",
+            c.status or "",
+            c.score_total or 0,
+            c.score_rank or "",
+            "",
+            c.follow_up_date.strftime("%Y-%m-%d") if c.follow_up_date else "",
+            c.notes or "",
+            c.created_at.strftime("%Y-%m-%d") if c.created_at else "",
+        ])
+
+    for col in ws.columns:
+        max_len = max((len(str(cell.value or "")) for cell in col), default=0)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=companies_export.xlsx"},
+    )
+
+
 @router.get("/{company_id}")
 def get_company(
     company_id: int,

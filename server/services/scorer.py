@@ -101,3 +101,16 @@ def calculate_score(company_data: dict, custom_rules: dict = None) -> tuple[int,
         rank = "D"
 
     return score, rank
+
+
+def get_rules_from_db(db) -> dict:
+    """Load scoring rules from SystemSettings DB, falling back to defaults."""
+    import json
+    try:
+        from server.models import SystemSettings
+        row = db.query(SystemSettings).filter(SystemSettings.key == "scoring_rules").first()
+        if row and row.value:
+            return json.loads(row.value)
+    except Exception:
+        pass
+    return dict(DEFAULT_SCORING_RULES)

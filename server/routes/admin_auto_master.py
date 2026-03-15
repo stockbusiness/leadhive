@@ -337,3 +337,82 @@ def run_enrich(
     t = threading.Thread(target=_safe_enrich, daemon=True)
     t.start()
     return {"job_id": job_id, "message": "URL補完を開始しました"}
+
+
+@router.get("/quality-stats")
+def get_quality_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    from sqlalchemy import func as sqlfunc, case
+    from server.models import JobLog
+
+    total = db.query(sqlfunc.count(CompanyMaster.id)).scalar() or 0
+    has_url = db.query(sqlfunc.count(CompanyMaster.id)).filter(
+        CompanyMaster.website_url.isnot(None), CompanyMaster.website_url != ""
+    ).scalar() or 0
+    has_contact = db.query(sqlfunc.count(CompanyMaster.id)).filter(
+        CompanyMaster.contact_url.isnot(None), CompanyMaster.contact_url != ""
+    ).scalar() or 0
+    has_email = db.query(sqlfunc.count(CompanyMaster.id)).filter(
+        CompanyMaster.email.isnot(None), CompanyMaster.email != ""
+    ).scalar() or 0
+    has_phone = db.query(sqlfunc.count(CompanyMaster.id)).filter(
+        CompanyMaster.phone.isnot(None), CompanyMaster.phone != ""
+    ).scalar() or 0
+    has_cms = db.query(sqlfunc.count(CompanyMaster.id)).filter(
+        CompanyMaster.cms_type.isnot(None), CompanyMaster.cms_type != ""
+    ).scalar() or 0
+
+    rank_rows = db.query(
+        CompanyMaster.score_rank, sqlfunc.count(CompanyMaster.id)
+    ).group_by(CompanyMaster.score_rank).all()
+    by_rank = {r: c for r, c in rank_rows}
+
+    pref_rows = db.query(
+        CompanyMaster.prefecture, sqlfunc.count(CompanyMaster.id)
+    ).filter(CompanyMaster.prefecture.isnot(None)).group_by(
+        CompanyMaster.prefecture
+    ).order_by(sqlfunc.count(CompanyMaster.id).desc()).limit(10).all()
+    by_prefecture = [{"prefecture": p, "count": c} for p, c in pref_rows]
+
+    cat_rows = db.query(
+        CompanyMaster.category_main, sqlfunc.count(CompanyMaster.id)
+    ).filter(CompanyMaster.category_main.isnot(None)).group_by(
+        CompanyMaster.category_main
+    ).order_by(sqlfunc.count(CompanyMaster.id).desc()).limit(10).all()
+    by_category = [{"category": c, "count": n} for c, n in cat_rows]
+
+    last_created = db.query(sqlfunc.max(CompanyMaster.created_at)).scalar()
+    last_scraped = db.query(sqlfunc.max(CompanyMaster.last_scraped_at)).scalar()
+
+    job_rows = db.query(JobLog).order_by(JobLog.started_at.desc()).limit(10).all()
+    recent_jobs = [
+        {
+            "job_id": j.job_id,
+            "job_type": j.job_type,
+            "status": j.status,
+            "source_count": j.source_count,
+            "saved_count": j.saved_count,
+            "error_count": j.error_count,
+            "started_at": j.started_at.isoformat() if j.started_at else None,
+            "finished_at": j.finished_at.isoformat() if j.finished_at else None,
+        }
+        for j in job_rows
+    ]
+
+    return {
+        "total": total,
+        "has_url": has_url,
+        "has_contact": has_contact,
+        "has_email": has_email,
+        "has_phone": has_phone,
+        "has_cms": has_cms,
+        "by_rank": by_rank,
+        "by_prefecture": by_prefecture,
+        "by_category": by_category,
+        "last_created_at": last_created.isoformat() if last_created else None,
+        "last_scraped_at": last_scraped.isoformat() if last_scraped else None,
+        "recent_jobs": recent_jobs,
+    }

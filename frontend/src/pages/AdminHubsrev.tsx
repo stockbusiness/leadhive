@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
-import { Link2, Save, Loader2, CheckCircle, AlertCircle, Send, Eye, EyeOff } from "lucide-react";
+import { Link2, Save, Loader2, CheckCircle, AlertCircle, Send, Eye, EyeOff, RefreshCw, Inbox } from "lucide-react";
 import axios from "axios";
+
+type HubsrevEvent = {
+  id: number;
+  event: string;
+  ticket_no: string | null;
+  subject: string | null;
+  customer_name: string | null;
+  received_at: string;
+};
 
 type Settings = {
   hubsrev_enabled: string;
@@ -29,11 +38,22 @@ export default function AdminHubsrev() {
   const [testing, setTesting] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [events, setEvents] = useState<HubsrevEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+
+  const fetchEvents = () => {
+    setEventsLoading(true);
+    axios.get("/api/admin/hubsrev/events")
+      .then((r) => setEvents(r.data))
+      .catch(() => {})
+      .finally(() => setEventsLoading(false));
+  };
 
   useEffect(() => {
     axios.get("/api/admin/hubsrev/settings")
       .then((r) => { setSettings(r.data); setLoading(false); })
       .catch(() => setLoading(false));
+    fetchEvents();
   }, []);
 
   const showMsg = (msg: string, isError = false) => {
@@ -271,6 +291,84 @@ export default function AdminHubsrev() {
         </button>
         <span className="text-xs text-slate-400">テスト送信で Hubsrev へのダミーデータ転送を確認できます</span>
       </div>
+
+      {/* 受信イベント履歴 */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-8">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Inbox size={16} className="text-indigo-500" />
+            <span className="text-sm font-semibold text-slate-700">Hubsrev → LeadHive 受信イベント履歴</span>
+            {events.length > 0 && (
+              <span className="ml-1 bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded-full">{events.length}</span>
+            )}
+          </div>
+          <button
+            onClick={fetchEvents}
+            disabled={eventsLoading}
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 transition-colors"
+          >
+            <RefreshCw size={13} className={eventsLoading ? "animate-spin" : ""} />
+            更新
+          </button>
+        </div>
+
+        {eventsLoading ? (
+          <div className="px-6 py-8 text-center text-sm text-slate-400 flex items-center justify-center gap-2">
+            <Loader2 size={16} className="animate-spin" />読み込み中...
+          </div>
+        ) : events.length === 0 ? (
+          <div className="px-6 py-8 text-center text-sm text-slate-400">
+            まだイベントは届いていません。<br />
+            Hubsrev管理画面でOutbound Webhookを設定すると、ここにイベントが記録されます。
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="px-4 py-2.5 text-left font-semibold text-slate-500 w-40">受信日時</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-slate-500 w-40">イベント</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-slate-500 w-28">チケット番号</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-slate-500">件名 / 顧客名</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((ev) => (
+                  <tr key={ev.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">
+                      {new Date(ev.received_at).toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <EventBadge event={ev.event} />
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-600 font-mono">{ev.ticket_no || "—"}</td>
+                    <td className="px-4 py-2.5 text-slate-700 truncate max-w-xs">
+                      {ev.subject || ev.customer_name || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+function EventBadge({ event }: { event: string }) {
+  const map: Record<string, { label: string; color: string }> = {
+    "ticket.created":        { label: "チケット作成",    color: "bg-blue-100 text-blue-700" },
+    "ticket.replied":        { label: "チケット返信",    color: "bg-indigo-100 text-indigo-700" },
+    "ticket.status_changed": { label: "ステータス変更",  color: "bg-yellow-100 text-yellow-700" },
+    "ticket.resolved":       { label: "チケット解決",    color: "bg-green-100 text-green-700" },
+    "inbox.item_created":    { label: "受信ボックス",    color: "bg-purple-100 text-purple-700" },
+    "test":                  { label: "テスト送信",      color: "bg-slate-100 text-slate-600" },
+  };
+  const info = map[event] || { label: event, color: "bg-slate-100 text-slate-500" };
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${info.color}`}>
+      {info.label}
+    </span>
   );
 }

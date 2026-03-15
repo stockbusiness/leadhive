@@ -245,3 +245,96 @@ def import_from_master(
         "error": error,
         "imported": imported,
     }
+
+
+@router.get("/export.xlsx")
+def export_master_xlsx(
+    q: Optional[str] = None,
+    category: Optional[str] = None,
+    prefecture: Optional[str] = None,
+    min_score: Optional[int] = None,
+    cms_type: Optional[str] = None,
+    has_email: Optional[bool] = None,
+    escms_target: Optional[bool] = None,
+    current_user: User = Depends(require_phase0_unlock),
+    db: Session = Depends(get_db),
+):
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from sqlalchemy import func, or_
+
+    _check_master_db_access(current_user, db)
+
+    query = db.query(CompanyMaster)
+    if q and q.strip():
+        term = f"%{q.strip().lower()}%"
+        query = query.filter(or_(
+            func.lower(CompanyMaster.company_name).like(term),
+            CompanyMaster.domain.like(term),
+        ))
+    if category and category != "all":
+        query = query.filter(CompanyMaster.category_main == category)
+    if prefecture and prefecture != "all":
+        query = query.filter(CompanyMaster.prefecture == prefecture)
+    if min_score is not None:
+        query = query.filter(CompanyMaster.score_total >= min_score)
+    if cms_type and cms_type != "all":
+        query = query.filter(CompanyMaster.cms_type == cms_type)
+    if has_email is True:
+        query = query.filter(CompanyMaster.email.isnot(None), CompanyMaster.email != "")
+    if escms_target is True:
+        query = query.filter(CompanyMaster.escms_target_flag == True)
+
+    rows = query.order_by(CompanyMaster.score_total.desc()).limit(5000).all()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "MasterDB"
+
+    headers = ["会社名", "ドメイン", "WebサイトURL", "問い合わせURL", "電話番号", "メールアドレス",
+               "都道府県", "市区町村", "カテゴリ", "CMS", "スコア", "ランク",
+               "EC", "Shopify", "Amazon", "楽天", "採用あり", "最終取得日"]
+    header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for ci, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=ci, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+
+    for m in rows:
+        ws.append([
+            m.company_name or "",
+            m.domain or "",
+            m.website_url or "",
+            m.contact_url or "",
+            m.phone or "",
+            m.email or "",
+            m.prefecture or "",
+            m.city or "",
+            m.category_main or "",
+            getattr(m, "cms_type", "") or "",
+            m.score_total or 0,
+            m.score_rank or "",
+            "○" if m.ec_flag else "",
+            "○" if m.shopify_flag else "",
+            "○" if m.amazon_flag else "",
+            "○" if m.rakuten_flag else "",
+            "○" if getattr(m, "has_recruitment", False) else "",
+            m.last_scraped_at.strftime("%Y-%m-%d") if m.last_scraped_at else "",
+        ])
+
+    for col in ws.columns:
+        max_len = max((len(str(c.value or "")) for c in col), default=0)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=masterdb_export.xlsx"},
+    )

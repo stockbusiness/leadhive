@@ -55,6 +55,7 @@ export default function Companies() {
   const [importResult, setImportResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [xlsxExporting, setXlsxExporting] = useState(false);
   const [csvPlan, setCsvPlan] = useState<PlanData | null | undefined>(undefined);
 
   useEffect(() => {
@@ -141,6 +142,28 @@ export default function Companies() {
     if (csvPlan?.max_csv_export === null || csvPlan === null) return "CSV出力";
     return `CSV出力（上位${csvPlan.max_csv_export.toLocaleString()}件）`;
   })();
+
+  const handleXlsxExport = async () => {
+    setXlsxExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filters.category) params.set("category", filters.category);
+      if (filters.status) params.set("status", filters.status);
+      if (filters.score_rank) params.set("score_rank", filters.score_rank);
+      if (currentProject?.id) params.set("project_id", String(currentProject.id));
+      const resp = await fetch(`/api/companies/export.xlsx?${params.toString()}`);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `companies_export.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Excel出力に失敗しました");
+    }
+    setXlsxExporting(false);
+  };
 
   const handleStatusChange = (id: number, newStatus: string) => {
     api.companies.update(id, { status: newStatus }).then(() => fetchCompanies());
@@ -296,6 +319,14 @@ export default function Companies() {
               <span className="hidden sm:inline">CSV出力</span>
             </button>
           )}
+          <button
+            onClick={handleXlsxExport}
+            disabled={xlsxExporting}
+            className="flex items-center gap-1.5 bg-teal-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
+          >
+            <FileDown size={15} className={xlsxExporting ? "animate-bounce" : ""} />
+            <span className="hidden sm:inline">{xlsxExporting ? "出力中..." : "Excel出力"}</span>
+          </button>
         </div>
       </div>
 

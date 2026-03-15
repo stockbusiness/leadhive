@@ -433,6 +433,9 @@ class SalesMessage(Base):
     reviewed_at = Column(DateTime, nullable=True)
     sent_at = Column(DateTime, nullable=True)
     sent_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    tracking_token = Column(String(64), nullable=True, unique=True, index=True)
+    opened_at = Column(DateTime, nullable=True)
+    open_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -514,6 +517,19 @@ class StatusIncident(Base):
     status = Column(String(20), nullable=False, default="investigating")
     created_at = Column(DateTime, server_default=func.now(), index=True)
     resolved_at = Column(DateTime, nullable=True)
+
+
+class HubsrevEventLog(Base):
+    __tablename__ = "hubsrev_event_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event = Column(String(100), nullable=False, index=True)
+    ticket_id = Column(Integer, nullable=True)
+    ticket_no = Column(String(30), nullable=True)
+    subject = Column(String(500), nullable=True)
+    customer_name = Column(String(255), nullable=True)
+    payload = Column(JSON, nullable=True)
+    received_at = Column(DateTime, server_default=func.now(), index=True)
 
 
 class OptOutList(Base):

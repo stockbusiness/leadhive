@@ -16,9 +16,11 @@ from server.routes import security
 from server.routes import contact
 from server.routes import support
 from server.routes import admin_hubsrev
+from server.routes import admin_scoring
 from server.routes import faq
 from server.routes import status_page
 from server.routes import webhooks
+from server.routes import tracking
 from server.services.scheduler import start_scheduler, stop_scheduler
 from server.services.rate_limiter import limiter, _rate_limit_exceeded_handler, RateLimitExceeded
 
@@ -372,9 +374,11 @@ app.include_router(security.router)
 app.include_router(contact.router)
 app.include_router(support.router)
 app.include_router(admin_hubsrev.router)
+app.include_router(admin_scoring.router)
 app.include_router(faq.router)
 app.include_router(status_page.router)
 app.include_router(webhooks.router)
+app.include_router(tracking.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 

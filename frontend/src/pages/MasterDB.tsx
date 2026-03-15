@@ -121,6 +121,7 @@ export default function MasterDB() {
   const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set());
   const [importResult, setImportResult] = useState<{ success: number; duplicate: number; error: number } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [xlsxExporting, setXlsxExporting] = useState(false);
 
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("all");
@@ -268,6 +269,30 @@ export default function MasterDB() {
       alert("インポートに失敗しました");
     }
     setImporting(false);
+  };
+
+  const handleXlsxExport = async () => {
+    setXlsxExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (q.trim()) params.set("q", q.trim());
+      if (category !== "all") params.set("category", category);
+      if (prefecture !== "all") params.set("prefecture", prefecture);
+      if (minScore !== "") params.set("min_score", String(minScore));
+      if (cmsType !== "all") params.set("cms_type", cmsType);
+      if (hasEmail !== "") params.set("has_email", hasEmail);
+      const resp = await fetch(`/api/master/export.xlsx?${params.toString()}`);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `masterdb_export.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Excel出力に失敗しました");
+    }
+    setXlsxExporting(false);
   };
 
   const categories = stats ? Object.keys(stats.by_category).filter(Boolean) : [];
@@ -540,16 +565,26 @@ export default function MasterDB() {
                     <span className="ml-2 text-indigo-600">{selectedDomains.size}件選択中</span>
                   )}
                 </span>
-                {selectedDomains.size > 0 && (
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={handleImport}
-                    disabled={importing || !currentProject?.id}
-                    className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                    onClick={handleXlsxExport}
+                    disabled={xlsxExporting}
+                    className="flex items-center gap-1.5 text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
                   >
-                    <Download size={14} />
-                    {importing ? "インポート中..." : `現在のプロジェクトにインポート (${selectedDomains.size}件)`}
+                    <Download size={13} className={xlsxExporting ? "animate-bounce" : ""} />
+                    {xlsxExporting ? "出力中..." : "Excel出力"}
                   </button>
-                )}
+                  {selectedDomains.size > 0 && (
+                    <button
+                      onClick={handleImport}
+                      disabled={importing || !currentProject?.id}
+                      className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                    >
+                      <Download size={14} />
+                      {importing ? "インポート中..." : `現在のプロジェクトにインポート (${selectedDomains.size}件)`}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[780px] text-sm table-fixed">

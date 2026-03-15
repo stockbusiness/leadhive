@@ -29,6 +29,8 @@ def _msg_to_dict(m: SalesMessage, company_name: str = None) -> dict:
         "reviewed_at": m.reviewed_at.isoformat() if m.reviewed_at else None,
         "sent_at": m.sent_at.isoformat() if m.sent_at else None,
         "sent_by": m.sent_by,
+        "open_count": m.open_count or 0,
+        "opened_at": m.opened_at.isoformat() if m.opened_at else None,
         "created_at": m.created_at.isoformat() if m.created_at else None,
         "updated_at": m.updated_at.isoformat() if m.updated_at else None,
     }
@@ -367,6 +369,16 @@ def send_message(
 {footer_html}
 </p>
 </body></html>"""
+
+        # ── トラッキングトークン生成 ─────────────────────────────────────
+        import secrets as _secrets
+        tracking_token = _secrets.token_urlsafe(32)
+        msg.tracking_token = tracking_token
+        tracking_pixel = (
+            f'<img src="https://leadhive.work/api/track/{tracking_token}.gif" '
+            f'width="1" height="1" style="display:none;" alt="" />'
+        )
+        body_html = body_html.replace("</body>", f"{tracking_pixel}\n</body>")
 
         extra_headers: dict = {}
         if unsub_url:

@@ -22,6 +22,8 @@ interface SalesMessage {
   status: MessageStatus;
   reviewed_at?: string;
   sent_at?: string;
+  open_count?: number;
+  opened_at?: string;
   created_at?: string;
 }
 
@@ -749,6 +751,18 @@ export default function SalesAI() {
                       <p className="text-sm text-slate-500 mt-1 line-clamp-2">{m.body}</p>
                       {m.sent_at && (
                         <p className="text-xs text-slate-400 mt-1">送信: {new Date(m.sent_at).toLocaleString("ja-JP")}</p>
+                      )}
+                      {m.status === "sent" && (
+                        <p className="text-xs mt-0.5">
+                          {(m.open_count ?? 0) > 0 ? (
+                            <span className="text-green-600 font-medium">
+                              ✓ 開封済 {m.open_count}回
+                              {m.opened_at && ` (初回: ${new Date(m.opened_at).toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })})`}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">未開封</span>
+                          )}
+                        </p>
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
