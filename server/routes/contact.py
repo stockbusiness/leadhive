@@ -25,7 +25,7 @@ CONTACT_SETTING_KEYS = [
 ]
 
 DEFAULTS = {
-    "contact_notify_to": "info@leadhive.work",
+    "contact_notify_to": "support@leadhive.work",
     "contact_notify_subject_prefix": "【LeadHive】",
     "contact_autoreply_enabled": "true",
     "contact_autoreply_subject": "【LeadHive】お問い合わせを受け付けました",
@@ -129,9 +129,9 @@ def _autoreply_html(body, settings: dict) -> str:
       </div>
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
       <p style="font-size: 12px; color: #94a3b8; margin: 0;">
-        COOLWORKS株式会社 / LeadHive<br>
-        〒651-0084 兵庫県神戸市中央区磯辺通１丁目１番１８号 カサベラ国際プラザビル７０７号室<br>
-        <a href="mailto:info@leadhive.work" style="color: #2563eb;">info@leadhive.work</a>
+        株式会社LEADMARK / LeadHive<br>
+        大阪府大阪市中央区南本町2丁目3番12号 EDGE本町 THE HUB 大阪本町3F<br>
+        <a href="mailto:support@leadhive.work" style="color: #2563eb;">support@leadhive.work</a>
       </p>
     </div>
   </div>
@@ -188,7 +188,7 @@ async def submit_contact(body: ContactBody, db: Session = Depends(get_db)):
                     body.email, reply_subject, _autoreply_html(body, settings), smtp,
                     text_body=(
                         f"{body.name} 様\n\nお問い合わせありがとうございます。"
-                        f"担当者より{response_days}以内にご連絡いたします。\n\nLeadHive / COOLWORKS株式会社"
+                        f"担当者より{response_days}以内にご連絡いたします。\n\nLeadHive / 株式会社LEADMARK"
                     ),
                 )
         else:
