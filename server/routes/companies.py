@@ -126,7 +126,7 @@ def create_company(
     if existing:
         return {"error": "この企業URLは既に登録されています", "company": company_to_dict(existing, db)}
 
-    score, rank = calculate_score(data)
+    score, rank = calculate_score(data, db=db)
     data["score_total"] = score
     data["score_rank"] = rank
 
@@ -135,6 +135,13 @@ def create_company(
     db.commit()
     db.refresh(company)
     cache_invalidate("dashboard")
+
+    if rank == "A":
+        try:
+            from server.services.slack_notifier import notify_rank_a_company
+            notify_rank_a_company(db, company.company_name or "", domain=company.domain, project_name=None)
+        except Exception:
+            pass
 
     domain = _normalize_domain(company.domain or company.website_url or "")
     if domain:
@@ -242,7 +249,7 @@ def merge_companies(
         db.delete(mc)
 
     company_dict = company_to_dict(main_company, db)
-    score, rank = calculate_score(company_dict)
+    score, rank = calculate_score(company_dict, db=db)
     main_company.score_total = score
     main_company.score_rank = rank
 
@@ -439,7 +446,7 @@ def update_company(
         db.add(history)
 
     company_dict = company_to_dict(company, db)
-    score, rank = calculate_score(company_dict)
+    score, rank = calculate_score(company_dict, db=db)
     company.score_total = score
     company.score_rank = rank
 
@@ -953,7 +960,7 @@ def rescrape_company(
 
     company.score_adjustment = saved_adjustment
     company_dict = company_to_dict(company, db)
-    score, rank = calculate_score(company_dict)
+    score, rank = calculate_score(company_dict, db=db)
     company.score_total = score
     company.score_rank = rank
 

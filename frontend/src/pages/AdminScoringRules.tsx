@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Star, RotateCcw, Save, Info, TrendingUp, TrendingDown } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { Star, RotateCcw, Save, Info, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 
 const RULE_LABELS: Record<string, string> = {
   ec_flag: "ECサイト判定",
@@ -21,6 +21,7 @@ const RULE_LABELS: Record<string, string> = {
 };
 
 type Rules = Record<string, number>;
+type RescoreStatus = { running: boolean; done: number; total: number; updated_companies: number; updated_masters: number };
 
 export default function AdminScoringRules() {
   const [rules, setRules] = useState<Rules>({});
@@ -28,6 +29,9 @@ export default function AdminScoringRules() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [rescoring, setRescoring] = useState(false);
+  const [rescoreStatus, setRescoreStatus] = useState<RescoreStatus | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -84,6 +88,39 @@ export default function AdminScoringRules() {
     setSaving(false);
   };
 
+  const handleRescore = async () => {
+    if (!confirm("現在のスコアリングルールで全企業のスコアを再計算します。よろしいですか？")) return;
+    setRescoring(true);
+    setRescoreStatus(null);
+    try {
+      const res = await fetch("/api/admin/scoring-rules/bulk-rescore", { method: "POST" });
+      const data = await res.json();
+      if (!data.ok) {
+        setMessage({ type: "err", text: data.message || "再スコアリングを開始できませんでした" });
+        setRescoring(false);
+        return;
+      }
+      pollRef.current = setInterval(async () => {
+        try {
+          const sr = await fetch("/api/admin/scoring-rules/bulk-rescore/status").then(r => r.json());
+          setRescoreStatus(sr);
+          if (!sr.running) {
+            if (pollRef.current) clearInterval(pollRef.current);
+            setRescoring(false);
+            setMessage({ type: "ok", text: `再スコアリング完了: 企業${sr.updated_companies}件 / マスター${sr.updated_masters}件を更新しました` });
+            setTimeout(() => setMessage(null), 6000);
+          }
+        } catch {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setRescoring(false);
+        }
+      }, 1500);
+    } catch {
+      setMessage({ type: "err", text: "再スコアリングの開始に失敗しました" });
+      setRescoring(false);
+    }
+  };
+
   const positive = Object.entries(rules).filter(([, v]) => v >= 0);
   const negative = Object.entries(rules).filter(([, v]) => v < 0);
 
@@ -100,6 +137,14 @@ export default function AdminScoringRules() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleRescore}
+            disabled={rescoring || saving}
+            className="flex items-center gap-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-3 py-2 rounded-lg text-sm hover:bg-amber-200 dark:hover:bg-amber-800/40 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={rescoring ? "animate-spin" : ""} />
+            {rescoring ? "再計算中..." : "全企業を再スコアリング"}
+          </button>
           <button
             onClick={handleReset}
             disabled={saving}
@@ -122,6 +167,21 @@ export default function AdminScoringRules() {
       {message && (
         <div className={`px-4 py-3 rounded-lg text-sm font-medium ${message.type === "ok" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
           {message.text}
+        </div>
+      )}
+
+      {rescoring && rescoreStatus && rescoreStatus.total > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3 space-y-1">
+          <div className="flex items-center justify-between text-sm text-amber-700 dark:text-amber-400">
+            <span>再スコアリング進捗</span>
+            <span>{rescoreStatus.done} / {rescoreStatus.total} 件</span>
+          </div>
+          <div className="w-full bg-amber-200 dark:bg-amber-800 rounded-full h-2">
+            <div
+              className="bg-amber-500 h-2 rounded-full transition-all"
+              style={{ width: `${Math.round((rescoreStatus.done / rescoreStatus.total) * 100)}%` }}
+            />
+          </div>
         </div>
       )}
 

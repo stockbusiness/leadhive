@@ -18,8 +18,13 @@ DEFAULT_SCORING_RULES = {
 }
 
 
-def calculate_score(company_data: dict, custom_rules: dict = None) -> tuple[int, str]:
-    rules = custom_rules if custom_rules else DEFAULT_SCORING_RULES
+def calculate_score(company_data: dict, custom_rules: dict = None, db=None) -> tuple[int, str]:
+    if custom_rules is not None:
+        rules = custom_rules
+    elif db is not None:
+        rules = get_rules_from_db(db)
+    else:
+        rules = DEFAULT_SCORING_RULES
     score = 0
 
     if company_data.get("ec_flag") and "ec_flag" in rules:

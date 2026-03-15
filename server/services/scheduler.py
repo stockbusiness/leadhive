@@ -498,7 +498,7 @@ def _run_auto_master_collect(job_id: str = None):
                             cms_type = scraped.get("cms_type") or None
                             flags = detect_flags(full_text, cms_type=cms_type)
                             scraped.update({"category_main": cat_main, "category_sub": cat_sub, **flags})
-                            score, rank = calculate_score(scraped)
+                            score, rank = calculate_score(scraped, db=db)
                             scraped["score_total"] = score
                             scraped["score_rank"] = rank
 
@@ -907,7 +907,7 @@ def _run_auto_master_enrich(force: bool = False):
                     cms_type = scraped.get("cms_type") or None
                     flags = detect_flags(full_text, cms_type=cms_type)
                     scraped.update({"category_main": cat_main, "category_sub": cat_sub, **flags})
-                    score, rank = calculate_score(scraped)
+                    score, rank = calculate_score(scraped, db=db)
                     scraped["score_total"] = score
                     scraped["score_rank"] = rank
 

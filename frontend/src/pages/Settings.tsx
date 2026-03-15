@@ -198,6 +198,9 @@ export default function Settings() {
   const [slackWebhookSet, setSlackWebhookSet] = useState(false);
   const [slackTesting, setSlackTesting] = useState(false);
   const [slackMessage, setSlackMessage] = useState<MessageState | null>(null);
+  const [slackTriggers, setSlackTriggers] = useState<Record<string, boolean>>({ rank_a_added: true, email_opened: true });
+  const [slackTriggersSaving, setSlackTriggersSaving] = useState(false);
+  const [isSystemAdmin, setIsSystemAdmin] = useState(false);
 
   const [autoCollectEnabled, setAutoCollectEnabled] = useState(false);
   const [autoCollectTime, setAutoCollectTime] = useState("09:00");
@@ -232,6 +235,14 @@ export default function Settings() {
       if (s.openai_api_key) { setOpenaiApiKeySet(s.openai_api_key.is_set); if (s.openai_api_key.is_set) setOpenaiApiKey(s.openai_api_key.value); }
     });
     api.settings.getScheduler().then((data) => setSchedulerRunning(data.running)).catch(() => {});
+    api.auth.me().then((u: any) => {
+      if (u?.is_system_admin) {
+        setIsSystemAdmin(true);
+        fetch("/api/admin/slack-triggers").then(r => r.json()).then(d => {
+          if (d.triggers) setSlackTriggers(d.triggers);
+        }).catch(() => {});
+      }
+    }).catch(() => {});
   }, []);
 
   const buildPayload = () => {
@@ -301,6 +312,22 @@ export default function Settings() {
       setSlackMessage({ type: "error", text: "Slackテスト送信に失敗しました" });
     }
     setSlackTesting(false);
+  };
+
+  const handleSlackTriggersSave = async () => {
+    setSlackTriggersSaving(true);
+    try {
+      await fetch("/api/admin/slack-triggers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ triggers: slackTriggers }),
+      });
+      setSlackMessage({ type: "success", text: "通知トリガーを保存しました" });
+      setTimeout(() => setSlackMessage(null), 3000);
+    } catch {
+      setSlackMessage({ type: "error", text: "保存に失敗しました" });
+    }
+    setSlackTriggersSaving(false);
   };
 
   const handleSmtpTest = async () => {
@@ -539,6 +566,37 @@ export default function Settings() {
             テスト送信
           </button>
         </div>
+
+        {isSystemAdmin && (
+          <div className="border border-slate-200 rounded-lg p-4 space-y-3">
+            <p className="text-sm font-medium text-slate-700">通知トリガー設定（システム管理者）</p>
+            <div className="space-y-2">
+              {[
+                { key: "rank_a_added", label: "Aランク企業が追加されたとき" },
+                { key: "email_opened", label: "送信メールが開封されたとき" },
+              ].map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!slackTriggers[key]}
+                    onChange={e => setSlackTriggers(prev => ({ ...prev, [key]: e.target.checked }))}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-slate-600">{label}</span>
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={handleSlackTriggersSave}
+              disabled={slackTriggersSaving}
+              className="flex items-center gap-2 bg-slate-700 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-slate-800 transition-colors disabled:opacity-50"
+            >
+              {slackTriggersSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              トリガーを保存
+            </button>
+          </div>
+        )}
+
         {slackMessage && <MessageBox msg={slackMessage} />}
       </div>
 

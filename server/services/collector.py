@@ -329,7 +329,7 @@ def _process_search_results(
             )
             company_data["escms_target_flag"] = escms_flag
 
-            score, rank = calculate_score(company_data, custom_rules=scoring_rules)
+            score, rank = calculate_score(company_data, custom_rules=scoring_rules if scoring_rules else None, db=db if not scoring_rules else None)
             company_data["score_total"] = score
             company_data["score_rank"] = rank
 
@@ -341,6 +341,13 @@ def _process_search_results(
             db.commit()
             db.refresh(company)
             existing_domains.add(domain)
+
+            if rank == "A":
+                try:
+                    from server.services.slack_notifier import notify_rank_a_company
+                    notify_rank_a_company(db, company.company_name or domain, domain=domain)
+                except Exception:
+                    pass
 
             _upsert_company_master(db, company_data, domain, source="auto")
 

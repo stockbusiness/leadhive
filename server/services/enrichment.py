@@ -175,7 +175,7 @@ def enrich_companies_batch(
                 "category_sub": category_sub,
                 **flags,
             })
-            score, rank = calculate_score(scraped)
+            score, rank = calculate_score(scraped, db=db)
             scraped["score_total"] = score
             scraped["score_rank"] = rank
 

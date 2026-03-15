@@ -309,7 +309,7 @@ def collect_from_gbiz(
                 }
                 if company.get("corporate_number"):
                     info["corporate_number"] = company["corporate_number"]
-                score, rank = calculate_score(info)
+                score, rank = calculate_score(info, db=db)
                 info["score_total"] = score
                 info["score_rank"] = rank
                 allowed_fields = {c.name for c in Company.__table__.columns}
@@ -365,7 +365,7 @@ def collect_from_gbiz(
                 "category_sub": category_sub,
                 **flags,
             })
-            score, rank = calculate_score(scraped)
+            score, rank = calculate_score(scraped, db=db)
             scraped["score_total"] = score
             scraped["score_rank"] = rank
 
