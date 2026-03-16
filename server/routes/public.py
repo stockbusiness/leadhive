@@ -1,8 +1,9 @@
 import requests
 import logging
+import time
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from server.database import get_db
@@ -14,16 +15,25 @@ router = APIRouter(prefix="/api/public", tags=["public"])
 
 GBIZ_BASE_URL = "https://info.gbiz.go.jp/hojin/v1/hojin"
 
+_stats_cache: dict = {"data": None, "at": 0.0}
+_STATS_TTL = 60.0  # 60秒キャッシュ
+
 
 @router.get("/stats")
 def public_stats(db: Session = Depends(get_db)):
+    now = time.time()
+    if _stats_cache["data"] and now - _stats_cache["at"] < _STATS_TTL:
+        return JSONResponse(content=_stats_cache["data"], headers={"Cache-Control": "public, max-age=60"})
     registered_users = db.query(func.count(User.id)).scalar() or 0
     founder_count = db.query(func.count(User.id)).filter(User.is_founder == True).scalar() or 0
-    return {
+    data = {
         "registered_users": registered_users,
         "founder_slots_remaining": max(0, 50 - founder_count),
         "founder_slots_total": 50,
     }
+    _stats_cache["data"] = data
+    _stats_cache["at"] = now
+    return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=60"})
 
 
 @router.get("/corporate/{number}")

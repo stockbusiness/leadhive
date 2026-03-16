@@ -50,6 +50,7 @@ import PlanLimitModal from "./components/common/PlanLimitModal";
 import AnnouncementBanner from "./components/common/AnnouncementBanner";
 import NotificationPanel from "./components/common/NotificationPanel";
 import CookieBanner from "./components/common/CookieBanner";
+import LandingPageNew from "./pages/LandingPageNew";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Companies = lazy(() => import("./pages/Companies"));
@@ -89,7 +90,6 @@ const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const LandingPageNew = lazy(() => import("./pages/LandingPageNew"));
 const Roadmap = lazy(() => import("./pages/Roadmap"));
 const SalesAI = lazy(() => import("./pages/SalesAI"));
 const Pipeline = lazy(() => import("./pages/Pipeline"));

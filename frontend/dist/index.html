@@ -70,12 +70,112 @@
       ]
     }
     </script>
-    <script type="module" crossorigin src="/assets/index-B9v1I5pa.js"></script>
+    <style>
+      #app-skeleton {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #0f172a;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      #app-skeleton .sk-nav {
+        background: rgba(255,255,255,0.05);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        height: 64px;
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        gap: 12px;
+      }
+      #app-skeleton .sk-logo {
+        width: 32px; height: 32px;
+        background: #2563eb;
+        border-radius: 8px;
+      }
+      #app-skeleton .sk-logo-text {
+        width: 80px; height: 16px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 4px;
+      }
+      #app-skeleton .sk-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 16px;
+        padding: 60px 24px;
+      }
+      #app-skeleton .sk-badge {
+        width: 120px; height: 22px;
+        background: rgba(37,99,235,0.3);
+        border-radius: 999px;
+      }
+      #app-skeleton .sk-h1 {
+        width: min(480px, 90vw); height: 48px;
+        background: rgba(255,255,255,0.12);
+        border-radius: 8px;
+      }
+      #app-skeleton .sk-h1b {
+        width: min(360px, 75vw); height: 48px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 8px;
+        margin-top: -6px;
+      }
+      #app-skeleton .sk-sub {
+        width: min(400px, 85vw); height: 16px;
+        background: rgba(255,255,255,0.07);
+        border-radius: 4px;
+        margin-top: 8px;
+      }
+      #app-skeleton .sk-sub2 {
+        width: min(320px, 70vw); height: 16px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 4px;
+      }
+      #app-skeleton .sk-btn {
+        width: 160px; height: 48px;
+        background: #2563eb;
+        border-radius: 12px;
+        margin-top: 16px;
+        opacity: 0.8;
+      }
+      @keyframes sk-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+      #app-skeleton .sk-logo,
+      #app-skeleton .sk-logo-text,
+      #app-skeleton .sk-badge,
+      #app-skeleton .sk-h1,
+      #app-skeleton .sk-h1b,
+      #app-skeleton .sk-sub,
+      #app-skeleton .sk-sub2,
+      #app-skeleton .sk-btn {
+        animation: sk-pulse 1.6s ease-in-out infinite;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-Dm5C0lXa.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-nONEyntK.js">
-    <link rel="modulepreload" crossorigin href="/assets/icons-BXWbqloR.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-BmoctxY3.css">
+    <link rel="modulepreload" crossorigin href="/assets/icons-BxmjIb80.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-DaZ6v5HH.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="app-skeleton">
+        <div class="sk-nav">
+          <div class="sk-logo"></div>
+          <div class="sk-logo-text"></div>
+        </div>
+        <div class="sk-body">
+          <div class="sk-badge"></div>
+          <div class="sk-h1"></div>
+          <div class="sk-h1b"></div>
+          <div class="sk-sub"></div>
+          <div class="sk-sub2"></div>
+          <div class="sk-btn"></div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
