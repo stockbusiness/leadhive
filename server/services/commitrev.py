@@ -20,13 +20,19 @@ def _get_setting(db: Session, key: str) -> Optional[str]:
 
 
 def _get_commitrev_config(db: Session) -> Optional[dict]:
+    api_key = _get_setting(db, "commitrev_api_key")
     hmac_secret = _get_setting(db, "commitrev_hmac_secret")
     tenant_id = _get_setting(db, "commitrev_tenant_id")
     product_code = _get_setting(db, "commitrev_product_code")
     base_url = _get_setting(db, "commitrev_base_url") or "https://app.commitrev.com"
-    if not hmac_secret or not tenant_id or not product_code:
+
+    if not product_code:
         return None
+    if not api_key and not (hmac_secret and tenant_id):
+        return None
+
     return {
+        "api_key": api_key,
         "hmac_secret": hmac_secret,
         "tenant_id": tenant_id,
         "product_code": product_code,
@@ -42,6 +48,8 @@ def send_event(
     db: Session,
     event_type: str,
     idempotency_key: str,
+    customer_id: Optional[str] = None,
+    amount: Optional[int] = None,
     extra_payload: Optional[dict] = None,
 ) -> bool:
     config = _get_commitrev_config(db)
@@ -49,33 +57,54 @@ def send_event(
         logger.debug("CommitRev not configured, skipping event: %s", event_type)
         return False
 
-    payload = {
+    event_payload: dict = {}
+    if customer_id:
+        event_payload["customer_id"] = customer_id
+    if amount is not None:
+        event_payload["amount"] = amount
+    if extra_payload:
+        event_payload.update(extra_payload)
+
+    body_dict: dict = {
         "event_type": event_type,
         "idempotency_key": idempotency_key,
         "event_time": datetime.now(timezone.utc).isoformat(),
         "product_code": config["product_code"],
-        "tenant_id": int(config["tenant_id"]),
     }
-    if extra_payload:
-        payload["payload"] = extra_payload
+    if config.get("tenant_id"):
+        body_dict["tenant_id"] = int(config["tenant_id"])
+    if event_payload:
+        body_dict["payload"] = event_payload
 
-    body = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
-    signature = _sign(config["hmac_secret"], body)
-
+    body = json.dumps(body_dict, separators=(",", ":"), ensure_ascii=False)
     url = f"{config['base_url']}/v1/events"
-    headers = {
-        "Content-Type": "application/json",
-        "x-signature": signature,
-        "x-tenant-id": config["tenant_id"],
-    }
+
+    if config.get("api_key"):
+        headers = {
+            "Content-Type": "application/json",
+            "X-Api-Key": config["api_key"],
+        }
+    else:
+        signature = _sign(config["hmac_secret"], body)
+        headers = {
+            "Content-Type": "application/json",
+            "x-signature": signature,
+            "x-tenant-id": config["tenant_id"],
+        }
 
     try:
         resp = requests.post(url, data=body.encode("utf-8"), headers=headers, timeout=10)
         if resp.status_code in (200, 201):
-            logger.info("CommitRev event sent: %s (idempotency_key=%s) -> %s", event_type, idempotency_key, resp.status_code)
+            logger.info(
+                "CommitRev event sent: %s idempotency_key=%s -> %s",
+                event_type, idempotency_key, resp.status_code,
+            )
             return True
         else:
-            logger.warning("CommitRev event failed: %s %s -> %s %s", event_type, idempotency_key, resp.status_code, resp.text[:200])
+            logger.warning(
+                "CommitRev event failed: %s %s -> %s %s",
+                event_type, idempotency_key, resp.status_code, resp.text[:200],
+            )
             return False
     except Exception as e:
         logger.error("CommitRev request error: %s", e)
@@ -87,7 +116,63 @@ def send_lead_created(db: Session, user_id: int, email: str, org_name: str = "")
         db=db,
         event_type="lead_created",
         idempotency_key=f"user_{user_id}",
-        extra_payload={"email": email, "org_name": org_name},
+        customer_id=email,
+        extra_payload={"org_name": org_name},
+    )
+
+
+def send_contract_signed(
+    db: Session,
+    org_id: int,
+    user_email: str,
+    plan_name: str,
+    stripe_session_id: str,
+    amount: Optional[int] = None,
+) -> bool:
+    return send_event(
+        db=db,
+        event_type="contract_signed",
+        idempotency_key=f"contract-{stripe_session_id}",
+        customer_id=user_email,
+        amount=amount,
+        extra_payload={"org_id": org_id, "plan_name": plan_name},
+    )
+
+
+def send_plan_conversion(
+    db: Session,
+    org_id: int,
+    user_email: str,
+    plan_name: str,
+    stripe_session_id: str,
+    amount: Optional[int] = None,
+) -> bool:
+    return send_event(
+        db=db,
+        event_type="plan_conversion",
+        idempotency_key=f"upsell-{stripe_session_id}",
+        customer_id=user_email,
+        amount=amount,
+        extra_payload={"org_id": org_id, "plan_name": plan_name},
+    )
+
+
+def send_monthly_renewal(
+    db: Session,
+    org_id: int,
+    user_email: str,
+    invoice_id: str,
+    amount: Optional[int] = None,
+    year_month: Optional[str] = None,
+) -> bool:
+    ym = year_month or datetime.now(timezone.utc).strftime("%Y-%m")
+    return send_event(
+        db=db,
+        event_type="monthly_renewal",
+        idempotency_key=f"renewal-{user_email}-{ym}",
+        customer_id=user_email,
+        amount=amount,
+        extra_payload={"org_id": org_id, "invoice_id": invoice_id},
     )
 
 

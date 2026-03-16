@@ -201,6 +201,16 @@ export default function Settings() {
   const [slackTriggers, setSlackTriggers] = useState<Record<string, boolean>>({ rank_a_added: true, email_opened: true });
   const [slackTriggersSaving, setSlackTriggersSaving] = useState(false);
   const [isSystemAdmin, setIsSystemAdmin] = useState(false);
+  const [crApiKey, setCrApiKey] = useState("");
+  const [crApiKeySet, setCrApiKeySet] = useState(false);
+  const [crHmacSecret, setCrHmacSecret] = useState("");
+  const [crHmacSecretSet, setCrHmacSecretSet] = useState(false);
+  const [crTenantId, setCrTenantId] = useState("");
+  const [crProductCode, setCrProductCode] = useState("");
+  const [crBaseUrl, setCrBaseUrl] = useState("https://app.commitrev.com");
+  const [crSaving, setCrSaving] = useState(false);
+  const [crTesting, setCrTesting] = useState(false);
+  const [crMessage, setCrMessage] = useState<MessageState | null>(null);
 
   const [autoCollectEnabled, setAutoCollectEnabled] = useState(false);
   const [autoCollectTime, setAutoCollectTime] = useState("09:00");
@@ -240,6 +250,13 @@ export default function Settings() {
         setIsSystemAdmin(true);
         fetch("/api/admin/slack-triggers").then(r => r.json()).then(d => {
           if (d.triggers) setSlackTriggers(d.triggers);
+        }).catch(() => {});
+        fetch("/api/admin/commitrev/settings").then(r => r.json()).then((d: any) => {
+          if (d.commitrev_api_key) { setCrApiKeySet(d.commitrev_api_key.is_set); if (d.commitrev_api_key.is_set) setCrApiKey(d.commitrev_api_key.value); }
+          if (d.commitrev_hmac_secret) { setCrHmacSecretSet(d.commitrev_hmac_secret.is_set); if (d.commitrev_hmac_secret.is_set) setCrHmacSecret(d.commitrev_hmac_secret.value); }
+          if (d.commitrev_tenant_id?.is_set) setCrTenantId(d.commitrev_tenant_id.value);
+          if (d.commitrev_product_code?.is_set) setCrProductCode(d.commitrev_product_code.value);
+          if (d.commitrev_base_url?.value) setCrBaseUrl(d.commitrev_base_url.value);
         }).catch(() => {});
       }
     }).catch(() => {});
@@ -340,6 +357,43 @@ export default function Settings() {
       setSmtpMessage({ type: "error", text: "SMTPテスト送信に失敗しました" });
     }
     setSmtpTesting(false);
+  };
+
+  const handleCrSave = async () => {
+    setCrSaving(true);
+    setCrMessage(null);
+    try {
+      const payload: Record<string, string> = {};
+      if (crApiKey && !crApiKey.includes("*")) payload.commitrev_api_key = crApiKey;
+      if (crHmacSecret && !crHmacSecret.includes("*")) payload.commitrev_hmac_secret = crHmacSecret;
+      if (crTenantId) payload.commitrev_tenant_id = crTenantId;
+      if (crProductCode) payload.commitrev_product_code = crProductCode;
+      if (crBaseUrl) payload.commitrev_base_url = crBaseUrl;
+      const res = await fetch("/api/admin/commitrev/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const d = await res.json();
+      setCrMessage({ type: "success", text: d.message || "保存しました" });
+      setTimeout(() => setCrMessage(null), 3000);
+    } catch {
+      setCrMessage({ type: "error", text: "保存に失敗しました" });
+    }
+    setCrSaving(false);
+  };
+
+  const handleCrTest = async () => {
+    setCrTesting(true);
+    setCrMessage(null);
+    try {
+      const res = await fetch("/api/admin/commitrev/test", { method: "POST" });
+      const d = await res.json();
+      setCrMessage({ type: d.success ? "success" : "error", text: d.message });
+    } catch {
+      setCrMessage({ type: "error", text: "接続テストに失敗しました" });
+    }
+    setCrTesting(false);
   };
 
   const inputClass = "w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -698,6 +752,115 @@ export default function Settings() {
         </div>
         <SaveButton saving={saving} onClick={handleSave} />
       </div>
+
+      {isSystemAdmin && (
+        <div className="bg-white rounded-lg shadow-sm border border-indigo-200 p-6 space-y-5">
+          <SectionHeader
+            icon={<ExternalLink size={20} className="text-indigo-600" />}
+            title="CommitRev アフィリエイト連携"
+            badge={<span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">システム管理者専用</span>}
+          />
+          <p className="text-sm text-slate-500">
+            CommitRevと連携すると、ユーザー登録・プラン契約・アップグレード・月次更新のイベントが自動的に送信されます。
+            パートナーへの紹介報酬が正確に計算されます。
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className={labelClass}>
+                スコープ付きAPIキー（推奨）
+                {crApiKeySet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}
+              </label>
+              <input
+                type="password"
+                value={crApiKey}
+                onChange={e => setCrApiKey(e.target.value)}
+                placeholder="cr_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..."
+                className={inputClass}
+              />
+              <p className="text-xs text-slate-400 mt-1">CommitRevポータル → APIキー管理 → スコープ付きAPIキーで発行（scopeは <code>events</code> 以上）</p>
+            </div>
+
+            <div>
+              <label className={labelClass}>
+                HMAC シークレット（代替）
+                {crHmacSecretSet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}
+              </label>
+              <input
+                type="password"
+                value={crHmacSecret}
+                onChange={e => setCrHmacSecret(e.target.value)}
+                placeholder="HMACシークレットキー"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>テナントID（HMAC認証時のみ必要）</label>
+              <input
+                type="text"
+                value={crTenantId}
+                onChange={e => setCrTenantId(e.target.value)}
+                placeholder="例: 42"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>プロダクトコード <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={crProductCode}
+                onChange={e => setCrProductCode(e.target.value)}
+                placeholder="例: leadhive"
+                className={inputClass}
+              />
+              <p className="text-xs text-slate-400 mt-1">CommitRevで登録したプロダクトのコード</p>
+            </div>
+
+            <div>
+              <label className={labelClass}>ベースURL</label>
+              <input
+                type="text"
+                value={crBaseUrl}
+                onChange={e => setCrBaseUrl(e.target.value)}
+                placeholder="https://app.commitrev.com"
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="bg-indigo-50 rounded-lg p-3 text-xs text-indigo-700 space-y-1">
+            <p className="font-medium">自動送信されるイベント</p>
+            <div className="grid grid-cols-2 gap-1 mt-1">
+              <span>✓ <code>lead_created</code> — ユーザー新規登録時</span>
+              <span>✓ <code>contract_signed</code> — 初回有料プラン契約時</span>
+              <span>✓ <code>plan_conversion</code> — 上位プランへのアップグレード時</span>
+              <span>✓ <code>monthly_renewal</code> — Stripe月次更新時</span>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleCrSave}
+              disabled={crSaving}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            >
+              {crSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              保存する
+            </button>
+            <button
+              onClick={handleCrTest}
+              disabled={crTesting || (!crApiKeySet && !crHmacSecretSet)}
+              className="flex items-center gap-2 bg-slate-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-700 transition-colors disabled:opacity-50"
+            >
+              {crTesting ? <Loader2 size={16} className="animate-spin" /> : <ExternalLink size={16} />}
+              接続テスト
+            </button>
+          </div>
+          {crMessage && <MessageBox msg={crMessage} />}
+        </div>
+      )}
 
       <TwoFactorSection />
       <DangerZoneSection />

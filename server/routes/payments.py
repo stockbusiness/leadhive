@@ -312,6 +312,8 @@ async def stripe_webhook(
         if org_id and plan_id:
             org = db.query(Organization).filter(Organization.id == int(org_id)).first()
             if org:
+                prev_plan = db.query(Plan).filter(Plan.id == org.plan_id).first() if org.plan_id else None
+                prev_is_paid = bool(prev_plan and prev_plan.stripe_price_id)
                 org.plan_id = int(plan_id)
                 org.subscription_status = "active"
                 if customer_id:
@@ -321,16 +323,28 @@ async def stripe_webhook(
                 db.commit()
                 plan = db.query(Plan).filter(Plan.id == int(plan_id)).first()
                 plan_name = plan.name if plan else str(plan_id)
+                admin = db.query(User).filter(User.org_id == org.id, User.role == "admin").first()
+                user_email = admin.email if admin else f"org_{org_id}"
                 try:
-                    from server.services.commitrev import send_purchase_completed
-                    send_purchase_completed(
-                        db=db,
-                        org_id=int(org_id),
-                        plan_name=plan_name,
-                        stripe_session_id=stripe_session_id,
-                    )
+                    from server.services.commitrev import send_contract_signed, send_plan_conversion
+                    if prev_is_paid:
+                        send_plan_conversion(
+                            db=db,
+                            org_id=int(org_id),
+                            user_email=user_email,
+                            plan_name=plan_name,
+                            stripe_session_id=stripe_session_id,
+                        )
+                    else:
+                        send_contract_signed(
+                            db=db,
+                            org_id=int(org_id),
+                            user_email=user_email,
+                            plan_name=plan_name,
+                            stripe_session_id=stripe_session_id,
+                        )
                 except Exception as _cr_err:
-                    _wh_logger.warning("CommitRev purchase_completed error: %s", _cr_err)
+                    _wh_logger.warning("CommitRev contract/upsell error: %s", _cr_err)
 
     elif event["type"] == "customer.subscription.updated":
         sub = event["data"]["object"]
@@ -384,6 +398,37 @@ async def stripe_webhook(
                         send_email(admin.email, "【LeadHive】サブスクリプションキャンセルのお知らせ", html, smtp_cfg)
             except Exception as e:
                 _wh_logger.warning("Failed to send cancellation email: %s", e)
+
+    elif event["type"] == "invoice.paid":
+        inv = event["data"]["object"]
+        customer_id = inv.get("customer")
+        invoice_id = inv.get("id", "")
+        billing_reason = inv.get("billing_reason", "")
+        amount_paid = inv.get("amount_paid", 0)
+        period_start = inv.get("period_start")
+        if billing_reason in ("subscription_cycle", "subscription_update") and customer_id:
+            org = db.query(Organization).filter(Organization.stripe_customer_id == customer_id).first()
+            if org:
+                _wh_logger.info("invoice.paid: org=%s invoice=%s reason=%s", org.id, invoice_id, billing_reason)
+                try:
+                    admin = db.query(User).filter(User.org_id == org.id, User.role == "admin").first()
+                    if admin:
+                        from datetime import datetime as _dt, timezone as _tz
+                        if period_start:
+                            ym = _dt.fromtimestamp(period_start, tz=_tz.utc).strftime("%Y-%m")
+                        else:
+                            ym = _dt.now(_tz.utc).strftime("%Y-%m")
+                        from server.services.commitrev import send_monthly_renewal
+                        send_monthly_renewal(
+                            db=db,
+                            org_id=org.id,
+                            user_email=admin.email,
+                            invoice_id=invoice_id,
+                            amount=amount_paid,
+                            year_month=ym,
+                        )
+                except Exception as _cr_err:
+                    _wh_logger.warning("CommitRev monthly_renewal error: %s", _cr_err)
 
     elif event["type"] == "invoice.payment_failed":
         inv = event["data"]["object"]

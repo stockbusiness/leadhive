@@ -221,6 +221,12 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
     token_str = _create_verification_token(user.id, db)
     db.commit()
 
+    try:
+        from server.services.commitrev import send_lead_created
+        send_lead_created(db=db, user_id=user.id, email=body.email, org_name=body.org_name)
+    except Exception as _cr_err:
+        logger.warning("CommitRev lead_created error: %s", _cr_err)
+
     base_url = _get_base_url(request)
     email_sent = _send_verification_email(body.email, token_str, base_url, db)
 
