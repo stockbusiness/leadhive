@@ -2,7 +2,7 @@ import requests
 import logging
 import time
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -71,6 +71,60 @@ def lookup_corporate(number: str, db: Session = Depends(get_db)):
     except requests.RequestException as e:
         logger.warning(f"gBizINFO lookup failed for {number}: {e}")
         raise HTTPException(status_code=502, detail="法人情報の取得に失敗しました")
+
+
+@router.post("/webhook/{source_key}")
+async def receive_inbound_webhook(
+    source_key: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    from server.models import InboundWebhookSource, LpInquiry
+    row = db.query(InboundWebhookSource).filter(
+        InboundWebhookSource.source_key == source_key,
+        InboundWebhookSource.enabled == True,
+    ).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Webhookソースが見つかりません")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    def _extract(key: str | None) -> str | None:
+        if not key or not payload:
+            return None
+        return str(payload.get(key, "") or "") or None
+
+    company_name = _extract(row.company_field)
+    contact_name = _extract(row.name_field)
+    email = _extract(row.email_field)
+    phone = _extract(row.phone_field)
+    message_body = _extract(row.message_field)
+
+    if not message_body and payload:
+        skip = {row.name_field, row.email_field, row.company_field, row.phone_field, row.message_field}
+        extras = "\n".join(f"{k}: {v}" for k, v in payload.items() if k not in skip)
+        message_body = extras or None
+
+    inq = LpInquiry(
+        org_id=row.org_id,
+        type="webhook_inbound",
+        company_name=company_name,
+        contact_name=contact_name,
+        email=email,
+        phone=phone,
+        message=message_body,
+        source_label=row.name,
+        status="new",
+    )
+    db.add(inq)
+    row.total_received = (row.total_received or 0) + 1
+    row.last_received_at = datetime.utcnow()
+    db.commit()
+    logger.info("Inbound webhook received: source=%s org=%s", row.name, row.org_id)
+    return {"ok": True, "inquiry_id": inq.id}
 
 
 @router.get("/partner")

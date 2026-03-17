@@ -559,3 +559,59 @@ class OutboundWebhook(Base):
     last_triggered_at = Column(DateTime, nullable=True)
     last_status_code = Column(Integer, nullable=True)
     failure_count = Column(Integer, nullable=False, default=0)
+
+
+class LpInquiry(Base):
+    __tablename__ = "lp_inquiries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    type = Column(String(50), nullable=False, default="contact", index=True)
+    company_name = Column(String(255), nullable=True)
+    contact_name = Column(String(255), nullable=True)
+    email = Column(String(255), nullable=True, index=True)
+    phone = Column(String(50), nullable=True)
+    message = Column(Text, nullable=True)
+    source_label = Column(String(100), nullable=True)
+    status = Column(String(30), nullable=False, default="new", index=True)
+    replied_at = Column(DateTime, nullable=True)
+    reply_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class ImapSetting(Base):
+    __tablename__ = "imap_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, unique=True, index=True)
+    enabled = Column(Boolean, nullable=False, default=False)
+    host = Column(String(255), nullable=True)
+    port = Column(Integer, nullable=False, default=993)
+    secure = Column(Boolean, nullable=False, default=True)
+    username = Column(String(255), nullable=True)
+    password_enc = Column(Text, nullable=True)
+    folder = Column(String(100), nullable=False, default="INBOX")
+    poll_interval_minutes = Column(Integer, nullable=False, default=5)
+    last_polled_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class InboundWebhookSource(Base):
+    __tablename__ = "inbound_webhook_sources"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    source_key = Column(String(48), nullable=False, unique=True, index=True)
+    enabled = Column(Boolean, nullable=False, default=True)
+    name_field = Column(String(100), nullable=True)
+    email_field = Column(String(100), nullable=True)
+    company_field = Column(String(100), nullable=True)
+    phone_field = Column(String(100), nullable=True)
+    message_field = Column(String(100), nullable=True)
+    total_received = Column(Integer, nullable=False, default=0)
+    last_received_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

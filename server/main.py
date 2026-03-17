@@ -24,7 +24,9 @@ from server.routes import faq
 from server.routes import status_page
 from server.routes import webhooks
 from server.routes import tracking
+from server.routes import lp_inquiries, admin_imap, inbound_webhooks
 from server.services.scheduler import start_scheduler, stop_scheduler
+from server.services.imap_poller import start_imap_polling, stop_imap_polling
 from server.services.rate_limiter import limiter, _rate_limit_exceeded_handler, RateLimitExceeded
 
 
@@ -319,8 +321,10 @@ def run_db_migrations():
 async def lifespan(app: FastAPI):
     threading.Thread(target=run_db_migrations, daemon=True).start()
     start_scheduler()
+    start_imap_polling()
     yield
     stop_scheduler()
+    stop_imap_polling()
 
 
 app = FastAPI(title="LeadHive", lifespan=lifespan)
@@ -397,6 +401,9 @@ app.include_router(faq.router)
 app.include_router(status_page.router)
 app.include_router(webhooks.router)
 app.include_router(tracking.router)
+app.include_router(lp_inquiries.router)
+app.include_router(admin_imap.router)
+app.include_router(inbound_webhooks.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 
