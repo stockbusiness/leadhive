@@ -67,11 +67,14 @@ def update_commitrev_settings(
     current_user=Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
+    CLEARABLE_KEYS = {"commitrev_partner_apply_url", "commitrev_base_url"}
     for key in COMMITREV_KEYS:
         val = data.get(key)
         if val is None:
             continue
-        if val == "" or (isinstance(val, str) and all(c == "*" for c in val)):
+        if isinstance(val, str) and all(c == "*" for c in val) and val:
+            continue
+        if val == "" and key not in CLEARABLE_KEYS:
             continue
         _set(db, key, val)
     db.commit()
