@@ -15,6 +15,7 @@ COMMITREV_KEYS = [
     "commitrev_tenant_id",
     "commitrev_product_code",
     "commitrev_base_url",
+    "commitrev_partner_apply_url",
 ]
 
 
@@ -49,12 +50,14 @@ def get_commitrev_settings(
 ):
     api_key_raw = _get(db, "commitrev_api_key")
     hmac_raw = _get(db, "commitrev_hmac_secret")
+    partner_url = _get(db, "commitrev_partner_apply_url")
     return {
         "commitrev_api_key": {"value": _mask(api_key_raw), "is_set": bool(api_key_raw)},
         "commitrev_hmac_secret": {"value": _mask(hmac_raw), "is_set": bool(hmac_raw)},
         "commitrev_tenant_id": {"value": _get(db, "commitrev_tenant_id"), "is_set": bool(_get(db, "commitrev_tenant_id"))},
         "commitrev_product_code": {"value": _get(db, "commitrev_product_code"), "is_set": bool(_get(db, "commitrev_product_code"))},
         "commitrev_base_url": {"value": _get(db, "commitrev_base_url") or "https://app.commitrev.com", "is_set": True},
+        "commitrev_partner_apply_url": {"value": partner_url, "is_set": bool(partner_url)},
     }
 
 

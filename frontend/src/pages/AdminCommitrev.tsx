@@ -10,6 +10,7 @@ type CrSettings = {
   tenant_id: string;
   product_code: string;
   base_url: string;
+  partner_apply_url: string;
 };
 
 export default function AdminCommitrev() {
@@ -21,6 +22,7 @@ export default function AdminCommitrev() {
     tenant_id: "",
     product_code: "",
     base_url: "https://app.commitrev.com",
+    partner_apply_url: "",
   });
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -44,6 +46,7 @@ export default function AdminCommitrev() {
           tenant_id: d.commitrev_tenant_id?.value ?? "",
           product_code: d.commitrev_product_code?.value ?? "",
           base_url: d.commitrev_base_url?.value || "https://app.commitrev.com",
+          partner_apply_url: d.commitrev_partner_apply_url?.value || "",
         });
         setLoading(false);
       })
@@ -63,6 +66,7 @@ export default function AdminCommitrev() {
         commitrev_tenant_id: settings.tenant_id,
         commitrev_product_code: settings.product_code,
         commitrev_base_url: settings.base_url,
+        commitrev_partner_apply_url: settings.partner_apply_url,
       };
       if (apiKey.trim()) payload.commitrev_api_key = apiKey.trim();
       if (hmacSecret.trim()) payload.commitrev_hmac_secret = hmacSecret.trim();
@@ -235,6 +239,26 @@ export default function AdminCommitrev() {
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
           />
           <p className="text-xs text-slate-400 mt-1.5">通常は変更不要です。</p>
+        </div>
+
+        {/* パートナー申請URL */}
+        <div className="px-6 py-5">
+          <label className="text-xs font-semibold text-slate-600 block mb-1.5">
+            パートナー申請URL
+            {settings.partner_apply_url && (
+              <span className="ml-2 text-green-600 font-normal">（設定済み）</span>
+            )}
+          </label>
+          <input
+            type="url"
+            value={settings.partner_apply_url}
+            onChange={(e) => setSettings((s) => ({ ...s, partner_apply_url: e.target.value }))}
+            placeholder="https://app.commitrev.com/apply/your-tenant-code"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
+          />
+          <p className="text-xs text-slate-400 mt-1.5">
+            CommitRevのパートナー申請フォームURL。設定すると <a href="/partner" target="_blank" rel="noopener noreferrer" className="text-indigo-500 underline">/partner</a> ページのCTAボタンが有効になります。
+          </p>
         </div>
 
         {/* 自動送信イベント説明 */}

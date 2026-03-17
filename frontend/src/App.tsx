@@ -109,6 +109,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Webhooks = lazy(() => import("./pages/Webhooks"));
 const AdminStatus = lazy(() => import("./pages/AdminStatus"));
 const AdminScoringRules = lazy(() => import("./pages/AdminScoringRules"));
+const PartnerLP = lazy(() => import("./pages/PartnerLP"));
 
 function PageLoader() {
   return (
@@ -512,6 +513,7 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/faq" element={<Faq />} />
             <Route path="/status" element={<Status />} />
+            <Route path="/partner" element={<PartnerLP />} />
             <Route path="/" element={<HomeRoute />} />
             <Route path="/*" element={<HomeRoute />} />
           </Routes>

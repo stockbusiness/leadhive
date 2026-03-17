@@ -73,6 +73,17 @@ def lookup_corporate(number: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=502, detail="法人情報の取得に失敗しました")
 
 
+@router.get("/partner")
+def public_partner_info(db: Session = Depends(get_db)):
+    from server.services.encryption import decrypt_value
+    row = db.query(SystemSettings).filter(SystemSettings.key == "commitrev_partner_apply_url").first()
+    apply_url = decrypt_value(row.value) if row and row.value else ""
+    return {
+        "apply_url": apply_url,
+        "enabled": bool(apply_url),
+    }
+
+
 @router.get("/unsubscribe")
 def handle_unsubscribe(
     email: str = Query(...),

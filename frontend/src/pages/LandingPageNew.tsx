@@ -105,6 +105,13 @@ export default function LandingPageNew() {
               ロードマップ
             </Link>
             <Link
+              to="/partner"
+              className="hidden sm:flex items-center gap-1 text-sm text-slate-400 hover:text-white transition-colors"
+            >
+              <Users size={14} />
+              パートナー
+            </Link>
+            <Link
               to="/login"
               className="text-sm text-slate-400 hover:text-white font-medium transition-colors"
             >
@@ -458,6 +465,7 @@ export default function LandingPageNew() {
             <Link to="/privacy-policy" className="hover:text-white transition-colors">プライバシーポリシー</Link>
             <Link to="/terms" className="hover:text-white transition-colors">利用規約</Link>
             <Link to="/legal/tokutei" className="hover:text-white transition-colors">特定商取引法</Link>
+            <Link to="/partner" className="hover:text-white transition-colors">パートナー募集</Link>
             <Link to="/login" className="hover:text-white transition-colors">ログイン</Link>
             <Link to="/register" className="hover:text-white transition-colors">新規登録</Link>
           </div>
