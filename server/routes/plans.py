@@ -269,8 +269,40 @@ def assign_plan(
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(status_code=404, detail="組織が見つかりません")
+
+    prev_plan = db.query(Plan).filter(Plan.id == org.plan_id).first() if org.plan_id else None
+    prev_is_paid = bool(prev_plan and prev_plan.stripe_price_id)
+
     org.plan_id = plan_id
     db.commit()
+
+    if plan.stripe_price_id:
+        try:
+            from server.services.commitrev import send_contract_signed, send_plan_conversion
+            admin = db.query(User).filter(User.org_id == org_id, User.role == "admin").first()
+            user_email = admin.email if admin else f"org_{org_id}"
+            ym = datetime.utcnow().strftime("%Y%m")
+            idempotency_key = f"manual_assign_{org_id}_{plan_id}_{ym}"
+            if prev_is_paid:
+                send_plan_conversion(
+                    db=db,
+                    org_id=org_id,
+                    user_email=user_email,
+                    plan_name=plan.name,
+                    stripe_session_id=idempotency_key,
+                )
+            else:
+                send_contract_signed(
+                    db=db,
+                    org_id=org_id,
+                    user_email=user_email,
+                    plan_name=plan.name,
+                    stripe_session_id=idempotency_key,
+                )
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning("CommitRev assign_plan event failed: %s", _e)
+
     return {"success": True, "org_id": org_id, "plan_id": plan_id}
 
 
