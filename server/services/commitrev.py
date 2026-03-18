@@ -183,3 +183,49 @@ def send_purchase_completed(db: Session, org_id: int, plan_name: str, stripe_ses
         idempotency_key=f"stripe_{stripe_session_id}",
         extra_payload={"org_id": org_id, "plan_name": plan_name},
     )
+
+
+def send_lp_lead_created(
+    db: Session,
+    inquiry_id: int,
+    email: Optional[str] = None,
+    company_name: Optional[str] = None,
+    org_id: Optional[int] = None,
+) -> bool:
+    """LP資料請求受信時に lead_created イベントを送信する。"""
+    return send_event(
+        db=db,
+        event_type="lead_created",
+        idempotency_key=f"lp_inquiry_{inquiry_id}",
+        customer_id=email or f"inquiry_{inquiry_id}",
+        extra_payload={
+            "inquiry_id": inquiry_id,
+            "company_name": company_name or "",
+            "org_id": org_id,
+            "source": "lp_document_request",
+        },
+    )
+
+
+def send_lp_contract_signed(
+    db: Session,
+    inquiry_id: int,
+    email: Optional[str] = None,
+    company_name: Optional[str] = None,
+    org_id: Optional[int] = None,
+    amount: Optional[int] = None,
+) -> bool:
+    """LP経由の資料請求が成約（closed_won）になったときに contract_signed イベントを送信する。"""
+    return send_event(
+        db=db,
+        event_type="contract_signed",
+        idempotency_key=f"lp_won_{inquiry_id}",
+        customer_id=email or f"inquiry_{inquiry_id}",
+        amount=amount,
+        extra_payload={
+            "inquiry_id": inquiry_id,
+            "company_name": company_name or "",
+            "org_id": org_id,
+            "source": "lp_document_request",
+        },
+    )

@@ -12,7 +12,7 @@ router = APIRouter(tags=["lp_inquiries"])
 logger = logging.getLogger(__name__)
 
 VALID_TYPES = {"document_request", "partner_apply", "founder_apply", "contact", "email_inbound", "webhook_inbound"}
-VALID_STATUSES = {"new", "contacted", "in_progress", "closed"}
+VALID_STATUSES = {"new", "contacted", "in_progress", "closed_won", "closed_lost"}
 
 
 def _serialize(inq: LpInquiry) -> dict:
@@ -47,6 +47,7 @@ class InquiryCreateBody(BaseModel):
 
 class StatusBody(BaseModel):
     status: str
+    amount: Optional[int] = None
 
 
 class ReplyBody(BaseModel):
@@ -60,7 +61,13 @@ def create_lp_inquiry_public(
     db: Session = Depends(get_db),
 ):
     inq_type = body.type if body.type in VALID_TYPES else "contact"
-    org_id = body.org_id or 1
+    if body.org_id:
+        org_id = body.org_id
+    else:
+        first_org = db.query(Organization).order_by(Organization.id).first()
+        org_id = first_org.id if first_org else None
+    if org_id is None:
+        raise HTTPException(status_code=503, detail="受付先テナントが未設定です")
     inq = LpInquiry(
         org_id=org_id,
         type=inq_type,
@@ -76,6 +83,20 @@ def create_lp_inquiry_public(
     db.commit()
     db.refresh(inq)
     logger.info("LP inquiry created: id=%s type=%s org=%s", inq.id, inq_type, org_id)
+
+    if inq_type == "document_request":
+        try:
+            from server.services.commitrev import send_lp_lead_created
+            send_lp_lead_created(
+                db=db,
+                inquiry_id=inq.id,
+                email=inq.email,
+                company_name=inq.company_name,
+                org_id=org_id,
+            )
+        except Exception as _e:
+            logger.warning("CommitRev lead_created failed: %s", _e)
+
     return {"id": inq.id, "message": "お問い合わせを受け付けました"}
 
 
@@ -110,8 +131,26 @@ def update_inquiry_status(
     ).first()
     if not inq:
         raise HTTPException(status_code=404, detail="問い合わせが見つかりません")
+
+    prev_status = inq.status
     inq.status = body.status
     db.commit()
+    logger.info("Inquiry %s status: %s -> %s", inq.id, prev_status, inq.status)
+
+    if inq.status == "closed_won" and inq.type == "document_request" and prev_status != "closed_won":
+        try:
+            from server.services.commitrev import send_lp_contract_signed
+            send_lp_contract_signed(
+                db=db,
+                inquiry_id=inq.id,
+                email=inq.email,
+                company_name=inq.company_name,
+                org_id=inq.org_id,
+                amount=body.amount,
+            )
+        except Exception as _e:
+            logger.warning("CommitRev contract_signed failed: %s", _e)
+
     return _serialize(inq)
 
 
