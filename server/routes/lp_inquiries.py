@@ -139,17 +139,39 @@ def update_inquiry_status(
 
     if inq.status == "closed_won" and inq.type == "document_request" and prev_status != "closed_won":
         try:
-            from server.services.commitrev import send_lp_contract_signed
-            send_lp_contract_signed(
-                db=db,
-                inquiry_id=inq.id,
-                email=inq.email,
-                company_name=inq.company_name,
-                org_id=inq.org_id,
-                amount=body.amount,
-            )
+            from server.services.commitrev import send_lp_contract_signed, send_lp_plan_conversion
+
+            is_upsell = False
+            if inq.email:
+                prev_won = db.query(LpInquiry).filter(
+                    LpInquiry.id != inq.id,
+                    LpInquiry.email == inq.email,
+                    LpInquiry.status == "closed_won",
+                    LpInquiry.type == "document_request",
+                ).first()
+                is_upsell = prev_won is not None
+
+            if is_upsell:
+                logger.info("Inquiry %s: upsell detected for %s → plan_conversion", inq.id, inq.email)
+                send_lp_plan_conversion(
+                    db=db,
+                    inquiry_id=inq.id,
+                    email=inq.email,
+                    company_name=inq.company_name,
+                    org_id=inq.org_id,
+                    amount=body.amount,
+                )
+            else:
+                send_lp_contract_signed(
+                    db=db,
+                    inquiry_id=inq.id,
+                    email=inq.email,
+                    company_name=inq.company_name,
+                    org_id=inq.org_id,
+                    amount=body.amount,
+                )
         except Exception as _e:
-            logger.warning("CommitRev contract_signed failed: %s", _e)
+            logger.warning("CommitRev closed_won event failed: %s", _e)
 
     return _serialize(inq)
 

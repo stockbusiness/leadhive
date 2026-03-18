@@ -207,6 +207,30 @@ def send_lp_lead_created(
     )
 
 
+def send_lp_plan_conversion(
+    db: Session,
+    inquiry_id: int,
+    email: Optional[str] = None,
+    company_name: Optional[str] = None,
+    org_id: Optional[int] = None,
+    amount: Optional[int] = None,
+) -> bool:
+    """LP経由のアップセル成約（closed_won の2回目以降）に plan_conversion イベントを送信する。"""
+    return send_event(
+        db=db,
+        event_type="plan_conversion",
+        idempotency_key=f"lp_upsell_{inquiry_id}",
+        customer_id=email or f"inquiry_{inquiry_id}",
+        amount=amount,
+        extra_payload={
+            "inquiry_id": inquiry_id,
+            "company_name": company_name or "",
+            "org_id": org_id,
+            "source": "lp_document_request",
+        },
+    )
+
+
 def send_lp_contract_signed(
     db: Session,
     inquiry_id: int,
