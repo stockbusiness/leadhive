@@ -246,30 +246,35 @@ def get_job_logs(
     db: Session = Depends(get_db),
 ):
     _require_system_admin(current_user)
-    from server.models import SystemLog
+    from server.models import JobLog
     try:
         logs = (
-            db.query(SystemLog)
-            .filter(SystemLog.action.in_(["auto_master_collect", "auto_master_enrich"]))
-            .order_by(SystemLog.created_at.desc())
+            db.query(JobLog)
+            .filter(JobLog.job_type.in_(["auto_master_enrich", "auto_master_collect"]))
+            .order_by(JobLog.started_at.desc())
             .limit(limit)
             .all()
         )
-        return {
-            "logs": [
-                {
-                    "id": log.id,
-                    "event_type": log.action,
-                    "message": log.detail,
-                    "details": log.detail,
-                    "created_at": log.created_at.isoformat() if log.created_at else None,
-                }
-                for log in logs
-            ]
-        }
+        return [
+            {
+                "id": log.id,
+                "job_id": log.job_id,
+                "job_type": log.job_type,
+                "status": log.status,
+                "message": log.message,
+                "current": log.current,
+                "total": log.total,
+                "source_count": log.source_count,
+                "saved_count": log.saved_count,
+                "error_count": log.error_count,
+                "started_at": log.started_at.isoformat() if log.started_at else None,
+                "finished_at": log.finished_at.isoformat() if log.finished_at else None,
+            }
+            for log in logs
+        ]
     except Exception as e:
         logger.warning(f"job-logs query error: {e}")
-        return {"logs": []}
+        return []
 
 
 @router.post("/reset-progress")
@@ -357,14 +362,17 @@ def run_enrich(
     import logging as _logging
     _logger = _logging.getLogger(__name__)
 
+    job_id = str(uuid.uuid4())
+
     def _safe_enrich():
         try:
-            _run_auto_master_enrich(force=True)
+            _run_auto_master_enrich(force=True, job_id=job_id)
         except Exception as e:
             _logger.error(f"AutoMasterEnrich crashed in thread: {e}", exc_info=True)
+            job_update(job_id, type="error", status="error", message=f"クラッシュ: {str(e)[:200]}")
 
-    job_id = str(uuid.uuid4())
-    job_update(job_id, type="progress", current=0, total=100, message="URL補完を開始しています...", status="running")
+    job_update(job_id, job_type="auto_master_enrich", type="progress",
+               current=0, total=100, message="URL補完を開始しています...", status="running")
     t = threading.Thread(target=_safe_enrich, daemon=True)
     t.start()
     return {"job_id": job_id, "message": "URL補完を開始しました"}

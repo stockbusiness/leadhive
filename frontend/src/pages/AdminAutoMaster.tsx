@@ -136,7 +136,7 @@ export default function AdminAutoMaster() {
   const loadJobLogs = useCallback(() => {
     setJobLogsLoading(true);
     axios.get("/api/admin/auto-master/job-logs?limit=20")
-      .then((r) => setJobLogs(r.data.logs))
+      .then((r) => setJobLogs(Array.isArray(r.data) ? r.data : (r.data.logs ?? [])))
       .catch(() => {})
       .finally(() => setJobLogsLoading(false));
   }, []);

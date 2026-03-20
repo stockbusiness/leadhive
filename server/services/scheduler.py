@@ -2,6 +2,7 @@ import threading
 import time
 import random
 import logging
+import uuid
 from datetime import datetime, date
 
 logger = logging.getLogger(__name__)
@@ -755,7 +756,7 @@ def _run_auto_enrich_all():
         db.close()
 
 
-def _run_auto_master_enrich(force: bool = False):
+def _run_auto_master_enrich(force: bool = False, job_id: str = None):
     from server.database import SessionLocal
     from server.models import SystemSettings, CompanyMaster
     from server.services.gbiz_collector import find_website_for_company
@@ -763,7 +764,7 @@ def _run_auto_master_enrich(force: bool = False):
     from server.services.aggregator import normalize_domain, is_aggregator_site
     from server.services.categorizer import categorize_company, detect_flags
     from server.services.scorer import calculate_score
-    from server.services.collector import _upsert_company_master
+    from server.services.collector import _upsert_company_master, job_update
     import time as _time
     logger.info(f"AutoMasterEnrich: 開始 (force={force})")
 
@@ -837,6 +838,10 @@ def _run_auto_master_enrich(force: bool = False):
     total_targets = len(targets_raw)
     logger.info(f"AutoMasterEnrich: {total_targets}社のURL補完を開始")
     _fresh_set("auto_master_enrich_progress", f"0/{total_targets} 処理中...")
+    if job_id:
+        job_update(job_id, job_type="auto_master_enrich", status="running",
+                   type="progress", total=total_targets, current=0,
+                   message=f"{total_targets}社のURL補完を開始")
 
     enriched = 0
     skipped = 0
@@ -962,8 +967,16 @@ def _run_auto_master_enrich(force: bool = False):
         _fresh_set("auto_master_enrich_last_run", datetime.now().strftime("%Y-%m-%d %H:%M"))
         _fresh_set("auto_master_enrich_last_run_date", datetime.now().strftime("%Y-%m-%d"))
         logger.info(f"AutoMasterEnrich: 完了 — URL発見{enriched}社 / スキップ{skipped}社 / 合計{total_targets}社")
+        if job_id:
+            job_update(job_id, type="done", status="done",
+                       saved_count=enriched, source_count=total_targets,
+                       current=total_targets, total=total_targets,
+                       message=f"完了 — URL発見{enriched}社 / スキップ{skipped}社 / 対象{total_targets}社")
     except Exception as _loop_err:
         logger.error(f"AutoMasterEnrich: ループ中に予期しないエラー: {_loop_err}", exc_info=True)
+        if job_id:
+            job_update(job_id, type="error", status="error",
+                       message=f"エラー: {str(_loop_err)[:200]}")
     finally:
         # ソケットタイムアウトを元の値に戻す
         try:
@@ -1089,7 +1102,15 @@ def _scheduler_loop():
             if (_enrich_on_schedule or _enrich_catchup) and enrich_last_run_date != today_str and last_master_enrich_date != today:
                 last_master_enrich_date = today
                 logger.info(f"AutoMasterEnrich: Triggered at {now.strftime('%H:%M')} (scheduled={enrich_hour}:00)")
-                threading.Thread(target=_run_auto_master_enrich, daemon=True).start()
+                _sched_enrich_job_id = str(uuid.uuid4())
+                try:
+                    from server.services.collector import job_update as _ju
+                    _ju(_sched_enrich_job_id, job_type="auto_master_enrich", type="progress",
+                        status="running", current=0, total=0, message="スケジュール実行開始")
+                except Exception:
+                    pass
+                threading.Thread(target=_run_auto_master_enrich, daemon=True,
+                                 kwargs={"job_id": _sched_enrich_job_id}).start()
 
             if now.hour == 8 and now.minute == 0 and last_usage_alert_date != today:
                 last_usage_alert_date = today
