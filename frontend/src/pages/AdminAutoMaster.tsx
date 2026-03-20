@@ -1030,7 +1030,11 @@ export default function AdminAutoMaster() {
                               {start ? start.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }) : "—"}
                             </td>
                             <td className="px-4 py-2 text-slate-500">
-                              {log.job_type || "—"}
+                              {log.job_type === "auto_master_enrich"
+                                ? "自動URL補完"
+                                : log.job_type === "auto_master_collect"
+                                ? "自動企業収集"
+                                : log.job_type || "—"}
                             </td>
                             <td className="px-4 py-2 text-center">
                               {log.status === "done" ? (
