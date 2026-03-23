@@ -803,6 +803,20 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
     elif enrich_enabled == "false" and force:
         logger.info("AutoMasterEnrich: 無効設定だが force=True により強制実行")
 
+    # gBizINFO トークンを取得（法人番号がある企業はAPIから直接URL取得可能）
+    _gbiz_token = None
+    try:
+        from server.services.gbiz_collector import get_gbiz_token
+        _gbiz_db = SessionLocal()
+        try:
+            _gbiz_token = get_gbiz_token(org_id=None, db=_gbiz_db)
+        finally:
+            _gbiz_db.close()
+        if _gbiz_token:
+            logger.info("AutoMasterEnrich: gBizINFO APIトークン取得済み（法人番号マッチ優先）")
+    except Exception as _e:
+        logger.warning(f"AutoMasterEnrich: gBizINFOトークン取得失敗: {_e}")
+
     max_enrich = max(1, min(500, int(_fresh_get("auto_master_enrich_max", "100"))))
 
     db_init = SessionLocal()
@@ -893,14 +907,30 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
                 _corp=corporate_number, _pref=prefecture, _city=city,
                 _ddg_dis=ddg_disabled, _counter=ddg_fail_counter,
                 _holder=result_holder, _proc=processed,
+                _gtoken=_gbiz_token,
             ):
                 db = SessionLocal()
                 try:
-                    url = find_website_for_company(
-                        _cname, _loc, db=db, org_id=None,
-                        ddg_disabled=_ddg_dis,
-                        ddg_fail_counter=_counter,
-                    )
+                    url = None
+
+                    # ① gBizINFO API（法人番号がある場合、最優先）
+                    if _corp and _gtoken:
+                        try:
+                            from server.services.enrichment import _fetch_url_from_gbiz
+                            url = _fetch_url_from_gbiz(_corp, _gtoken)
+                            if url:
+                                logger.info(f"AutoMasterEnrich: [{_proc}] {_cname} → gBizINFO hit: {url}")
+                        except Exception as _ge:
+                            logger.debug(f"AutoMasterEnrich: gBizINFO lookup failed for {_cname}: {_ge}")
+                            url = None
+
+                    # ② Web検索（Serper/DDG/Google）
+                    if not url:
+                        url = find_website_for_company(
+                            _cname, _loc, db=db, org_id=None,
+                            ddg_disabled=_ddg_dis,
+                            ddg_fail_counter=_counter,
+                        )
                     if not url:
                         return
 
