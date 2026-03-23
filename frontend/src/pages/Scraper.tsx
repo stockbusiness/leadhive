@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2, Search, ChevronDown, ChevronUp, DatabaseZap } from "lucide-react";
+import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2, Search, ChevronDown, ChevronUp, DatabaseZap, ShieldBan, ExternalLink, AlertTriangle } from "lucide-react";
+import { Link } from "react-router-dom";
 import HelpTooltip from "../components/HelpTooltip";
 import { api } from "../api";
 import { ResultRow } from "../components/common";
@@ -1073,17 +1074,25 @@ function StagingTable({
                     </a>
                   </td>
                   <td className="px-3 py-2 text-xs text-slate-500">{u.source}</td>
-                  <td className="px-3 py-2 text-center">
+                  <td className="px-3 py-2 text-center min-w-[90px]">
                     {res ? (
                       res.status === "success" ? (
                         <span className="flex items-center justify-center gap-1 text-emerald-600 text-xs">
                           <CheckCircle size={13} /> 成功
                         </span>
                       ) : res.status === "duplicate" ? (
-                        <span className="text-amber-500 text-xs">重複</span>
+                        <span className="flex items-center justify-center gap-1 text-amber-500 text-xs" title={res.message || "既に登録済み"}>
+                          <AlertTriangle size={13} /> 重複
+                        </span>
+                      ) : res.status === "rejected" ? (
+                        <span className="flex flex-col items-center gap-0.5 text-slate-500 text-xs cursor-help" title={res.message || "除外"}>
+                          <span className="flex items-center gap-1"><ShieldBan size={13} /> 除外</span>
+                          {res.message && <span className="text-[10px] leading-tight max-w-[100px] truncate text-slate-400">{res.message}</span>}
+                        </span>
                       ) : (
-                        <span className="flex items-center justify-center gap-1 text-red-500 text-xs">
-                          <XCircle size={13} /> エラー
+                        <span className="flex flex-col items-center gap-0.5 text-red-500 text-xs cursor-help" title={res.message || "エラー"}>
+                          <span className="flex items-center gap-1"><XCircle size={13} /> エラー</span>
+                          {res.message && <span className="text-[10px] leading-tight max-w-[100px] truncate text-red-400">{res.message}</span>}
                         </span>
                       )
                     ) : (
@@ -1119,10 +1128,24 @@ function StagingTable({
             )}
           </button>
           {showResults && (
-            <div className="px-4 pb-4 space-y-1">
+            <div className="px-4 pb-4 space-y-2">
               {scrapeResults.error && (
                 <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded">
                   <XCircle size={14} /> {scrapeResults.error}
+                </div>
+              )}
+              {!scrapeResults.error && (scrapeResults.summary?.success ?? 0) > 0 && (
+                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                  <span className="flex items-center gap-2 text-sm text-emerald-700">
+                    <CheckCircle size={14} />
+                    成功した <strong>{scrapeResults.summary?.success}</strong> 社は「候補企業一覧」に保存されました
+                  </span>
+                  <Link
+                    to="/companies"
+                    className="flex items-center gap-1 text-xs text-emerald-700 font-medium hover:text-emerald-900 transition-colors whitespace-nowrap ml-3"
+                  >
+                    候補企業一覧を確認 <ExternalLink size={12} />
+                  </Link>
                 </div>
               )}
               {scrapeResults.summary && <CollectSummaryCard summary={scrapeResults.summary} />}
