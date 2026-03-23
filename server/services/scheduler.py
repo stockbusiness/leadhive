@@ -846,7 +846,7 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
     enriched = 0
     skipped = 0
     processed = 0
-    DDG_FAIL_LIMIT = 5
+    DDG_FAIL_LIMIT = 30
     ddg_fail_counter = [0]
     PER_COMPANY_TIMEOUT = 20  # 1社あたりの壁時計タイムアウト（秒）
     MAX_LIVE_THREADS = 4      # 同時実行スレッド上限（DB接続プール枯渇防止）

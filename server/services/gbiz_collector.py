@@ -116,10 +116,38 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
             return False
         return not is_aggregator_site(url)[0]
 
-    query_strict = f'"{company_name}" {city} 公式サイト'.strip()
-    query_loose = f'{company_name} {city} 公式サイト'.strip() if city else f'{company_name} 公式サイト'
+    # ── 検索クエリ ──────────────────────────────────────────────────
+    name_bare = re.sub(r'(株式会社|有限会社|合同会社|合資会社|一般社団法人|公益社団法人|特定非営利活動法人|NPO法人)', '', company_name).strip()
+    query_strict  = f'"{company_name}" {city} 公式サイト'.strip()
+    query_loose   = f'{company_name} {city} 公式サイト'.strip() if city else f'{company_name} 公式サイト'
+    query_plain   = f'{company_name} {city}'.strip() if city else company_name
+    query_hp      = f'{company_name} {city} ホームページ'.strip() if city else f'{company_name} ホームページ'
 
-    # Serper API を最優先使用（システム管理者設定）
+    # ── ドメイン直接推測（英数字社名のみ） ─────────────────────────
+    def _guess_domain_url(name: str) -> str | None:
+        """会社名から英数字ドメインを推測してHTTP疎通確認する"""
+        import unicodedata
+        ascii_name = unicodedata.normalize("NFKC", name).lower()
+        ascii_name = re.sub(r'[^a-z0-9]', '', ascii_name)
+        if not ascii_name or len(ascii_name) < 2:
+            return None
+        candidates = [
+            f"https://{ascii_name}.co.jp",
+            f"https://www.{ascii_name}.co.jp",
+            f"https://{ascii_name}.jp",
+            f"https://www.{ascii_name}.com",
+        ]
+        for cand in candidates:
+            try:
+                r = requests.head(cand, timeout=4, allow_redirects=True,
+                                  headers={"User-Agent": "Mozilla/5.0"})
+                if r.status_code < 400 and _is_valid_company_url(r.url):
+                    return r.url
+            except Exception:
+                pass
+        return None
+
+    # ── Serper API（最優先） ─────────────────────────────────────────
     serper_key = None
     try:
         from server.services.serper_search import get_serper_api_key, search_serper
@@ -128,7 +156,7 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
         pass
 
     if serper_key:
-        for q in [query_strict, query_loose]:
+        for q in [query_strict, query_loose, query_hp, query_plain]:
             try:
                 results = search_serper(serper_key, q, num=5)
                 for r in results:
@@ -141,7 +169,7 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
                 break
         logger.debug(f"Serper: no valid URL for {company_name}")
 
-    # Google Custom Search API（クライアント設定）にフォールバック
+    # ── Google Custom Search API（クライアント設定） ──────────────────
     if db and org_id:
         try:
             from server.services.google_search import search_google
@@ -152,61 +180,74 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
                 AppSetting.org_id == org_id, AppSetting.setting_key == "google_cx"
             ).first()
             if api_key_row and api_key_row.setting_value and cx_row and cx_row.setting_value:
-                results = search_google(api_key_row.setting_value, cx_row.setting_value, query_loose, db, num=5)
-                for r in results:
-                    url = r.get("url", "")
-                    if _is_valid_company_url(url):
-                        return url
+                for q in [query_loose, query_plain]:
+                    results = search_google(api_key_row.setting_value, cx_row.setting_value, q, db, num=5)
+                    for r in results:
+                        url = r.get("url", "")
+                        if _is_valid_company_url(url):
+                            return url
         except Exception as e:
             logger.warning(f"Google API search failed for {company_name}: {e}")
 
-    # DuckDuckGo検索（フォールバック）
+    # ── DuckDuckGo（フォールバック） ────────────────────────────────
     if not ddg_disabled:
         try:
             from ddgs import DDGS
             from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
-            def _ddg_fetch():
-                with DDGS(timeout=5) as ddgs:
-                    return list(ddgs.text(query_loose, max_results=5, region="jp-ja"))
+            # 複数クエリを順番に試す（公式サイト付き → なし → ホームページ）
+            for _ddg_query in [query_loose, query_plain, query_hp]:
+                def _ddg_fetch(_q=_ddg_query):
+                    with DDGS(timeout=5) as ddgs:
+                        return list(ddgs.text(_q, max_results=5, region="jp-ja"))
 
-            # shutdown(wait=False)を使いスレッドのハングでブロックしない
-            _ex = ThreadPoolExecutor(max_workers=1)
-            _future = _ex.submit(_ddg_fetch)
-            try:
-                ddg_results = _future.result(timeout=6)
-            except FuturesTimeout:
-                _future.cancel()
-                logger.warning(f"DuckDuckGo timeout for {company_name}")
-                ddg_results = []
-                if ddg_fail_counter is not None:
-                    ddg_fail_counter[0] += 1
-            finally:
-                _ex.shutdown(wait=False)  # ハング中スレッドを待たずに解放
-
-            for r in ddg_results:
-                url = r.get("href", "")
-                if _is_valid_company_url(url):
+                _ex = ThreadPoolExecutor(max_workers=1)
+                _future = _ex.submit(_ddg_fetch)
+                try:
+                    ddg_results = _future.result(timeout=7)
+                except FuturesTimeout:
+                    _future.cancel()
+                    logger.warning(f"DuckDuckGo timeout for {company_name}")
+                    ddg_results = []
                     if ddg_fail_counter is not None:
-                        ddg_fail_counter[0] = 0
-                    return url
-            if ddg_fail_counter is not None and not ddg_results:
-                ddg_fail_counter[0] += 1
+                        ddg_fail_counter[0] += 1
+                    break  # タイムアウト時は次クエリを試さず抜ける
+                finally:
+                    _ex.shutdown(wait=False)
+
+                if not ddg_results:
+                    # 結果なしは次クエリへ（失敗カウントは増やさない）
+                    continue
+
+                for r in ddg_results:
+                    url = r.get("href", "")
+                    if _is_valid_company_url(url):
+                        if ddg_fail_counter is not None:
+                            ddg_fail_counter[0] = 0
+                        return url
         except Exception as e:
             logger.warning(f"DuckDuckGo search failed for {company_name}: {e}")
             if ddg_fail_counter is not None:
                 ddg_fail_counter[0] += 1
 
-    # 最終フォールバック: 直接スクレイピング
+    # ── Google スクレイピング（フォールバック） ─────────────────────
     try:
         from server.services.google_scrape import scrape_google_search
-        results = scrape_google_search(query_loose, num=3)
-        for r in results:
-            url = r.get("url", "")
-            if _is_valid_company_url(url):
-                return url
+        for q in [query_loose, query_plain]:
+            results = scrape_google_search(q, num=5)
+            for r in results:
+                url = r.get("url", "")
+                if _is_valid_company_url(url):
+                    return url
     except Exception as e:
         logger.warning(f"Website scrape search failed for {company_name}: {e}")
+
+    # ── ドメイン直接推測（最終手段） ────────────────────────────────
+    guessed = _guess_domain_url(name_bare)
+    if guessed:
+        logger.info(f"Domain guess hit: {company_name} → {guessed}")
+        return guessed
+
     return None
 
 
