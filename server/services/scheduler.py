@@ -844,9 +844,16 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
     finally:
         db_init.close()
 
+    # 開始時点で「本日実行済み」をセット（途中でサーバー再起動されても再実行しない）
+    _fresh_set("auto_master_enrich_last_run_date", datetime.now().strftime("%Y-%m-%d"))
+
     if not targets_raw:
         logger.info("AutoMasterEnrich: URLなし企業なし、処理スキップ")
         _fresh_set("auto_master_enrich_progress", "")
+        if job_id:
+            job_update(job_id, job_type="auto_master_enrich", status="done",
+                       type="done", saved_count=0, source_count=0,
+                       message="URLなし企業なし、スキップ")
         return
 
     total_targets = len(targets_raw)

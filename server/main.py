@@ -317,8 +317,34 @@ def run_db_migrations():
         db.close()
 
 
+def _cleanup_stale_jobs():
+    """サーバー起動時に「実行中」のまま残ったジョブレコードをエラーに更新する"""
+    try:
+        from server.database import SessionLocal
+        from server.models import JobLog
+        from datetime import datetime
+        db = SessionLocal()
+        try:
+            stale = db.query(JobLog).filter(JobLog.status == "running").all()
+            if stale:
+                now = datetime.utcnow()
+                for j in stale:
+                    j.status = "error"
+                    j.finished_at = now
+                    j.message = (j.message or "") + "（サーバー再起動により強制終了）"
+                db.commit()
+                import logging
+                logging.getLogger(__name__).info(f"Startup cleanup: {len(stale)}件の実行中ジョブをエラーに更新")
+        finally:
+            db.close()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Startup cleanup failed: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _cleanup_stale_jobs()
     threading.Thread(target=run_db_migrations, daemon=True).start()
     start_scheduler()
     start_imap_polling()
