@@ -869,8 +869,8 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
     processed = 0
     DDG_FAIL_LIMIT = 30
     ddg_fail_counter = [0]
-    PER_COMPANY_TIMEOUT = 20  # 1社あたりの壁時計タイムアウト（秒）
-    MAX_LIVE_THREADS = 4      # 同時実行スレッド上限（DB接続プール枯渇防止）
+    PER_COMPANY_TIMEOUT = 10  # 1社あたりの壁時計タイムアウト（秒）
+    MAX_LIVE_THREADS = 2      # 同時実行スレッド上限（DB接続プール枯渇防止）
 
     import threading as _threading
     import socket as _socket
@@ -878,7 +878,7 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
     # ソケットレベルのグローバルタイムアウトを設定（DNS解決ハング防止）
     # requests の timeout= はDNS解決をカバーしないため、socket レベルで制限する
     _old_socket_timeout = _socket.getdefaulttimeout()
-    _socket.setdefaulttimeout(12)
+    _socket.setdefaulttimeout(8)  # スレッドタイムアウト(10s)より短く設定
 
     _live_threads: list = []  # 実行中スレッドの追跡
 
@@ -1022,6 +1022,16 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
             pass
         # 正常完了・例外・クラッシュどの場合でも必ずprogress をクリア
         _fresh_set("auto_master_enrich_progress", "")
+        # タイムアウトしたゾンビスレッドが保持しているDB接続を解放するためプールをリセット
+        # （累積すると数日後にメモリ/接続プール枯渇でサーバーがクラッシュする）
+        try:
+            import gc
+            from server.database import engine as _engine
+            _engine.dispose()
+            gc.collect()
+            logger.info("AutoMasterEnrich: DBコネクションプールをリセット＆GC実行")
+        except Exception as _dp_err:
+            logger.warning(f"AutoMasterEnrich: プールリセット失敗: {_dp_err}")
 
 
 def _write_sys_setting(key: str, value: str):
