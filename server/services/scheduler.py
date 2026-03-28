@@ -1114,8 +1114,8 @@ def _scheduler_loop():
                     pass
 
             _master_on_schedule = master_enabled and now.hour == master_hour and now.minute == 0
-            _master_catchup = master_enabled and now.hour > master_hour and last_master_date != today
-            if (_master_on_schedule or _master_catchup) and master_last_run_date != today_str and last_master_date != today:
+            # キャッチアップ廃止: 再起動後の即時実行がリソース枯渇の原因となるため削除
+            if _master_on_schedule and master_last_run_date != today_str and last_master_date != today:
                 last_master_date = today
                 _write_sys_setting("auto_master_last_run_date", today_str)
                 logger.info(f"AutoMaster: Triggered at {now.strftime('%H:%M')} (scheduled={master_hour}:00)")
@@ -1137,16 +1137,16 @@ def _scheduler_loop():
                 threading.Thread(target=_run_auto_close_tickets, daemon=True).start()
 
             _enrich_all_on_schedule = (now.hour == 4 and now.minute == 0)
-            _enrich_all_catchup = (now.hour > 4 and last_enrich_date != today)
-            if (_enrich_all_on_schedule or _enrich_all_catchup) and enrich_all_last_run_date != today_str and last_enrich_date != today:
+            # キャッチアップ廃止: 再起動直後の即時実行でサーバーがクラッシュするため定刻のみ実行
+            if _enrich_all_on_schedule and enrich_all_last_run_date != today_str and last_enrich_date != today:
                 last_enrich_date = today
                 _write_sys_setting("auto_enrich_all_last_run_date", today_str)
                 logger.info(f"AutoEnrich: Triggered at {now.strftime('%H:%M')}")
                 threading.Thread(target=_run_auto_enrich_all, daemon=True).start()
 
             _enrich_on_schedule = (now.hour == enrich_hour and now.minute < 2)
-            _enrich_catchup = (now.hour > enrich_hour and last_master_enrich_date != today)
-            if (_enrich_on_schedule or _enrich_catchup) and enrich_last_run_date != today_str and last_master_enrich_date != today:
+            # キャッチアップ廃止: 再起動後の即時実行がサーバークラッシュの根本原因のため削除
+            if _enrich_on_schedule and enrich_last_run_date != today_str and last_master_enrich_date != today:
                 last_master_enrich_date = today
                 logger.info(f"AutoMasterEnrich: Triggered at {now.strftime('%H:%M')} (scheduled={enrich_hour}:00)")
                 _sched_enrich_job_id = str(uuid.uuid4())
