@@ -817,7 +817,7 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
     except Exception as _e:
         logger.warning(f"AutoMasterEnrich: gBizINFOトークン取得失敗: {_e}")
 
-    max_enrich = max(1, min(500, int(_fresh_get("auto_master_enrich_max", "100"))))
+    max_enrich = max(1, min(200, int(_fresh_get("auto_master_enrich_max", "30"))))
 
     db_init = SessionLocal()
     try:
@@ -871,6 +871,7 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
     ddg_fail_counter = [0]
     PER_COMPANY_TIMEOUT = 10  # 1社あたりの壁時計タイムアウト（秒）
     MAX_LIVE_THREADS = 2      # 同時実行スレッド上限（DB接続プール枯渇防止）
+    BATCH_MAX_SECONDS = 900   # バッチ全体の最大実行時間（15分）—サーバーハング防止
 
     import threading as _threading
     import socket as _socket
@@ -881,6 +882,7 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
     _socket.setdefaulttimeout(8)  # スレッドタイムアウト(10s)より短く設定
 
     _live_threads: list = []  # 実行中スレッドの追跡
+    _batch_start = _time.time()  # バッチ開始時刻（全体タイムアウト用）
 
     try:
         for company_id, company_name, prefecture, city, corporate_number in targets_raw:
@@ -889,6 +891,12 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
             if ddg_disabled and ddg_fail_counter[0] == DDG_FAIL_LIMIT:
                 logger.warning(f"AutoMasterEnrich: DuckDuckGo連続失敗{DDG_FAIL_LIMIT}回 → 以降スキップ")
                 ddg_fail_counter[0] += 1
+
+            # 全体タイムアウトチェック（15分超過でバッチ強制終了）
+            _elapsed = _time.time() - _batch_start
+            if _elapsed > BATCH_MAX_SECONDS:
+                logger.warning(f"AutoMasterEnrich: 全体タイムアウト{BATCH_MAX_SECONDS}秒超過 ({processed-1}/{total_targets}) → バッチ強制終了")
+                break
 
             # 中止フラグチェック
             if _fresh_get("auto_master_enrich_abort", "0") == "1":
