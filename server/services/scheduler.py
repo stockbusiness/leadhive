@@ -819,6 +819,7 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
 
     max_enrich = max(1, min(200, int(_fresh_get("auto_master_enrich_max", "30"))))
 
+    from sqlalchemy import func as _sqla_func
     db_init = SessionLocal()
     try:
         targets_raw = (
@@ -834,7 +835,7 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
                 CompanyMaster.company_name != None,
                 CompanyMaster.company_name != "",
             )
-            .order_by(CompanyMaster.id.asc())
+            .order_by(_sqla_func.random())
             .limit(max_enrich)
             .all()
         )
@@ -845,7 +846,7 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
         db_init.close()
 
     # 開始時点で「本日実行済み」をセット（途中でサーバー再起動されても再実行しない）
-    _fresh_set("auto_master_enrich_last_run_date", datetime.now().strftime("%Y-%m-%d"))
+    _fresh_set("auto_master_enrich_last_run_date", str(int(_time.time())))
 
     if not targets_raw:
         logger.info("AutoMasterEnrich: URLなし企業なし、処理スキップ")
@@ -1010,7 +1011,7 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
         prev_total = int(_fresh_get("auto_master_enrich_total", "0"))
         _fresh_set("auto_master_enrich_total", str(prev_total + enriched))
         _fresh_set("auto_master_enrich_last_run", datetime.now().strftime("%Y-%m-%d %H:%M"))
-        _fresh_set("auto_master_enrich_last_run_date", datetime.now().strftime("%Y-%m-%d"))
+        _fresh_set("auto_master_enrich_last_run_date", str(int(_time.time())))
         logger.info(f"AutoMasterEnrich: 完了 — URL発見{enriched}社 / スキップ{skipped}社 / 合計{total_targets}社")
         if job_id:
             job_update(job_id, type="done", status="done",
@@ -1070,7 +1071,7 @@ def _scheduler_loop():
     last_suspend_date = None
     last_master_date = None
     last_enrich_date = None
-    last_master_enrich_date = None
+    last_master_enrich_ts = 0.0   # ローカルガード（Unixタイムスタンプ、4時間間隔）
     last_auto_gen_dates: dict = {}
     last_auto_close_date = None
     last_usage_alert_date = None
@@ -1096,7 +1097,7 @@ def _scheduler_loop():
                 master_hour = int(master_hour_row.value) if master_hour_row and master_hour_row.value else 3
                 master_last_run_date = master_last_date_row.value if master_last_date_row and master_last_date_row.value else ""
                 enrich_hour = int(enrich_hour_row.value) if enrich_hour_row and enrich_hour_row.value else 5
-                enrich_last_run_date = enrich_last_date_row.value if enrich_last_date_row and enrich_last_date_row.value else ""
+                enrich_last_run_ts_str = enrich_last_date_row.value if enrich_last_date_row and enrich_last_date_row.value else "0"
                 enrich_all_last_run_date = enrich_all_date_row.value if enrich_all_date_row and enrich_all_date_row.value else ""
                 tz_name = (tz_row.value if tz_row and tz_row.value else None) or "Asia/Tokyo"
             finally:
@@ -1152,11 +1153,20 @@ def _scheduler_loop():
                 logger.info(f"AutoEnrich: Triggered at {now.strftime('%H:%M')}")
                 threading.Thread(target=_run_auto_enrich_all, daemon=True).start()
 
-            _enrich_on_schedule = (now.hour == enrich_hour and now.minute < 2)
-            # キャッチアップ廃止: 再起動後の即時実行がサーバークラッシュの根本原因のため削除
-            if _enrich_on_schedule and enrich_last_run_date != today_str and last_master_enrich_date != today:
-                last_master_enrich_date = today
-                logger.info(f"AutoMasterEnrich: Triggered at {now.strftime('%H:%M')} (scheduled={enrich_hour}:00)")
+            # AutoMasterEnrich: 4時間ごと・業務外時間（JST 1-9時）のみ実行
+            _enrich_interval_secs = 4 * 3600
+            _enrich_allowed_hours = list(range(1, 10))  # JST 1時〜9時（業務外）
+            _now_ts = time.time()
+            # 旧フォーマット（日付文字列）との後方互換: 数値でなければ0扱い
+            _enrich_db_ts = float(enrich_last_run_ts_str) if (enrich_last_run_ts_str or "0").replace(".", "", 1).isdigit() else 0.0
+            _enrich_due = (
+                _now_ts - last_master_enrich_ts >= _enrich_interval_secs and
+                _now_ts - _enrich_db_ts >= _enrich_interval_secs and
+                now.hour in _enrich_allowed_hours
+            )
+            if _enrich_due:
+                last_master_enrich_ts = _now_ts
+                logger.info(f"AutoMasterEnrich: Triggered at {now.strftime('%H:%M')} (4時間間隔・業務外実行)")
                 _sched_enrich_job_id = str(uuid.uuid4())
                 try:
                     from server.services.collector import job_update as _ju
