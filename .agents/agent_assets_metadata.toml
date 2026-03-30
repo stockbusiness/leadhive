@@ -6,3 +6,9 @@ id = "PVaG2kwsZl0UjW9UcVBXl"
 uri = "file://LeadHive_営業資料.md"
 type = "text"
 title = "LeadHive 営業資料（2026年3月版）"
+
+[[outputs]]
+id = "ax2ReKJy8zTyPZ1yXzuBA"
+uri = "file://docs/収集データ仕様.md"
+type = "text"
+title = "LeadHive 収集データ仕様"
