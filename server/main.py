@@ -25,6 +25,7 @@ from server.routes import status_page
 from server.routes import webhooks
 from server.routes import tracking
 from server.routes import lp_inquiries, admin_imap, inbound_webhooks
+from server.routes import lumiqbrain
 from server.services.scheduler import start_scheduler, stop_scheduler
 from server.services.imap_poller import start_imap_polling, stop_imap_polling
 from server.services.rate_limiter import limiter, _rate_limit_exceeded_handler, RateLimitExceeded
@@ -178,6 +179,13 @@ def run_db_migrations():
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_tiktok_url TEXT",
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_line_url TEXT",
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS sns_count INTEGER DEFAULT 0",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS digital_maturity_score INTEGER DEFAULT 0",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS score_updated_at TIMESTAMP",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS digital_maturity_score INTEGER DEFAULT 0",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS score_updated_at TIMESTAMP",
+            "ALTER TABLE status_history ADD COLUMN IF NOT EXISTS user_id INTEGER",
+            "ALTER TABLE status_history ADD COLUMN IF NOT EXISTS user_name VARCHAR(255)",
+            "ALTER TABLE status_history ADD COLUMN IF NOT EXISTS note TEXT",
         ]:
             conn.execute(sa.text(stmt))
 
@@ -430,6 +438,7 @@ app.include_router(tracking.router)
 app.include_router(lp_inquiries.router)
 app.include_router(admin_imap.router)
 app.include_router(inbound_webhooks.router)
+app.include_router(lumiqbrain.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 

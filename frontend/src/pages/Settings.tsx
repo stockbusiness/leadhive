@@ -211,6 +211,12 @@ export default function Settings() {
   const [crSaving, setCrSaving] = useState(false);
   const [crTesting, setCrTesting] = useState(false);
   const [crMessage, setCrMessage] = useState<MessageState | null>(null);
+  const [lbApiKeySet, setLbApiKeySet] = useState(false);
+  const [lbApiKeyMasked, setLbApiKeyMasked] = useState("");
+  const [lbNewKey, setLbNewKey] = useState("");
+  const [lbGenerating, setLbGenerating] = useState(false);
+  const [lbRevoking, setLbRevoking] = useState(false);
+  const [lbMessage, setLbMessage] = useState<MessageState | null>(null);
 
   const [autoCollectEnabled, setAutoCollectEnabled] = useState(false);
   const [autoCollectTime, setAutoCollectTime] = useState("09:00");
@@ -257,6 +263,12 @@ export default function Settings() {
           if (d.commitrev_tenant_id?.is_set) setCrTenantId(d.commitrev_tenant_id.value);
           if (d.commitrev_product_code?.is_set) setCrProductCode(d.commitrev_product_code.value);
           if (d.commitrev_base_url?.value) setCrBaseUrl(d.commitrev_base_url.value);
+        }).catch(() => {});
+        fetch("/api/lumiqbrain/admin/settings").then(r => r.json()).then((d: any) => {
+          if (d.lumiqbrain_api_key) {
+            setLbApiKeySet(d.lumiqbrain_api_key.is_set);
+            setLbApiKeyMasked(d.lumiqbrain_api_key.masked || "");
+          }
         }).catch(() => {});
       }
     }).catch(() => {});
@@ -394,6 +406,50 @@ export default function Settings() {
       setCrMessage({ type: "error", text: "接続テストに失敗しました" });
     }
     setCrTesting(false);
+  };
+
+  const handleLbGenerateKey = async () => {
+    if (!confirm("既存のAPIキーは無効になります。新しいキーを生成しますか？")) return;
+    setLbGenerating(true);
+    setLbMessage(null);
+    setLbNewKey("");
+    try {
+      const res = await fetch("/api/lumiqbrain/admin/generate-key", { method: "POST" });
+      const d = await res.json();
+      if (res.ok) {
+        setLbNewKey(d.api_key || "");
+        setLbApiKeySet(true);
+        const masked = d.api_key ? "*".repeat(24) + d.api_key.slice(-8) : "";
+        setLbApiKeyMasked(masked);
+        setLbMessage({ type: "success", text: d.message || "APIキーを生成しました" });
+      } else {
+        setLbMessage({ type: "error", text: d.detail || "生成に失敗しました" });
+      }
+    } catch {
+      setLbMessage({ type: "error", text: "生成に失敗しました" });
+    }
+    setLbGenerating(false);
+  };
+
+  const handleLbRevokeKey = async () => {
+    if (!confirm("APIキーを無効化します。lumiqbrainからのアクセスができなくなります。続行しますか？")) return;
+    setLbRevoking(true);
+    setLbMessage(null);
+    try {
+      const res = await fetch("/api/lumiqbrain/admin/revoke-key", { method: "DELETE" });
+      const d = await res.json();
+      if (res.ok) {
+        setLbApiKeySet(false);
+        setLbApiKeyMasked("");
+        setLbNewKey("");
+        setLbMessage({ type: "success", text: d.message || "APIキーを無効化しました" });
+      } else {
+        setLbMessage({ type: "error", text: d.detail || "無効化に失敗しました" });
+      }
+    } catch {
+      setLbMessage({ type: "error", text: "無効化に失敗しました" });
+    }
+    setLbRevoking(false);
   };
 
   const inputClass = "w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -859,6 +915,63 @@ export default function Settings() {
             </button>
           </div>
           {crMessage && <MessageBox msg={crMessage} />}
+        </div>
+      )}
+
+      {isSystemAdmin && (
+        <div className="bg-white rounded-lg shadow-sm border border-violet-200 p-6 space-y-5">
+          <SectionHeader
+            icon={<DatabaseZap size={20} className="text-violet-600" />}
+            title="lumiqbrain 外部API連携"
+            badge={<span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">システム管理者専用</span>}
+          />
+          <p className="text-sm text-slate-500">
+            lumiqbrain プラットフォームが LeadHive のデータにアクセスするための APIキーを管理します。
+            APIキーは <code className="bg-slate-100 px-1 rounded text-xs">X-API-Key</code> ヘッダーで送信します。
+          </p>
+
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+            <ShieldCheck size={18} className={lbApiKeySet ? "text-emerald-600" : "text-slate-400"} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-700">
+                {lbApiKeySet ? "APIキー設定済み" : "APIキー未設定"}
+                {lbApiKeySet && lbApiKeyMasked && (
+                  <span className="ml-2 font-mono text-xs text-slate-500">{lbApiKeyMasked}</span>
+                )}
+              </p>
+              <p className="text-xs text-slate-400">エンドポイント: /api/lumiqbrain/company · /companies · /stats</p>
+            </div>
+          </div>
+
+          {lbNewKey && (
+            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+              <p className="text-xs font-medium text-emerald-700 mb-1">新しいAPIキー（この画面でのみ表示されます）</p>
+              <code className="block text-sm font-mono text-emerald-900 break-all select-all">{lbNewKey}</code>
+              <p className="text-xs text-emerald-600 mt-1">lumiqbrain の設定画面に貼り付けてください。</p>
+            </div>
+          )}
+
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={handleLbGenerateKey}
+              disabled={lbGenerating}
+              className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-violet-700 transition-colors disabled:opacity-50"
+            >
+              {lbGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+              {lbApiKeySet ? "APIキーを再生成" : "APIキーを生成"}
+            </button>
+            {lbApiKeySet && (
+              <button
+                onClick={handleLbRevokeKey}
+                disabled={lbRevoking}
+                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {lbRevoking ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                APIキーを無効化
+              </button>
+            )}
+          </div>
+          {lbMessage && <MessageBox msg={lbMessage} />}
         </div>
       )}
 

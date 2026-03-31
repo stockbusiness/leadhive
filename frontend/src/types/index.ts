@@ -25,6 +25,8 @@ export interface Company {
   score_total: number;
   score_adjustment: number;
   score_rank: string;
+  digital_maturity_score?: number;
+  score_updated_at?: string | null;
   status: string;
   notes: string;
   follow_up_date?: string | null;
@@ -52,6 +54,9 @@ export interface StatusHistoryEntry {
   id: number;
   old_status: string;
   new_status: string;
+  user_id?: number | null;
+  user_name?: string | null;
+  note?: string | null;
   changed_at: string;
 }
 

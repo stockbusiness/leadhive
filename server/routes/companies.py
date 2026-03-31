@@ -9,7 +9,8 @@ from typing import Optional, List
 from datetime import date, timedelta
 from server.database import get_db
 from server.models import Company, StatusHistory, MemoTemplate, ActivityLog, CompanyTag, User, Organization, Plan, EmailSendLog
-from server.services.scorer import calculate_score
+from server.services.scorer import calculate_score, calculate_digital_maturity
+from datetime import datetime as _dt
 from server.services.scraper import scrape_company_info
 from server.services.categorizer import categorize_company, detect_flags
 from server.schemas import company_to_dict
@@ -457,6 +458,9 @@ def update_company(
             company_id=company.id,
             old_status=old_status,
             new_status=new_status,
+            user_id=current_user.id,
+            user_name=getattr(current_user, "display_name", None) or getattr(current_user, "email", None),
+            note=data.get("status_note"),
         )
         db.add(history)
 
@@ -464,6 +468,8 @@ def update_company(
     score, rank = calculate_score(company_dict, db=db)
     company.score_total = score
     company.score_rank = rank
+    company.digital_maturity_score = calculate_digital_maturity(company_dict)
+    company.score_updated_at = _dt.utcnow()
 
     db.commit()
     db.refresh(company)
@@ -499,6 +505,7 @@ def bulk_update_status(
 
     companies = db.query(Company).filter(Company.id.in_(company_ids)).all()
     updated = 0
+    _user_name = getattr(current_user, "display_name", None) or getattr(current_user, "email", None)
     for company in companies:
         old_status = company.status
         if old_status != new_status:
@@ -507,6 +514,8 @@ def bulk_update_status(
                 company_id=company.id,
                 old_status=old_status,
                 new_status=new_status,
+                user_id=current_user.id,
+                user_name=_user_name,
             )
             db.add(history)
             updated += 1
@@ -542,6 +551,9 @@ def patch_status(
             company_id=company.id,
             old_status=old_status,
             new_status=new_status,
+            user_id=current_user.id,
+            user_name=getattr(current_user, "display_name", None) or getattr(current_user, "email", None),
+            note=data.get("note"),
         ))
         db.commit()
         cache_invalidate("dashboard")
@@ -576,6 +588,9 @@ def get_status_history(
                 "id": h.id,
                 "old_status": h.old_status,
                 "new_status": h.new_status,
+                "user_id": h.user_id,
+                "user_name": h.user_name,
+                "note": h.note,
                 "changed_at": h.changed_at.isoformat() if h.changed_at else None,
             }
             for h in history

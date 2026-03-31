@@ -108,6 +108,47 @@ def calculate_score(company_data: dict, custom_rules: dict = None, db=None) -> t
     return score, rank
 
 
+def calculate_digital_maturity(company_data: dict) -> int:
+    """
+    デジタル成熟度スコア（0-100）を計算する。
+    lumiqbarin 連携用: ECスコア・CMS・SNS・連絡先・採用情報を統合した指標。
+
+    内訳:
+      Webサイト存在        : +20 pts
+      CMS検出              : +15 pts
+      ECスコア換算         : 最大+25 pts（ec_score * 0.25）
+      SNS数換算            : 最大+20 pts（SNS1件=5pts、上限4件）
+      連絡先存在           : +10 pts（電話・メール・問合ページいずれか）
+      採用情報             : +10 pts
+    """
+    score = 0
+
+    if company_data.get("website_url"):
+        score += 20
+
+    if company_data.get("cms_type"):
+        score += 15
+
+    ec_score = company_data.get("ec_score", 0) or 0
+    score += int(ec_score * 0.25)
+
+    sns_count = company_data.get("sns_count", 0) or 0
+    score += min(sns_count, 4) * 5
+
+    has_contact = any([
+        company_data.get("phone"),
+        company_data.get("email"),
+        company_data.get("contact_url"),
+    ])
+    if has_contact:
+        score += 10
+
+    if company_data.get("has_recruitment"):
+        score += 10
+
+    return max(0, min(100, score))
+
+
 def get_rules_from_db(db) -> dict:
     """Load scoring rules from SystemSettings DB, falling back to defaults."""
     import json

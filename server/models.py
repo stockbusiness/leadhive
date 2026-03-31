@@ -149,6 +149,8 @@ class Company(Base):
     score_total = Column(Integer, default=0)
     score_adjustment = Column(Integer, default=0)
     score_rank = Column(String(1), default="D", index=True)
+    digital_maturity_score = Column(Integer, default=0)
+    score_updated_at = Column(DateTime, nullable=True)
     status = Column(String(50), default="未確認", index=True)
     contact_name = Column(String(255), nullable=True)
     contact_title = Column(String(100), nullable=True)
@@ -202,6 +204,8 @@ class CompanyMaster(Base):
     production_flag = Column(Boolean, default=False)
     score_total = Column(Integer, default=0)
     score_rank = Column(String(1), default="D", index=True)
+    digital_maturity_score = Column(Integer, default=0)
+    score_updated_at = Column(DateTime, nullable=True)
     cms_type = Column(String(50), nullable=True)
     cms_detected_at = Column(DateTime, nullable=True)
     sns_links = Column(JSON, nullable=True)
@@ -289,6 +293,9 @@ class StatusHistory(Base):
     company_id = Column(Integer, nullable=False)
     old_status = Column(String(50))
     new_status = Column(String(50))
+    user_id = Column(Integer, nullable=True)
+    user_name = Column(String(255), nullable=True)
+    note = Column(Text, nullable=True)
     changed_at = Column(DateTime, server_default=func.now())
 
 

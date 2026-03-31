@@ -184,7 +184,22 @@ export default function CompanyDetail() {
             </div>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
-            <ScoreBadge score={company.score_total} rank={company.score_rank} />
+            <div className="flex flex-col items-end gap-1">
+              <ScoreBadge score={company.score_total} rank={company.score_rank} />
+              {typeof company.digital_maturity_score === "number" && (
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-medium"
+                  title="デジタル成熟度スコア（Webサイト・CMS・EC・SNS・連絡先を総合評価）"
+                >
+                  DM {company.digital_maturity_score}
+                </span>
+              )}
+              {company.score_updated_at && (
+                <span className="text-xs text-slate-400">
+                  スコア更新: {new Date(company.score_updated_at).toLocaleDateString("ja-JP")}
+                </span>
+              )}
+            </div>
             <button
               onClick={() => setEditOpen(true)}
               className="flex items-center gap-2 bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
@@ -568,18 +583,34 @@ export default function CompanyDetail() {
           )}
 
           {activeTab === "history" && (
-            <div className="space-y-3">
+            <div className="space-y-0">
               {history.length === 0 ? (
                 <p className="text-slate-400 text-sm">変更履歴はありません</p>
               ) : (
-                history.map(h => (
-                  <div key={h.id} className="flex items-center gap-3 text-sm">
-                    <span className="text-slate-400 text-xs w-36 flex-shrink-0">
-                      {new Date(h.changed_at).toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[h.old_status] || "bg-slate-100 text-slate-700"}`}>{h.old_status || "—"}</span>
-                    <ChevronRight size={14} className="text-slate-400" />
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[h.new_status] || "bg-slate-100 text-slate-700"}`}>{h.new_status}</span>
+                history.map((h, idx) => (
+                  <div key={h.id} className="relative flex gap-3 pb-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-400 mt-1 flex-shrink-0 z-10" />
+                      {idx < history.length - 1 && (
+                        <div className="w-px flex-1 bg-slate-200 mt-1" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 pb-1">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="text-slate-400 text-xs">
+                          {new Date(h.changed_at).toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[h.old_status] || "bg-slate-100 text-slate-700"}`}>{h.old_status || "—"}</span>
+                        <ChevronRight size={12} className="text-slate-400" />
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[h.new_status] || "bg-slate-100 text-slate-700"}`}>{h.new_status}</span>
+                        {h.user_name && (
+                          <span className="text-xs text-slate-500 ml-1">by {h.user_name}</span>
+                        )}
+                      </div>
+                      {h.note && (
+                        <p className="text-xs text-slate-500 mt-1 pl-0.5 italic">{h.note}</p>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
