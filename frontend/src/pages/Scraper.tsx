@@ -39,8 +39,12 @@ export default function Scraper() {
   const [gbizPrefecture, setGbizPrefecture] = useState("");
   const [gbizMaxResults, setGbizMaxResults] = useState(20);
 
-  type StagedUrl = { id: string; url: string; name: string; source: string; selected: boolean; location?: string };
+  type StagedUrl = {
+    id: string; url: string; name: string; source: string; selected: boolean; location?: string;
+    address?: string; phone?: string; rating?: number; user_ratings_total?: number; has_url?: boolean;
+  };
   const [stagedUrls, setStagedUrls] = useState<StagedUrl[]>([]);
+  const [activeCollectType, setActiveCollectType] = useState<string>("");
   const [stagingLoading, setStagingLoading] = useState(false);
   const [stagingError, setStagingError] = useState<string | null>(null);
   const [scrapeInProgress, setScrapeInProgress] = useState(false);
@@ -89,13 +93,20 @@ export default function Scraper() {
     setStagingError(null);
     setStagedUrls([]);
     setScrapeResults(null);
+    setActiveCollectType(type);
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
     try {
       const data = await api.collector.urlsPreview({ type, ...extraParams, project_id: currentProject?.id });
       if (data.error) {
         setStagingError(data.error);
       } else {
-        setStagedUrls(data.urls.map((u, i) => ({ ...u, id: `${i}-${u.url}`, selected: true })));
+        setStagedUrls(
+          data.urls.map((u: any, i: number) => ({
+            ...u,
+            id: `${i}-${u.url || u.name}`,
+            selected: u.has_url !== false,
+          }))
+        );
       }
     } catch (err: any) {
       setStagingError(err.response?.data?.detail || "URL収集エラーが発生しました");
@@ -104,7 +115,7 @@ export default function Scraper() {
   };
 
   const handleScrapeStaged = async () => {
-    const selected = stagedUrls.filter((u) => u.selected);
+    const selected = stagedUrls.filter((u) => u.selected && u.url);
     if (!selected.length) return;
     setScrapeInProgress(true);
     setScrapeResults(null);
@@ -162,7 +173,7 @@ export default function Scraper() {
     }
   };
 
-  const toggleAll = (checked: boolean) => setStagedUrls((prev) => prev.map((u) => ({ ...u, selected: checked })));
+  const toggleAll = (checked: boolean) => setStagedUrls((prev) => prev.map((u) => ({ ...u, selected: u.has_url === false ? false : checked })));
   const toggleOne = (id: string) => setStagedUrls((prev) => prev.map((u) => u.id === id ? { ...u, selected: !u.selected } : u));
 
   const tabs: { key: CollectTab; label: string; icon: typeof Zap }[] = [
@@ -186,7 +197,7 @@ export default function Scraper() {
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => { setActiveTab(tab.key); setCollectResults(null); setStagedUrls([]); setStagingError(null); setScrapeResults(null); }}
+              onClick={() => { setActiveTab(tab.key); setCollectResults(null); setStagedUrls([]); setStagingError(null); setScrapeResults(null); setActiveCollectType(""); }}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? "border-blue-600 text-blue-600"
@@ -286,18 +297,32 @@ export default function Scraper() {
       </div>
 
       {stagedUrls.length > 0 && (
-        <StagingTable
-          urls={stagedUrls}
-          onToggleAll={toggleAll}
-          onToggleOne={toggleOne}
-          onScrapeSelected={handleScrapeStaged}
-          onScrapeOne={handleScrapeOne}
-          scrapeInProgress={scrapeInProgress}
-          scrapeProgressMsg={scrapeProgressMsg}
-          scrapeProgressCurrent={scrapeProgressCurrent}
-          scrapeProgressTotal={scrapeProgressTotal}
-          scrapeResults={scrapeResults}
-        />
+        activeCollectType === "google-maps" ? (
+          <GmStagingCards
+            urls={stagedUrls}
+            onToggleAll={toggleAll}
+            onToggleOne={toggleOne}
+            onScrapeSelected={handleScrapeStaged}
+            scrapeInProgress={scrapeInProgress}
+            scrapeProgressMsg={scrapeProgressMsg}
+            scrapeProgressCurrent={scrapeProgressCurrent}
+            scrapeProgressTotal={scrapeProgressTotal}
+            scrapeResults={scrapeResults}
+          />
+        ) : (
+          <StagingTable
+            urls={stagedUrls}
+            onToggleAll={toggleAll}
+            onToggleOne={toggleOne}
+            onScrapeSelected={handleScrapeStaged}
+            onScrapeOne={handleScrapeOne}
+            scrapeInProgress={scrapeInProgress}
+            scrapeProgressMsg={scrapeProgressMsg}
+            scrapeProgressCurrent={scrapeProgressCurrent}
+            scrapeProgressTotal={scrapeProgressTotal}
+            scrapeResults={scrapeResults}
+          />
+        )
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -488,8 +513,9 @@ function GoogleMapsSection({
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-500">
-        Google Places APIを使ってGoogleマップ上の企業情報を収集します。
-        住所・電話番号・レビュー評価なども取得できます。APIキーが必要です（設定画面で登録）。
+        Google Places APIを使ってGoogleマップ上の企業情報をプレビュー収集します。
+        住所・電話番号・評価が一覧表示されるので、保存したい企業を選択してスクレイピング保存できます。
+        APIキーが必要です（設定画面で登録）。
       </p>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
         <div className="md:col-span-2">
@@ -532,7 +558,7 @@ function GoogleMapsSection({
           className="flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-          URLを収集
+          マップで検索
         </button>
       </div>
     </div>
@@ -973,7 +999,203 @@ function CollectSummaryCard({ summary }: { summary: any }) {
   );
 }
 
-type StagedUrlItem = { id: string; url: string; name: string; source: string; selected: boolean; location?: string };
+type StagedUrlItem = {
+  id: string; url: string; name: string; source: string; selected: boolean; location?: string;
+  address?: string; phone?: string; rating?: number; user_ratings_total?: number; has_url?: boolean;
+};
+
+function GmStagingCards({
+  urls, onToggleAll, onToggleOne, onScrapeSelected,
+  scrapeInProgress, scrapeProgressMsg, scrapeProgressCurrent, scrapeProgressTotal, scrapeResults,
+}: {
+  urls: StagedUrlItem[];
+  onToggleAll: (checked: boolean) => void;
+  onToggleOne: (id: string) => void;
+  onScrapeSelected: () => void;
+  scrapeInProgress: boolean;
+  scrapeProgressMsg: string;
+  scrapeProgressCurrent: number;
+  scrapeProgressTotal: number;
+  scrapeResults: any;
+}) {
+  const [showResults, setShowResults] = useState(true);
+  const eligibleUrls = urls.filter((u) => u.has_url !== false);
+  const allChecked = eligibleUrls.length > 0 && eligibleUrls.every((u) => u.selected);
+  const someChecked = urls.some((u) => u.selected);
+  const selectedCount = urls.filter((u) => u.selected).length;
+  const pct = scrapeProgressTotal > 0 ? Math.round((scrapeProgressCurrent / scrapeProgressTotal) * 100) : 0;
+
+  const resultMap: Record<string, { status: string; message: string }> = {};
+  if (scrapeResults?.results) {
+    for (const r of scrapeResults.results) resultMap[r.url] = r;
+  }
+
+  const renderStars = (rating?: number) => {
+    if (!rating) return null;
+    const full = Math.floor(rating);
+    const half = rating - full >= 0.5;
+    return (
+      <span className="flex items-center gap-0.5 text-amber-500 text-xs">
+        {Array.from({ length: 5 }, (_, i) => (
+          <span key={i} className={i < full ? "text-amber-400" : i === full && half ? "text-amber-300" : "text-slate-200"}>★</span>
+        ))}
+        <span className="ml-1 text-slate-600 font-medium">{rating.toFixed(1)}</span>
+      </span>
+    );
+  };
+
+  const renderResult = (url: string) => {
+    const res = resultMap[url];
+    if (!res) return null;
+    if (res.status === "success") return <span className="flex items-center gap-1 text-emerald-600 text-xs font-medium"><CheckCircle size={12} />保存済</span>;
+    if (res.status === "duplicate") return <span className="flex items-center gap-1 text-amber-500 text-xs font-medium" title={res.message}><AlertTriangle size={12} />重複</span>;
+    if (res.status === "rejected") return <span className="flex items-center gap-1 text-slate-500 text-xs font-medium" title={res.message}><ShieldBan size={12} />除外</span>;
+    return <span className="flex items-center gap-1 text-red-500 text-xs font-medium" title={res.message}><XCircle size={12} />エラー</span>;
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={allChecked}
+              ref={(el) => { if (el) el.indeterminate = !allChecked && someChecked; }}
+              onChange={(e) => onToggleAll(e.target.checked)}
+              className="rounded"
+            />
+            <MapPin size={15} className="text-red-500" />
+            <span className="font-semibold text-slate-700 text-sm">Googleマップ検索結果（{urls.length}件）</span>
+          </label>
+          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+            {selectedCount}件選択
+          </span>
+        </div>
+        <button
+          onClick={onScrapeSelected}
+          disabled={scrapeInProgress || selectedCount === 0}
+          className="flex items-center gap-2 bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+        >
+          {scrapeInProgress ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+          選択企業を保存 ({selectedCount})
+        </button>
+      </div>
+
+      {scrapeInProgress && (
+        <div className="px-4 py-3 bg-red-50 border-b border-red-100 space-y-1">
+          <div className="flex justify-between text-xs text-red-700">
+            <span>{scrapeProgressMsg}</span>
+            {scrapeProgressTotal > 0 && <span>{scrapeProgressCurrent}/{scrapeProgressTotal}</span>}
+          </div>
+          <div className="w-full bg-red-200 rounded-full h-1.5 overflow-hidden">
+            <div className="h-1.5 bg-red-500 rounded-full transition-all duration-300" style={{ width: scrapeProgressTotal > 0 ? `${pct}%` : "50%" }} />
+          </div>
+        </div>
+      )}
+
+      <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {urls.map((u) => {
+          const hasUrl = u.has_url !== false && u.url;
+          const res = u.url ? resultMap[u.url] : undefined;
+          return (
+            <div
+              key={u.id}
+              onClick={() => hasUrl && onToggleOne(u.id)}
+              className={`relative border rounded-lg p-3 transition-all cursor-pointer select-none ${
+                !hasUrl
+                  ? "border-slate-100 bg-slate-50 opacity-60 cursor-default"
+                  : u.selected
+                  ? "border-red-300 bg-red-50/40 shadow-sm"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={u.selected}
+                  disabled={!hasUrl}
+                  onChange={() => hasUrl && onToggleOne(u.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="mt-0.5 rounded flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="font-semibold text-slate-800 text-sm leading-tight line-clamp-1">
+                      {u.name || "名称不明"}
+                    </span>
+                    {res && <span className="flex-shrink-0">{renderResult(u.url)}</span>}
+                  </div>
+
+                  {u.rating !== undefined && u.rating !== null && (
+                    <div className="mt-1 flex items-center gap-1">
+                      {renderStars(u.rating)}
+                      {u.user_ratings_total && (
+                        <span className="text-xs text-slate-400">({u.user_ratings_total.toLocaleString()}件)</span>
+                      )}
+                    </div>
+                  )}
+
+                  {u.address && (
+                    <p className="mt-1 text-xs text-slate-500 flex items-start gap-1 leading-tight">
+                      <MapPin size={11} className="mt-0.5 flex-shrink-0 text-slate-400" />
+                      <span className="line-clamp-2">{u.address}</span>
+                    </p>
+                  )}
+
+                  {u.phone && (
+                    <p className="mt-1 text-xs text-slate-600 font-medium">
+                      📞 {u.phone}
+                    </p>
+                  )}
+
+                  <div className="mt-2">
+                    {hasUrl ? (
+                      <a
+                        href={u.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-blue-600 hover:underline flex items-center gap-0.5 truncate"
+                      >
+                        <ExternalLink size={10} className="flex-shrink-0" />
+                        <span className="truncate">{u.url.replace(/^https?:\/\//, "")}</span>
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">URLなし（保存対象外）</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {scrapeResults && !scrapeInProgress && (
+        <div className="border-t border-slate-200">
+          <button
+            onClick={() => setShowResults((v) => !v)}
+            className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            {showResults ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            保存結果
+            {scrapeResults.summary && (
+              <span className="ml-2 flex gap-3 text-xs font-normal">
+                {scrapeResults.summary.success > 0 && <span className="text-emerald-600">✓ {scrapeResults.summary.success}件保存</span>}
+                {scrapeResults.summary.duplicate > 0 && <span className="text-amber-500">△ {scrapeResults.summary.duplicate}件重複</span>}
+                {scrapeResults.summary.error > 0 && <span className="text-red-500">✕ {scrapeResults.summary.error}件エラー</span>}
+              </span>
+            )}
+          </button>
+          {showResults && scrapeResults.error && (
+            <div className="px-4 pb-3 text-sm text-red-600">{scrapeResults.error}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function StagingTable({
   urls, onToggleAll, onToggleOne, onScrapeSelected, onScrapeOne,

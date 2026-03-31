@@ -414,8 +414,20 @@ def collect_urls_preview(
         places = search_google_maps(keyword=keyword, region=region, api_key=_dv(api_key_row.setting_value), max_results=max_results)
         if not places:
             return {"error": "結果が見つかりませんでした。"}
-        urls = [{"url": p["url"], "name": p.get("title", ""), "source": f"Googleマップ: {keyword}"} for p in places if p.get("url")]
-        return {"urls": urls, "count": len(urls)}
+        urls = []
+        for p in places:
+            pd = p.get("places_data", {}) or {}
+            urls.append({
+                "url": p.get("url", "") or "",
+                "name": p.get("title", ""),
+                "source": f"Googleマップ: {keyword}",
+                "address": pd.get("address", ""),
+                "phone": pd.get("phone", ""),
+                "rating": pd.get("rating"),
+                "user_ratings_total": pd.get("user_ratings_total"),
+                "has_url": bool(p.get("url")),
+            })
+        return {"urls": urls, "count": len(urls), "source_type": "google-maps"}
 
     elif type_ == "houjin-db":
         keyword = data.get("keyword", "")
