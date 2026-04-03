@@ -53,7 +53,7 @@ def get_search_engine_status(
 @router.get("/progress/{job_id}")
 async def collect_progress(job_id: str):
     async def event_stream():
-        max_wait = 300
+        max_wait = 900
         waited = 0
         interval = 0.5
         sent_done = False
@@ -553,9 +553,31 @@ def scrape_staged_urls(
         new_db = SessionLocal()
         try:
             total = len(urls)
-            for i, item in enumerate(urls):
-                job_update(job_id, current=i + 1, total=total, message=f"({i + 1}/{total}) 「{item.get('name') or item.get('url', '')}」を処理中...")
-            result = process_urls_to_companies(urls, new_db, source="ステージング収集", project_id=project_id)
+            BATCH = 5
+            all_results = []
+
+            for batch_start in range(0, total, BATCH):
+                batch = urls[batch_start:batch_start + BATCH]
+                names = [item.get("name") or item.get("url", "")[:40] for item in batch]
+                label = names[0] if len(names) == 1 else f"{names[0]} 他{len(names)-1}件"
+                job_update(
+                    job_id,
+                    current=batch_start,
+                    total=total,
+                    message=f"({batch_start + 1}〜{min(batch_start + BATCH, total)}/{total}) 「{label}」をスクレイピング中...",
+                )
+                batch_result = process_urls_to_companies(batch, new_db, source="ステージング収集", project_id=project_id)
+                all_results.extend(batch_result.get("results", []))
+
+            summary = {
+                "source": "ステージング収集",
+                "total": len(all_results),
+                "success": sum(1 for r in all_results if r["status"] == "success"),
+                "duplicate": sum(1 for r in all_results if r["status"] == "duplicate"),
+                "rejected": sum(1 for r in all_results if r["status"] == "rejected"),
+                "error": sum(1 for r in all_results if r["status"] == "error"),
+            }
+            result = {"results": all_results, "summary": summary}
             cache_invalidate("dashboard")
             job_update(job_id, type="done", result=result, message="スクレイピング完了")
         except Exception as e:
