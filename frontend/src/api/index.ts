@@ -248,6 +248,9 @@ export const api = {
     smtpTest: (testTo?: string) =>
       axios.post("/api/settings/smtp-test", { test_to: testTo }).then(r => r.data),
 
+    sendgridTest: (testTo?: string) =>
+      axios.post("/api/settings/sendgrid-test", { test_to: testTo }).then(r => r.data),
+
     getScheduler: () =>
       axios.get("/api/settings/scheduler").then(r => r.data),
   },
@@ -533,6 +536,9 @@ export const api = {
     get: () => axios.get("/api/admin/smtp-settings").then(r => r.data),
     save: (data: Record<string, string>) => axios.put("/api/admin/smtp-settings", data).then(r => r.data),
     test: () => axios.post("/api/admin/smtp-settings/test").then(r => r.data),
+    getSendgrid: () => axios.get("/api/admin/sendgrid-settings").then(r => r.data),
+    saveSendgrid: (data: Record<string, string>) => axios.put("/api/admin/sendgrid-settings", data).then(r => r.data),
+    testSendgrid: () => axios.post("/api/admin/sendgrid-settings/test").then(r => r.data),
   },
 
   adminEmailTemplates: {

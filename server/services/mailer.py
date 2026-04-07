@@ -3,6 +3,9 @@ import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_smtp_settings(db, org_id: int) -> dict:
@@ -90,3 +93,78 @@ def send_email(
         return False, f"SMTPサーバーへの接続に失敗しました: {host}:{port}"
     except Exception as e:
         return False, f"送信エラー: {str(e)}"
+
+
+def get_sendgrid_settings(db, org_id: int) -> dict:
+    from server.models import AppSetting
+    from server.services.encryption import decrypt_value
+    keys = ["sendgrid_api_key", "sendgrid_from_email", "sendgrid_from_name"]
+    rows = db.query(AppSetting).filter(
+        AppSetting.setting_key.in_(keys),
+        AppSetting.org_id == org_id,
+    ).all()
+    result = {r.setting_key: decrypt_value(r.setting_value or "") for r in rows}
+    return {
+        "api_key": result.get("sendgrid_api_key", ""),
+        "from_email": result.get("sendgrid_from_email", ""),
+        "from_name": result.get("sendgrid_from_name", "LeadHive"),
+    }
+
+
+def get_system_sendgrid_settings(db) -> dict:
+    from server.models import SystemSettings
+    from server.services.encryption import decrypt_value
+    keys = ["sendgrid_api_key", "sendgrid_from_email", "sendgrid_from_name"]
+    rows = db.query(SystemSettings).filter(SystemSettings.key.in_(keys)).all()
+    raw = {r.key: decrypt_value(r.value or "") for r in rows}
+    return {
+        "api_key": raw.get("sendgrid_api_key", ""),
+        "from_email": raw.get("sendgrid_from_email", ""),
+        "from_name": raw.get("sendgrid_from_name", "LeadHive"),
+    }
+
+
+def send_via_sendgrid(
+    to: str,
+    subject: str,
+    html_body: str,
+    api_key: str,
+    from_email: str,
+    from_name: str = "LeadHive",
+    text_body: Optional[str] = None,
+) -> tuple[bool, str]:
+    if not api_key:
+        return False, "SendGrid APIキーが設定されていません"
+    if not from_email:
+        return False, "送信元メールアドレスが設定されていません"
+
+    import httpx
+
+    payload = {
+        "personalizations": [{"to": [{"email": to}]}],
+        "from": {"email": from_email, "name": from_name},
+        "subject": subject,
+        "content": [],
+    }
+    if text_body:
+        payload["content"].append({"type": "text/plain", "value": text_body})
+    payload["content"].append({"type": "text/html", "value": html_body})
+
+    try:
+        resp = httpx.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=15,
+        )
+        if resp.status_code in (200, 202):
+            return True, "SendGrid で送信しました"
+        body = resp.text[:300]
+        return False, f"SendGrid エラー ({resp.status_code}): {body}"
+    except httpx.TimeoutException:
+        return False, "SendGrid への接続がタイムアウトしました"
+    except Exception as e:
+        return False, f"SendGrid 送信エラー: {str(e)}"

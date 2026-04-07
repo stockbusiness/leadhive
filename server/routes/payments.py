@@ -1199,6 +1199,73 @@ def test_smtp(
 
 
 # ──────────────────────────────────────────────────────────────
+#  Admin: SendGrid Settings
+# ──────────────────────────────────────────────────────────────
+SENDGRID_ADMIN_KEYS = ["sendgrid_api_key", "sendgrid_from_email", "sendgrid_from_name"]
+
+
+@router.get("/api/admin/sendgrid-settings")
+def get_admin_sendgrid_settings(
+    current_user: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    data: dict = {}
+    for key in SENDGRID_ADMIN_KEYS:
+        val = get_setting(db, key)
+        if key == "sendgrid_api_key" and val:
+            data[key] = ""
+            data["sendgrid_api_key_set"] = True
+        else:
+            data[key] = val or ""
+    return data
+
+
+class SendgridSettingsBody(BaseModel):
+    sendgrid_api_key: Optional[str] = None
+    sendgrid_from_email: Optional[str] = None
+    sendgrid_from_name: Optional[str] = None
+
+
+@router.put("/api/admin/sendgrid-settings")
+def save_admin_sendgrid_settings(
+    body: SendgridSettingsBody,
+    current_user: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    for key in SENDGRID_ADMIN_KEYS:
+        val = getattr(body, key)
+        if key == "sendgrid_api_key" and val == "":
+            continue
+        if val is not None:
+            set_setting(db, key, val)
+    db.commit()
+    return {"message": "SendGrid設定を保存しました"}
+
+
+@router.post("/api/admin/sendgrid-settings/test")
+def test_admin_sendgrid(
+    current_user: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    from server.services.mailer import get_system_sendgrid_settings, send_via_sendgrid
+    cfg = get_system_sendgrid_settings(db)
+    if not cfg["api_key"]:
+        raise HTTPException(status_code=400, detail="SendGrid APIキーが設定されていません")
+    ok, msg = send_via_sendgrid(
+        to=current_user.email,
+        subject="LeadHive SendGrid テストメール（システム管理者）",
+        html_body="<p>LeadHive管理者からのSendGridテストメールです。設定が正常に動作しています。</p>",
+        api_key=cfg["api_key"],
+        from_email=cfg["from_email"],
+        from_name=cfg["from_name"],
+        text_body="LeadHive管理者からのSendGridテストメールです。",
+    )
+    if not ok:
+        raise HTTPException(status_code=500, detail=msg)
+    return {"success": True, "message": msg}
+
+
+# ──────────────────────────────────────────────────────────────
 #  Admin: Email Templates
 # ──────────────────────────────────────────────────────────────
 from server.routes.auth import (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, DatabaseZap, ShieldCheck, Trash2, Download, LogOut, ExternalLink, AlertTriangle, QrCode } from "lucide-react";
+import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, DatabaseZap, ShieldCheck, Trash2, Download, LogOut, ExternalLink, AlertTriangle, QrCode, Zap } from "lucide-react";
 import axios from "axios";
 import HelpTooltip from "../components/HelpTooltip";
 import { api } from "../api";
@@ -229,6 +229,14 @@ export default function Settings() {
   const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [openaiApiKeySet, setOpenaiApiKeySet] = useState(false);
 
+  const [sgApiKey, setSgApiKey] = useState("");
+  const [sgApiKeySet, setSgApiKeySet] = useState(false);
+  const [sgFromEmail, setSgFromEmail] = useState("");
+  const [sgFromName, setSgFromName] = useState("LeadHive");
+  const [sgTesting, setSgTesting] = useState(false);
+  const [sgTestEmail, setSgTestEmail] = useState("");
+  const [sgMessage, setSgMessage] = useState<MessageState | null>(null);
+
   useEffect(() => {
     api.settings.get().then((data) => {
       const s = data.settings;
@@ -249,6 +257,9 @@ export default function Settings() {
       if (s.followup_notify_enabled) setFollowupNotifyEnabled(s.followup_notify_enabled.value === "true");
       if (s.followup_notify_channel?.is_set) setFollowupNotifyChannel(s.followup_notify_channel.value);
       if (s.openai_api_key) { setOpenaiApiKeySet(s.openai_api_key.is_set); if (s.openai_api_key.is_set) setOpenaiApiKey(s.openai_api_key.value); }
+      if (s.sendgrid_api_key) { setSgApiKeySet(s.sendgrid_api_key.is_set); if (s.sendgrid_api_key.is_set) setSgApiKey(s.sendgrid_api_key.value); }
+      if (s.sendgrid_from_email?.is_set) setSgFromEmail(s.sendgrid_from_email.value);
+      if (s.sendgrid_from_name?.is_set) setSgFromName(s.sendgrid_from_name.value);
     });
     api.settings.getScheduler().then((data) => setSchedulerRunning(data.running)).catch(() => {});
     api.auth.me().then((u: any) => {
@@ -293,6 +304,9 @@ export default function Settings() {
     data.followup_notify_enabled = followupNotifyEnabled ? "true" : "false";
     data.followup_notify_channel = followupNotifyChannel;
     if (openaiApiKey && !openaiApiKey.includes("*")) data.openai_api_key = openaiApiKey;
+    if (sgApiKey && !sgApiKey.includes("*")) data.sendgrid_api_key = sgApiKey;
+    if (sgFromEmail) data.sendgrid_from_email = sgFromEmail;
+    if (sgFromName) data.sendgrid_from_name = sgFromName;
     return data;
   };
 
@@ -313,6 +327,9 @@ export default function Settings() {
       if (s.google_places_api_key?.is_set) setPlacesApiKey(s.google_places_api_key.value);
       if (s.slack_webhook_url?.is_set) { setSlackWebhookSet(true); setSlackWebhookUrl(s.slack_webhook_url.value); }
       if (s.smtp_password?.is_set) setSmtpPassword(s.smtp_password.value);
+      if (s.sendgrid_api_key) { setSgApiKeySet(s.sendgrid_api_key.is_set); if (s.sendgrid_api_key.is_set) setSgApiKey(s.sendgrid_api_key.value); }
+      if (s.sendgrid_from_email?.is_set) setSgFromEmail(s.sendgrid_from_email.value);
+      if (s.sendgrid_from_name?.is_set) setSgFromName(s.sendgrid_from_name.value);
     } catch (err: any) {
       setMessage({ type: "error", text: err.response?.data?.detail || "保存に失敗しました" });
     }
@@ -369,6 +386,18 @@ export default function Settings() {
       setSmtpMessage({ type: "error", text: "SMTPテスト送信に失敗しました" });
     }
     setSmtpTesting(false);
+  };
+
+  const handleSendgridTest = async () => {
+    setSgTesting(true);
+    setSgMessage(null);
+    try {
+      const data = await api.settings.sendgridTest(sgTestEmail || undefined);
+      setSgMessage({ type: data.success ? "success" : "error", text: data.message });
+    } catch (e: any) {
+      setSgMessage({ type: "error", text: e?.response?.data?.detail || "SendGridテスト送信に失敗しました" });
+    }
+    setSgTesting(false);
   };
 
   const handleCrSave = async () => {
@@ -657,6 +686,47 @@ export default function Settings() {
           </button>
         </div>
         {smtpMessage && <MessageBox msg={smtpMessage} />}
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
+        <SectionHeader
+          icon={<Zap size={20} className="text-amber-500" />}
+          title="SendGrid API 設定"
+          badge={sgApiKeySet ? <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">設定済み</span> : undefined}
+        />
+        <p className="text-sm text-slate-500">
+          SendGrid API を使用すると、SMTPよりも高い配信率・大量送信・配信統計が利用できます。設定された場合、SMTPより優先されます。
+          <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-1">APIキーの取得</a>
+        </p>
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className={labelClass}>SendGrid APIキー {sgApiKeySet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}</label>
+            <input type="password" value={sgApiKey} onChange={e => setSgApiKey(e.target.value)} placeholder={sgApiKeySet ? "変更する場合のみ入力" : "SG.xxxxxxxxxxxxxxxx"} className={inputClass} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>送信元メールアドレス</label>
+              <input type="email" value={sgFromEmail} onChange={e => setSgFromEmail(e.target.value)} placeholder="noreply@yourcompany.com" className={inputClass} />
+              <p className="text-xs text-slate-400 mt-1">SendGrid で Sender 認証済みのアドレス</p>
+            </div>
+            <div>
+              <label className={labelClass}>送信者名</label>
+              <input type="text" value={sgFromName} onChange={e => setSgFromName(e.target.value)} placeholder="LeadHive" className={inputClass} />
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-slate-100 pt-4">
+          <label className={labelClass}>テスト送信先（省略時は自分のアドレス）</label>
+          <input type="email" value={sgTestEmail} onChange={e => setSgTestEmail(e.target.value)} placeholder="test@example.com" className={inputClass} />
+        </div>
+        <div className="flex gap-3">
+          <SaveButton saving={saving} onClick={handleSave} />
+          <button onClick={handleSendgridTest} disabled={sgTesting || !sgApiKeySet} className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 transition-colors disabled:opacity-50">
+            {sgTesting ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+            テスト送信
+          </button>
+        </div>
+        {sgMessage && <MessageBox msg={sgMessage} />}
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">

@@ -74,6 +74,7 @@ SENSITIVE_SETTING_KEYS = {
     "hubsrev_api_key",
     "hubsrev_webhook_secret",
     "hubsrev_webhook_url",
+    "sendgrid_api_key",
 }
 
 

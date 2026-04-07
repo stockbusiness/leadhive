@@ -14,6 +14,7 @@ SETTING_KEYS = [
     "smtp_from_email", "smtp_from_name", "smtp_use_tls",
     "followup_notify_enabled", "followup_notify_channel",
     "openai_api_key", "auto_enrich_enabled",
+    "sendgrid_api_key", "sendgrid_from_email", "sendgrid_from_name",
 ]
 
 MASKED_KEYS = {"api_key", "secret", "webhook", "password", "token"}
@@ -162,3 +163,26 @@ def test_connection(
             return {"success": False, "message": f"APIエラー: {error_msg}"}
     except Exception as e:
         return {"success": False, "message": f"接続エラー: {str(e)}"}
+
+
+@router.post("/sendgrid-test")
+def test_sendgrid(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.services.mailer import get_sendgrid_settings, send_via_sendgrid
+    cfg = get_sendgrid_settings(db, current_user.org_id)
+    if not cfg["api_key"]:
+        return {"success": False, "message": "SendGrid APIキーが設定されていません"}
+    test_to = data.get("test_to") or current_user.email
+    ok, msg = send_via_sendgrid(
+        to=test_to,
+        subject="LeadHive SendGrid テストメール",
+        html_body="<p>LeadHiveからのテストメールです。SendGrid設定が正常に動作しています。</p>",
+        api_key=cfg["api_key"],
+        from_email=cfg["from_email"],
+        from_name=cfg["from_name"],
+        text_body="LeadHiveからのテストメールです。SendGrid設定が正常に動作しています。",
+    )
+    return {"success": ok, "message": msg}
