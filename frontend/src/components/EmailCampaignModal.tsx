@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Mail, Send, Info, CheckCircle2, AlertCircle, Loader2, ChevronDown, ChevronUp, Zap, Server } from "lucide-react";
 import { STATUSES } from "../constants";
 

@@ -1,5 +1,5 @@
 import json
-import time
+import asyncio
 import logging
 from datetime import datetime
 from typing import Optional, List
@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from server.database import get_db, SessionLocal
-from server.models import EmailCampaign, EmailLog, Company, User, AppSetting
+from server.models import EmailCampaign, EmailLog, Company, User
 from server.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -164,20 +164,21 @@ async def send_campaign(
     db.commit()
 
     log_ids = [log.id for log in logs]
-    company_map = {c.id: c for c in sendable}
 
     async def _stream():
         db2 = SessionLocal()
+        completed = False
+        sent = 0
+        failed = 0
+        skipped = len(no_email)
         try:
-            sent = 0
-            failed = 0
-            skipped = len(no_email)
-
             if skipped > 0:
                 yield f"data: {json.dumps({'type': 'info', 'message': f'メールアドレス未登録: {skipped}社をスキップ'})}\n\n"
 
+            log_rows = {lr.id: lr for lr in db2.query(EmailLog).filter(EmailLog.id.in_(log_ids)).all()}
+
             for i, (log_id, company) in enumerate(zip(log_ids, sendable)):
-                log_row = db2.query(EmailLog).filter(EmailLog.id == log_id).first()
+                log_row = log_rows.get(log_id)
                 if not log_row:
                     continue
 
@@ -209,20 +210,19 @@ async def send_campaign(
                     log_row.error_message = err
                     failed += 1
 
-                camp = db2.query(EmailCampaign).filter(EmailCampaign.id == campaign_id).first()
-                if camp:
-                    camp.sent_count = sent
-                    camp.failed_count = failed
                 db2.commit()
 
                 yield f"data: {json.dumps({'type': 'progress', 'current': i + 1, 'total': len(sendable), 'sent': sent, 'failed': failed, 'company': company.company_name or company.email})}\n\n"
-                time.sleep(SEND_INTERVAL)
+                await asyncio.sleep(SEND_INTERVAL)
 
             camp = db2.query(EmailCampaign).filter(EmailCampaign.id == campaign_id).first()
             if camp:
                 camp.status = "done"
+                camp.sent_count = sent
+                camp.failed_count = failed
                 db2.commit()
 
+            completed = True
             yield f"data: {json.dumps({'type': 'done', 'campaign_id': campaign_id, 'sent': sent, 'failed': failed, 'skipped': skipped})}\n\n"
         except Exception as e:
             logger.error(f"Campaign send error: {e}")
@@ -231,10 +231,22 @@ async def send_campaign(
                 camp = db2.query(EmailCampaign).filter(EmailCampaign.id == campaign_id).first()
                 if camp:
                     camp.status = "error"
+                    camp.sent_count = sent
+                    camp.failed_count = failed
                     db2.commit()
             except Exception:
                 pass
         finally:
+            if not completed:
+                try:
+                    camp = db2.query(EmailCampaign).filter(EmailCampaign.id == campaign_id).first()
+                    if camp and camp.status == "running":
+                        camp.status = "error"
+                        camp.sent_count = sent
+                        camp.failed_count = failed
+                        db2.commit()
+                except Exception:
+                    pass
             db2.close()
 
     return StreamingResponse(_stream(), media_type="text/event-stream")
@@ -251,9 +263,19 @@ def list_campaigns(
     total = q.count()
     campaigns = q.order_by(EmailCampaign.created_at.desc()).offset(offset).limit(limit).all()
 
+    if not campaigns:
+        return {"campaigns": [], "total": total}
+
+    campaign_ids = [c.id for c in campaigns]
+    all_logs = db.query(EmailLog).filter(EmailLog.campaign_id.in_(campaign_ids)).all()
+
+    logs_by_campaign: dict[int, list] = {c.id: [] for c in campaigns}
+    for log in all_logs:
+        logs_by_campaign[log.campaign_id].append(log)
+
     result = []
     for c in campaigns:
-        logs = db.query(EmailLog).filter(EmailLog.campaign_id == c.id).all()
+        logs = logs_by_campaign[c.id]
         opened = sum(1 for l in logs if l.opened_at)
         clicked = sum(1 for l in logs if l.clicked_at)
         bounced = sum(1 for l in logs if l.bounced_at)
