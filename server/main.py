@@ -26,6 +26,7 @@ from server.routes import webhooks
 from server.routes import tracking
 from server.routes import lp_inquiries, admin_imap, inbound_webhooks
 from server.routes import lumiqbrain
+from server.routes import email_campaigns
 from server.services.scheduler import start_scheduler, stop_scheduler
 from server.services.imap_poller import start_imap_polling, stop_imap_polling
 from server.services.rate_limiter import limiter, _rate_limit_exceeded_handler, RateLimitExceeded
@@ -186,6 +187,8 @@ def run_db_migrations():
             "ALTER TABLE status_history ADD COLUMN IF NOT EXISTS user_id INTEGER",
             "ALTER TABLE status_history ADD COLUMN IF NOT EXISTS user_name VARCHAR(255)",
             "ALTER TABLE status_history ADD COLUMN IF NOT EXISTS note TEXT",
+            "ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS auto_status_on_open VARCHAR(50)",
+            "ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS auto_status_on_click VARCHAR(50)",
         ]:
             conn.execute(sa.text(stmt))
 
@@ -275,6 +278,46 @@ def run_db_migrations():
         """))
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_job_logs_job_id ON job_logs (job_id)"))
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_job_logs_started_at ON job_logs (started_at DESC)"))
+
+        conn.execute(sa.text("""
+            CREATE TABLE IF NOT EXISTS email_campaigns (
+                id SERIAL PRIMARY KEY,
+                org_id INTEGER NOT NULL REFERENCES organizations(id),
+                project_id INTEGER REFERENCES projects(id),
+                created_by INTEGER REFERENCES users(id),
+                name VARCHAR(255),
+                subject VARCHAR(500) NOT NULL,
+                html_body TEXT NOT NULL,
+                text_body TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                status VARCHAR(50) DEFAULT 'running',
+                total_count INTEGER DEFAULT 0,
+                sent_count INTEGER DEFAULT 0,
+                failed_count INTEGER DEFAULT 0,
+                auto_status_on_open VARCHAR(50),
+                auto_status_on_click VARCHAR(50)
+            )
+        """))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_email_campaigns_org_id ON email_campaigns (org_id)"))
+
+        conn.execute(sa.text("""
+            CREATE TABLE IF NOT EXISTS email_logs (
+                id SERIAL PRIMARY KEY,
+                campaign_id INTEGER NOT NULL REFERENCES email_campaigns(id),
+                company_id INTEGER,
+                to_email VARCHAR(255) NOT NULL,
+                status VARCHAR(50) DEFAULT 'pending',
+                sent_at TIMESTAMP,
+                opened_at TIMESTAMP,
+                clicked_at TIMESTAMP,
+                bounced_at TIMESTAMP,
+                error_message TEXT,
+                open_count INTEGER DEFAULT 0,
+                click_count INTEGER DEFAULT 0
+            )
+        """))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_email_logs_campaign_id ON email_logs (campaign_id)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_email_logs_company_id ON email_logs (company_id)"))
 
         conn.commit()
 
@@ -439,6 +482,7 @@ app.include_router(lp_inquiries.router)
 app.include_router(admin_imap.router)
 app.include_router(inbound_webhooks.router)
 app.include_router(lumiqbrain.router)
+app.include_router(email_campaigns.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 

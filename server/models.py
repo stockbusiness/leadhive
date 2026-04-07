@@ -622,3 +622,40 @@ class InboundWebhookSource(Base):
     last_received_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class EmailCampaign(Base):
+    __tablename__ = "email_campaigns"
+
+    id = Column(Integer, primary_key=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    name = Column(String(255))
+    subject = Column(String(500), nullable=False)
+    html_body = Column(Text, nullable=False)
+    text_body = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    status = Column(String(50), default="running")
+    total_count = Column(Integer, default=0)
+    sent_count = Column(Integer, default=0)
+    failed_count = Column(Integer, default=0)
+    auto_status_on_open = Column(String(50), nullable=True)
+    auto_status_on_click = Column(String(50), nullable=True)
+
+
+class EmailLog(Base):
+    __tablename__ = "email_logs"
+
+    id = Column(Integer, primary_key=True)
+    campaign_id = Column(Integer, ForeignKey("email_campaigns.id"), nullable=False, index=True)
+    company_id = Column(Integer, nullable=True, index=True)
+    to_email = Column(String(255), nullable=False)
+    status = Column(String(50), default="pending")
+    sent_at = Column(DateTime, nullable=True)
+    opened_at = Column(DateTime, nullable=True)
+    clicked_at = Column(DateTime, nullable=True)
+    bounced_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+    open_count = Column(Integer, default=0)
+    click_count = Column(Integer, default=0)

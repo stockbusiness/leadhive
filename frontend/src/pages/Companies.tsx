@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock } from "lucide-react";
+import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock, Mail } from "lucide-react";
 import { api } from "../api";
 import { Pagination } from "../components/common";
 import { CompanyFilterBar, CompanyTable, CompanyEditModal } from "../components/companies";
 import CompanyKanban from "../components/companies/CompanyKanban";
+import EmailCampaignModal from "../components/EmailCampaignModal";
 import { STATUSES } from "../constants";
 import type { Company, Project, PlanData } from "../types";
 import { useProject } from "../contexts/ProjectContext";
@@ -57,6 +58,7 @@ export default function Companies() {
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [xlsxExporting, setXlsxExporting] = useState(false);
   const [csvPlan, setCsvPlan] = useState<PlanData | null | undefined>(undefined);
+  const [showEmailCampaignModal, setShowEmailCampaignModal] = useState(false);
 
   useEffect(() => {
     api.plans.current().then((d) => setCsvPlan(d.plan ?? null)).catch(() => setCsvPlan(null));
@@ -385,6 +387,13 @@ export default function Companies() {
             プロジェクト移動
           </button>
           <button
+            onClick={() => setShowEmailCampaignModal(true)}
+            className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+          >
+            <Mail size={14} />
+            一括メール送信
+          </button>
+          <button
             onClick={() => setSelectedIds(new Set())}
             className="text-sm text-slate-500 hover:text-slate-700 ml-auto"
           >
@@ -664,6 +673,15 @@ export default function Companies() {
             </div>
           </div>
         </div>
+      )}
+
+      {showEmailCampaignModal && (
+        <EmailCampaignModal
+          companyIds={Array.from(selectedIds)}
+          companies={companies.filter((c) => selectedIds.has(c.id))}
+          onClose={() => setShowEmailCampaignModal(false)}
+          onDone={() => setShowEmailCampaignModal(false)}
+        />
       )}
     </div>
   );

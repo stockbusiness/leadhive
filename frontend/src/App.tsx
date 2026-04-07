@@ -94,6 +94,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Roadmap = lazy(() => import("./pages/Roadmap"));
 const SalesAI = lazy(() => import("./pages/SalesAI"));
 const Pipeline = lazy(() => import("./pages/Pipeline"));
+const EmailCampaigns = lazy(() => import("./pages/EmailCampaigns"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const Company = lazy(() => import("./pages/Company"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
@@ -279,6 +280,7 @@ function AppContent() {
             <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" onClick={closeSidebar} />
             <SidebarLink to="/sales-ai" icon={<Bot size={18} />} label="営業AI" onClick={closeSidebar} />
             <SidebarLink to="/pipeline" icon={<GanttChartSquare size={18} />} label="パイプライン" onClick={closeSidebar} />
+            <SidebarLink to="/email-campaigns" icon={<Mail size={18} />} label="一括メール送信" onClick={closeSidebar} />
             {user?.role === "admin" && (
               <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
             )}
@@ -446,6 +448,7 @@ function AppContent() {
               <Route path="/support/:id" element={<SupportTicket />} />
               <Route path="/sales-ai" element={<SalesAI />} />
               <Route path="/pipeline" element={<Pipeline />} />
+              <Route path="/email-campaigns" element={<EmailCampaigns />} />
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/webhooks" element={<Webhooks />} />
               <Route path="*" element={<NotFound />} />

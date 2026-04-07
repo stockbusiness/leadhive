@@ -691,4 +691,11 @@ export const api = {
         total: number;
       }>("/api/notifications/follow-ups").then(r => r.data),
   },
+
+  emailCampaigns: {
+    list: (limit = 30, offset = 0) =>
+      axios.get("/api/email-campaigns", { params: { limit, offset } }).then(r => r.data),
+    get: (id: number) =>
+      axios.get(`/api/email-campaigns/${id}`).then(r => r.data),
+  },
 };
