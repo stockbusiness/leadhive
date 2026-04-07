@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, DatabaseZap, ShieldCheck, Trash2, Download, LogOut, ExternalLink, AlertTriangle, QrCode, Zap } from "lucide-react";
 import axios from "axios";
 import HelpTooltip from "../components/HelpTooltip";
+import HelpPanel from "../components/HelpPanel";
 import { api } from "../api";
 import type { PlanData, PlanUsage } from "../types";
 
@@ -486,9 +487,25 @@ export default function Settings() {
 
   return (
     <div className="p-6 space-y-6 max-w-2xl">
-      <div className="flex items-center gap-2">
-        <h2 className="text-2xl font-bold text-slate-800">設定</h2>
-        <HelpTooltip text="Google API・自動収集スケジュール・通知設定など、LeadHiveの動作をカスタマイズできます。" />
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-slate-800">設定</h2>
+          <HelpTooltip text="Google API・自動収集スケジュール・通知設定など、LeadHiveの動作をカスタマイズできます。" />
+        </div>
+        <HelpPanel
+          title="設定のヘルプ"
+          manualLinks={[
+            { label: "初期セットアップ", description: "Google APIキーとメール設定の手順", to: "/manual#setup" },
+            { label: "通知・自動収集", description: "スケジュール収集とSlack通知の設定", to: "/manual#notifications" },
+            { label: "管理者設定", description: "組織・プラン・チーム管理の方法", to: "/manual#admin_settings" },
+          ]}
+          tips={[
+            "Google APIキーはGoogle Cloud Consoleで取得できます（無料枠あり）",
+            "SendGridを設定するとメール開封率・クリック率を追跡できます",
+            "SMTP設定はGmail / さくら / Xserver等に対応しています",
+            "自動収集を有効にすると毎日指定時刻にキーワード収集が実行されます",
+          ]}
+        />
       </div>
 
       {upgradeSuccess && (
@@ -638,7 +655,12 @@ export default function Settings() {
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
         <SectionHeader icon={<Mail size={20} className="text-slate-600" />} title="SMTPメール設定" />
-        <p className="text-sm text-slate-500">メンバー招待やパスワードリセットにSMTPメール送信を使用します。設定しない場合は招待URLのコピーで対応できます。</p>
+        <p className="text-sm text-slate-500">
+          メンバー招待やパスワードリセットにSMTPメール送信を使用します。設定しない場合は招待URLのコピーで対応できます。
+          <a href="https://support.google.com/mail/answer/7126229" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-1">Gmailの設定方法</a>
+          <span className="text-slate-300 mx-1">|</span>
+          <a href="https://www.sakura.ne.jp/manual/rs/ope/mail/smtp.html" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">さくらサーバーの設定方法</a>
+        </p>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2 sm:col-span-1">
             <label className={labelClass}>SMTPホスト</label>

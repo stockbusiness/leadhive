@@ -6,6 +6,7 @@ import { Pagination } from "../components/common";
 import { CompanyFilterBar, CompanyTable, CompanyEditModal } from "../components/companies";
 import CompanyKanban from "../components/companies/CompanyKanban";
 import EmailCampaignModal from "../components/EmailCampaignModal";
+import HelpPanel from "../components/HelpPanel";
 import { STATUSES } from "../constants";
 import type { Company, Project, PlanData } from "../types";
 import { useProject } from "../contexts/ProjectContext";
@@ -272,6 +273,20 @@ export default function Companies() {
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <h2 className="text-xl md:text-2xl font-bold text-slate-800">候補企業一覧</h2>
         <div className="flex items-center flex-wrap gap-2">
+          <HelpPanel
+            title="候補企業一覧のヘルプ"
+            manualLinks={[
+              { label: "候補企業の管理・評価", description: "ステータス変更・スコア・フラグの使い方", to: "/manual#companies" },
+              { label: "企業の収集方法", description: "URLスクレイピングと自動収集の流れ", to: "/manual#collection" },
+              { label: "営業パイプライン", description: "カンバンビューでの進捗管理", to: "/manual#pipeline" },
+            ]}
+            tips={[
+              "ステータスを「対象候補」に変えるとパイプラインに表示されます",
+              "チェックボックスで複数選択し、一括でステータス変更できます",
+              "スコア順にソートして優先度の高い企業から着手しましょう",
+              "CSVインポートで既存リストを一括登録できます",
+            ]}
+          />
           <div className="flex items-center bg-slate-100 rounded-lg p-1">
             <button
               onClick={() => handleViewModeChange("list")}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Search, BarChart2, List, TrendingUp, Zap, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Lightbulb, MapPin } from "lucide-react";
 import HelpTooltip from "../components/HelpTooltip";
+import HelpPanel from "../components/HelpPanel";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { api } from "../api";
 import { CATEGORIES, DEFAULT_KEYWORDS, KEYWORD_SUGGESTIONS, REGION_SUGGESTIONS } from "../constants";
@@ -286,15 +287,31 @@ export default function Keywords() {
           <h2 className="text-xl md:text-2xl font-bold text-slate-800">検索条件管理</h2>
           <HelpTooltip text="キーワードと業種・地域を設定して企業を自動収集します。キーワードは複数登録でき、スケジュール収集にも使われます。" />
         </div>
-        {tab === "manage" && (
-          <button
-            onClick={addDefaultKeywords}
-            className="flex items-center gap-2 bg-slate-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-700 transition-colors"
-          >
-            <Search size={16} />
-            <span className="hidden sm:inline">デフォルトキーワード追加</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <HelpPanel
+            title="検索条件管理のヘルプ"
+            manualLinks={[
+              { label: "初期セットアップ", description: "キーワード登録の手順を解説", to: "/manual#setup" },
+              { label: "企業の収集", description: "キーワードから企業を収集する流れ", to: "/manual#collection" },
+              { label: "キーワード分析", description: "各キーワードの成果を確認する方法", to: "/manual#keywords_analytics" },
+            ]}
+            tips={[
+              "「業種キーワード」+「会社」+「地域」の組み合わせが最も収集精度が高くなります",
+              "除外キーワードを設定すると不要な企業を自動でフィルタリングできます",
+              "「デフォルトキーワード追加」で代表的なキーワードを一括登録できます",
+              "分析タブで各キーワードの獲得率を確認し、効率の良いものに絞り込みましょう",
+            ]}
+          />
+          {tab === "manage" && (
+            <button
+              onClick={addDefaultKeywords}
+              className="flex items-center gap-2 bg-slate-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-700 transition-colors"
+            >
+              <Search size={16} />
+              <span className="hidden sm:inline">デフォルトキーワード追加</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
@@ -473,8 +490,24 @@ export default function Keywords() {
                   ))}
                   {keywords.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                        キーワードが登録されていません。上のフォームから追加するか、「デフォルトキーワード追加」ボタンを押してください。
+                      <td colSpan={6}>
+                        <div className="flex flex-col items-center gap-3 py-12 px-4 text-center">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
+                            <Search size={22} className="text-slate-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-600 mb-1">キーワードが登録されていません</p>
+                            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                              上のフォームからキーワードを追加するか、「デフォルトキーワード追加」ボタンで代表的なキーワードを一括登録できます
+                            </p>
+                          </div>
+                          <button
+                            onClick={addDefaultKeywords}
+                            className="text-xs bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                          >
+                            デフォルトキーワードを追加する
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}

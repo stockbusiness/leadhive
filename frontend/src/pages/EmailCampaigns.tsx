@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Mail, ChevronDown, ChevronUp, Eye, MousePointer, AlertCircle, CheckCircle, Clock, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
+import HelpPanel from "../components/HelpPanel";
 
 interface Campaign {
   id: number;
@@ -221,12 +223,27 @@ export default function EmailCampaigns() {
             企業一覧から選択した企業への一括メール送信の履歴を確認できます
           </p>
         </div>
-        <button
-          onClick={refresh}
-          className="text-sm text-blue-600 hover:text-blue-800 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
-        >
-          更新
-        </button>
+        <div className="flex items-center gap-2">
+          <HelpPanel
+            title="一括メール送信のヘルプ"
+            manualLinks={[
+              { label: "営業AI・メール一括送信", description: "一括送信の手順と設定方法", to: "/manual#salesai" },
+              { label: "メール送信設定", description: "SMTP・SendGrid の設定方法", to: "/manual#setup" },
+            ]}
+            tips={[
+              "企業一覧でチェックボックスを選択し、「一括メール送信」ボタンから送信できます",
+              "テンプレート変数（{{会社名}}など）を使うと差し込み送信が可能です",
+              "SendGrid を設定すると開封率・クリック率が追跡できます",
+              "ステータスを「開封時に変更」「クリック時に変更」と設定すると自動でパイプラインが動きます",
+            ]}
+          />
+          <button
+            onClick={refresh}
+            className="text-sm text-blue-600 hover:text-blue-800 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+          >
+            更新
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -234,10 +251,24 @@ export default function EmailCampaigns() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
         </div>
       ) : campaigns.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 py-16 text-center text-slate-400">
-          <Mail size={36} className="mx-auto mb-3 opacity-30" />
-          <p className="font-medium">まだキャンペーンがありません</p>
-          <p className="text-sm mt-1">企業一覧でメールを送信すると、ここに履歴が表示されます</p>
+        <div className="bg-white rounded-xl border border-slate-200 py-16 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+              <Mail size={24} className="text-slate-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-600 mb-1">まだキャンペーンがありません</p>
+              <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                企業一覧で企業を選択し、「一括メール送信」ボタンから送信するとここに履歴が表示されます
+              </p>
+            </div>
+            <Link
+              to="/companies"
+              className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              企業一覧へ
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

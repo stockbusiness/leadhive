@@ -47,8 +47,27 @@ export default function CompanyTable({
   };
 
   const empty = (
-    <div className="px-4 py-10 text-center text-slate-400 text-sm">
-      企業データがありません。「URL収集」から企業を追加してください。
+    <div className="px-4 py-14 text-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+            <path d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/>
+          </svg>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-slate-600 mb-1">企業データがありません</p>
+          <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+            「URL収集」でキーワードから企業を自動収集するか、CSVでインポートしてください
+          </p>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <a href="/scraper" className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">
+            URL収集を開始
+          </a>
+          <span className="text-xs text-slate-400">または</span>
+          <span className="text-xs text-slate-500">CSVインポートボタンを使用</span>
+        </div>
+      </div>
     </div>
   );
 

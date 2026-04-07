@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle, Crown, Users, AlertTriangle, Lock } from "lucide-react";
 import HelpTooltip from "../components/HelpTooltip";
+import SetupProgressCard from "../components/SetupProgressCard";
+import HelpPanel from "../components/HelpPanel";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
@@ -110,7 +112,21 @@ export default function Dashboard() {
             </span>
           )}
         </div>
-        <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+        <div className="flex items-center gap-2">
+          <HelpPanel
+            title="ダッシュボードのヘルプ"
+            manualLinks={[
+              { label: "はじめに・基本フロー", description: "LeadHiveの全体像と使い方の流れ", to: "/manual#overview" },
+              { label: "ダッシュボードの見方", description: "各グラフ・数値の意味を解説", to: "/manual#dashboard" },
+              { label: "初期セットアップ", description: "APIキー・メール設定など", to: "/manual#setup" },
+            ]}
+            tips={[
+              "プロジェクトを切り替えるとグラフも切り替わります",
+              "フォローアップ期限を設定すると、ダッシュボードに通知が表示されます",
+              "チームタブは管理者・オーナーのみ閲覧できます",
+            ]}
+          />
+          <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
           <button
             onClick={() => setActiveTab("overview")}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -139,6 +155,7 @@ export default function Dashboard() {
               チーム
             </button>
           )}
+          </div>
         </div>
       </div>
 
@@ -255,6 +272,9 @@ export default function Dashboard() {
       )}
 
       {activeTab === "overview" && <>
+      {/* ===== セットアップ進捗 ===== */}
+      <SetupProgressCard />
+
       {/* ===== 今日のアクション ===== */}
       {hasActions && (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">

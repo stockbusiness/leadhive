@@ -80,6 +80,35 @@ def update_settings(
     return {"message": "設定を保存しました", "updated": updated}
 
 
+@router.get("/setup-status")
+def get_setup_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.models import SearchKeyword, Company, Project
+
+    def is_set(key: str) -> bool:
+        row = db.query(AppSetting).filter(
+            AppSetting.setting_key == key,
+            AppSetting.org_id == current_user.org_id,
+        ).first()
+        return bool(row and row.setting_value)
+
+    has_google = is_set("google_api_key")
+    has_smtp = is_set("smtp_host")
+    has_sendgrid = is_set("sendgrid_api_key")
+    project_ids = [p.id for p in db.query(Project.id).filter(Project.org_id == current_user.org_id).all()]
+    keyword_count = db.query(SearchKeyword).filter(SearchKeyword.project_id.in_(project_ids)).count() if project_ids else 0
+    company_count = db.query(Company).filter(Company.project_id.in_(project_ids)).count() if project_ids else 0
+
+    return {
+        "has_google_api_key": has_google,
+        "has_email_config": has_smtp or has_sendgrid,
+        "keyword_count": keyword_count,
+        "company_count": company_count,
+    }
+
+
 @router.get("/scheduler")
 def get_scheduler_status(current_user: User = Depends(get_current_user)):
     from server.services.scheduler import get_scheduler_status
