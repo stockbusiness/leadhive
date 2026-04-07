@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { X, Mail, Send, Eye, Info, ChevronDown, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
-import axios from "axios";
+import { useState, useRef } from "react";
+import { X, Mail, Send, Info, CheckCircle2, AlertCircle, Loader2, ChevronDown, ChevronUp, Zap, Server } from "lucide-react";
 import { STATUSES } from "../constants";
 
 interface Company {
@@ -38,6 +37,67 @@ const VARIABLE_HINTS = [
 ];
 
 type Tab = "compose" | "preview" | "settings";
+
+function InfoBox() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden text-sm">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-slate-700 hover:bg-slate-100 transition-colors"
+      >
+        <span className="flex items-center gap-2 font-medium">
+          <Info size={14} className="text-blue-500 shrink-0" />
+          送信方式と注意事項について
+        </span>
+        {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-4 border-t border-slate-200 pt-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-1.5">
+              <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                <Zap size={14} className="text-orange-500" />
+                SendGrid（推奨）
+              </div>
+              <ul className="text-xs text-slate-600 space-y-1 pl-1">
+                <li>✔ 開封・クリックトラッキング対応</li>
+                <li>✔ パイプライン連携（ステータス自動更新）</li>
+                <li>✔ 大量送信・配信品質が高い</li>
+                <li>✔ バウンス・スパム報告を自動記録</li>
+                <li className="text-slate-400">設定 → SendGrid APIキー が必要</li>
+              </ul>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-1.5">
+              <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                <Server size={14} className="text-slate-500" />
+                SMTP
+              </div>
+              <ul className="text-xs text-slate-600 space-y-1 pl-1">
+                <li>✔ 自社メールサーバーから送信可能</li>
+                <li>✗ 開封・クリック追跡なし</li>
+                <li>✗ パイプライン自動更新なし</li>
+                <li>△ 大量送信は送信元ドメイン次第</li>
+                <li className="text-slate-400">設定 → SMTP設定 が必要</li>
+              </ul>
+            </div>
+          </div>
+          <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5 space-y-1">
+            <p className="font-medium text-amber-800 text-xs">送信前に確認してください</p>
+            <ul className="text-xs text-amber-700 space-y-1 pl-1">
+              <li>・ 送信方式は「SendGrid → SMTP → システム設定」の順に自動選択されます</li>
+              <li>・ 1回の送信上限は <strong>500社</strong> です。超える場合は分けて送信してください</li>
+              <li>・ 送信間隔は0.2秒/社（スパム対策）。500社で最大約1分40秒かかります</li>
+              <li>・ メールアドレス未登録の企業は自動スキップされます</li>
+              <li>・ <strong>送信中はこのモーダルを閉じないでください</strong>（進捗が途切れます）</li>
+              <li>・ SendGridのWebhookを使う場合、イベントURL <code className="bg-amber-100 px-1 rounded font-mono">https://leadhive.work/api/email-campaigns/sendgrid-webhook</code> を SendGrid 管理画面に登録してください</li>
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function EmailCampaignModal({ companyIds, companies, onClose, onDone }: Props) {
   const [tab, setTab] = useState<Tab>("compose");
@@ -239,6 +299,7 @@ export default function EmailCampaignModal({ companyIds, companies, onClose, onD
             </div>
           ) : tab === "compose" ? (
             <div className="space-y-4">
+              <InfoBox />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   キャンペーン名（任意）
