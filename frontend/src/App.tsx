@@ -41,6 +41,7 @@ import {
   Activity,
   Scale,
   Link2,
+  Zap,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -64,6 +65,7 @@ const Templates = lazy(() => import("./pages/Templates"));
 const Projects = lazy(() => import("./pages/Projects"));
 const MasterDB = lazy(() => import("./pages/MasterDB"));
 const Manual = lazy(() => import("./pages/Manual"));
+const Guide = lazy(() => import("./pages/Guide"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
@@ -327,6 +329,7 @@ function AppContent() {
 
         <div className="p-2 border-t border-slate-700 space-y-1">
           <SidebarLink to="/roadmap" icon={<Map size={18} />} label="ロードマップ" onClick={closeSidebar} />
+          <SidebarLink to="/guide" icon={<Zap size={18} />} label="機能ガイド" onClick={closeSidebar} />
           <SidebarLink to="/manual" icon={<BookOpen size={18} />} label="マニュアル" onClick={closeSidebar} />
           <SidebarLink to="/settings" icon={<Settings size={18} />} label="設定" onClick={closeSidebar} />
           <button
@@ -420,6 +423,7 @@ function AppContent() {
               <Route path="/projects" element={<Projects />} />
               <Route path="/master" element={<MasterDB />} />
               <Route path="/manual" element={<Manual />} />
+              <Route path="/guide" element={<Guide />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
