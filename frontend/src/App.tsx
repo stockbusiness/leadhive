@@ -423,7 +423,6 @@ function AppContent() {
               <Route path="/projects" element={<Projects />} />
               <Route path="/master" element={<MasterDB />} />
               <Route path="/manual" element={<Manual />} />
-              <Route path="/guide" element={<Guide />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
@@ -519,6 +518,7 @@ function App() {
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/faq" element={<Faq />} />
+            <Route path="/guide" element={<Guide />} />
             <Route path="/status" element={<Status />} />
             <Route path="/partner" element={<PartnerLP />} />
             <Route path="/" element={<HomeRoute />} />
