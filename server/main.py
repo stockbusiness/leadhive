@@ -393,12 +393,26 @@ def _cleanup_stale_jobs():
         logging.getLogger(__name__).warning(f"Startup cleanup failed: {e}")
 
 
+def _schedule_periodic_restart(interval_hours: int = 24):
+    """定期的にプロセスを終了してVMデプロイの自動再起動を促す"""
+    def _restart_worker():
+        import time
+        secs = interval_hours * 3600
+        print(f"[LeadHive] 定期再起動タイマー開始: {interval_hours}時間後に再起動します")
+        time.sleep(secs)
+        print(f"[LeadHive] 定期再起動: {interval_hours}時間経過のためプロセスを終了します")
+        os._exit(0)
+    t = threading.Thread(target=_restart_worker, daemon=True)
+    t.start()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _cleanup_stale_jobs()
     threading.Thread(target=run_db_migrations, daemon=True).start()
     start_scheduler()
     start_imap_polling()
+    _schedule_periodic_restart(24)
     yield
     stop_scheduler()
     stop_imap_polling()
