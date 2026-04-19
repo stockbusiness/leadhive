@@ -28,6 +28,7 @@ const CMS_COLORS: Record<string, string> = {
   Wix: "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
 };
 const DEFAULT_CMS_BADGE_COLOR = "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200";
+const TOP_CMS_COUNT = 5;
 
 const FUNNEL_STATUSES = ["未確認", "対象候補", "アプローチ前", "フォーム送信済", "返信あり", "面談化", "代理店化"];
 const FUNNEL_COLORS = ["#94a3b8", "#60a5fa", "#818cf8", "#f59e0b", "#f97316", "#a855f7", "#10b981"];
@@ -63,6 +64,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<"overview" | "team">("overview");
   const [teamData, setTeamData] = useState<TeamData | null>(null);
   const [teamLoading, setTeamLoading] = useState(false);
+  const [showAllCms, setShowAllCms] = useState(false);
 
   useEffect(() => {
     api.dashboard.get().then(setData);
@@ -408,26 +410,31 @@ export default function Dashboard() {
       </div>
 
       {/* ===== CMS別サマリーバッジ ===== */}
-      {data.by_cms_type && Object.keys(data.by_cms_type).length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-          <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <ShoppingCart size={16} className="text-purple-500" />
-            CMS / プラットフォーム別
-            <span className="text-xs font-normal text-slate-400">クリックで企業一覧をフィルター</span>
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {data.ec_count != null && data.ec_count > 0 && (
-              <button
-                onClick={() => navigate("/companies?ec_only=true")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100"
-              >
-                🛍️ ECサイト: <span className="font-bold">{data.ec_count.toLocaleString()}社</span>
-              </button>
-            )}
-            {Object.entries(data.by_cms_type)
-              .filter(([, count]) => count > 0)
-              .sort((a, b) => b[1] - a[1])
-              .map(([cms, count]) => (
+      {data.by_cms_type && Object.keys(data.by_cms_type).length > 0 && (() => {
+        const sortedCms = Object.entries(data.by_cms_type!)
+          .filter(([, count]) => count > 0)
+          .sort((a, b) => b[1] - a[1]);
+        const hiddenCms = sortedCms.slice(TOP_CMS_COUNT);
+        const hiddenCount = hiddenCms.length;
+        const hiddenTotal = hiddenCms.reduce((sum, [, c]) => sum + c, 0);
+        const visibleCms = showAllCms ? sortedCms : sortedCms.slice(0, TOP_CMS_COUNT);
+        return (
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+              <ShoppingCart size={16} className="text-purple-500" />
+              CMS / プラットフォーム別
+              <span className="text-xs font-normal text-slate-400">クリックで企業一覧をフィルター</span>
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {data.ec_count != null && data.ec_count > 0 && (
+                <button
+                  onClick={() => navigate("/companies?ec_only=true")}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100"
+                >
+                  🛍️ ECサイト: <span className="font-bold">{data.ec_count.toLocaleString()}社</span>
+                </button>
+              )}
+              {visibleCms.map(([cms, count]) => (
                 <button
                   key={cms}
                   onClick={() => navigate(`/companies?cms_type=${encodeURIComponent(cms)}`)}
@@ -436,9 +443,26 @@ export default function Dashboard() {
                   {cms}: <span className="font-bold">{count.toLocaleString()}社</span>
                 </button>
               ))}
+              {!showAllCms && hiddenCount > 0 && (
+                <button
+                  onClick={() => setShowAllCms(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-slate-50 text-slate-500 border-slate-300 hover:bg-slate-100"
+                >
+                  その他 {hiddenCount}件 ({hiddenTotal.toLocaleString()}社) ▼
+                </button>
+              )}
+              {showAllCms && hiddenCount > 0 && (
+                <button
+                  onClick={() => setShowAllCms(false)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200"
+                >
+                  折りたたむ ▲
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ===== 営業ファネル ===== */}
       {funnelData.length > 0 && (
