@@ -513,6 +513,28 @@ export default function Dashboard() {
         </ChartCard>
       )}
 
+      {data.ec_daily_trend && data.ec_daily_trend.length > 0 && (
+        <ChartCard title="EC企業 直近30日の収集推移">
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={data.ec_daily_trend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v) => v.slice(5)}
+                interval="preserveStartEnd"
+              />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip
+                labelFormatter={(v) => `${v}`}
+                formatter={(v: any) => [`${v}件`, "EC企業収集件数"]}
+              />
+              <Line type="monotone" dataKey="count" stroke="#f97316" strokeWidth={2} dot={false} name="EC企業収集件数" />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
         <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
           <Clock size={16} />

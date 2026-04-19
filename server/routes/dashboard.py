@@ -118,6 +118,22 @@ def get_dashboard(
         d = (thirty_days_ago + timedelta(days=i)).isoformat()
         daily_trend.append({"date": d, "count": trend_map.get(d, 0)})
 
+    ec_trend_q = scoped(
+        db.query(
+            func.date(Company.created_at).label("day"),
+            func.count(Company.id).label("count"),
+        ).filter(
+            Company.ec_flag == True,
+            func.date(Company.created_at) >= thirty_days_ago,
+        )
+    )
+    ec_trend_rows = ec_trend_q.group_by(func.date(Company.created_at)).order_by(func.date(Company.created_at)).all()
+    ec_trend_map = {str(row.day): int(row.count or 0) for row in ec_trend_rows}
+    ec_daily_trend = []
+    for i in range(30):
+        d = (thirty_days_ago + timedelta(days=i)).isoformat()
+        ec_daily_trend.append({"date": d, "count": ec_trend_map.get(d, 0)})
+
     result = {
         "total": total,
         "unique_domains": unique_domains,
@@ -134,6 +150,7 @@ def get_dashboard(
         "api_usage_today": api_usage_today,
         "api_daily_limit": 100,
         "daily_collection_trend": daily_trend,
+        "ec_daily_trend": ec_daily_trend,
         "today_followups": _get_today_followups(project_id, db),
         "top_uncontacted": _get_top_uncontacted(project_id, db),
         "replied_companies": _get_replied(project_id, db),

@@ -153,6 +153,7 @@ export interface DashboardData {
   api_usage_today: number;
   api_daily_limit: number;
   daily_collection_trend?: { date: string; count: number }[];
+  ec_daily_trend?: { date: string; count: number }[];
   today_followups?: Company[];
   top_uncontacted?: Company[];
   replied_companies?: Company[];
