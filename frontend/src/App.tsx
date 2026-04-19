@@ -43,6 +43,7 @@ import {
   Link2,
   Zap,
   ShoppingCart,
+  ShoppingBag,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -115,6 +116,7 @@ const Webhooks = lazy(() => import("./pages/Webhooks"));
 const AdminStatus = lazy(() => import("./pages/AdminStatus"));
 const AdminScoringRules = lazy(() => import("./pages/AdminScoringRules"));
 const PartnerLP = lazy(() => import("./pages/PartnerLP"));
+const ECDiscovery = lazy(() => import("./pages/ECDiscovery"));
 
 function PageLoader() {
   return (
@@ -276,6 +278,7 @@ function AppContent() {
             <SidebarLink to="/keywords" icon={<Search size={18} />} label="検索条件管理" onClick={closeSidebar} />
             <SidebarLink to="/ec-collector" icon={<ShoppingCart size={18} />} label="EC企業収集" onClick={closeSidebar} />
             <SidebarLink to="/scraper" icon={<Globe size={18} />} label="URL収集" onClick={closeSidebar} />
+            <SidebarLink to="/ec-discovery" icon={<ShoppingBag size={18} />} label="EC収集" onClick={closeSidebar} />
             <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" onClick={closeSidebar} />
             <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" onClick={closeSidebar} />
             <SidebarLink to="/templates" icon={<FileText size={18} />} label="メモテンプレート" onClick={closeSidebar} />
@@ -421,6 +424,7 @@ function AppContent() {
               <Route path="/keywords" element={<Keywords />} />
               <Route path="/ec-collector" element={<EcCollector />} />
               <Route path="/scraper" element={<Scraper />} />
+              <Route path="/ec-discovery" element={<ECDiscovery />} />
               <Route path="/history" element={<CollectionHistory />} />
               <Route path="/rejected" element={<RejectedList />} />
               <Route path="/templates" element={<Templates />} />
