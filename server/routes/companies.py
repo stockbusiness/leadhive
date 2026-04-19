@@ -386,7 +386,7 @@ def export_companies_xlsx_v2(
     ws.title = "企業リスト"
 
     headers = ["会社名", "ドメイン", "WebサイトURL", "問い合わせURL", "電話番号", "メールアドレス",
-               "都道府県", "市区町村", "カテゴリ", "ステータス", "スコア", "ランク",
+               "都道府県", "市区町村", "カテゴリ", "CMS種別", "ECサイト", "ステータス", "スコア", "ランク",
                "担当者", "フォローアップ日", "メモ", "登録日"]
     header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
     header_font = Font(color="FFFFFF", bold=True)
@@ -407,6 +407,8 @@ def export_companies_xlsx_v2(
             c.prefecture or "",
             c.city or "",
             c.category_main or "",
+            c.cms_type or "",
+            "○" if c.ec_flag else "",
             c.status or "",
             c.score_total or 0,
             c.score_rank or "",
@@ -717,7 +719,7 @@ def export_csv(
     writer = csv.writer(output)
     writer.writerow([
         "会社名", "URL", "問い合わせURL", "所在地", "電話番号",
-        "メール", "カテゴリ", "Shopify対応", "EC特化判定",
+        "メール", "カテゴリ", "CMS種別", "ECサイト", "Shopify対応",
         "スコア", "ランク", "ステータス", "メモ",
     ])
 
@@ -731,8 +733,9 @@ def export_csv(
             c.phone or "",
             c.email or "",
             c.category_main or "",
-            "○" if c.shopify_flag else "",
+            c.cms_type or "",
             "○" if c.ec_flag else "",
+            "○" if c.shopify_flag else "",
             c.score_total,
             c.score_rank or "",
             c.status or "",
