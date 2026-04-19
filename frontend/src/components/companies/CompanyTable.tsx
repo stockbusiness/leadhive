@@ -141,15 +141,11 @@ export default function CompanyTable({
                       <span className="text-xs text-slate-500 mt-0.5 block">{c.category_main}</span>
                     )}
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {c.shopify_flag && <FlagBadge label="Shopify" color="bg-green-100 text-green-700" />}
+                      {c.ec_flag && <FlagBadge label="🛒 ECサイト" color="bg-blue-100 text-blue-700" />}
+                      {c.cms_type && <CmsBadge cms={c.cms_type} />}
+                      {c.shopify_flag && !c.cms_type && <FlagBadge label="🛒 Shopify" color="bg-green-100 text-green-700" />}
                       {c.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
                       {c.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
-                      {c.cms_type && !c.shopify_flag && (
-                        <CmsBadge cms={c.cms_type} />
-                      )}
-                      {c.ec_flag && !c.cms_type && !c.shopify_flag && (
-                        <FlagBadge label="🛒 EC" color="bg-purple-100 text-purple-700" />
-                      )}
                       {c.tags && c.tags.map((tag) => (
                         <span key={tag} className="inline-block bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[10px]">
                           {tag}
@@ -264,15 +260,11 @@ export default function CompanyTable({
                       {c.domain} <ExternalLink size={10} />
                     </a>
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {c.shopify_flag && <FlagBadge label="Shopify" color="bg-green-100 text-green-700" />}
+                      {c.ec_flag && <FlagBadge label="🛒 ECサイト" color="bg-blue-100 text-blue-700" />}
+                      {c.cms_type && <CmsBadge cms={c.cms_type} />}
+                      {c.shopify_flag && !c.cms_type && <FlagBadge label="🛒 Shopify" color="bg-green-100 text-green-700" />}
                       {c.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
                       {c.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
-                      {c.cms_type && !c.shopify_flag && (
-                        <CmsBadge cms={c.cms_type} />
-                      )}
-                      {c.ec_flag && !c.cms_type && !c.shopify_flag && (
-                        <FlagBadge label="🛒 EC" color="bg-purple-100 text-purple-700" />
-                      )}
                       {c.tags && c.tags.map((tag) => (
                         <span key={tag} className="inline-block bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[10px] leading-tight">
                           {tag}

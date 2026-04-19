@@ -246,8 +246,8 @@ export default function CompanyDetail() {
         )}
 
         <div className="flex gap-2 mt-4 flex-wrap">
-          {company.shopify_flag && <FlagBadge label="Shopify" color="bg-green-100 text-green-700" />}
-          {company.ec_flag && <FlagBadge label="EC" color="bg-blue-100 text-blue-700" />}
+          {company.shopify_flag && <FlagBadge label="🛒 Shopify" color="bg-green-100 text-green-700" />}
+          {company.ec_flag && <FlagBadge label="🛒 ECサイト" color="bg-blue-100 text-blue-700" />}
           {company.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
           {company.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
           {company.consulting_flag && <FlagBadge label="コンサル" color="bg-indigo-100 text-indigo-700" />}
@@ -269,7 +269,7 @@ export default function CompanyDetail() {
           <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
             {company.cms_type && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500 w-16 flex-shrink-0">CMS</span>
+                <span className="text-xs text-slate-500 w-16 flex-shrink-0">CMS / EC</span>
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                   company.cms_type === "Shopify" ? "bg-green-100 text-green-700" :
                   company.cms_type === "WordPress" ? "bg-blue-100 text-blue-700" :
@@ -278,7 +278,7 @@ export default function CompanyDetail() {
                   company.cms_type === "Wix" ? "bg-sky-100 text-sky-700" :
                   "bg-slate-100 text-slate-600"
                 }`}>
-                  {company.cms_type}
+                  {["Shopify", "BASE", "EC-CUBE"].includes(company.cms_type) ? `🛒 ${company.cms_type}` : company.cms_type}
                 </span>
               </div>
             )}

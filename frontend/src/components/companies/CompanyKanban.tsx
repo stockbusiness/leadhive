@@ -57,8 +57,21 @@ function CompanyCard({ company, isDragging }: { company: Company; isDragging?: b
         <p className="text-xs text-slate-500 mb-1 truncate">{company.category_main}</p>
       )}
       <div className="flex items-center gap-2 flex-wrap">
-        {company.shopify_flag && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Shopify</span>}
-        {company.ec_flag && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">EC</span>}
+        {company.ec_flag && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">🛒 ECサイト</span>}
+        {company.cms_type ? (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+            company.cms_type === "Shopify" ? "bg-green-100 text-green-700" :
+            company.cms_type === "BASE" ? "bg-orange-100 text-orange-700" :
+            company.cms_type === "EC-CUBE" ? "bg-amber-100 text-amber-700" :
+            company.cms_type === "Wix" ? "bg-sky-100 text-sky-700" :
+            company.cms_type === "WordPress" ? "bg-blue-100 text-blue-700" :
+            "bg-slate-100 text-slate-600"
+          }`}>
+            {["Shopify", "BASE", "EC-CUBE"].includes(company.cms_type) ? `🛒 ${company.cms_type}` : company.cms_type}
+          </span>
+        ) : company.shopify_flag && (
+          <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">🛒 Shopify</span>
+        )}
         {company.assignee && (
           <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded truncate max-w-[80px]">
             {company.assignee.display_name || company.assignee.email}
