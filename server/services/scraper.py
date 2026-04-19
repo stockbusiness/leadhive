@@ -74,6 +74,14 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
         or "wp-includes/" in html_lower
         or soup.find("meta", attrs={"name": "generator", "content": re.compile(r"WordPress", re.I)})
     ):
+        woo_indicators = [
+            "woocommerce" in html_lower,
+            "add-to-cart" in html_lower and "/shop/" in html_lower,
+            "class=\"woocommerce" in html_lower,
+            "/wp-content/plugins/woocommerce" in html_lower,
+        ]
+        if any(woo_indicators):
+            return "WooCommerce"
         return "WordPress"
 
     if (
@@ -101,13 +109,72 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
     if "squarespace.com" in html_lower:
         return "Squarespace"
 
-    if "stores.jp" in html_lower:
+    if "stores.jp" in html_lower or "stores.store" in html_lower:
         return "STORES"
 
     if "jimdo.com" in html_lower or "jimdofree.com" in html_lower:
         return "Jimdo"
 
+    if "lolipop.jp" in html_lower or "lolipop-ec" in html_lower:
+        return "ロリポップEC"
+
+    if (
+        "next-engine.org" in html_lower
+        or "next-engine.com" in html_lower
+    ):
+        return "NEXT ENGINE"
+
+    if "cart365.jp" in html_lower or "cart365" in html_lower:
+        return "カート365"
+
+    if (
+        "shopping.geocities.jp" in html_lower
+        or "store.shopping.yahoo.co.jp" in html_lower
+        or "store.yahoo.co.jp" in html_lower
+    ):
+        return "Yahoo!ショッピング"
+
+    if "aishipr.com" in html_lower or "aiship.jp" in html_lower:
+        return "aishipR"
+
+    if "shopserve.jp" in html_lower:
+        return "ショップサーブ"
+
+    if "appetizer.jp" in html_lower:
+        return "Appetizer"
+
+    if "commerce21.jp" in html_lower:
+        return "Commerce21"
+
+    if "bigcartel.com" in html_lower:
+        return "Big Cartel"
+
+    if "weebly.com" in html_lower:
+        return "Weebly"
+
     return ""
+
+
+EC_PLATFORM_LABELS = {
+    "Shopify": "Shopify",
+    "WooCommerce": "WooCommerce",
+    "BASE": "BASE",
+    "MakeShop": "MakeShop",
+    "futureshop": "futureshop",
+    "カラーミー": "カラーミー",
+    "EC-CUBE": "EC-CUBE",
+    "STORES": "STORES",
+    "ロリポップEC": "ロリポップEC",
+    "NEXT ENGINE": "NEXT ENGINE",
+    "カート365": "カート365",
+    "Yahoo!ショッピング": "Yahoo!ショッピング",
+    "aishipR": "aishipR",
+    "ショップサーブ": "ショップサーブ",
+    "WordPress": "WordPress",
+    "Wix": "Wix",
+    "Squarespace": "Squarespace",
+    "Jimdo": "Jimdo",
+}
 
 
 def extract_sns_links(soup: BeautifulSoup) -> dict:

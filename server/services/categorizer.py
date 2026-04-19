@@ -51,16 +51,28 @@ EC_PRICE_KEYWORDS = ["¥", "円", "税込", "税別", "税抜", "価格", "値�
 EC_TOKUSHO_PATTERNS = re.compile(r"/(?:tokusho|law|legal|tokuteishohotorihikiho|特定商取引)", re.IGNORECASE)
 EC_PAYMENT_KEYWORDS = ["決済方法", "お支払い方法", "支払方法", "クレジットカード", "代引き", "送料", "お届け", "配送方法", "配送料"]
 EC_STOCK_KEYWORDS = ["在庫あり", "在庫確認", "お届け日数", "在庫", "入荷待ち"]
+EC_ROBOTS_CART_PATTERN = re.compile(r"Disallow:\s*/(?:cart|checkout|order|purchase)", re.IGNORECASE)
+EC_SCALE_PRODUCT_PATTERN = re.compile(r"/(?:products?|items?|goods)/", re.IGNORECASE)
 
 
-def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_links: list = None) -> int:
+def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_links: list = None,
+                       robots_txt: str = None) -> int:
     score = 0
     text_lower = text.lower() if text else ""
     html_lower = html_source.lower() if html_source else ""
 
     link_hrefs = [a.get("href", "") for a in soup.find_all("a", href=True)] if soup else []
+
     if any(EC_URL_PATTERNS.search(h) for h in link_hrefs):
         score += 20
+
+    product_link_count = sum(1 for h in link_hrefs if EC_SCALE_PRODUCT_PATTERN.search(h))
+    if product_link_count >= 20:
+        score += 15
+    elif product_link_count >= 5:
+        score += 10
+    elif product_link_count >= 1:
+        score += 5
 
     if any(kw in text for kw in EC_CART_KEYWORDS):
         score += 20
@@ -75,6 +87,17 @@ def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_lin
         score += 15
 
     if any(kw in text for kw in EC_STOCK_KEYWORDS):
+        score += 10
+
+    if soup:
+        og_type = soup.find("meta", property="og:type")
+        if og_type and og_type.get("content", "").lower() in ("product", "og:product"):
+            score += 15
+        product_schema = soup.find(attrs={"itemtype": re.compile(r"schema.org/Product", re.I)})
+        if product_schema:
+            score += 10
+
+    if robots_txt and EC_ROBOTS_CART_PATTERN.search(robots_txt):
         score += 10
 
     return min(score, 100)

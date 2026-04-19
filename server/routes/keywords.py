@@ -190,6 +190,119 @@ def get_keyword_analytics(
     }
 
 
+@router.get("/ec-templates")
+def get_ec_keyword_templates(
+    current_user: User = Depends(get_current_user),
+):
+    """ECサイトオーナー向けキーワードテンプレートのプリセットを返す"""
+    templates = [
+        {
+            "id": "apparel",
+            "label": "アパレル・ファッションEC",
+            "icon": "👗",
+            "description": "ファッション系EC運営企業向け",
+            "keywords": [
+                {"keyword": "ファッション通販 会社", "category": "EC運営", "region": ""},
+                {"keyword": "レディースファッション 自社EC", "category": "EC運営", "region": ""},
+                {"keyword": "アパレル ネットショップ 運営", "category": "EC運営", "region": ""},
+                {"keyword": "ブランド 通販 Shopify", "category": "EC運営", "region": ""},
+                {"keyword": "古着 通販 EC", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "food",
+            "label": "食品・飲料・産直EC",
+            "icon": "🍱",
+            "description": "食品・飲食料品のEC運営企業向け",
+            "keywords": [
+                {"keyword": "食品通販 会社 産直", "category": "EC運営", "region": ""},
+                {"keyword": "お取り寄せ グルメ 通販", "category": "EC運営", "region": ""},
+                {"keyword": "定期便 食品 EC", "category": "EC運営", "region": ""},
+                {"keyword": "ワイン 通販 自社サイト", "category": "EC運営", "region": ""},
+                {"keyword": "農家 直販 ネットショップ", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "cosme",
+            "label": "コスメ・美容・健康EC",
+            "icon": "💄",
+            "description": "美容・スキンケア・健康食品のEC運営企業向け",
+            "keywords": [
+                {"keyword": "コスメ 通販 自社EC", "category": "EC運営", "region": ""},
+                {"keyword": "スキンケア D2C ブランド", "category": "EC運営", "region": ""},
+                {"keyword": "美容 サプリ 定期購入", "category": "EC運営", "region": ""},
+                {"keyword": "化粧品 通販 Shopify", "category": "EC運営", "region": ""},
+                {"keyword": "オーガニック 美容 ネットショップ", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "btob",
+            "label": "BtoB EC・資材・卸売",
+            "icon": "🏭",
+            "description": "法人向けEC・資材調達・卸売サイト向け",
+            "keywords": [
+                {"keyword": "法人向け EC 卸売 通販", "category": "EC運営", "region": ""},
+                {"keyword": "資材 業務用 ネット注文", "category": "EC運営", "region": ""},
+                {"keyword": "BtoB EC 企業間 受発注", "category": "EC運営", "region": ""},
+                {"keyword": "工具 部品 通販 法人", "category": "EC運営", "region": ""},
+                {"keyword": "業務用食材 オンライン発注", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "handmade",
+            "label": "ハンドメイド・作家EC",
+            "icon": "🎨",
+            "description": "ハンドメイド作家・クリエイターのEC向け",
+            "keywords": [
+                {"keyword": "ハンドメイド 自社サイト 販売", "category": "EC運営", "region": ""},
+                {"keyword": "作家 BASE ネットショップ", "category": "EC運営", "region": ""},
+                {"keyword": "アクセサリー 手作り 通販", "category": "EC運営", "region": ""},
+                {"keyword": "陶芸 作家 EC", "category": "EC運営", "region": ""},
+                {"keyword": "minne STORES 作家 販売", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "interior",
+            "label": "インテリア・家具・雑貨EC",
+            "icon": "🛋️",
+            "description": "インテリア・家具・生活雑貨のEC向け",
+            "keywords": [
+                {"keyword": "インテリア 通販 自社EC", "category": "EC運営", "region": ""},
+                {"keyword": "家具 ネットショップ EC", "category": "EC運営", "region": ""},
+                {"keyword": "雑貨 セレクトショップ 通販", "category": "EC運営", "region": ""},
+                {"keyword": "北欧家具 オンラインショップ", "category": "EC運営", "region": ""},
+                {"keyword": "アンティーク 雑貨 EC 販売", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "d2c",
+            "label": "D2Cブランド全般",
+            "icon": "🚀",
+            "description": "D2C・DTC・自社ブランド直販向け",
+            "keywords": [
+                {"keyword": "D2C ブランド 自社通販", "category": "EC運営", "region": ""},
+                {"keyword": "DTC 直販 オンライン", "category": "EC運営", "region": ""},
+                {"keyword": "自社ブランド 通販 EC 立ち上げ", "category": "EC運営", "region": ""},
+                {"keyword": "サブスク 定期便 自社EC", "category": "EC運営", "region": ""},
+                {"keyword": "OEM 自社ブランド ネットショップ", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "shopify_users",
+            "label": "Shopify利用EC運営者",
+            "icon": "🛍️",
+            "description": "Shopify導入済みEC事業者への直接アプローチ向け",
+            "keywords": [
+                {"keyword": "Shopify ネットショップ 運営", "category": "EC運営", "region": ""},
+                {"keyword": "Shopify EC 事業者", "category": "EC運営", "region": ""},
+                {"keyword": "Shopify Plus ブランド", "category": "EC運営", "region": ""},
+                {"keyword": "Shopify 導入 通販 会社", "category": "EC運営", "region": ""},
+            ],
+        },
+    ]
+    return {"templates": templates}
+
+
 @router.delete("/{keyword_id}")
 def delete_keyword(
     keyword_id: int,

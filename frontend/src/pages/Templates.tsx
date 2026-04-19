@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { FileText, Mail, Plus, Trash2, Lock } from "lucide-react";
+import { FileText, Mail, Plus, Trash2, Lock, ShoppingCart, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
 import { api } from "../api";
-import type { MemoTemplate } from "../types";
+import type { MemoTemplate, EcTemplatePreset } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Templates() {
@@ -13,6 +13,11 @@ export default function Templates() {
   const [content, setContent] = useState("");
   const [adding, setAdding] = useState(false);
   const [activeTab, setActiveTab] = useState<"memo" | "email">("memo");
+  const [showEcPresets, setShowEcPresets] = useState(false);
+  const [ecPresets, setEcPresets] = useState<EcTemplatePreset[]>([]);
+  const [selectedEcPreset, setSelectedEcPreset] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [importedPresets, setImportedPresets] = useState<Set<string>>(new Set());
 
   const fetchTemplates = () => {
     api.templates.list().then((data) => {
@@ -24,6 +29,16 @@ export default function Templates() {
   useEffect(() => {
     fetchTemplates();
   }, []);
+
+  useEffect(() => {
+    if (showEcPresets && ecPresets.length === 0) {
+      api.templates.ecPresets().then((data) => {
+        const all: EcTemplatePreset[] = data.presets;
+        setEcPresets(all);
+        if (all.length > 0) setSelectedEcPreset(all[0].id);
+      });
+    }
+  }, [showEcPresets]);
 
   const isEmailTab = activeTab === "email";
 
@@ -48,9 +63,30 @@ export default function Templates() {
     }
   };
 
+  const handleImportEcPreset = (preset: EcTemplatePreset) => {
+    if (!isSystemAdmin) return;
+    api.templates.create({
+      title: preset.title,
+      content: preset.content,
+      is_email_template: preset.is_email,
+    }).then(() => {
+      setImportedPresets((prev) => new Set([...prev, preset.id]));
+      fetchTemplates();
+    });
+  };
+
+  const handleCopy = (preset: EcTemplatePreset) => {
+    navigator.clipboard.writeText(`件名: ${preset.title}\n\n${preset.content}`).then(() => {
+      setCopiedId(preset.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
+
   const filteredTemplates = templates.filter(
     (t) => !!t.is_email_template === isEmailTab
   );
+
+  const filteredEcPresets = ecPresets.filter((p) => p.is_email === isEmailTab);
 
   if (loading) {
     return (
@@ -90,6 +126,104 @@ export default function Templates() {
           <Mail size={16} />
           メールテンプレート
         </button>
+      </div>
+
+      {/* ECプリセットパネル */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <button
+          onClick={() => setShowEcPresets((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+        >
+          <span className="flex items-center gap-2 font-semibold text-slate-700 text-sm">
+            <ShoppingCart size={16} className="text-purple-500" />
+            ECサイトオーナー向け　アプローチ文面プリセット
+            <span className="text-xs font-normal text-slate-400 hidden sm:inline">— プラットフォーム別に最適化された文面</span>
+          </span>
+          {showEcPresets ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+        </button>
+        {showEcPresets && (
+          <div className="border-t border-slate-200 p-4 space-y-4">
+            {ecPresets.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">読み込み中...</p>
+            ) : (
+              <>
+                {/* プリセットタブ */}
+                <div className="flex flex-wrap gap-2">
+                  {filteredEcPresets.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedEcPreset(p.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                        selectedEcPreset === p.id
+                          ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                          : "bg-white text-slate-600 border-slate-300 hover:border-purple-400 hover:text-purple-600"
+                      }`}
+                    >
+                      <span>{p.icon}</span>
+                      <span>{p.label}</span>
+                      {importedPresets.has(p.id) && <Check size={12} className="text-green-300" />}
+                    </button>
+                  ))}
+                  {filteredEcPresets.length === 0 && (
+                    <p className="text-xs text-slate-400 py-1">
+                      このタブ用のプリセットはありません。{isEmailTab ? "メモ" : "メール"}タブをご確認ください。
+                    </p>
+                  )}
+                </div>
+                {/* 選択プリセットの内容 */}
+                {selectedEcPreset && (() => {
+                  const preset = filteredEcPresets.find((p) => p.id === selectedEcPreset)
+                    ?? ecPresets.find((p) => p.id === selectedEcPreset);
+                  if (!preset) return null;
+                  return (
+                    <div className="bg-purple-50 rounded-lg border border-purple-100 overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-3 bg-purple-100/60 border-b border-purple-100">
+                        <div>
+                          <p className="text-sm font-semibold text-purple-800">{preset.icon} {preset.label}</p>
+                          <p className="text-xs text-purple-500 mt-0.5">対象: {preset.platform}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleCopy(preset)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white text-slate-600 border border-slate-300 hover:border-purple-400 hover:text-purple-600 transition-all"
+                          >
+                            {copiedId === preset.id ? <><Check size={13} className="text-green-500" /> コピー済み</> : <><Copy size={13} /> コピー</>}
+                          </button>
+                          {isSystemAdmin ? (
+                            <button
+                              onClick={() => handleImportEcPreset(preset)}
+                              disabled={importedPresets.has(preset.id)}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                importedPresets.has(preset.id)
+                                  ? "bg-green-100 text-green-700 border border-green-300 cursor-default"
+                                  : "bg-purple-600 text-white hover:bg-purple-700"
+                              }`}
+                            >
+                              {importedPresets.has(preset.id) ? <><Check size={13} /> 登録済み</> : <><Plus size={13} /> テンプレートに追加</>}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "テンプレートの追加は有料プランで利用できます。" } }))}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-400 border border-slate-200"
+                            >
+                              <Lock size={13} /> 有料プランで追加
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-2">
+                        <p className="text-xs font-medium text-slate-500">件名:</p>
+                        <p className="text-sm text-slate-700 bg-white rounded-md border border-purple-200 px-3 py-2">{preset.title}</p>
+                        <p className="text-xs font-medium text-slate-500 mt-3">本文:</p>
+                        <pre className="text-sm text-slate-700 bg-white rounded-md border border-purple-200 px-3 py-2 whitespace-pre-wrap font-sans leading-relaxed">{preset.content}</pre>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5">

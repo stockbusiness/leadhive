@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Search, BarChart2, List, TrendingUp, Zap, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Lightbulb, MapPin } from "lucide-react";
+import { Plus, Trash2, Search, BarChart2, List, TrendingUp, Zap, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Lightbulb, MapPin, ShoppingCart, CheckCircle2 } from "lucide-react";
 import HelpTooltip from "../components/HelpTooltip";
 import HelpPanel from "../components/HelpPanel";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { api } from "../api";
 import { CATEGORIES, DEFAULT_KEYWORDS, KEYWORD_SUGGESTIONS, REGION_SUGGESTIONS } from "../constants";
-import type { SearchKeyword, KeywordAnalytics, KeywordAnalyticsSummary } from "../types";
+import type { SearchKeyword, KeywordAnalytics, KeywordAnalyticsSummary, EcKeywordTemplate } from "../types";
 import { useProject } from "../contexts/ProjectContext";
 
 function EfficiencyBadge({ rate, runs }: { rate: number; runs: number }) {
@@ -255,6 +255,11 @@ export default function Keywords() {
   });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeSuggestIndustry, setActiveSuggestIndustry] = useState(0);
+  const [showEcTemplates, setShowEcTemplates] = useState(false);
+  const [ecTemplates, setEcTemplates] = useState<EcKeywordTemplate[]>([]);
+  const [selectedEcTemplate, setSelectedEcTemplate] = useState<string | null>(null);
+  const [addingEcTemplate, setAddingEcTemplate] = useState(false);
+  const [addedEcTemplates, setAddedEcTemplates] = useState<Set<string>>(new Set());
 
   const fetchKeywords = () => {
     api.keywords.list().then((data) => setKeywords(data.keywords));
@@ -263,6 +268,15 @@ export default function Keywords() {
   useEffect(() => {
     fetchKeywords();
   }, []);
+
+  useEffect(() => {
+    if (showEcTemplates && ecTemplates.length === 0) {
+      api.keywords.ecTemplates().then((data) => {
+        setEcTemplates(data.templates);
+        if (data.templates.length > 0) setSelectedEcTemplate(data.templates[0].id);
+      });
+    }
+  }, [showEcTemplates]);
 
   const handleAdd = () => {
     if (!form.keyword.trim()) return;
@@ -278,6 +292,24 @@ export default function Keywords() {
 
   const addDefaultKeywords = () => {
     Promise.all(DEFAULT_KEYWORDS.map((kw) => api.keywords.create(kw))).then(() => fetchKeywords());
+  };
+
+  const addEcTemplateKeywords = async (templateId: string) => {
+    const tmpl = ecTemplates.find((t) => t.id === templateId);
+    if (!tmpl) return;
+    setAddingEcTemplate(true);
+    try {
+      const projectId = selectedProject?.id;
+      await Promise.all(
+        tmpl.keywords.map((kw) =>
+          api.keywords.create({ ...kw, project_id: projectId })
+        )
+      );
+      setAddedEcTemplates((prev) => new Set([...prev, templateId]));
+      fetchKeywords();
+    } finally {
+      setAddingEcTemplate(false);
+    }
   };
 
   return (
@@ -456,6 +488,92 @@ export default function Keywords() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* EC特化キーワードテンプレート */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+            <button
+              onClick={() => setShowEcTemplates((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+            >
+              <span className="flex items-center gap-2 font-semibold text-slate-700 text-sm">
+                <ShoppingCart size={16} className="text-purple-500" />
+                ECサイトオーナー向け　業種別キーワードテンプレート
+                <span className="text-xs font-normal text-slate-400 hidden sm:inline">— ワンクリックで複数キーワードを一括登録</span>
+              </span>
+              {showEcTemplates ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+            </button>
+            {showEcTemplates && (
+              <div className="border-t border-slate-200 p-4 space-y-4">
+                {ecTemplates.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-4">読み込み中...</p>
+                ) : (
+                  <>
+                    {/* 業種タブ */}
+                    <div className="flex flex-wrap gap-2">
+                      {ecTemplates.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setSelectedEcTemplate(t.id)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                            selectedEcTemplate === t.id
+                              ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                              : "bg-white text-slate-600 border-slate-300 hover:border-purple-400 hover:text-purple-600"
+                          }`}
+                        >
+                          <span>{t.icon}</span>
+                          <span>{t.label}</span>
+                          {addedEcTemplates.has(t.id) && <CheckCircle2 size={12} className="text-green-400" />}
+                        </button>
+                      ))}
+                    </div>
+                    {/* 選択した業種の詳細 */}
+                    {selectedEcTemplate && (() => {
+                      const tmpl = ecTemplates.find((t) => t.id === selectedEcTemplate);
+                      if (!tmpl) return null;
+                      return (
+                        <div className="bg-purple-50 rounded-lg p-4 space-y-3 border border-purple-100">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-purple-800">{tmpl.icon} {tmpl.label}</p>
+                              <p className="text-xs text-purple-600 mt-0.5">{tmpl.description}</p>
+                            </div>
+                            <button
+                              onClick={() => addEcTemplateKeywords(tmpl.id)}
+                              disabled={addingEcTemplate || addedEcTemplates.has(tmpl.id)}
+                              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                addedEcTemplates.has(tmpl.id)
+                                  ? "bg-green-100 text-green-700 border border-green-300 cursor-default"
+                                  : "bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
+                              }`}
+                            >
+                              {addedEcTemplates.has(tmpl.id) ? (
+                                <><CheckCircle2 size={14} /> 追加済み</>
+                              ) : addingEcTemplate ? (
+                                <><RefreshCw size={14} className="animate-spin" /> 追加中...</>
+                              ) : (
+                                <><Plus size={14} /> {tmpl.keywords.length}件を一括追加</>
+                              )}
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {tmpl.keywords.map((kw, i) => (
+                              <button
+                                key={i}
+                                onClick={() => setForm((f) => ({ ...f, keyword: kw.keyword, category: kw.category, region: kw.region }))}
+                                className="text-xs px-2.5 py-1 bg-white hover:bg-purple-100 text-slate-700 hover:text-purple-700 border border-purple-200 hover:border-purple-400 rounded-full transition-colors"
+                              >
+                                {kw.keyword}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">

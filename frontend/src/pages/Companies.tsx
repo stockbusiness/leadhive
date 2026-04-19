@@ -36,6 +36,8 @@ export default function Companies() {
     tag: searchParams.get("tag") || "",
     assignee_id: searchParams.get("assignee_id") || "",
     follow_up_filter: searchParams.get("follow_up_filter") || "",
+    cms_type: searchParams.get("cms_type") || "",
+    ec_only: searchParams.get("ec_only") || "",
   });
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem("leadhive_view_mode") as ViewMode) || "list";
@@ -89,6 +91,8 @@ export default function Companies() {
     if (filters.assignee_id === "unassigned") params.assignee_id = 0;
     else if (filters.assignee_id) params.assignee_id = Number(filters.assignee_id);
     if (filters.follow_up_filter) params.follow_up_filter = filters.follow_up_filter;
+    if (filters.cms_type) params.cms_type = filters.cms_type;
+    if (filters.ec_only === "true") params.ec_only = true;
 
     api.companies.list(params).then((data) => {
       setCompanies(data.companies);

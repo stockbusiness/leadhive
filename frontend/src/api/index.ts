@@ -3,6 +3,7 @@ import type {
   Company, StatusHistoryEntry, MemoTemplate, SearchKeyword,
   ScrapeResult, CollectionLog, RejectedItem, DashboardData, ActivityLogEntry, Project, CompanyMaster,
   PlanData, PlanUsage, OrgWithPlan, KeywordAnalytics, KeywordAnalyticsSummary, PipelineCard,
+  EcKeywordTemplate, EcTemplatePreset,
 } from "../types";
 
 axios.interceptors.response.use(
@@ -137,6 +138,9 @@ export const api = {
         "/api/keywords/analytics",
         { params: projectId ? { project_id: projectId } : {} }
       ).then(r => r.data),
+
+    ecTemplates: () =>
+      axios.get<{ templates: EcKeywordTemplate[] }>("/api/keywords/ec-templates").then(r => r.data),
   },
 
   scraper: {
@@ -191,6 +195,9 @@ export const api = {
 
     searchEngineStatus: () =>
       axios.get<{ active_engine: string; has_serper: boolean; has_google: boolean }>("/api/collect/search-engine-status").then(r => r.data),
+
+    ecDiscovery: (params: { category_id: string; region?: string; project_id?: number }) =>
+      axios.post<{ job_id: string }>("/api/collect/ec-discovery", params).then(r => r.data),
   },
 
   templates: {
@@ -202,6 +209,9 @@ export const api = {
 
     delete: (id: number) =>
       axios.delete(`/api/templates/${id}`).then(r => r.data),
+
+    ecPresets: () =>
+      axios.get<{ presets: EcTemplatePreset[] }>("/api/templates/ec-presets").then(r => r.data),
   },
 
   rejected: {

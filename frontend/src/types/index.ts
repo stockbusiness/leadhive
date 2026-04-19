@@ -280,3 +280,21 @@ export interface PipelineCard {
   category_main: string;
   contact_name: string;
 }
+
+export interface EcKeywordTemplate {
+  id: string;
+  label: string;
+  icon: string;
+  description: string;
+  keywords: { keyword: string; category: string; region: string }[];
+}
+
+export interface EcTemplatePreset {
+  id: string;
+  platform: string;
+  icon: string;
+  label: string;
+  is_email: boolean;
+  title: string;
+  content: string;
+}

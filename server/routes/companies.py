@@ -46,6 +46,8 @@ def list_companies(
     tag: Optional[str] = None,
     assignee_id: Optional[int] = None,
     follow_up_filter: Optional[str] = None,
+    cms_type: Optional[str] = None,
+    ec_only: Optional[bool] = None,
     sort_by: str = "score_total",
     sort_order: str = "desc",
     page: int = 1,
@@ -87,6 +89,16 @@ def list_companies(
             query = query.filter(Company.assignee_id.is_(None))
         else:
             query = query.filter(Company.assignee_id == assignee_id)
+    if cms_type:
+        if cms_type == "EC_PLATFORMS":
+            ec_platforms = ["Shopify", "WooCommerce", "BASE", "MakeShop", "futureshop",
+                            "カラーミー", "EC-CUBE", "STORES", "ロリポップEC", "NEXT ENGINE",
+                            "カート365", "Yahoo!ショッピング", "aishipR", "ショップサーブ"]
+            query = query.filter(Company.cms_type.in_(ec_platforms))
+        else:
+            query = query.filter(Company.cms_type == cms_type)
+    if ec_only:
+        query = query.filter(Company.ec_flag == True)
     if follow_up_filter:
         today = date.today()
         if follow_up_filter == "overdue":

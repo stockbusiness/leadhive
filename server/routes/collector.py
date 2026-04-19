@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import uuid
 import threading
 from fastapi import APIRouter, Depends
@@ -11,6 +12,8 @@ from server.models import SearchKeyword, CollectionLog, User
 from server.services.collector import collect_by_keyword, process_urls_to_companies, job_update, job_get, job_cleanup
 from server.services.cache import cache_invalidate
 from server.auth import get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/collect", tags=["collector"])
 
@@ -125,6 +128,100 @@ def collect_async(
                 })
             except Exception:
                 pass
+        except Exception as e:
+            job_update(job_id, type="error", message=str(e))
+        finally:
+            db.close()
+
+    threading.Thread(target=run, daemon=True).start()
+    return {"job_id": job_id}
+
+
+@router.post("/ec-discovery")
+def collect_ec_discovery(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+):
+    """ECサイトオーナーを直接発見するための専用収集ジョブを起動する。
+    選択した業種カテゴリのプリセットキーワードでGoogleサーチを実行し、
+    ECスコアが高い企業だけを登録する。
+    """
+    job_id = str(uuid.uuid4())
+    job_update(job_id, type="progress", current=0, total=0, message="EC専用収集を開始しています...", status="running")
+
+    EC_DISCOVERY_PRESETS = {
+        "apparel": ["ファッション通販 会社", "レディースファッション 自社EC", "アパレル ネットショップ 運営"],
+        "food": ["食品通販 会社 産直", "お取り寄せ グルメ 通販", "定期便 食品 EC"],
+        "cosme": ["コスメ 通販 自社EC", "スキンケア D2C ブランド", "化粧品 通販 Shopify"],
+        "btob": ["法人向け EC 卸売 通販", "資材 業務用 ネット注文", "BtoB EC 企業間 受発注"],
+        "handmade": ["ハンドメイド 自社サイト 販売", "作家 BASE ネットショップ", "アクセサリー 手作り 通販"],
+        "interior": ["インテリア 通販 自社EC", "家具 ネットショップ EC", "雑貨 セレクトショップ 通販"],
+        "d2c": ["D2C ブランド 自社通販", "DTC 直販 オンライン", "サブスク 定期便 自社EC"],
+        "shopify_users": ["Shopify ネットショップ 運営", "Shopify EC 事業者", "Shopify 導入 通販 会社"],
+        "all": [
+            "ECサイト 運営 会社", "ネットショップ 自社EC 運営", "通販 D2C ブランド",
+            "Shopify 運営 事業者", "BASE STORES EC 運営", "EC 自社ブランド 販売",
+        ],
+    }
+
+    category_id = data.get("category_id", "all")
+    keywords_text = EC_DISCOVERY_PRESETS.get(category_id, EC_DISCOVERY_PRESETS["all"])
+    region = data.get("region", "")
+    project_id = data.get("project_id")
+    if region:
+        keywords_text = [f"{kw} {region}" for kw in keywords_text]
+
+    def run():
+        db = SessionLocal()
+        try:
+            from server.services.collector import collect_by_keyword
+            from server.models import SearchKeyword as SKW
+
+            total_success = 0
+            total_duplicate = 0
+            total_rejected = 0
+            total_kws = len(keywords_text)
+
+            for i, kw_text in enumerate(keywords_text):
+                job_update(
+                    job_id,
+                    current=i,
+                    total=total_kws,
+                    message=f"({i+1}/{total_kws}) EC探索: 「{kw_text}」...",
+                    status="running",
+                )
+                temp_kw = SKW(
+                    keyword=kw_text,
+                    category="EC運営",
+                    region=region,
+                    exclude_keywords="",
+                    is_active=True,
+                    project_id=project_id,
+                )
+                db.add(temp_kw)
+                db.commit()
+                db.refresh(temp_kw)
+                try:
+                    result = collect_by_keyword(temp_kw.id, db, project_id=project_id)
+                    summary = result.get("summary", {})
+                    total_success += summary.get("success", 0)
+                    total_duplicate += summary.get("duplicate", 0)
+                    total_rejected += summary.get("rejected", 0)
+                except Exception as e:
+                    logger.warning(f"EC discovery keyword error ({kw_text}): {e}")
+
+            cache_invalidate("dashboard")
+            job_update(
+                job_id,
+                type="done",
+                result={
+                    "total_success": total_success,
+                    "total_duplicate": total_duplicate,
+                    "total_rejected": total_rejected,
+                    "keywords_processed": total_kws,
+                },
+                message=f"EC専用収集完了: {total_success}件獲得",
+            )
         except Exception as e:
             job_update(job_id, type="error", message=str(e))
         finally:

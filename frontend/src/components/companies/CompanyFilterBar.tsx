@@ -12,6 +12,8 @@ interface Filters {
   tag: string;
   assignee_id: string;
   follow_up_filter: string;
+  cms_type: string;
+  ec_only: string;
 }
 
 export default function CompanyFilterBar({
@@ -132,6 +134,46 @@ export default function CompanyFilterBar({
           <option value="overdue">⚠ 期限超過</option>
           <option value="today">今日が期限</option>
           <option value="week">7日以内</option>
+        </select>
+        <select
+          value={filters.cms_type}
+          onChange={(e) => onFilterChange({ ...filters, cms_type: e.target.value })}
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+            filters.cms_type ? "border-purple-400 bg-purple-50 text-purple-700" : "border-slate-300"
+          }`}
+        >
+          <option value="">全CMS/プラットフォーム</option>
+          <option value="EC_PLATFORMS">🛒 ECプラットフォーム全般</option>
+          <optgroup label="ECカート">
+            <option value="Shopify">Shopify</option>
+            <option value="WooCommerce">WooCommerce</option>
+            <option value="BASE">BASE</option>
+            <option value="STORES">STORES</option>
+            <option value="MakeShop">MakeShop</option>
+            <option value="futureshop">futureshop</option>
+            <option value="カラーミー">カラーミー</option>
+            <option value="EC-CUBE">EC-CUBE</option>
+            <option value="ロリポップEC">ロリポップEC</option>
+            <option value="aishipR">aishipR</option>
+            <option value="ショップサーブ">ショップサーブ</option>
+            <option value="カート365">カート365</option>
+          </optgroup>
+          <optgroup label="CMS">
+            <option value="WordPress">WordPress</option>
+            <option value="Wix">Wix</option>
+            <option value="Squarespace">Squarespace</option>
+            <option value="Jimdo">Jimdo</option>
+          </optgroup>
+        </select>
+        <select
+          value={filters.ec_only}
+          onChange={(e) => onFilterChange({ ...filters, ec_only: e.target.value })}
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+            filters.ec_only ? "border-orange-400 bg-orange-50 text-orange-700" : "border-slate-300"
+          }`}
+        >
+          <option value="">EC判定</option>
+          <option value="true">🛍️ EC企業のみ</option>
         </select>
       </div>
     </div>
