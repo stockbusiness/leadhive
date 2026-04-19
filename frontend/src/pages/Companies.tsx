@@ -375,7 +375,7 @@ export default function Companies() {
               : `🔍 CMS/プラットフォーム「${filters.cms_type}」でフィルター中`}
           </span>
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/")}
             className="flex items-center gap-1.5 ml-auto text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
           >
             <LayoutDashboard size={14} />
