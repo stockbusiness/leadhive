@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { ShoppingBag, Play, CheckCircle, XCircle, Loader2, ChevronRight, BarChart3, RefreshCw, MapPin, ExternalLink, Globe } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { ShoppingBag, Play, CheckCircle, XCircle, Loader2, ChevronRight, BarChart3, RefreshCw, MapPin, ExternalLink, Globe, Info } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
@@ -38,6 +38,34 @@ interface JobResult {
   keywords_processed: number;
 }
 
+interface SavedJob {
+  job_id: string;
+  status: "running" | "done" | "error";
+  category_id: CategoryId;
+  category_label: string;
+  category_icon: string;
+  region: string;
+  project_id?: number;
+  started_at: string;
+  result?: JobResult;
+  error?: string;
+}
+
+const LS_KEY = "leadhive_ec_job";
+
+function saveJob(data: SavedJob) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch {}
+}
+function loadJob(): SavedJob | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function clearJob() {
+  try { localStorage.removeItem(LS_KEY); } catch {}
+}
+
 const CMS_COLORS: Record<string, string> = {
   Shopify: "bg-green-100 text-green-800",
   BASE: "bg-orange-100 text-orange-800",
@@ -61,13 +89,17 @@ export default function ECDiscovery() {
   const [error, setError] = useState<string | null>(null);
   const [collectedCompanies, setCollectedCompanies] = useState<Company[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [savedJobMeta, setSavedJobMeta] = useState<{ label: string; icon: string; region: string } | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentJobIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (esRef.current) { esRef.current.close(); }
-    };
+  const stopAll = useCallback(() => {
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
+
+  useEffect(() => { return () => stopAll(); }, [stopAll]);
 
   const fetchRecentEcCompanies = async () => {
     setLoadingCompanies(true);
@@ -88,22 +120,98 @@ export default function ECDiscovery() {
     }
   };
 
+  const pollJobStatus = useCallback((job_id: string, savedMeta?: SavedJob) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const data = await api.collector.jobStatus(job_id);
+        if (!data.found) {
+          clearInterval(pollRef.current!);
+          setRunning(false);
+          setError("ジョブが見つかりません");
+          clearJob();
+          return;
+        }
+        if (data.message) setProgressMsg(data.message);
+        if (data.current !== undefined) setProgressCurrent(data.current);
+        if (data.total !== undefined) setProgressTotal(data.total);
+
+        if (data.status === "done") {
+          clearInterval(pollRef.current!);
+          const jobResult = data.result ?? savedMeta?.result ?? null;
+          setResult(jobResult);
+          setProgressMsg("");
+          setRunning(false);
+          const saved = loadJob();
+          if (saved) { saved.status = "done"; saved.result = jobResult ?? undefined; saveJob(saved); }
+          fetchRecentEcCompanies();
+        } else if (data.status === "error") {
+          clearInterval(pollRef.current!);
+          setError(data.message || "エラーが発生しました");
+          setProgressMsg("");
+          setRunning(false);
+          clearJob();
+        }
+      } catch {
+      }
+    }, 3000);
+  }, []);
+
+  useEffect(() => {
+    const saved = loadJob();
+    if (!saved) return;
+
+    if (saved.status === "done") {
+      const preset = CATEGORY_PRESETS.find(c => c.id === saved.category_id);
+      if (preset) setSelectedCategory(saved.category_id);
+      setSavedJobMeta({ label: saved.category_label, icon: saved.category_icon, region: saved.region });
+      if (saved.result) setResult(saved.result);
+      fetchRecentEcCompanies();
+      return;
+    }
+
+    if (saved.status === "running") {
+      const preset = CATEGORY_PRESETS.find(c => c.id === saved.category_id);
+      if (preset) setSelectedCategory(saved.category_id);
+      setSavedJobMeta({ label: saved.category_label, icon: saved.category_icon, region: saved.region });
+      setRunning(true);
+      setProgressMsg("バックグラウンドで収集中...");
+      currentJobIdRef.current = saved.job_id;
+      pollJobStatus(saved.job_id, saved);
+    }
+  }, []);
+
   const handleStart = async () => {
     if (running) return;
     setRunning(true);
     setResult(null);
     setError(null);
+    setSavedJobMeta(null);
     setProgressMsg("EC専用収集を開始しています...");
     setProgressCurrent(0);
     setProgressTotal(0);
+    stopAll();
 
-    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+    const preset = CATEGORY_PRESETS.find(c => c.id === selectedCategory)!;
 
     try {
       const { job_id } = await api.collector.ecDiscovery({
         category_id: selectedCategory,
         region: region || undefined,
         project_id: currentProject?.id,
+      });
+
+      currentJobIdRef.current = job_id;
+
+      saveJob({
+        job_id,
+        status: "running",
+        category_id: selectedCategory,
+        category_label: preset.label,
+        category_icon: preset.icon,
+        region,
+        project_id: currentProject?.id,
+        started_at: new Date().toISOString(),
       });
 
       const es = new EventSource(`/api/collect/progress/${job_id}`);
@@ -117,35 +225,40 @@ export default function ECDiscovery() {
           if (msg.total !== undefined) setProgressTotal(msg.total);
 
           if (msg.type === "done") {
-            setResult(msg.result as JobResult);
+            stopAll();
+            const jobResult = msg.result as JobResult;
+            setResult(jobResult);
             setProgressMsg("");
             setRunning(false);
-            es.close();
+            const saved = loadJob();
+            if (saved) { saved.status = "done"; saved.result = jobResult; saveJob(saved); }
             fetchRecentEcCompanies();
           } else if (msg.type === "error") {
+            stopAll();
             setError(msg.message || "エラーが発生しました");
             setProgressMsg("");
             setRunning(false);
-            es.close();
+            clearJob();
           }
         } catch {}
       };
 
       es.onerror = () => {
-        setError("接続エラーが発生しました");
-        setProgressMsg("");
-        setRunning(false);
-        es.close();
+        if (esRef.current) { esRef.current.close(); esRef.current = null; }
+        if (currentJobIdRef.current) {
+          pollJobStatus(currentJobIdRef.current);
+        }
       };
     } catch (err: any) {
       setError(err?.response?.data?.detail || "収集の開始に失敗しました");
       setProgressMsg("");
       setRunning(false);
+      clearJob();
     }
   };
 
   const handleReset = () => {
-    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+    stopAll();
     setRunning(false);
     setResult(null);
     setError(null);
@@ -153,10 +266,14 @@ export default function ECDiscovery() {
     setProgressCurrent(0);
     setProgressTotal(0);
     setCollectedCompanies([]);
+    setSavedJobMeta(null);
+    clearJob();
+    currentJobIdRef.current = null;
   };
 
   const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
   const selectedPreset = CATEGORY_PRESETS.find(c => c.id === selectedCategory)!;
+  const displayMeta = savedJobMeta ?? { label: selectedPreset.label, icon: selectedPreset.icon, region };
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -282,7 +399,12 @@ export default function ECDiscovery() {
             )}
           </div>
 
-          <p className="text-xs text-slate-400">収集が完了するまでこのページを閉じないでください。</p>
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+            <Info size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-700">
+              収集はバックグラウンドで実行中です。他のページを使いながらお待ちいただけます。このページに戻ると進捗・結果を確認できます。
+            </p>
+          </div>
         </div>
       )}
 
@@ -315,8 +437,8 @@ export default function ECDiscovery() {
               <div>
                 <p className="font-bold text-slate-800 text-lg">EC収集が完了しました</p>
                 <p className="text-sm text-slate-500">
-                  {selectedPreset.icon} {selectedPreset.label}
-                  {region ? ` / ${region}` : ""}
+                  {displayMeta.icon} {displayMeta.label}
+                  {displayMeta.region ? ` / ${displayMeta.region}` : ""}
                 </p>
               </div>
             </div>
@@ -341,7 +463,6 @@ export default function ECDiscovery() {
             </div>
           </div>
 
-          {/* 取得企業インライン一覧 */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800">

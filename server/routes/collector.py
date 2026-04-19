@@ -80,6 +80,36 @@ async def collect_progress(job_id: str):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
+@router.get("/job-status/{job_id}")
+def get_job_status(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.models import JobLog
+    state = job_get(job_id)
+    if state:
+        return {
+            "found": True,
+            "status": state.get("type", "running"),
+            "message": state.get("message"),
+            "current": state.get("current", 0),
+            "total": state.get("total", 0),
+            "result": state.get("result"),
+        }
+    row = db.query(JobLog).filter(JobLog.job_id == job_id).first()
+    if not row:
+        return {"found": False, "status": "not_found"}
+    return {
+        "found": True,
+        "status": row.status,
+        "message": row.message,
+        "current": row.current or 0,
+        "total": row.total or 0,
+        "result": None,
+    }
+
+
 @router.post("/async")
 def collect_async(
     data: dict,

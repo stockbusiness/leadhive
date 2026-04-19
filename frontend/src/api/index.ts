@@ -198,6 +198,16 @@ export const api = {
 
     ecDiscovery: (params: { category_id: string; region?: string; project_id?: number }) =>
       axios.post<{ job_id: string }>("/api/collect/ec-discovery", params).then(r => r.data),
+
+    jobStatus: (jobId: string) =>
+      axios.get<{
+        found: boolean;
+        status: string;
+        message?: string;
+        current?: number;
+        total?: number;
+        result?: { total_success: number; total_duplicate: number; total_rejected: number; keywords_processed: number };
+      }>(`/api/collect/job-status/${jobId}`).then(r => r.data),
   },
 
   templates: {
