@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { ShoppingBag, Play, CheckCircle, XCircle, Loader2, ChevronRight, BarChart3, RefreshCw, MapPin } from "lucide-react";
+import { ShoppingBag, Play, CheckCircle, XCircle, Loader2, ChevronRight, BarChart3, RefreshCw, MapPin, ExternalLink, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
+import type { Company } from "../types";
 
 type CategoryId = "all" | "apparel" | "food" | "cosme" | "btob" | "handmade" | "interior" | "d2c" | "shopify_users";
 
@@ -37,6 +38,17 @@ interface JobResult {
   keywords_processed: number;
 }
 
+const CMS_COLORS: Record<string, string> = {
+  Shopify: "bg-green-100 text-green-800",
+  BASE: "bg-orange-100 text-orange-800",
+  WooCommerce: "bg-purple-100 text-purple-800",
+  STORES: "bg-pink-100 text-pink-800",
+  MakeShop: "bg-blue-100 text-blue-800",
+  futureshop: "bg-cyan-100 text-cyan-800",
+  "カラーミー": "bg-red-100 text-red-800",
+  "EC-CUBE": "bg-indigo-100 text-indigo-800",
+};
+
 export default function ECDiscovery() {
   const { currentProject } = useProject();
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>("all");
@@ -47,6 +59,8 @@ export default function ECDiscovery() {
   const [progressTotal, setProgressTotal] = useState(0);
   const [result, setResult] = useState<JobResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [collectedCompanies, setCollectedCompanies] = useState<Company[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -54,6 +68,25 @@ export default function ECDiscovery() {
       if (esRef.current) { esRef.current.close(); }
     };
   }, []);
+
+  const fetchRecentEcCompanies = async () => {
+    setLoadingCompanies(true);
+    try {
+      const data = await api.companies.list({
+        ec_only: true,
+        sort_by: "created_at",
+        sort_order: "desc",
+        per_page: 10,
+        page: 1,
+        project_id: currentProject?.id,
+      });
+      setCollectedCompanies(data.companies);
+    } catch {
+      setCollectedCompanies([]);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
 
   const handleStart = async () => {
     if (running) return;
@@ -88,6 +121,7 @@ export default function ECDiscovery() {
             setProgressMsg("");
             setRunning(false);
             es.close();
+            fetchRecentEcCompanies();
           } else if (msg.type === "error") {
             setError(msg.message || "エラーが発生しました");
             setProgressMsg("");
@@ -118,6 +152,7 @@ export default function ECDiscovery() {
     setProgressMsg("");
     setProgressCurrent(0);
     setProgressTotal(0);
+    setCollectedCompanies([]);
   };
 
   const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
@@ -306,13 +341,76 @@ export default function ECDiscovery() {
             </div>
           </div>
 
+          {/* 取得企業インライン一覧 */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-semibold text-slate-800">
+                最近取得したEC企業
+                {collectedCompanies.length > 0 && (
+                  <span className="ml-2 text-sm font-normal text-slate-500">（直近10件）</span>
+                )}
+              </h3>
+              {loadingCompanies && <Loader2 size={16} className="text-slate-400 animate-spin" />}
+            </div>
+            {loadingCompanies ? (
+              <div className="p-6 text-center text-slate-400 text-sm">読み込み中...</div>
+            ) : collectedCompanies.length === 0 ? (
+              <div className="p-6 text-center text-slate-400 text-sm">取得済みのEC企業がありません</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {collectedCompanies.map((c) => (
+                  <div key={c.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link
+                          to={`/companies/${c.id}`}
+                          className="font-medium text-slate-800 hover:text-blue-600 transition-colors text-sm truncate"
+                        >
+                          {c.company_name}
+                        </Link>
+                        {c.cms_type && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CMS_COLORS[c.cms_type] ?? "bg-slate-100 text-slate-700"}`}>
+                            🛒 {c.cms_type}
+                          </span>
+                        )}
+                        {!c.cms_type && c.ec_flag && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-800">🛒 EC</span>
+                        )}
+                      </div>
+                      {c.prefecture && (
+                        <p className="text-xs text-slate-400 mt-0.5">{c.prefecture}</p>
+                      )}
+                    </div>
+                    {c.website_url && (
+                      <a
+                        href={c.website_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-shrink-0 text-slate-400 hover:text-blue-500 transition-colors"
+                        title={c.website_url}
+                      >
+                        <Globe size={15} />
+                      </a>
+                    )}
+                    <Link
+                      to={`/companies/${c.id}`}
+                      className="flex-shrink-0 text-slate-400 hover:text-blue-500 transition-colors"
+                    >
+                      <ExternalLink size={15} />
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap gap-3">
             <Link
-              to="/companies"
+              to="/companies?ec_only=true"
               className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
             >
               <BarChart3 size={16} />
-              取得した企業一覧を確認
+              EC企業一覧をすべて確認
               <ChevronRight size={14} />
             </Link>
             <button
