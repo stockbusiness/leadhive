@@ -161,7 +161,7 @@ def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> 
 
     serper_key = get_serper_api_key()
     if serper_key:
-        search_results = search_serper(serper_key, query, num=10)
+        search_results = search_serper(serper_key, query, num=30)
         search_engine = "serper"
     else:
         api_key_setting = db.query(AppSetting).filter(AppSetting.setting_key == "google_api_key").first()
