@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { HelpCircle, ChevronDown, ChevronUp, Loader2, Search, ArrowLeft } from "lucide-react";
 import { api } from "../api";
+import PageMeta from "../components/PageMeta";
 
 type FaqItem = {
   id: number;
@@ -47,6 +48,14 @@ export default function Faq() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <PageMeta
+        title="よくある質問（FAQ）"
+        description="LeadHiveに関するよくある質問と回答。料金プラン・機能・アカウント・技術的な問題など、ご不明点をわかりやすく解説します。"
+        path="/faq"
+        schemaType="FAQPage"
+        breadcrumbs={[{ name: "よくある質問", url: "/faq" }]}
+        faqItems={items.map((i) => ({ question: i.question, answer: i.answer }))}
+      />
       <header className="bg-slate-900 text-white py-16 px-6 text-center">
         <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-5">
           <HelpCircle size={28} />

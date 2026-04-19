@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Building2, ChevronLeft } from "lucide-react";
+import PageMeta from "../components/PageMeta";
 
 const SECTIONS = [
   {
@@ -63,6 +64,13 @@ const SECTIONS = [
 export default function Terms() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
+      <PageMeta
+        title="利用規約"
+        description="LeadHiveの利用規約です。サービスの利用条件・禁止事項・免責事項・退会方法などについて説明します。"
+        path="/terms"
+        schemaType="WebPage"
+        breadcrumbs={[{ name: "利用規約", url: "/terms" }]}
+      />
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import PageMeta from "../components/PageMeta";
 import {
   ArrowRight, Star, CheckCircle2, Lock, Clock, Zap, Building2,
   Search, Brain, BarChart3, FileSpreadsheet, Bell, Send, Users,
@@ -86,6 +87,24 @@ export default function LandingPageNew() {
 
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-white">
+      <PageMeta
+        title="LeadHive | 営業先リスト自動化ツール - BtoB営業支援SaaS"
+        description="LeadHiveはBtoB営業先の収集・スコアリング・進捗管理・AIメール生成を一元化したSaaSです。Google検索・マップ・gBizINFOなど6ソースから企業を自動収集し、営業リスト作成にかかる時間を90%削減します。先着50社Founderプラン受付中。"
+        path="/"
+        schemaType="WebPage"
+        extraSchema={{
+          "@type": "WebPage",
+          "speakable": {
+            "@type": "SpeakableSpecification",
+            "cssSelector": ["h1", "h2", ".hero-description"],
+          },
+          "about": {
+            "@type": "SoftwareApplication",
+            "name": "LeadHive",
+            "applicationCategory": "BusinessApplication",
+          },
+        }}
+      />
       {/* Nav */}
       <nav className="fixed top-0 inset-x-0 z-50 bg-slate-950/80 backdrop-blur border-b border-slate-800">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">

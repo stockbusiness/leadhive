@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Building2, ChevronLeft, Send, CheckCircle2, AlertCircle, Loader2, FileText, HelpCircle, MessageSquare } from "lucide-react";
 import axios from "axios";
+import PageMeta from "../components/PageMeta";
 
 type InquiryType = "document" | "question" | "other";
 
@@ -70,6 +71,13 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <PageMeta
+        title="お問い合わせ"
+        description="LeadHiveへのお問い合わせ・資料請求・サービスのご質問はこちらから。2〜3営業日以内にご返信いたします。"
+        path="/contact"
+        schemaType="ContactPage"
+        breadcrumbs={[{ name: "お問い合わせ", url: "/contact" }]}
+      />
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">

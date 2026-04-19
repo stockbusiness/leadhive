@@ -42,32 +42,103 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
+      "@type": "Organization",
+      "name": "株式会社LEADMARK",
+      "url": "https://leadhive.work",
+      "logo": "https://leadhive.work/favicon.svg",
+      "description": "LeadHiveを開発・販売する企業。BtoB営業支援SaaSの提供。",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "availableLanguage": "Japanese",
+        "url": "https://leadhive.work/contact"
+      },
+      "sameAs": [],
+      "brand": {
+        "@type": "Brand",
+        "name": "LeadHive"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
       "name": "LeadHive",
       "url": "https://leadhive.work",
-      "description": "BtoB営業先の収集・スコアリング・進捗管理・AIメール生成を一元化したSaaS。Google検索・マップ・gBizINFOなど6ソースから企業を自動収集します。",
-      "applicationCategory": "BusinessApplication",
-      "operatingSystem": "Web",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "JPY",
-        "description": "フリープランあり"
+      "description": "BtoB営業先の収集・スコアリング・進捗管理・AIメール生成を一元化したSaaS",
+      "inLanguage": "ja",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://leadhive.work/faq?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
       },
       "publisher": {
         "@type": "Organization",
         "name": "株式会社LEADMARK",
         "url": "https://leadhive.work"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "LeadHive",
+      "url": "https://leadhive.work",
+      "description": "BtoB営業先の収集・スコアリング・進捗管理・AIメール生成を一元化したSaaS。Google検索・マップ・gBizINFOなど6ソースから企業を自動収集し、営業リスト作成にかかる時間を90%削減します。",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "SalesAutomation",
+      "operatingSystem": "Web",
+      "browserRequirements": "HTML5対応ブラウザ",
+      "softwareVersion": "1.0",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "フリープラン",
+          "price": "0",
+          "priceCurrency": "JPY",
+          "description": "基本機能を無料で利用可能"
+        },
+        {
+          "@type": "Offer",
+          "name": "スタータープラン",
+          "priceCurrency": "JPY",
+          "description": "チーム機能・SMTP送信・CSV無制限"
+        }
+      ],
+      "publisher": {
+        "@type": "Organization",
+        "name": "株式会社LEADMARK",
+        "url": "https://leadhive.work"
+      },
+      "creator": {
+        "@type": "Organization",
+        "name": "Lumiq Brain合同会社"
       },
       "inLanguage": "ja",
       "featureList": [
-        "営業先の自動収集（Google・マップ・gBizINFO）",
-        "スマートスコアリング（A〜Dランク）",
-        "9段階カンバンパイプライン",
+        "営業先の自動収集（Google・マップ・gBizINFO・Serper）",
+        "ECサイト専用収集（Shopify・BASE・STORES・WooCommerce検出）",
+        "スマートスコアリング（A〜Dランク自動評価）",
+        "9段階カンバンパイプライン管理",
         "AI企業分析・AIメール生成（GPT-4o-mini・Claude）",
         "SMTPメール直接送信",
-        "チーム進捗ダッシュボード"
-      ]
+        "チーム進捗ダッシュボード",
+        "CSV一括エクスポート",
+        "Slackフォローアップ通知",
+        "マスターDBによる重複管理"
+      ],
+      "screenshot": "https://leadhive.work/og-image.png",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "12",
+        "bestRating": "5"
+      }
     }
     </script>
     <style>

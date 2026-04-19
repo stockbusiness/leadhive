@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import PageMeta from "../components/PageMeta";
 import {
   LayoutDashboard, FolderKanban, Search, Globe, Building2,
   GanttChartSquare, FileText, Mail, Settings, Bell,
@@ -32,6 +33,15 @@ export default function Guide() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <PageMeta
+        title="機能ガイド - LeadHiveの使い方"
+        description="LeadHiveの機能ガイド。企業収集・スコアリング・パイプライン・AI分析・メール送信など、各機能の操作方法をステップ形式で解説します。"
+        path="/guide"
+        schemaType="Article"
+        breadcrumbs={[{ name: "機能ガイド", url: "/guide" }]}
+        articlePublished="2025-01-01"
+        articleModified="2026-04-01"
+      />
 
       {/* Header */}
       <div className="bg-slate-900 text-white py-12 px-6">

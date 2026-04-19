@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Building2, ChevronLeft } from "lucide-react";
+import PageMeta from "../components/PageMeta";
 
 const SECTIONS = [
   {
@@ -47,6 +48,13 @@ const SECTIONS = [
 export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
+      <PageMeta
+        title="プライバシーポリシー"
+        description="LeadHive（株式会社LEADMARK運営）のプライバシーポリシーです。個人情報の収集・利用・管理方法について説明します。"
+        path="/privacy-policy"
+        schemaType="WebPage"
+        breadcrumbs={[{ name: "プライバシーポリシー", url: "/privacy-policy" }]}
+      />
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
