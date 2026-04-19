@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock, Mail } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock, Mail, LayoutDashboard, Filter } from "lucide-react";
 import { api } from "../api";
 import { Pagination } from "../components/common";
 import { CompanyFilterBar, CompanyTable, CompanyEditModal } from "../components/companies";
@@ -23,6 +23,7 @@ export default function Companies() {
   const { projects, currentProject } = useProject();
   const { user } = useAuth();
   const isAdmin = !!user?.is_system_admin;
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
@@ -361,6 +362,24 @@ export default function Companies() {
           <span className="text-sm text-emerald-700 font-medium">{exportMessage}</span>
           <button onClick={() => setExportMessage(null)} className="ml-auto text-emerald-400 hover:text-emerald-600">
             <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {(filters.cms_type || filters.ec_only === "true") && (
+        <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3">
+          <Filter size={16} className="text-indigo-500 flex-shrink-0" />
+          <span className="text-sm text-indigo-800 font-medium">
+            {filters.ec_only === "true"
+              ? "🛍️ ECサイト企業でフィルター中"
+              : `🔍 CMS/プラットフォーム「${filters.cms_type}」でフィルター中`}
+          </span>
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center gap-1.5 ml-auto text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+          >
+            <LayoutDashboard size={14} />
+            ダッシュボードに戻る
           </button>
         </div>
       )}
