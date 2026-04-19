@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Star, RotateCcw, Save, Info, TrendingUp, TrendingDown, RefreshCw, ShoppingBag } from "lucide-react";
+import { Star, RotateCcw, Save, Info, TrendingUp, TrendingDown, RefreshCw, ShoppingBag, History, CheckCircle2 } from "lucide-react";
 
 const RULE_LABELS: Record<string, string> = {
   ec_flag: "ECサイト判定",
@@ -22,7 +22,8 @@ const RULE_LABELS: Record<string, string> = {
 
 type Rules = Record<string, number>;
 type RescoreStatus = { running: boolean; done: number; total: number; updated_companies: number; updated_masters: number };
-type EcDetectStatus = { running: boolean; done: number; total: number; updated: number; skipped: number; errors: number };
+type EcDetectStatus = { running: boolean; done: number; total: number; updated: number; updated_master: number; skipped: number; errors: number; include_master: boolean };
+type EcDetectHistoryEntry = { started_at: string; finished_at: string; only_missing: boolean; include_master: boolean; total: number; updated: number; updated_master: number; skipped: number; errors: number };
 
 export default function AdminScoringRules() {
   const [rules, setRules] = useState<Rules>({});
@@ -36,14 +37,22 @@ export default function AdminScoringRules() {
   const [ecDetecting, setEcDetecting] = useState(false);
   const [ecDetectStatus, setEcDetectStatus] = useState<EcDetectStatus | null>(null);
   const ecPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [includeMaster, setIncludeMaster] = useState(true);
+  const [ecHistory, setEcHistory] = useState<EcDetectHistoryEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/scoring-rules");
-      const data = await res.json();
-      setRules(data.rules ?? {});
-      setDefaults(data.defaults ?? {});
+      const [rulesRes, histRes] = await Promise.all([
+        fetch("/api/admin/scoring-rules"),
+        fetch("/api/admin/ec-detect-bulk/history"),
+      ]);
+      const rulesData = await rulesRes.json();
+      setRules(rulesData.rules ?? {});
+      setDefaults(rulesData.defaults ?? {});
+      const histData = await histRes.json();
+      setEcHistory(histData.history ?? []);
     } catch {
       setMessage({ type: "err", text: "読み込みに失敗しました" });
     }
@@ -127,11 +136,15 @@ export default function AdminScoringRules() {
 
   const handleEcDetect = async (onlyMissing: boolean) => {
     const label = onlyMissing ? "CMS未検出の企業のみ" : "全企業";
-    if (!confirm(`${label}のWebサイトを再スキャンしてECプラットフォームを検出します。よろしいですか？`)) return;
+    const masterNote = includeMaster ? "（マスターDB含む）" : "";
+    if (!confirm(`${label}${masterNote}のWebサイトを再スキャンしてECプラットフォームを検出します。よろしいですか？`)) return;
     setEcDetecting(true);
     setEcDetectStatus(null);
     try {
-      const res = await fetch(`/api/admin/ec-detect-bulk?only_missing=${onlyMissing}`, { method: "POST" });
+      const res = await fetch(
+        `/api/admin/ec-detect-bulk?only_missing=${onlyMissing}&include_master=${includeMaster}`,
+        { method: "POST" }
+      );
       const data = await res.json();
       if (!data.ok) {
         setMessage({ type: "err", text: data.message || "EC検出を開始できませんでした" });
@@ -145,8 +158,12 @@ export default function AdminScoringRules() {
           if (!sr.running) {
             if (ecPollRef.current) clearInterval(ecPollRef.current);
             setEcDetecting(false);
-            setMessage({ type: "ok", text: `EC再検出完了: ${sr.updated}件更新 / ${sr.skipped}件スキップ / ${sr.errors}件エラー` });
-            setTimeout(() => setMessage(null), 6000);
+            const masterMsg = sr.include_master ? ` / マスター${sr.updated_master}件更新` : "";
+            setMessage({ type: "ok", text: `EC再検出完了: 企業${sr.updated}件更新${masterMsg} / スキップ${sr.skipped}件 / エラー${sr.errors}件` });
+            setTimeout(() => setMessage(null), 8000);
+            // 履歴を更新
+            const histData = await fetch("/api/admin/ec-detect-bulk/history").then(r => r.json());
+            setEcHistory(histData.history ?? []);
           }
         } catch {
           if (ecPollRef.current) clearInterval(ecPollRef.current);
@@ -224,13 +241,35 @@ export default function AdminScoringRules() {
       )}
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <ShoppingBag size={18} className="text-emerald-600" />
-          <h2 className="font-semibold text-slate-800 dark:text-slate-100">ECプラットフォーム一括再検出</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingBag size={18} className="text-emerald-600" />
+            <h2 className="font-semibold text-slate-800 dark:text-slate-100">ECプラットフォーム一括再検出</h2>
+          </div>
+          {ecHistory.length > 0 && (
+            <button
+              onClick={() => setShowHistory(v => !v)}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              <History size={13} />
+              {showHistory ? "履歴を隠す" : `実行履歴 (${ecHistory.length}件)`}
+            </button>
+          )}
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           既存企業のWebサイトを再スキャンし、CMS種別（Shopify・BASE・WooCommerce等）とECフラグを更新します。
         </p>
+
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={includeMaster}
+            onChange={e => setIncludeMaster(e.target.checked)}
+            className="w-4 h-4 accent-emerald-600"
+          />
+          <span className="text-sm text-slate-600 dark:text-slate-300">マスターDBも対象に含める</span>
+        </label>
+
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => handleEcDetect(true)}
@@ -249,17 +288,56 @@ export default function AdminScoringRules() {
             全企業を再スキャン
           </button>
         </div>
+
         {ecDetecting && ecDetectStatus && ecDetectStatus.total > 0 && (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between text-sm text-emerald-700 dark:text-emerald-400">
               <span>EC検出進捗</span>
-              <span>{ecDetectStatus.done} / {ecDetectStatus.total} 件 （更新 {ecDetectStatus.updated} / エラー {ecDetectStatus.errors}）</span>
+              <span>
+                {ecDetectStatus.done} / {ecDetectStatus.total} 件
+                （企業 {ecDetectStatus.updated}更新
+                {ecDetectStatus.include_master ? ` / マスター ${ecDetectStatus.updated_master}更新` : ""}
+                / エラー {ecDetectStatus.errors}）
+              </span>
             </div>
             <div className="w-full bg-emerald-100 dark:bg-emerald-900/30 rounded-full h-2">
               <div
                 className="bg-emerald-500 h-2 rounded-full transition-all"
                 style={{ width: `${Math.round((ecDetectStatus.done / ecDetectStatus.total) * 100)}%` }}
               />
+            </div>
+          </div>
+        )}
+
+        {showHistory && ecHistory.length > 0 && (
+          <div className="border-t border-slate-100 dark:border-slate-700 pt-4 space-y-2">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">実行履歴</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {ecHistory.map((h, i) => (
+                <div key={i} className="flex items-start gap-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg px-3 py-2.5">
+                  <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-slate-500">
+                        {new Date(h.started_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300">
+                        {h.only_missing ? "未検出のみ" : "全件"}
+                      </span>
+                      {h.include_master && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                          マスター含む
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                      対象 {h.total}件 → 企業 {h.updated}更新
+                      {h.include_master ? ` / マスター ${h.updated_master}更新` : ""}
+                      {h.errors > 0 && <span className="text-red-500 ml-1">/ エラー {h.errors}件</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

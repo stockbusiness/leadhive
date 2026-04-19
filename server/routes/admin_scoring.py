@@ -172,69 +172,136 @@ def update_slack_triggers(
     return {"ok": True, "triggers": triggers}
 
 
+EC_DETECT_HISTORY_KEY = "ec_detect_history"
+
 _ec_detect_status: dict = {
-    "running": False, "done": 0, "total": 0, "updated": 0, "skipped": 0, "errors": 0
+    "running": False, "done": 0, "total": 0,
+    "updated": 0, "skipped": 0, "errors": 0,
+    "updated_master": 0, "include_master": False,
 }
 
 
-def _run_bulk_ec_detect(only_missing: bool = True):
+def _detect_and_update(record, db) -> bool:
+    """Fetch a URL, detect CMS/EC, update record fields. Returns True if changed."""
+    try:
+        resp = requests.get(
+            record.website_url,
+            headers={"User-Agent": LEADHIVE_UA},
+            timeout=10,
+            allow_redirects=True,
+        )
+        html = resp.text
+        soup = BeautifulSoup(html, "html.parser")
+        text = soup.get_text(separator=" ", strip=True)
+        cms = detect_cms(soup, html, dict(resp.headers))
+        ec_score = calculate_ec_score(soup, html, text)
+        ec_flag_val = True if ec_score >= 70 else (False if ec_score <= 30 else None)
+
+        changed = False
+        if cms and getattr(record, "cms_type", None) != cms:
+            record.cms_type = cms
+            if hasattr(record, "cms_detected_at"):
+                record.cms_detected_at = datetime.utcnow()
+            changed = True
+        if ec_flag_val is not None and getattr(record, "ec_flag", None) != ec_flag_val:
+            record.ec_flag = ec_flag_val
+            changed = True
+        if cms == "Shopify" and hasattr(record, "shopify_flag") and not record.shopify_flag:
+            record.shopify_flag = True
+            changed = True
+        if cms == "BASE" and hasattr(record, "base_flag") and not record.base_flag:
+            record.base_flag = True
+            changed = True
+        if cms == "MakeShop" and hasattr(record, "makeshop_flag") and not record.makeshop_flag:
+            record.makeshop_flag = True
+            changed = True
+        if cms == "futureshop" and hasattr(record, "futureshop_flag") and not record.futureshop_flag:
+            record.futureshop_flag = True
+            changed = True
+        if cms == "STORES" and hasattr(record, "stores_flag") and not record.stores_flag:
+            record.stores_flag = True
+            changed = True
+        return changed
+    except Exception:
+        return False
+
+
+def _run_bulk_ec_detect(only_missing: bool = True, include_master: bool = True):
     global _ec_detect_status
     db = SessionLocal()
+    started_at = datetime.utcnow().isoformat()
     try:
-        query = db.query(Company).filter(Company.website_url.isnot(None), Company.website_url != "")
+        # Company レコード
+        q = db.query(Company).filter(Company.website_url.isnot(None), Company.website_url != "")
         if only_missing:
-            query = query.filter(Company.cms_type.is_(None))
-        companies = query.all()
-        total = len(companies)
+            q = q.filter(Company.cms_type.is_(None))
+        companies = q.all()
+
+        # CompanyMaster レコード（オプション）
+        masters = []
+        if include_master:
+            qm = db.query(CompanyMaster).filter(CompanyMaster.website_url.isnot(None), CompanyMaster.website_url != "")
+            if only_missing:
+                qm = qm.filter(CompanyMaster.cms_type.is_(None))
+            masters = qm.all()
+
+        total = len(companies) + len(masters)
         _ec_detect_status["total"] = total
-        updated = 0
-        skipped = 0
-        errors = 0
 
-        for c in companies:
-            try:
-                resp = requests.get(
-                    c.website_url,
-                    headers={"User-Agent": LEADHIVE_UA},
-                    timeout=10,
-                    allow_redirects=True,
-                )
-                html = resp.text
-                soup = BeautifulSoup(html, "html.parser")
-                text = soup.get_text(separator=" ", strip=True)
-                cms = detect_cms(soup, html, dict(resp.headers))
-                ec_score = calculate_ec_score(soup, html, text)
-                ec_flag_val = True if ec_score >= 70 else (False if ec_score <= 30 else None)
+        updated = skipped = errors = updated_master = 0
 
-                changed = False
-                if cms and c.cms_type != cms:
-                    c.cms_type = cms
-                    c.cms_detected_at = datetime.utcnow()
-                    changed = True
-                if ec_flag_val is not None and c.ec_flag != ec_flag_val:
-                    c.ec_flag = ec_flag_val
-                    changed = True
-                if cms and cms == "Shopify" and not c.shopify_flag:
-                    c.shopify_flag = True
-                    changed = True
-
-                if changed:
-                    updated += 1
-                else:
+        for records, is_master in [(companies, False), (masters, True)]:
+            for c in records:
+                try:
+                    changed = _detect_and_update(c, db)
+                    if changed:
+                        if is_master:
+                            updated_master += 1
+                        else:
+                            updated += 1
+                    else:
+                        skipped += 1
+                except Exception:
+                    errors += 1
                     skipped += 1
-            except Exception:
-                errors += 1
-                skipped += 1
 
-            _ec_detect_status["done"] += 1
-            _ec_detect_status["updated"] = updated
-            _ec_detect_status["skipped"] = skipped
-            _ec_detect_status["errors"] = errors
+                _ec_detect_status["done"] += 1
+                _ec_detect_status["updated"] = updated
+                _ec_detect_status["updated_master"] = updated_master
+                _ec_detect_status["skipped"] = skipped
+                _ec_detect_status["errors"] = errors
 
-            if _ec_detect_status["done"] % 10 == 0:
-                db.commit()
+                if _ec_detect_status["done"] % 10 == 0:
+                    db.commit()
 
         db.commit()
+
+        # 履歴を SystemSettings に保存
+        finished_at = datetime.utcnow().isoformat()
+        history_entry = {
+            "started_at": started_at,
+            "finished_at": finished_at,
+            "only_missing": only_missing,
+            "include_master": include_master,
+            "total": total,
+            "updated": updated,
+            "updated_master": updated_master,
+            "skipped": skipped,
+            "errors": errors,
+        }
+        row = db.query(SystemSettings).filter(SystemSettings.key == EC_DETECT_HISTORY_KEY).first()
+        if row:
+            try:
+                prev = json.loads(row.value) if row.value else []
+            except Exception:
+                prev = []
+            prev.insert(0, history_entry)
+            row.value = json.dumps(prev[:20])  # 最新20件保持
+        else:
+            row = SystemSettings(key=EC_DETECT_HISTORY_KEY, value=json.dumps([history_entry]))
+            db.add(row)
+        db.commit()
+
     except Exception as e:
         logger.error(f"Bulk EC detect error: {e}")
     finally:
@@ -247,6 +314,7 @@ def bulk_ec_detect(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     only_missing: bool = True,
+    include_master: bool = True,
 ):
     global _ec_detect_status
     _require_system_admin(current_user)
@@ -254,14 +322,32 @@ def bulk_ec_detect(
         return {"ok": False, "message": "既に実行中です"}
     _ec_detect_status = {
         "running": True, "done": 0, "total": 0,
-        "updated": 0, "skipped": 0, "errors": 0,
+        "updated": 0, "updated_master": 0, "skipped": 0, "errors": 0,
+        "include_master": include_master,
     }
-    background_tasks.add_task(_run_bulk_ec_detect, only_missing)
+    background_tasks.add_task(_run_bulk_ec_detect, only_missing, include_master)
     mode = "未検出企業のみ" if only_missing else "全企業"
-    return {"ok": True, "message": f"{mode}のEC再検出を開始しました"}
+    master_note = "（マスターDB含む）" if include_master else ""
+    return {"ok": True, "message": f"{mode}{master_note}のEC再検出を開始しました"}
 
 
 @router.get("/api/admin/ec-detect-bulk/status")
 def bulk_ec_detect_status(current_user: User = Depends(get_current_user)):
     _require_system_admin(current_user)
     return _ec_detect_status
+
+
+@router.get("/api/admin/ec-detect-bulk/history")
+def bulk_ec_detect_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    row = db.query(SystemSettings).filter(SystemSettings.key == EC_DETECT_HISTORY_KEY).first()
+    if not row or not row.value:
+        return {"history": []}
+    try:
+        history = json.loads(row.value)
+    except Exception:
+        history = []
+    return {"history": history}
