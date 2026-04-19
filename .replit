@@ -39,3 +39,7 @@ externalPort = 80
 deploymentTarget = "vm"
 run = ["python", "server/main.py"]
 build = ["bash", "-c", "npx vite build --config frontend/vite.config.ts"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000
