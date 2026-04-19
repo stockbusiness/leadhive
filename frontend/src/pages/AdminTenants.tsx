@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2, Users, Database, FolderKanban, Crown, Pencil, Check, X, Loader2, RefreshCw, AlertTriangle, TrendingUp, Clock } from "lucide-react";
+import { Building2, Users, Database, FolderKanban, Crown, Pencil, Check, X, Loader2, RefreshCw, AlertTriangle, TrendingUp, Clock, ShoppingBag } from "lucide-react";
 import { api } from "../api";
 
 type Tenant = {
@@ -14,6 +14,7 @@ type Tenant = {
   last_login_at: string | null;
   is_churn_risk: boolean;
   created_at: string | null;
+  feature_ec_discovery: boolean;
 };
 
 type Plan = {
@@ -114,6 +115,17 @@ export default function AdminTenants() {
     }
   };
 
+  const toggleEcDiscovery = async (orgId: number, enabled: boolean) => {
+    try {
+      await api.tenants.update(orgId, { feature_ec_discovery: enabled });
+      setTenants(prev => prev.map(t => t.id === orgId ? { ...t, feature_ec_discovery: enabled } : t));
+      setSuccess(`EC収集機能を${enabled ? "有効" : "無効"}にしました`);
+      setTimeout(() => setSuccess(""), 3000);
+    } catch {
+      setError("更新に失敗しました");
+    }
+  };
+
   const churnRiskCount = tenants.filter(t => t.is_churn_risk).length;
 
   return (
@@ -165,8 +177,9 @@ export default function AdminTenants() {
             <div className="col-span-2">組織名</div>
             <div className="col-span-2">プラン</div>
             <div className="col-span-2">利用状況</div>
-            <div className="col-span-2">最終利用日</div>
+            <div className="col-span-1">最終利用日</div>
             <div className="col-span-1 text-center">今月収集</div>
+            <div className="col-span-1 text-center">EC収集</div>
             <div className="col-span-1 text-center">状態</div>
             <div className="col-span-1 text-right">操作</div>
           </div>
@@ -211,7 +224,7 @@ export default function AdminTenants() {
                     </div>
                   </div>
 
-                  <div className="col-span-2">
+                  <div className="col-span-1">
                     {t.last_login_at ? (
                       <div className="flex items-center gap-1.5">
                         <Clock size={12} className={loginInfo.daysAgo !== null && loginInfo.daysAgo > 14 ? "text-orange-400" : "text-slate-400"} />
@@ -229,6 +242,21 @@ export default function AdminTenants() {
                       <TrendingUp size={12} className="text-teal-500" />
                       <span className="text-sm font-semibold text-slate-700">{t.collections_this_month}</span>
                     </div>
+                  </div>
+
+                  <div className="col-span-1 flex justify-center">
+                    <button
+                      onClick={() => toggleEcDiscovery(t.id, !t.feature_ec_discovery)}
+                      title={t.feature_ec_discovery ? "EC収集を無効にする" : "EC収集を有効にする"}
+                      className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                        t.feature_ec_discovery
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                          : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+                      }`}
+                    >
+                      <ShoppingBag size={11} />
+                      {t.feature_ec_discovery ? "ON" : "OFF"}
+                    </button>
                   </div>
 
                   <div className="col-span-1 text-center">

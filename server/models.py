@@ -42,6 +42,7 @@ class Organization(Base):
     stripe_subscription_id = Column(String(255), nullable=True)
     subscription_status = Column(String(50), nullable=True)
     plan_expires_at = Column(DateTime, nullable=True)
+    feature_ec_discovery = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
 
 

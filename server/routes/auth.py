@@ -89,6 +89,7 @@ def _user_response(user: User, org: Organization) -> dict:
         "registration_number": user.registration_number,
         "totp_enabled": bool(user.totp_enabled),
         "terms_accepted_at": user.terms_accepted_at.isoformat() if user.terms_accepted_at else None,
+        "feature_ec_discovery": bool(org.feature_ec_discovery) if org else False,
     }
 
 

@@ -526,6 +526,7 @@ def downgrade_check(
 class TenantUpdateBody(BaseModel):
     plan_id: Optional[int] = None
     name: Optional[str] = None
+    feature_ec_discovery: Optional[bool] = None
 
 
 @router.get("/api/admin/tenants")
@@ -582,6 +583,7 @@ def list_tenants(
             "last_login_at": last_login_row.isoformat() if last_login_row else None,
             "is_churn_risk": is_churn_risk,
             "created_at": org.created_at.isoformat() if org.created_at else None,
+            "feature_ec_discovery": bool(org.feature_ec_discovery),
         })
     return {"tenants": result}
 
@@ -642,9 +644,11 @@ def update_tenant(
         org.plan_id = body.plan_id
     if body.name is not None:
         org.name = body.name
+    if body.feature_ec_discovery is not None:
+        org.feature_ec_discovery = body.feature_ec_discovery
     db.commit()
     db.refresh(org)
-    return {"id": org.id, "name": org.name, "plan_id": org.plan_id}
+    return {"id": org.id, "name": org.name, "plan_id": org.plan_id, "feature_ec_discovery": bool(org.feature_ec_discovery)}
 
 
 # ──────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ interface AuthUser {
   is_system_admin: boolean;
   is_founder: boolean;
   registration_number: number | null;
+  feature_ec_discovery: boolean;
 }
 
 interface AuthContextType {
@@ -72,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           is_system_admin: !!res.data.is_system_admin,
           is_founder: !!res.data.is_founder,
           registration_number: res.data.registration_number ?? null,
+          feature_ec_discovery: !!res.data.feature_ec_discovery,
         });
         setToken(savedToken);
       })
@@ -94,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       is_system_admin: !!userData.is_system_admin,
       is_founder: !!userData.is_founder,
       registration_number: userData.registration_number ?? null,
+      feature_ec_discovery: !!userData.feature_ec_discovery,
     });
   }, []);
 
@@ -123,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       is_system_admin: !!userData.is_system_admin,
       is_founder: !!userData.is_founder,
       registration_number: userData.registration_number ?? null,
+      feature_ec_discovery: !!userData.feature_ec_discovery,
     });
   }, []);
 

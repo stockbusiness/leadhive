@@ -276,7 +276,9 @@ function AppContent() {
             <SidebarLink to="/" icon={<LayoutDashboard size={18} />} label="ダッシュボード" onClick={closeSidebar} />
             <SidebarLink to="/companies" icon={<Building2 size={18} />} label="候補企業一覧" onClick={closeSidebar} />
             <SidebarLink to="/keywords" icon={<Search size={18} />} label="検索条件管理" onClick={closeSidebar} />
-            <SidebarLink to="/ec-discovery" icon={<ShoppingBag size={18} />} label="EC企業収集" onClick={closeSidebar} />
+            {(user?.feature_ec_discovery || user?.is_system_admin) && (
+              <SidebarLink to="/ec-discovery" icon={<ShoppingBag size={18} />} label="EC企業収集" onClick={closeSidebar} />
+            )}
             <SidebarLink to="/scraper" icon={<Globe size={18} />} label="URL収集" onClick={closeSidebar} />
             <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" onClick={closeSidebar} />
             <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" onClick={closeSidebar} />
