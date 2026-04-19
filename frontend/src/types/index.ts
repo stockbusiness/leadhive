@@ -147,8 +147,8 @@ export interface DashboardData {
   by_status: Record<string, number>;
   by_rank: Record<string, number>;
   by_prefecture: Record<string, number>;
-  ec_count?: number;
-  by_cms_type?: Record<string, number>;
+  ec_companies?: number;
+  ec_platform_distribution?: Record<string, number>;
   recent_companies: Company[];
   api_usage_today: number;
   api_daily_limit: number;

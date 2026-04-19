@@ -5,7 +5,7 @@ import SetupProgressCard from "../components/SetupProgressCard";
 import HelpPanel from "../components/HelpPanel";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
+  PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend,
 } from "recharts";
 import { api } from "../api";
 import { RANK_COLORS, PIE_COLORS, SCORE_BADGE_COLORS } from "../constants";
@@ -327,7 +327,7 @@ export default function Dashboard() {
       )}
 
       {/* ===== 統計カード ===== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard label="総収集件数" value={data.total} icon={<Building2 size={20} />} color="bg-blue-500" />
         <StatCard label="重複除外後" value={data.unique_domains} icon={<Search size={20} />} color="bg-indigo-500" />
         <StatCard label="未確認" value={data.unconfirmed} icon={<AlertCircle size={20} />} color="bg-amber-500" />
@@ -336,70 +336,58 @@ export default function Dashboard() {
         <ApiUsageCard usage={data.api_usage_today} limit={data.api_daily_limit} percent={usagePercent} />
       </div>
 
-      {/* ===== ECサイト統計 ===== */}
-      {((data.ec_count ?? 0) > 0 || Object.keys(data.by_cms_type ?? {}).length > 0) && (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-          <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
-            <ShoppingCart size={16} className="text-purple-500" />
-            ECサイト企業 統計
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* EC企業数サマリ */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
-                <div className="flex items-center gap-2">
-                  <ShoppingCart size={16} className="text-purple-500" />
-                  <span className="text-sm font-medium text-purple-800">EC企業 総数</span>
-                </div>
-                <span className="text-xl font-bold text-purple-700">{data.ec_count ?? 0}</span>
-              </div>
-              {data.total > 0 && (
-                <div className="px-1">
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                    <span>全企業に占めるEC企業比率</span>
-                    <span className="font-medium text-purple-600">
-                      {Math.round(((data.ec_count ?? 0) / data.total) * 100)}%
-                    </span>
-                  </div>
-                  <div className="bg-slate-100 rounded-full h-2">
-                    <div
-                      className="bg-purple-500 h-2 rounded-full transition-all"
-                      style={{ width: `${Math.min(100, ((data.ec_count ?? 0) / data.total) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-            {/* CMSプラットフォーム分布 */}
-            {Object.keys(data.by_cms_type ?? {}).length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-slate-500 mb-2">プラットフォーム内訳</p>
-                <div className="space-y-1.5">
-                  {Object.entries(data.by_cms_type ?? {})
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 6)
-                    .map(([cms, count]) => {
-                      const total_cms = Object.values(data.by_cms_type ?? {}).reduce((s, v) => s + v, 0);
-                      const pct = total_cms > 0 ? (count / total_cms) * 100 : 0;
-                      return (
-                        <div key={cms} className="flex items-center gap-2">
-                          <span className="text-xs text-slate-600 w-24 flex-shrink-0 truncate">{cms}</span>
-                          <div className="flex-1 bg-slate-100 rounded-full h-2">
-                            <div
-                              className="bg-purple-400 h-2 rounded-full"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-slate-500 w-8 text-right flex-shrink-0">{count}</span>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
+      {/* ===== EC統計カード ===== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 flex items-center gap-4">
+          <div className="bg-orange-500 text-white p-2.5 rounded-lg flex-shrink-0">
+            <ShoppingCart size={20} />
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">EC企業数</p>
+            <p className="text-2xl font-bold text-slate-800 mt-0.5">{data.ec_companies ?? 0}<span className="text-sm font-normal text-slate-400 ml-1">社</span></p>
+            <p className="text-xs text-slate-400 mt-0.5">EC判定フラグが立っている企業</p>
           </div>
         </div>
-      )}
+
+        <ChartCard title="ECプラットフォーム分布">
+          {data.ec_platform_distribution && Object.keys(data.ec_platform_distribution).length > 0 ? (() => {
+            const platformData = Object.entries(data.ec_platform_distribution!).map(([name, value]) => ({ name, value }));
+            const PLATFORM_COLORS = ["#6366f1", "#f59e0b", "#ef4444", "#10b981", "#3b82f6", "#8b5cf6"];
+            return (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={platformData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    dataKey="value"
+                    nameKey="name"
+                  >
+                    {platformData.map((_, i) => (
+                      <Cell key={i} fill={PLATFORM_COLORS[i % PLATFORM_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: number | string | undefined) => [`${v ?? 0}社`, ""]} />
+                  <Legend
+                    formatter={(value, entry) => (
+                      <span style={{ fontSize: 11, color: "#475569" }}>
+                        {value} {(entry.payload as { value?: number })?.value ?? 0}社
+                      </span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            );
+          })() : (
+            <div className="flex flex-col items-center justify-center h-[200px] text-slate-400 text-sm gap-2">
+              <ShoppingCart size={24} className="text-slate-300" />
+              <p>プラットフォームデータなし</p>
+            </div>
+          )}
+        </ChartCard>
+      </div>
 
       {/* ===== 営業ファネル ===== */}
       {funnelData.length > 0 && (
