@@ -48,6 +48,7 @@
 | Googleマップ収集 | `feature_google_maps = ON` | システム管理者がテナント単位でON/OFF |
 | gBizINFO法人DB収集 | `feature_gbizinfo = ON` | システム管理者がテナント単位でON/OFF |
 | マスターDBインポート | `feature_master_db = ON` + プランのインポート上限 > 0 | フリープランは0件制限 |
+| **ECサイトオーナー向けリスト収集** | `feature_ec_discovery = ON` (Organizationフラグ) | `/admin/tenants` でテナント単位にON/OFF。デフォルトOFF（希望クライアントのみ提供） |
 
 ### 3-2. 企業管理
 
@@ -142,7 +143,9 @@
 
 ## 4. 機能フラグ (システム管理者が制御)
 
-`/admin/features` でテナント単位でON/OFF。デフォルトはすべて **ON**。
+### 4-1. 通常フィーチャーフラグ (`/admin/features`)
+
+テナント単位でON/OFF。デフォルトはすべて **ON**。
 
 | フラグキー | 制御対象機能 |
 |-----------|------------|
@@ -153,6 +156,17 @@
 | `feature_google_maps` | Googleマップ収集 |
 | `feature_slack_notify` | Slack通知 (フォローアップ等) |
 | `feature_self_upgrade` | ユーザー自身によるStripeプランアップグレード |
+
+### 4-2. EC収集機能フラグ (`/admin/tenants`)
+
+**テナント管理画面**で個別にON/OFF。デフォルト **OFF**（希望クライアントのみ提供するオプション機能）。
+
+| フラグ | 列名 | 制御対象機能 |
+|--------|------|------------|
+| EC収集機能 | `Organization.feature_ec_discovery` | ECサイトオーナー向けリスト収集・CMSバッジ・EC統計ダッシュボード |
+
+> **設定場所**: `/admin/tenants` → テナント行の「EC収集機能」トグル
+> **注意**: `/admin/features` の機能フラグとは別管理です。
 
 ---
 
@@ -178,6 +192,7 @@
 | パイプライン | 全員 |
 | 営業AI | 全員 |
 | マスターDB | `feature_master_db = ON` |
+| **EC企業収集** | `feature_ec_discovery = ON` または `is_system_admin = True` |
 | キーワード | 全員 |
 | プロジェクト | 全員 |
 | 設定 | 全員 (タブ単位で制限あり) |
