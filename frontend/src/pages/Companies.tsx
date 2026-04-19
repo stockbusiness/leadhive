@@ -121,6 +121,8 @@ export default function Companies() {
     if (filters.status) params.set("status", filters.status);
     if (filters.score_rank) params.set("score_rank", filters.score_rank);
     if (filters.has_contact) params.set("has_contact", filters.has_contact);
+    if (filters.cms_type) params.set("cms_type", filters.cms_type);
+    if (filters.ec_only === "true") params.set("ec_only", "true");
     if (currentProject?.id) params.set("project_id", String(currentProject.id));
     try {
       const { blob, count, limit } = await api.companies.exportCsv(params);
@@ -157,6 +159,8 @@ export default function Companies() {
       if (filters.category) params.set("category", filters.category);
       if (filters.status) params.set("status", filters.status);
       if (filters.score_rank) params.set("score_rank", filters.score_rank);
+      if (filters.cms_type) params.set("cms_type", filters.cms_type);
+      if (filters.ec_only === "true") params.set("ec_only", "true");
       if (currentProject?.id) params.set("project_id", String(currentProject.id));
       const resp = await fetch(`/api/companies/export.xlsx?${params.toString()}`);
       const blob = await resp.blob();

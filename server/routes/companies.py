@@ -351,6 +351,8 @@ def export_companies_xlsx_v2(
     score_rank: Optional[str] = None,
     search: Optional[str] = None,
     project_id: Optional[int] = None,
+    cms_type: Optional[str] = None,
+    ec_only: Optional[bool] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -378,6 +380,16 @@ def export_companies_xlsx_v2(
             | Company.website_url.ilike(f"%{search}%")
             | Company.domain.ilike(f"%{search}%")
         )
+    if cms_type:
+        if cms_type == "EC_PLATFORMS":
+            ec_platforms = ["Shopify", "WooCommerce", "BASE", "MakeShop", "futureshop",
+                            "カラーミー", "EC-CUBE", "STORES", "ロリポップEC", "NEXT ENGINE",
+                            "カート365", "Yahoo!ショッピング", "aishipR", "ショップサーブ"]
+            query = query.filter(Company.cms_type.in_(ec_platforms))
+        else:
+            query = query.filter(Company.cms_type == cms_type)
+    if ec_only:
+        query = query.filter(Company.ec_flag == True)
 
     companies = query.order_by(desc(Company.score_total)).limit(5000).all()
 
@@ -675,6 +687,8 @@ def export_csv(
     score_rank: Optional[str] = None,
     has_contact: Optional[bool] = None,
     project_id: Optional[int] = None,
+    cms_type: Optional[str] = None,
+    ec_only: Optional[bool] = None,
     current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
@@ -709,6 +723,16 @@ def export_csv(
         query = query.filter(Company.score_rank == score_rank)
     if has_contact:
         query = query.filter(Company.contact_url.isnot(None), Company.contact_url != "")
+    if cms_type:
+        if cms_type == "EC_PLATFORMS":
+            ec_platforms = ["Shopify", "WooCommerce", "BASE", "MakeShop", "futureshop",
+                            "カラーミー", "EC-CUBE", "STORES", "ロリポップEC", "NEXT ENGINE",
+                            "カート365", "Yahoo!ショッピング", "aishipR", "ショップサーブ"]
+            query = query.filter(Company.cms_type.in_(ec_platforms))
+        else:
+            query = query.filter(Company.cms_type == cms_type)
+    if ec_only:
+        query = query.filter(Company.ec_flag == True)
 
     query = query.order_by(desc(Company.score_total))
     if csv_limit is not None:
