@@ -351,3 +351,22 @@ def bulk_ec_detect_history(
     except Exception:
         history = []
     return {"history": history}
+
+
+@router.get("/api/admin/cms-scan/auto-status")
+def cms_scan_auto_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_system_admin(current_user)
+    last_run_row = db.query(SystemSettings).filter(SystemSettings.key == "auto_cms_scan_last_run").first()
+    last_run = last_run_row.value if last_run_row else None
+    tz_row = db.query(SystemSettings).filter(SystemSettings.key == "scheduler_timezone").first()
+    tz_name = (tz_row.value if tz_row and tz_row.value else None) or "Asia/Tokyo"
+    missing_count = (
+        db.query(Company)
+        .filter(Company.website_url.isnot(None), Company.website_url != "", Company.cms_type.is_(None))
+        .count()
+    )
+    schedule = f"毎日 06:00 ({tz_name})"
+    return {"last_run": last_run, "missing_count": missing_count, "schedule": schedule}

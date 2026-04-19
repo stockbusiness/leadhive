@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Star, RotateCcw, Save, Info, TrendingUp, TrendingDown, RefreshCw, ShoppingBag, History, CheckCircle2 } from "lucide-react";
+import { Star, RotateCcw, Save, Info, TrendingUp, TrendingDown, RefreshCw, ShoppingBag, History, CheckCircle2, Clock } from "lucide-react";
 
 const RULE_LABELS: Record<string, string> = {
   ec_flag: "ECサイト判定",
@@ -24,6 +24,7 @@ type Rules = Record<string, number>;
 type RescoreStatus = { running: boolean; done: number; total: number; updated_companies: number; updated_masters: number };
 type EcDetectStatus = { running: boolean; done: number; total: number; updated: number; updated_master: number; skipped: number; errors: number; include_master: boolean };
 type EcDetectHistoryEntry = { started_at: string; finished_at: string; only_missing: boolean; include_master: boolean; total: number; updated: number; updated_master: number; skipped: number; errors: number };
+type AutoScanStatus = { last_run: string | null; missing_count: number; schedule: string };
 
 export default function AdminScoringRules() {
   const [rules, setRules] = useState<Rules>({});
@@ -40,6 +41,7 @@ export default function AdminScoringRules() {
   const [includeMaster, setIncludeMaster] = useState(true);
   const [ecHistory, setEcHistory] = useState<EcDetectHistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [autoScanStatus, setAutoScanStatus] = useState<AutoScanStatus | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -59,7 +61,22 @@ export default function AdminScoringRules() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  const loadAutoScanStatus = async () => {
+    try {
+      const res = await fetch("/api/admin/cms-scan/auto-status");
+      if (res.ok) {
+        const data = await res.json();
+        setAutoScanStatus(data);
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  useEffect(() => {
+    load();
+    loadAutoScanStatus();
+  }, []);
 
   const handleChange = (key: string, val: string) => {
     const num = parseInt(val, 10);
@@ -260,6 +277,22 @@ export default function AdminScoringRules() {
           既存企業のWebサイトを再スキャンし、CMS種別（Shopify・BASE・WooCommerce等）とECフラグを更新します。
         </p>
 
+        <div className="flex items-start gap-3 rounded-lg bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 px-4 py-3">
+          <Clock size={15} className="text-sky-600 dark:text-sky-400 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-sky-700 dark:text-sky-300 space-y-0.5">
+            <div className="font-medium">自動スキャン: {autoScanStatus?.schedule ?? "毎日 06:00 (Asia/Tokyo)"}</div>
+            <div className="text-xs text-sky-600 dark:text-sky-400">
+              CMS未検出企業を毎日最大100社ずつ自動スキャンし、ダッシュボードのCMSバッジ精度を継続的に向上させます。
+              {autoScanStatus && (
+                <span className="ml-1">
+                  前回実行: {autoScanStatus.last_run ? new Date(autoScanStatus.last_run).toLocaleString("ja-JP") : "未実行"} /
+                  未検出: {autoScanStatus.missing_count.toLocaleString()}社
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -277,7 +310,7 @@ export default function AdminScoringRules() {
             className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
           >
             <RefreshCw size={14} className={ecDetecting ? "animate-spin" : ""} />
-            {ecDetecting ? "検出中..." : "未検出企業を再スキャン"}
+            {ecDetecting ? "検出中..." : "未検出企業を今すぐスキャン"}
           </button>
           <button
             onClick={() => handleEcDetect(false)}

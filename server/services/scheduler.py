@@ -1043,6 +1043,99 @@ def _run_auto_master_enrich(force: bool = False, job_id: str = None):
             logger.warning(f"AutoMasterEnrich: プールリセット失敗: {_dp_err}")
 
 
+def _run_auto_cms_scan():
+    """CMS未検出企業を定期スキャンしてダッシュボードバッジ精度を向上させる。
+    1回の実行で最大100社をスキャンし、サーバー負荷を抑える。
+    毎回ランダム順でサンプリングするため、同じ企業が連続して選ばれるスタベーションを防ぐ。
+    """
+    import requests as _requests
+    import sqlalchemy as _sa
+    from server.database import SessionLocal
+    from server.models import Company, SystemSettings
+    from server.services.scraper import detect_cms, LEADHIVE_UA
+    from server.services.categorizer import calculate_ec_score
+    from bs4 import BeautifulSoup as _BS
+
+    MAX_PER_RUN = 100
+    db = SessionLocal()
+    try:
+        # ランダム順でサンプリングし、同一レコードへの連続アクセスによるスタベーションを防ぐ
+        candidates = (
+            db.query(Company)
+            .filter(
+                Company.website_url.isnot(None),
+                Company.website_url != "",
+                Company.cms_type.is_(None),
+            )
+            .order_by(_sa.func.random())
+            .limit(MAX_PER_RUN)
+            .all()
+        )
+
+        now_iso = datetime.utcnow().isoformat()
+        if not candidates:
+            logger.info("AutoCmsScan: CMS未検出企業なし、スキップ")
+            _row = db.query(SystemSettings).filter(SystemSettings.key == "auto_cms_scan_last_run").first()
+            if _row:
+                _row.value = now_iso
+            else:
+                db.add(SystemSettings(key="auto_cms_scan_last_run", value=now_iso))
+            db.commit()
+            return
+
+        logger.info(f"AutoCmsScan: {len(candidates)}社をスキャン開始（ランダム順）")
+        updated = 0
+        errors = 0
+        for c in candidates:
+            try:
+                resp = _requests.get(
+                    c.website_url,
+                    headers={"User-Agent": LEADHIVE_UA},
+                    timeout=10,
+                    allow_redirects=True,
+                )
+                html = resp.text
+                soup = _BS(html, "html.parser")
+                text = soup.get_text(separator=" ", strip=True)
+                cms = detect_cms(soup, html, dict(resp.headers))
+                ec_score = calculate_ec_score(soup, html, text)
+                ec_flag_val = True if ec_score >= 70 else (False if ec_score <= 30 else None)
+
+                changed = False
+                if cms and c.cms_type != cms:
+                    c.cms_type = cms
+                    c.cms_detected_at = datetime.utcnow()
+                    changed = True
+                if ec_flag_val is not None and c.ec_flag != ec_flag_val:
+                    c.ec_flag = ec_flag_val
+                    changed = True
+                if cms and cms == "Shopify" and not c.shopify_flag:
+                    c.shopify_flag = True
+                    changed = True
+                if changed:
+                    updated += 1
+            except Exception as _e:
+                logger.debug(f"AutoCmsScan: {c.website_url} エラー: {_e}")
+                errors += 1
+
+            if updated % 10 == 0 and updated > 0:
+                db.commit()
+
+        db.commit()
+        logger.info(f"AutoCmsScan: 完了 — {updated}社更新 / {errors}件エラー / {len(candidates)}社スキャン")
+
+        row = db.query(SystemSettings).filter(SystemSettings.key == "auto_cms_scan_last_run").first()
+        if row:
+            row.value = now_iso
+        else:
+            db.add(SystemSettings(key="auto_cms_scan_last_run", value=now_iso))
+        db.commit()
+    except Exception as e:
+        logger.error(f"AutoCmsScan error: {e}")
+    finally:
+        db.close()
+
+
 def _write_sys_setting(key: str, value: str):
     from server.database import SessionLocal
     from server.models import SystemSettings
@@ -1076,6 +1169,7 @@ def _scheduler_loop():
     last_auto_close_date = None
     last_usage_alert_date = None
     last_log_cleanup_date = None
+    last_cms_scan_date = None
 
     while _scheduler_running:
         try:
@@ -1186,6 +1280,11 @@ def _scheduler_loop():
                 last_log_cleanup_date = today
                 logger.info("LogCleanup: Triggered at 03:00")
                 threading.Thread(target=_run_log_cleanup, daemon=True).start()
+
+            if now.hour == 6 and now.minute == 0 and last_cms_scan_date != today:
+                last_cms_scan_date = today
+                logger.info("AutoCmsScan: Triggered at 06:00")
+                threading.Thread(target=_run_auto_cms_scan, daemon=True).start()
 
             from server.models import AppSetting, Organization
             db2 = SessionLocal()
