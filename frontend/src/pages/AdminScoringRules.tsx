@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Star, RotateCcw, Save, Info, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
+import { Star, RotateCcw, Save, Info, TrendingUp, TrendingDown, RefreshCw, ShoppingBag } from "lucide-react";
 
 const RULE_LABELS: Record<string, string> = {
   ec_flag: "ECサイト判定",
@@ -22,6 +22,7 @@ const RULE_LABELS: Record<string, string> = {
 
 type Rules = Record<string, number>;
 type RescoreStatus = { running: boolean; done: number; total: number; updated_companies: number; updated_masters: number };
+type EcDetectStatus = { running: boolean; done: number; total: number; updated: number; skipped: number; errors: number };
 
 export default function AdminScoringRules() {
   const [rules, setRules] = useState<Rules>({});
@@ -32,6 +33,9 @@ export default function AdminScoringRules() {
   const [rescoring, setRescoring] = useState(false);
   const [rescoreStatus, setRescoreStatus] = useState<RescoreStatus | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [ecDetecting, setEcDetecting] = useState(false);
+  const [ecDetectStatus, setEcDetectStatus] = useState<EcDetectStatus | null>(null);
+  const ecPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -121,6 +125,40 @@ export default function AdminScoringRules() {
     }
   };
 
+  const handleEcDetect = async (onlyMissing: boolean) => {
+    const label = onlyMissing ? "CMS未検出の企業のみ" : "全企業";
+    if (!confirm(`${label}のWebサイトを再スキャンしてECプラットフォームを検出します。よろしいですか？`)) return;
+    setEcDetecting(true);
+    setEcDetectStatus(null);
+    try {
+      const res = await fetch(`/api/admin/ec-detect-bulk?only_missing=${onlyMissing}`, { method: "POST" });
+      const data = await res.json();
+      if (!data.ok) {
+        setMessage({ type: "err", text: data.message || "EC検出を開始できませんでした" });
+        setEcDetecting(false);
+        return;
+      }
+      ecPollRef.current = setInterval(async () => {
+        try {
+          const sr: EcDetectStatus = await fetch("/api/admin/ec-detect-bulk/status").then(r => r.json());
+          setEcDetectStatus(sr);
+          if (!sr.running) {
+            if (ecPollRef.current) clearInterval(ecPollRef.current);
+            setEcDetecting(false);
+            setMessage({ type: "ok", text: `EC再検出完了: ${sr.updated}件更新 / ${sr.skipped}件スキップ / ${sr.errors}件エラー` });
+            setTimeout(() => setMessage(null), 6000);
+          }
+        } catch {
+          if (ecPollRef.current) clearInterval(ecPollRef.current);
+          setEcDetecting(false);
+        }
+      }, 2000);
+    } catch {
+      setMessage({ type: "err", text: "EC再検出の開始に失敗しました" });
+      setEcDetecting(false);
+    }
+  };
+
   const positive = Object.entries(rules).filter(([, v]) => v >= 0);
   const negative = Object.entries(rules).filter(([, v]) => v < 0);
 
@@ -184,6 +222,48 @@ export default function AdminScoringRules() {
           </div>
         </div>
       )}
+
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <ShoppingBag size={18} className="text-emerald-600" />
+          <h2 className="font-semibold text-slate-800 dark:text-slate-100">ECプラットフォーム一括再検出</h2>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          既存企業のWebサイトを再スキャンし、CMS種別（Shopify・BASE・WooCommerce等）とECフラグを更新します。
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => handleEcDetect(true)}
+            disabled={ecDetecting || rescoring}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw size={14} className={ecDetecting ? "animate-spin" : ""} />
+            {ecDetecting ? "検出中..." : "未検出企業を再スキャン"}
+          </button>
+          <button
+            onClick={() => handleEcDetect(false)}
+            disabled={ecDetecting || rescoring}
+            className="flex items-center gap-2 bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-700 disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw size={14} />
+            全企業を再スキャン
+          </button>
+        </div>
+        {ecDetecting && ecDetectStatus && ecDetectStatus.total > 0 && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-sm text-emerald-700 dark:text-emerald-400">
+              <span>EC検出進捗</span>
+              <span>{ecDetectStatus.done} / {ecDetectStatus.total} 件 （更新 {ecDetectStatus.updated} / エラー {ecDetectStatus.errors}）</span>
+            </div>
+            <div className="w-full bg-emerald-100 dark:bg-emerald-900/30 rounded-full h-2">
+              <div
+                className="bg-emerald-500 h-2 rounded-full transition-all"
+                style={{ width: `${Math.round((ecDetectStatus.done / ecDetectStatus.total) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3 flex gap-2 text-sm text-blue-700 dark:text-blue-300">
         <Info size={15} className="flex-shrink-0 mt-0.5" />

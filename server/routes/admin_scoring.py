@@ -1,11 +1,16 @@
 import json
 import logging
+import requests
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from server.database import get_db, SessionLocal
 from server.models import SystemSettings, User, Company, CompanyMaster
 from server.auth import get_current_user
 from server.services.scorer import DEFAULT_SCORING_RULES, get_rules_from_db, calculate_score
+from server.services.scraper import detect_cms, LEADHIVE_UA
+from server.services.categorizer import calculate_ec_score
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
@@ -165,3 +170,98 @@ def update_slack_triggers(
         raise HTTPException(status_code=400, detail="triggers must be a dict")
     save_triggers(db, triggers)
     return {"ok": True, "triggers": triggers}
+
+
+_ec_detect_status: dict = {
+    "running": False, "done": 0, "total": 0, "updated": 0, "skipped": 0, "errors": 0
+}
+
+
+def _run_bulk_ec_detect(only_missing: bool = True):
+    global _ec_detect_status
+    db = SessionLocal()
+    try:
+        query = db.query(Company).filter(Company.website_url.isnot(None), Company.website_url != "")
+        if only_missing:
+            query = query.filter(Company.cms_type.is_(None))
+        companies = query.all()
+        total = len(companies)
+        _ec_detect_status["total"] = total
+        updated = 0
+        skipped = 0
+        errors = 0
+
+        for c in companies:
+            try:
+                resp = requests.get(
+                    c.website_url,
+                    headers={"User-Agent": LEADHIVE_UA},
+                    timeout=10,
+                    allow_redirects=True,
+                )
+                html = resp.text
+                soup = BeautifulSoup(html, "html.parser")
+                text = soup.get_text(separator=" ", strip=True)
+                cms = detect_cms(soup, html, dict(resp.headers))
+                ec_score = calculate_ec_score(soup, html, text)
+                ec_flag_val = True if ec_score >= 70 else (False if ec_score <= 30 else None)
+
+                changed = False
+                if cms and c.cms_type != cms:
+                    c.cms_type = cms
+                    c.cms_detected_at = datetime.utcnow()
+                    changed = True
+                if ec_flag_val is not None and c.ec_flag != ec_flag_val:
+                    c.ec_flag = ec_flag_val
+                    changed = True
+                if cms and cms == "Shopify" and not c.shopify_flag:
+                    c.shopify_flag = True
+                    changed = True
+
+                if changed:
+                    updated += 1
+                else:
+                    skipped += 1
+            except Exception:
+                errors += 1
+                skipped += 1
+
+            _ec_detect_status["done"] += 1
+            _ec_detect_status["updated"] = updated
+            _ec_detect_status["skipped"] = skipped
+            _ec_detect_status["errors"] = errors
+
+            if _ec_detect_status["done"] % 10 == 0:
+                db.commit()
+
+        db.commit()
+    except Exception as e:
+        logger.error(f"Bulk EC detect error: {e}")
+    finally:
+        _ec_detect_status["running"] = False
+        db.close()
+
+
+@router.post("/api/admin/ec-detect-bulk")
+def bulk_ec_detect(
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    only_missing: bool = True,
+):
+    global _ec_detect_status
+    _require_system_admin(current_user)
+    if _ec_detect_status["running"]:
+        return {"ok": False, "message": "既に実行中です"}
+    _ec_detect_status = {
+        "running": True, "done": 0, "total": 0,
+        "updated": 0, "skipped": 0, "errors": 0,
+    }
+    background_tasks.add_task(_run_bulk_ec_detect, only_missing)
+    mode = "未検出企業のみ" if only_missing else "全企業"
+    return {"ok": True, "message": f"{mode}のEC再検出を開始しました"}
+
+
+@router.get("/api/admin/ec-detect-bulk/status")
+def bulk_ec_detect_status(current_user: User = Depends(get_current_user)):
+    _require_system_admin(current_user)
+    return _ec_detect_status
