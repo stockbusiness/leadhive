@@ -71,9 +71,25 @@ export default function CompanyFilterBar({
 
   const selectClass = "border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 
+  const [showAllCms, setShowAllCms] = useState(false);
+
+  const TOP_CMS_COUNT = 5;
+
   const sortedCmsEntries = Object.entries(cmsSummary)
-    .filter(([, count]) => count > 0)
+    .filter(([, count]) => count > 1)
     .sort((a, b) => b[1] - a[1]);
+
+  const hiddenCmsEntries = sortedCmsEntries.slice(TOP_CMS_COUNT);
+  const hiddenCount = hiddenCmsEntries.length;
+  const hiddenTotal = hiddenCmsEntries.reduce((sum, [, count]) => sum + count, 0);
+
+  useEffect(() => {
+    if (filters.cms_type && hiddenCmsEntries.some(([cms]) => cms === filters.cms_type)) {
+      setShowAllCms(true);
+    }
+  }, [filters.cms_type, hiddenCmsEntries.map(([cms]) => cms).join(",")]);
+
+  const visibleCmsEntries = showAllCms ? sortedCmsEntries : sortedCmsEntries.slice(0, TOP_CMS_COUNT);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3 space-y-2">
@@ -221,7 +237,7 @@ export default function CompanyFilterBar({
               🛍️ ECサイト: <span className="font-bold">{ecCount.toLocaleString()}社</span>
             </button>
           )}
-          {sortedCmsEntries.map(([cms, count]) => (
+          {visibleCmsEntries.map(([cms, count]) => (
             <button
               key={cms}
               onClick={() => onFilterChange({ ...filters, cms_type: filters.cms_type === cms ? "" : cms, ec_only: "" })}
@@ -234,6 +250,22 @@ export default function CompanyFilterBar({
               {cms}: <span className="font-bold">{count.toLocaleString()}社</span>
             </button>
           ))}
+          {!showAllCms && hiddenCount > 0 && (
+            <button
+              onClick={() => setShowAllCms(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors bg-slate-50 text-slate-500 border-slate-300 hover:bg-slate-100"
+            >
+              その他 {hiddenCount}件 ({hiddenTotal.toLocaleString()}社) ▼
+            </button>
+          )}
+          {showAllCms && hiddenCount > 0 && (
+            <button
+              onClick={() => setShowAllCms(false)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200"
+            >
+              折りたたむ ▲
+            </button>
+          )}
         </div>
       )}
     </div>
