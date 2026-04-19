@@ -142,8 +142,17 @@ export default function CompanyTable({
                     )}
                     <div className="flex flex-wrap gap-1 mt-1">
                       {c.ec_flag && <FlagBadge label="🛒 ECサイト" color="bg-blue-100 text-blue-700" />}
-                      {c.cms_type && <CmsBadge cms={c.cms_type} />}
-                      {c.shopify_flag && !c.cms_type && <FlagBadge label="🛒 Shopify" color="bg-green-100 text-green-700" />}
+                      {c.cms_type ? (
+                        <CmsBadge cms={c.cms_type} />
+                      ) : (
+                        <>
+                          {c.shopify_flag && <FlagBadge label="🛒 Shopify" color="bg-green-100 text-green-700" />}
+                          {c.base_flag && <FlagBadge label="🛒 BASE" color="bg-orange-100 text-orange-700" />}
+                          {c.makeshop_flag && <FlagBadge label="🛒 MakeShop" color="bg-blue-100 text-blue-700" />}
+                          {c.futureshop_flag && <FlagBadge label="🛒 futureshop" color="bg-sky-100 text-sky-700" />}
+                          {c.stores_flag && <FlagBadge label="🛒 STORES" color="bg-pink-100 text-pink-700" />}
+                        </>
+                      )}
                       {c.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
                       {c.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
                       {c.tags && c.tags.map((tag) => (
@@ -261,8 +270,17 @@ export default function CompanyTable({
                     </a>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {c.ec_flag && <FlagBadge label="🛒 ECサイト" color="bg-blue-100 text-blue-700" />}
-                      {c.cms_type && <CmsBadge cms={c.cms_type} />}
-                      {c.shopify_flag && !c.cms_type && <FlagBadge label="🛒 Shopify" color="bg-green-100 text-green-700" />}
+                      {c.cms_type ? (
+                        <CmsBadge cms={c.cms_type} />
+                      ) : (
+                        <>
+                          {c.shopify_flag && <FlagBadge label="🛒 Shopify" color="bg-green-100 text-green-700" />}
+                          {c.base_flag && <FlagBadge label="🛒 BASE" color="bg-orange-100 text-orange-700" />}
+                          {c.makeshop_flag && <FlagBadge label="🛒 MakeShop" color="bg-blue-100 text-blue-700" />}
+                          {c.futureshop_flag && <FlagBadge label="🛒 futureshop" color="bg-sky-100 text-sky-700" />}
+                          {c.stores_flag && <FlagBadge label="🛒 STORES" color="bg-pink-100 text-pink-700" />}
+                        </>
+                      )}
                       {c.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
                       {c.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
                       {c.tags && c.tags.map((tag) => (

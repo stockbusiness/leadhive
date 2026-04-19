@@ -62,15 +62,24 @@ function CompanyCard({ company, isDragging }: { company: Company; isDragging?: b
           <span className={`text-[10px] px-1.5 py-0.5 rounded ${
             company.cms_type === "Shopify" ? "bg-green-100 text-green-700" :
             company.cms_type === "BASE" ? "bg-orange-100 text-orange-700" :
+            company.cms_type === "MakeShop" ? "bg-blue-100 text-blue-700" :
+            company.cms_type === "futureshop" ? "bg-sky-100 text-sky-700" :
+            company.cms_type === "STORES" ? "bg-pink-100 text-pink-700" :
             company.cms_type === "EC-CUBE" ? "bg-amber-100 text-amber-700" :
             company.cms_type === "Wix" ? "bg-sky-100 text-sky-700" :
             company.cms_type === "WordPress" ? "bg-blue-100 text-blue-700" :
             "bg-slate-100 text-slate-600"
           }`}>
-            {["Shopify", "BASE", "EC-CUBE"].includes(company.cms_type) ? `🛒 ${company.cms_type}` : company.cms_type}
+            {["Shopify", "BASE", "EC-CUBE", "MakeShop", "futureshop", "STORES"].includes(company.cms_type) ? `🛒 ${company.cms_type}` : company.cms_type}
           </span>
-        ) : company.shopify_flag && (
-          <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">🛒 Shopify</span>
+        ) : (
+          <>
+            {company.shopify_flag && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">🛒 Shopify</span>}
+            {company.base_flag && <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">🛒 BASE</span>}
+            {company.makeshop_flag && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">🛒 MakeShop</span>}
+            {company.futureshop_flag && <span className="text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded">🛒 futureshop</span>}
+            {company.stores_flag && <span className="text-[10px] bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded">🛒 STORES</span>}
+          </>
         )}
         {company.assignee && (
           <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded truncate max-w-[80px]">
