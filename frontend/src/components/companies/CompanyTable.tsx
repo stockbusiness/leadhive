@@ -4,6 +4,34 @@ import { STATUSES } from "../../constants";
 import { ScoreBadge, FlagBadge } from "../common";
 import type { Company } from "../../types";
 
+const CMS_COLORS: Record<string, string> = {
+  Shopify: "bg-green-100 text-green-700",
+  WooCommerce: "bg-purple-100 text-purple-700",
+  BASE: "bg-orange-100 text-orange-700",
+  STORES: "bg-pink-100 text-pink-700",
+  MakeShop: "bg-blue-100 text-blue-700",
+  futureshop: "bg-sky-100 text-sky-700",
+  "カラーミー": "bg-rose-100 text-rose-700",
+  "EC-CUBE": "bg-amber-100 text-amber-700",
+  "ロリポップEC": "bg-lime-100 text-lime-700",
+  aishipR: "bg-teal-100 text-teal-700",
+  "ショップサーブ": "bg-indigo-100 text-indigo-700",
+  "カート365": "bg-violet-100 text-violet-700",
+  "Yahoo!ショッピング": "bg-red-100 text-red-700",
+  WordPress: "bg-blue-100 text-blue-700",
+  Wix: "bg-slate-100 text-slate-600",
+};
+
+function CmsBadge({ cms }: { cms: string }) {
+  const color = CMS_COLORS[cms] || "bg-slate-100 text-slate-600";
+  const isEC = Object.keys(CMS_COLORS).slice(0, 13).includes(cms);
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${color}`}>
+      {isEC ? "🛒" : "🌐"} {cms}
+    </span>
+  );
+}
+
 export default function CompanyTable({
   companies,
   selectedIds,
@@ -116,6 +144,12 @@ export default function CompanyTable({
                       {c.shopify_flag && <FlagBadge label="Shopify" color="bg-green-100 text-green-700" />}
                       {c.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
                       {c.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
+                      {c.cms_type && !c.shopify_flag && (
+                        <CmsBadge cms={c.cms_type} />
+                      )}
+                      {c.ec_flag && !c.cms_type && !c.shopify_flag && (
+                        <FlagBadge label="🛒 EC" color="bg-purple-100 text-purple-700" />
+                      )}
                       {c.tags && c.tags.map((tag) => (
                         <span key={tag} className="inline-block bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[10px]">
                           {tag}
@@ -233,6 +267,12 @@ export default function CompanyTable({
                       {c.shopify_flag && <FlagBadge label="Shopify" color="bg-green-100 text-green-700" />}
                       {c.amazon_flag && <FlagBadge label="Amazon" color="bg-orange-100 text-orange-700" />}
                       {c.rakuten_flag && <FlagBadge label="楽天" color="bg-red-100 text-red-700" />}
+                      {c.cms_type && !c.shopify_flag && (
+                        <CmsBadge cms={c.cms_type} />
+                      )}
+                      {c.ec_flag && !c.cms_type && !c.shopify_flag && (
+                        <FlagBadge label="🛒 EC" color="bg-purple-100 text-purple-700" />
+                      )}
                       {c.tags && c.tags.map((tag) => (
                         <span key={tag} className="inline-block bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[10px] leading-tight">
                           {tag}

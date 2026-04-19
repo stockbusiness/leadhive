@@ -42,6 +42,7 @@ import {
   Scale,
   Link2,
   Zap,
+  ShoppingCart,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -57,6 +58,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Companies = lazy(() => import("./pages/Companies"));
 const CompanyDetail = lazy(() => import("./pages/CompanyDetail"));
 const Keywords = lazy(() => import("./pages/Keywords"));
+const EcCollector = lazy(() => import("./pages/EcCollector"));
 const Scraper = lazy(() => import("./pages/Scraper"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const RejectedList = lazy(() => import("./pages/RejectedList"));
@@ -272,6 +274,7 @@ function AppContent() {
             <SidebarLink to="/" icon={<LayoutDashboard size={18} />} label="ダッシュボード" onClick={closeSidebar} />
             <SidebarLink to="/companies" icon={<Building2 size={18} />} label="候補企業一覧" onClick={closeSidebar} />
             <SidebarLink to="/keywords" icon={<Search size={18} />} label="検索条件管理" onClick={closeSidebar} />
+            <SidebarLink to="/ec-collector" icon={<ShoppingCart size={18} />} label="EC企業収集" onClick={closeSidebar} />
             <SidebarLink to="/scraper" icon={<Globe size={18} />} label="URL収集" onClick={closeSidebar} />
             <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" onClick={closeSidebar} />
             <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" onClick={closeSidebar} />
@@ -416,6 +419,7 @@ function AppContent() {
               <Route path="/companies" element={<Companies />} />
               <Route path="/companies/:id" element={<CompanyDetail />} />
               <Route path="/keywords" element={<Keywords />} />
+              <Route path="/ec-collector" element={<EcCollector />} />
               <Route path="/scraper" element={<Scraper />} />
               <Route path="/history" element={<CollectionHistory />} />
               <Route path="/rejected" element={<RejectedList />} />

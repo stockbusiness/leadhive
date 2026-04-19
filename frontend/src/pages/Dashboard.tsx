@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle, Crown, Users, AlertTriangle, Lock } from "lucide-react";
+import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle, Crown, Users, AlertTriangle, Lock, ShoppingCart } from "lucide-react";
 import HelpTooltip from "../components/HelpTooltip";
 import SetupProgressCard from "../components/SetupProgressCard";
 import HelpPanel from "../components/HelpPanel";
@@ -335,6 +335,71 @@ export default function Dashboard() {
         <StatCard label="問い合わせあり" value={data.with_contact} icon={<Phone size={20} />} color="bg-purple-500" />
         <ApiUsageCard usage={data.api_usage_today} limit={data.api_daily_limit} percent={usagePercent} />
       </div>
+
+      {/* ===== ECサイト統計 ===== */}
+      {((data.ec_count ?? 0) > 0 || Object.keys(data.by_cms_type ?? {}).length > 0) && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+          <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
+            <ShoppingCart size={16} className="text-purple-500" />
+            ECサイト企業 統計
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* EC企業数サマリ */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart size={16} className="text-purple-500" />
+                  <span className="text-sm font-medium text-purple-800">EC企業 総数</span>
+                </div>
+                <span className="text-xl font-bold text-purple-700">{data.ec_count ?? 0}</span>
+              </div>
+              {data.total > 0 && (
+                <div className="px-1">
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                    <span>全企業に占めるEC企業比率</span>
+                    <span className="font-medium text-purple-600">
+                      {Math.round(((data.ec_count ?? 0) / data.total) * 100)}%
+                    </span>
+                  </div>
+                  <div className="bg-slate-100 rounded-full h-2">
+                    <div
+                      className="bg-purple-500 h-2 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, ((data.ec_count ?? 0) / data.total) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* CMSプラットフォーム分布 */}
+            {Object.keys(data.by_cms_type ?? {}).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-slate-500 mb-2">プラットフォーム内訳</p>
+                <div className="space-y-1.5">
+                  {Object.entries(data.by_cms_type ?? {})
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6)
+                    .map(([cms, count]) => {
+                      const total_cms = Object.values(data.by_cms_type ?? {}).reduce((s, v) => s + v, 0);
+                      const pct = total_cms > 0 ? (count / total_cms) * 100 : 0;
+                      return (
+                        <div key={cms} className="flex items-center gap-2">
+                          <span className="text-xs text-slate-600 w-24 flex-shrink-0 truncate">{cms}</span>
+                          <div className="flex-1 bg-slate-100 rounded-full h-2">
+                            <div
+                              className="bg-purple-400 h-2 rounded-full"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-500 w-8 text-right flex-shrink-0">{count}</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ===== 営業ファネル ===== */}
       {funnelData.length > 0 && (
