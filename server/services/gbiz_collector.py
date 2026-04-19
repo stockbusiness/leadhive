@@ -400,7 +400,8 @@ def collect_from_gbiz(
 
             full_text = scraped.get("full_text", "")
             category_main, category_sub = categorize_company(full_text)
-            flags = detect_flags(full_text)
+            cms_type = scraped.get("cms_type") or None
+            flags = detect_flags(full_text, cms_type=cms_type)
             scraped.update({
                 "category_main": category_main,
                 "category_sub": category_sub,

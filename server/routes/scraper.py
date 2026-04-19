@@ -63,7 +63,8 @@ def scrape_url(
 
     full_text = info.pop("full_text", "")
     category_main, category_sub = categorize_company(full_text)
-    flags = detect_flags(full_text)
+    cms_type = info.get("cms_type") or None
+    flags = detect_flags(full_text, cms_type=cms_type)
 
     company_data = {
         **info,
@@ -139,7 +140,8 @@ def scrape_bulk(
 
             full_text = info.pop("full_text", "")
             category_main, category_sub = categorize_company(full_text)
-            flags = detect_flags(full_text)
+            cms_type = info.get("cms_type") or None
+            flags = detect_flags(full_text, cms_type=cms_type)
 
             company_data = {
                 **info,

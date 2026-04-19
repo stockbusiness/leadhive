@@ -19,6 +19,10 @@ export interface Company {
   ec_flag: boolean;
   amazon_flag: boolean;
   rakuten_flag: boolean;
+  base_flag?: boolean;
+  makeshop_flag?: boolean;
+  futureshop_flag?: boolean;
+  stores_flag?: boolean;
   consulting_flag: boolean;
   operation_flag: boolean;
   production_flag: boolean;
@@ -175,6 +179,10 @@ export interface CompanyMaster {
   ec_flag: boolean;
   amazon_flag: boolean;
   rakuten_flag: boolean;
+  base_flag?: boolean;
+  makeshop_flag?: boolean;
+  futureshop_flag?: boolean;
+  stores_flag?: boolean;
   consulting_flag: boolean;
   operation_flag: boolean;
   production_flag: boolean;

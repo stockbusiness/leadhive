@@ -37,6 +37,10 @@ DEFAULT_FLAG_KEYWORDS = {
     "ec_flag": ["ec", "eコマース", "ネットショップ", "通販"],
     "amazon_flag": ["amazon", "アマゾン"],
     "rakuten_flag": ["楽天", "rakuten"],
+    "base_flag": ["ベイス", "base.shop", "pay.base.com", "base-ec.jp", "base-ec"],
+    "makeshop_flag": ["makeshop", "メイクショップ"],
+    "futureshop_flag": ["futureshop", "フューチャーショップ", "future-shop"],
+    "stores_flag": ["stores.jp", "stores.store"],
     "consulting_flag": ["コンサル", "支援", "戦略"],
     "operation_flag": ["運営代行", "運用代行"],
     "production_flag": ["制作", "構築", "開発"],
@@ -130,5 +134,15 @@ def detect_flags(text: str, custom_flags: dict = None, cms_type: str = None,
     effective_cms = cms_type or ""
     ec_flag = result.get("ec_flag", False)
     result["escms_target_flag"] = bool(ec_flag and effective_cms and effective_cms != "Shopify")
+
+    CMS_TO_FLAG = {
+        "Shopify": "shopify_flag",
+        "BASE": "base_flag",
+        "MakeShop": "makeshop_flag",
+        "futureshop": "futureshop_flag",
+        "STORES": "stores_flag",
+    }
+    if effective_cms in CMS_TO_FLAG:
+        result[CMS_TO_FLAG[effective_cms]] = True
 
     return result

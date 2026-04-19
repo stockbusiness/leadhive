@@ -189,6 +189,14 @@ def run_db_migrations():
             "ALTER TABLE status_history ADD COLUMN IF NOT EXISTS note TEXT",
             "ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS auto_status_on_open VARCHAR(50)",
             "ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS auto_status_on_click VARCHAR(50)",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS base_flag BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS makeshop_flag BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS futureshop_flag BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS stores_flag BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS base_flag BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS makeshop_flag BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS futureshop_flag BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS stores_flag BOOLEAN DEFAULT FALSE",
         ]:
             conn.execute(sa.text(stmt))
 

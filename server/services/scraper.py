@@ -344,6 +344,14 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
 
             full_text = f"{title} {meta_desc} {' '.join(h1_texts)} {' '.join(h2_texts)} {text_content[:3000]}"
 
+            platform_flags = {
+                "shopify_flag": cms_type == "Shopify",
+                "base_flag": cms_type == "BASE",
+                "makeshop_flag": cms_type == "MakeShop",
+                "futureshop_flag": cms_type == "futureshop",
+                "stores_flag": cms_type == "STORES",
+            }
+
             return {
                 "company_name": company_name,
                 "website_url": url,
@@ -368,6 +376,7 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
                 "has_recruitment": has_recruitment,
                 "robots_disallow": False,
                 "full_text": full_text,
+                **platform_flags,
             }
         except RETRYABLE_EXCEPTIONS as e:
             last_error = f"{type(e).__name__}: {str(e)}"

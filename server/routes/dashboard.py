@@ -95,6 +95,25 @@ def get_dashboard(
     )
     ec_platform_distribution = {row[0]: row[1] for row in platform_rows if row[1] > 0}
 
+    FLAG_PLATFORM_MAP = [
+        (Company.amazon_flag, "Amazon"),
+        (Company.rakuten_flag, "楽天"),
+        (Company.base_flag, "BASE"),
+        (Company.makeshop_flag, "MakeShop"),
+        (Company.futureshop_flag, "futureshop"),
+        (Company.stores_flag, "STORES"),
+    ]
+    for flag_col, platform_name in FLAG_PLATFORM_MAP:
+        if platform_name not in ec_platform_distribution:
+            count = scoped(
+                db.query(func.count(Company.id)).filter(
+                    flag_col == True,
+                    Company.ec_flag == True,
+                )
+            ).scalar() or 0
+            if count > 0:
+                ec_platform_distribution[platform_name] = count
+
     recent_companies = scoped(db.query(Company)).order_by(desc(Company.created_at)).limit(5).all()
 
     today = date.today()
