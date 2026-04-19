@@ -491,49 +491,37 @@ export default function Dashboard() {
         </ChartCard>
       </div>
 
-      {data.daily_collection_trend && data.daily_collection_trend.length > 0 && (
-        <ChartCard title="直近30日の収集件数推移">
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={data.daily_collection_trend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 10 }}
-                tickFormatter={(v) => v.slice(5)}
-                interval="preserveStartEnd"
-              />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip
-                labelFormatter={(v) => `${v}`}
-                formatter={(v: any) => [`${v}件`, "収集件数"]}
-              />
-              <Line type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2} dot={false} name="収集件数" />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      )}
-
-      {data.ec_daily_trend && data.ec_daily_trend.length > 0 && (
-        <ChartCard title="EC企業 直近30日の収集推移">
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={data.ec_daily_trend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 10 }}
-                tickFormatter={(v) => v.slice(5)}
-                interval="preserveStartEnd"
-              />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip
-                labelFormatter={(v) => `${v}`}
-                formatter={(v: any) => [`${v}件`, "EC企業収集件数"]}
-              />
-              <Line type="monotone" dataKey="count" stroke="#f97316" strokeWidth={2} dot={false} name="EC企業収集件数" />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      )}
+      {data.daily_collection_trend && data.daily_collection_trend.length > 0 && (() => {
+        const ecByDate = new Map((data.ec_daily_trend || []).map((d: any) => [d.date, d.count]));
+        const combinedTrend = data.daily_collection_trend.map((d: any) => ({
+          date: d.date,
+          全体: d.count,
+          EC企業: ecByDate.get(d.date) ?? 0,
+        }));
+        return (
+          <ChartCard title="直近30日の収集件数推移">
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={combinedTrend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(v) => v.slice(5)}
+                  interval="preserveStartEnd"
+                />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip
+                  labelFormatter={(v) => `${v}`}
+                  formatter={(v: any, name: string | undefined) => [`${v}件`, name ?? ""]}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="全体" stroke="#6366f1" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="EC企業" stroke="#f97316" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        );
+      })()}
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
         <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
