@@ -12,6 +12,7 @@ import { RANK_COLORS, PIE_COLORS, SCORE_BADGE_COLORS } from "../constants";
 import { StatCard } from "../components/common";
 import type { DashboardData, Company, PlanData } from "../types";
 import { useAuth } from "../contexts/AuthContext";
+import { useProject } from "../contexts/ProjectContext";
 
 const FUNNEL_STATUSES = ["未確認", "対象候補", "アプローチ前", "フォーム送信済", "返信あり", "面談化", "代理店化"];
 const FUNNEL_COLORS = ["#94a3b8", "#60a5fa", "#818cf8", "#f59e0b", "#f97316", "#a855f7", "#10b981"];
@@ -39,6 +40,7 @@ type TeamData = {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { currentProject } = useProject();
   const isSystemAdmin = !!user?.is_system_admin;
   const [data, setData] = useState<DashboardData | null>(null);
   const [currentPlan, setCurrentPlan] = useState<PlanData | null>(null);
@@ -499,7 +501,7 @@ export default function Dashboard() {
           EC企業: ecByDate.get(d.date) ?? 0,
         }));
         return (
-          <ChartCard title="直近30日の収集件数推移">
+          <ChartCard title={`直近30日の収集件数推移（${currentProject ? currentProject.name : "全プロジェクト"}）`}>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={combinedTrend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
