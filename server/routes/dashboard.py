@@ -114,6 +114,19 @@ def get_dashboard(
             if count > 0:
                 ec_platform_distribution[platform_name] = count
 
+    cms_rows = (
+        scoped(
+            db.query(Company.cms_type, func.count(Company.id))
+            .filter(
+                Company.cms_type.isnot(None),
+                Company.cms_type != "",
+            )
+        )
+        .group_by(Company.cms_type)
+        .all()
+    )
+    by_cms_type = {row[0]: row[1] for row in cms_rows if row[1] > 0}
+
     recent_companies = scoped(db.query(Company)).order_by(desc(Company.created_at)).limit(5).all()
 
     today = date.today()
@@ -164,7 +177,9 @@ def get_dashboard(
         "by_rank": by_rank,
         "by_prefecture": by_prefecture,
         "ec_companies": ec_companies,
+        "ec_count": ec_companies,
         "ec_platform_distribution": ec_platform_distribution,
+        "by_cms_type": by_cms_type,
         "recent_companies": [company_to_dict(c) for c in recent_companies],
         "api_usage_today": api_usage_today,
         "api_daily_limit": 100,

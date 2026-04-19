@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Building2, Search, Phone, Star, AlertCircle, Zap, Clock, TrendingUp, Bell, ChevronRight, CalendarClock, MessageCircle, Crown, Users, AlertTriangle, Lock, ShoppingCart } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import HelpTooltip from "../components/HelpTooltip";
 import SetupProgressCard from "../components/SetupProgressCard";
 import HelpPanel from "../components/HelpPanel";
@@ -13,6 +14,20 @@ import { StatCard } from "../components/common";
 import type { DashboardData, Company, PlanData } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import { useProject } from "../contexts/ProjectContext";
+
+const CMS_COLORS: Record<string, string> = {
+  Shopify: "bg-green-100 text-green-800 border-green-300 hover:bg-green-200",
+  WooCommerce: "bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200",
+  BASE: "bg-pink-100 text-pink-800 border-pink-300 hover:bg-pink-200",
+  STORES: "bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200",
+  MakeShop: "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200",
+  futureshop: "bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-200",
+  "カラーミー": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
+  "EC-CUBE": "bg-cyan-100 text-cyan-800 border-cyan-300 hover:bg-cyan-200",
+  WordPress: "bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-200",
+  Wix: "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
+};
+const DEFAULT_CMS_BADGE_COLOR = "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200";
 
 const FUNNEL_STATUSES = ["未確認", "対象候補", "アプローチ前", "フォーム送信済", "返信あり", "面談化", "代理店化"];
 const FUNNEL_COLORS = ["#94a3b8", "#60a5fa", "#818cf8", "#f59e0b", "#f97316", "#a855f7", "#10b981"];
@@ -41,6 +56,7 @@ type TeamData = {
 export default function Dashboard() {
   const { user } = useAuth();
   const { currentProject } = useProject();
+  const navigate = useNavigate();
   const isSystemAdmin = !!user?.is_system_admin;
   const [data, setData] = useState<DashboardData | null>(null);
   const [currentPlan, setCurrentPlan] = useState<PlanData | null>(null);
@@ -390,6 +406,39 @@ export default function Dashboard() {
           )}
         </ChartCard>
       </div>
+
+      {/* ===== CMS別サマリーバッジ ===== */}
+      {data.by_cms_type && Object.keys(data.by_cms_type).length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+          <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+            <ShoppingCart size={16} className="text-purple-500" />
+            CMS / プラットフォーム別
+            <span className="text-xs font-normal text-slate-400">クリックで企業一覧をフィルター</span>
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {data.ec_count != null && data.ec_count > 0 && (
+              <button
+                onClick={() => navigate("/companies?ec_only=true")}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100"
+              >
+                🛍️ ECサイト: <span className="font-bold">{data.ec_count.toLocaleString()}社</span>
+              </button>
+            )}
+            {Object.entries(data.by_cms_type)
+              .filter(([, count]) => count > 0)
+              .sort((a, b) => b[1] - a[1])
+              .map(([cms, count]) => (
+                <button
+                  key={cms}
+                  onClick={() => navigate(`/companies?cms_type=${encodeURIComponent(cms)}`)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${CMS_COLORS[cms] ?? DEFAULT_CMS_BADGE_COLOR}`}
+                >
+                  {cms}: <span className="font-bold">{count.toLocaleString()}社</span>
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* ===== 営業ファネル ===== */}
       {funnelData.length > 0 && (
