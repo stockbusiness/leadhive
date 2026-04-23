@@ -275,7 +275,7 @@ export const api = {
       axios.get("/api/settings/scheduler").then(r => r.data),
 
     setupStatus: () =>
-      axios.get<{ has_google_api_key: boolean; has_email_config: boolean; keyword_count: number; company_count: number }>("/api/settings/setup-status").then(r => r.data),
+      axios.get<{ has_serper_api_key: boolean; has_email_config: boolean; keyword_count: number; company_count: number }>("/api/settings/setup-status").then(r => r.data),
   },
 
   master: {

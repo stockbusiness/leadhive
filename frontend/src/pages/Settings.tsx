@@ -818,7 +818,7 @@ export default function Settings() {
               setSerperTesting(true);
               setSerperMessage(null);
               try {
-                const res = await api.settings.testConnection();
+                const res = await api.settings.test();
                 setSerperMessage({ type: res.success ? "success" : "error", text: res.message });
               } catch {
                 setSerperMessage({ type: "error", text: "接続テストに失敗しました" });

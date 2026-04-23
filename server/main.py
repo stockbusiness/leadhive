@@ -327,6 +327,23 @@ def run_db_migrations():
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_email_logs_campaign_id ON email_logs (campaign_id)"))
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_email_logs_company_id ON email_logs (company_id)"))
 
+        # app_settings の idx_settings_key を (setting_key) のみ→ (setting_key, org_id) に修正
+        conn.execute(sa.text("""
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM pg_indexes
+                    WHERE indexname = 'idx_settings_key'
+                    AND tablename = 'app_settings'
+                ) THEN
+                    DROP INDEX idx_settings_key;
+                END IF;
+            END$$;
+        """))
+        conn.execute(sa.text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_settings_key_org ON app_settings(setting_key, org_id)"
+        ))
+
         conn.commit()
 
     db = SessionLocal()
