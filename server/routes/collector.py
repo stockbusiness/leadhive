@@ -282,6 +282,10 @@ def collect_ec_discovery(
                     total_rejected += summary.get("rejected", 0)
                 except Exception as e:
                     logger.warning(f"EC discovery keyword error ({kw_text}): {e}")
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
 
             cache_invalidate("dashboard")
             job_update(

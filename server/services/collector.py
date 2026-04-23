@@ -3,6 +3,7 @@ import threading
 from datetime import datetime
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from server.models import AppSetting, Company, CompanyMaster, RejectedUrl, SearchKeyword, CollectionLog
 from server.services.scraper import scrape_company_info, scrape_urls_parallel
 from server.services.categorizer import categorize_company, detect_flags
@@ -194,18 +195,25 @@ def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> 
         "error": sum(1 for r in results if r["status"] == "error"),
     }
 
-    log = CollectionLog(
-        project_id=project_id,
-        keyword_id=keyword.id,
-        keyword_text=keyword.keyword,
-        total_found=summary["total"],
-        success_count=summary["success"],
-        duplicate_count=summary["duplicate"],
-        rejected_count=summary["rejected"],
-        error_count=summary["error"],
-    )
-    db.add(log)
-    db.commit()
+    try:
+        log = CollectionLog(
+            project_id=project_id,
+            keyword_id=keyword.id,
+            keyword_text=keyword.keyword,
+            total_found=summary["total"],
+            success_count=summary["success"],
+            duplicate_count=summary["duplicate"],
+            rejected_count=summary["rejected"],
+            error_count=summary["error"],
+        )
+        db.add(log)
+        db.commit()
+    except Exception as log_err:
+        logger.warning(f"CollectionLog保存エラー（無視）: {log_err}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
     if summary["success"] >= 1:
         _send_collection_slack(db, project_id, keyword.keyword, summary, results)
@@ -337,9 +345,26 @@ def _process_search_results(
             if project_id:
                 company_fields["project_id"] = project_id
             company = Company(**company_fields)
-            db.add(company)
-            db.commit()
-            db.refresh(company)
+            try:
+                db.add(company)
+                db.commit()
+                db.refresh(company)
+            except IntegrityError:
+                db.rollback()
+                existing_domains.add(domain)
+                results[idx] = {
+                    "url": url, "status": "duplicate",
+                    "message": "既に登録済み（DB重複スキップ）",
+                }
+                continue
+            except Exception as e:
+                db.rollback()
+                results[idx] = {
+                    "url": url, "status": "error",
+                    "message": f"DB保存エラー: {e}",
+                }
+                continue
+
             existing_domains.add(domain)
 
             if rank == "A":
@@ -349,7 +374,12 @@ def _process_search_results(
                 except Exception:
                     pass
 
-            _upsert_company_master(db, company_data, domain, source="auto")
+            try:
+                _upsert_company_master(db, company_data, domain, source="auto")
+            except IntegrityError:
+                db.rollback()
+            except Exception:
+                pass
 
             results[idx] = {
                 "url": url, "status": "success",
