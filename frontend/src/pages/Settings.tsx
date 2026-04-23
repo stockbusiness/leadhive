@@ -173,14 +173,9 @@ export default function Settings() {
     }
   }, [upgradeSuccess, setSearchParams]);
 
-  const [apiKey, setApiKey] = useState("");
-  const [cx, setCx] = useState("");
   const [placesApiKey, setPlacesApiKey] = useState("");
-  const [apiKeySet, setApiKeySet] = useState(false);
-  const [cxSet, setCxSet] = useState(false);
   const [placesApiKeySet, setPlacesApiKeySet] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [showApiGuide, setShowApiGuide] = useState(false);
   const [showPlacesGuide, setShowPlacesGuide] = useState(false);
 
   const [smtpHost, setSmtpHost] = useState("");
@@ -241,8 +236,6 @@ export default function Settings() {
   useEffect(() => {
     api.settings.get().then((data) => {
       const s = data.settings;
-      if (s.google_api_key) { setApiKeySet(s.google_api_key.is_set); if (s.google_api_key.is_set) setApiKey(s.google_api_key.value); }
-      if (s.google_cx) { setCxSet(s.google_cx.is_set); if (s.google_cx.is_set) setCx(s.google_cx.value); }
       if (s.google_places_api_key) { setPlacesApiKeySet(s.google_places_api_key.is_set); if (s.google_places_api_key.is_set) setPlacesApiKey(s.google_places_api_key.value); }
       if (s.slack_webhook_url) { setSlackWebhookSet(s.slack_webhook_url.is_set); if (s.slack_webhook_url.is_set) setSlackWebhookUrl(s.slack_webhook_url.value); }
       if (s.auto_collect_enabled) setAutoCollectEnabled(s.auto_collect_enabled.value === "true");
@@ -288,8 +281,6 @@ export default function Settings() {
 
   const buildPayload = () => {
     const data: Record<string, string> = {};
-    if (apiKey && !apiKey.includes("*")) data.google_api_key = apiKey;
-    if (cx && !cx.includes("*")) data.google_cx = cx;
     if (placesApiKey && !placesApiKey.includes("*")) data.google_places_api_key = placesApiKey;
     if (slackWebhookUrl && !slackWebhookUrl.includes("*")) data.slack_webhook_url = slackWebhookUrl;
     if (smtpHost) data.smtp_host = smtpHost;
@@ -319,12 +310,8 @@ export default function Settings() {
       setMessage({ type: "success", text: "設定を保存しました" });
       const res = await api.settings.get();
       const s = res.settings;
-      setApiKeySet(s.google_api_key?.is_set || false);
-      setCxSet(s.google_cx?.is_set || false);
       setPlacesApiKeySet(s.google_places_api_key?.is_set || false);
       setSmtpPasswordSet(s.smtp_password?.is_set || false);
-      if (s.google_api_key?.is_set) setApiKey(s.google_api_key.value);
-      if (s.google_cx?.is_set) setCx(s.google_cx.value);
       if (s.google_places_api_key?.is_set) setPlacesApiKey(s.google_places_api_key.value);
       if (s.slack_webhook_url?.is_set) { setSlackWebhookSet(true); setSlackWebhookUrl(s.slack_webhook_url.value); }
       if (s.smtp_password?.is_set) setSmtpPassword(s.smtp_password.value);
@@ -490,17 +477,17 @@ export default function Settings() {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <h2 className="text-2xl font-bold text-slate-800">設定</h2>
-          <HelpTooltip text="Google API・自動収集スケジュール・通知設定など、LeadHiveの動作をカスタマイズできます。" />
+          <HelpTooltip text="自動収集スケジュール・通知設定・APIキーなど、LeadHiveの動作をカスタマイズできます。" />
         </div>
         <HelpPanel
           title="設定のヘルプ"
           manualLinks={[
-            { label: "初期セットアップ", description: "Google APIキーとメール設定の手順", to: "/manual#setup" },
+            { label: "初期セットアップ", description: "Serper APIキーとメール設定の手順", to: "/manual#setup" },
             { label: "通知・自動収集", description: "スケジュール収集とSlack通知の設定", to: "/manual#notifications" },
             { label: "管理者設定", description: "組織・プラン・チーム管理の方法", to: "/manual#admin_settings" },
           ]}
           tips={[
-            "Google APIキーはGoogle Cloud Consoleで取得できます（無料枠あり）",
+            "Serper APIキーはserper.devで取得できます（月2,500件まで無料）",
             "SendGridを設定するとメール開封率・クリック率を追跡できます",
             "SMTP設定はGmail / さくら / Xserver等に対応しています",
             "自動収集を有効にすると毎日指定時刻にキーワード収集が実行されます",
@@ -524,91 +511,6 @@ export default function Settings() {
       <PlanCurrentSection />
 
       {message && <MessageBox msg={message} />}
-
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
-        <SectionHeader icon={<Search size={20} className="text-slate-600" />} title="Google Custom Search API 設定" />
-        <p className="text-sm text-slate-500">
-          自動収集機能を利用するには、Google Custom Search APIのAPIキーとSearch Engine ID (cx)が必要です。
-          <strong className="text-slate-700">1日100回まで無料</strong>で利用できます。
-        </p>
-
-        <button
-          onClick={() => setShowApiGuide(v => !v)}
-          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
-        >
-          <span>{showApiGuide ? "▼" : "▶"}</span>
-          APIキーと検索エンジンIDの取得手順を見る
-        </button>
-
-        {showApiGuide && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-5 text-sm">
-            <div>
-              <p className="font-bold text-blue-800 mb-2">① Google API Key の取得</p>
-              <ol className="space-y-1.5 text-blue-700 list-none">
-                <li><span className="inline-block w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold text-center leading-5 mr-1.5">1</span>
-                  <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="underline font-medium">Google Cloud Console</a> を開き、Googleアカウントでログイン
-                </li>
-                <li><span className="inline-block w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold text-center leading-5 mr-1.5">2</span>
-                  上部の「プロジェクトを選択」→「新しいプロジェクト」でプロジェクトを作成（名前は任意）
-                </li>
-                <li><span className="inline-block w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold text-center leading-5 mr-1.5">3</span>
-                  左メニュー「APIとサービス」→「ライブラリ」→ 検索欄に <strong>「Custom Search API」</strong> と入力して有効化
-                </li>
-                <li><span className="inline-block w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold text-center leading-5 mr-1.5">4</span>
-                  左メニュー「APIとサービス」→「認証情報」→「認証情報を作成」→「APIキー」をクリック
-                </li>
-                <li><span className="inline-block w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold text-center leading-5 mr-1.5">5</span>
-                  生成された <strong>「AIzaSy...」</strong> から始まるキーをコピーして「Google API Key」欄に貼り付け
-                </li>
-              </ol>
-            </div>
-
-            <div className="border-t border-blue-200 pt-4">
-              <p className="font-bold text-blue-800 mb-2">② Search Engine ID (cx) の取得</p>
-              <ol className="space-y-1.5 text-blue-700 list-none">
-                <li><span className="inline-block w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold text-center leading-5 mr-1.5">1</span>
-                  <a href="https://programmablesearchengine.google.com/controlpanel/create" target="_blank" rel="noopener noreferrer" className="underline font-medium">Programmable Search Engine</a> を開く
-                </li>
-                <li><span className="inline-block w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold text-center leading-5 mr-1.5">2</span>
-                  「検索エンジン名」に任意の名前を入力（例：LeadHive）
-                </li>
-                <li><span className="inline-block w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold text-center leading-5 mr-1.5">3</span>
-                  「検索対象」で <strong>「ウェブ全体を検索する」</strong> を選択して「作成」をクリック
-                </li>
-                <li><span className="inline-block w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold text-center leading-5 mr-1.5">4</span>
-                  作成完了後、「コントロールパネルへ」→「基本」タブを開く
-                </li>
-                <li><span className="inline-block w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold text-center leading-5 mr-1.5">5</span>
-                  「検索エンジン ID」欄に表示される <strong>「a1b2c3...」</strong> 形式のIDをコピーして貼り付け
-                </li>
-              </ol>
-              <p className="text-xs text-blue-600 mt-2 bg-blue-100 rounded px-3 py-1.5">
-                ※ 設定後「ウェブ全体を検索」が有効になっていることをコントロールパネルで確認してください。
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <label className={labelClass}>Google API Key {apiKeySet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}</label>
-            <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="AIzaSy..." className={inputClass} />
-            <p className="text-xs text-slate-400 mt-1">Google Cloud Console → APIとサービス → 認証情報 → APIキー で取得</p>
-          </div>
-          <div>
-            <label className={labelClass}>Search Engine ID (cx) {cxSet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}</label>
-            <input type="text" value={cx} onChange={e => setCx(e.target.value)} placeholder="a1b2c3d4e5f6..." className={inputClass} />
-            <p className="text-xs text-slate-400 mt-1">Programmable Search Engine → コントロールパネル → 基本 → 検索エンジンID で取得</p>
-          </div>
-        </div>
-        <div className="flex gap-3">
-          <SaveButton saving={saving} onClick={handleSave} />
-          <button onClick={handleTest} disabled={testing || (!apiKeySet && !apiKey)} className="flex items-center gap-2 bg-slate-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-700 transition-colors disabled:opacity-50">
-            {testing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-            接続テスト
-          </button>
-        </div>
-      </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
         <SectionHeader icon={<MapPin size={20} className="text-slate-600" />} title="Google Places API 設定（Googleマップ収集）" />

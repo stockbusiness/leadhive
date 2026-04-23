@@ -29,27 +29,12 @@ def get_search_engine_status(
     serper_sys = db.query(SystemSettings).filter(SystemSettings.key == "serper_api_key").first()
     has_serper = bool(serper_env) or bool(serper_sys and serper_sys.value)
 
-    google_key = db.query(AppSetting).filter(
-        AppSetting.setting_key == "google_api_key",
-        AppSetting.org_id == current_user.org_id,
-    ).first()
-    google_cx = db.query(AppSetting).filter(
-        AppSetting.setting_key == "google_cx",
-        AppSetting.org_id == current_user.org_id,
-    ).first()
-    has_google = bool(google_key and google_key.setting_value) and bool(google_cx and google_cx.setting_value)
-
-    if has_serper:
-        active_engine = "serper"
-    elif has_google:
-        active_engine = "google"
-    else:
-        active_engine = "none"
+    active_engine = "serper" if has_serper else "none"
 
     return {
         "active_engine": active_engine,
         "has_serper": has_serper,
-        "has_google": has_google,
+        "has_google": False,
     }
 
 
@@ -678,30 +663,21 @@ def collect_urls_preview(
         if not keywords_data:
             return {"error": "キーワードが見つかりません"}
 
-        from server.models import AppSetting
-        from server.services.google_search import search_google
-        api_key_row = db.query(AppSetting).filter(
-            AppSetting.org_id == current_user.org_id, AppSetting.setting_key == "google_api_key"
-        ).first()
-        cx_row = db.query(AppSetting).filter(
-            AppSetting.org_id == current_user.org_id, AppSetting.setting_key == "google_cx"
-        ).first()
-        if not api_key_row or not api_key_row.setting_value:
-            return {"error": "Google APIキーが設定されていません。"}
-        if not cx_row or not cx_row.setting_value:
-            return {"error": "Search Engine IDが設定されていません。"}
+        from server.services.serper_search import search_serper, get_serper_api_key
+        serper_key = get_serper_api_key()
+        if not serper_key:
+            return {"error": "Serper APIキーが設定されていません。管理画面の「Serper API Key」を設定してください。"}
 
-        from server.services.encryption import decrypt_value as _dv
         urls = []
         seen = set()
         for kw in keywords_data:
             query = kw.keyword + (f" {kw.region}" if kw.region else "")
-            results = search_google(_dv(api_key_row.setting_value), _dv(cx_row.setting_value), query, db, num=10)
+            results = search_serper(serper_key, query, num=10)
             for r in results:
                 url = r.get("url", "")
                 if url and url not in seen:
                     seen.add(url)
-                    urls.append({"url": url, "name": r.get("title", ""), "source": f"Google検索: {kw.keyword}"})
+                    urls.append({"url": url, "name": r.get("title", ""), "source": f"Serper検索: {kw.keyword}"})
         return {"urls": urls, "count": len(urls)}
 
     return {"error": "不明な収集タイプです"}

@@ -5,7 +5,7 @@ import logging
 import requests
 from sqlalchemy.orm import Session
 
-from server.models import Company, RejectedUrl, AppSetting
+from server.models import Company, RejectedUrl
 from server.services.scraper import scrape_company_info
 from server.services.aggregator import normalize_domain, is_aggregator_site
 from server.services.categorizer import categorize_company, detect_flags
@@ -168,26 +168,6 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
                 logger.warning(f"Serper search failed for {company_name} query={q!r}: {e}")
                 break
         logger.debug(f"Serper: no valid URL for {company_name}")
-
-    # ── Google Custom Search API（クライアント設定） ──────────────────
-    if db and org_id:
-        try:
-            from server.services.google_search import search_google
-            api_key_row = db.query(AppSetting).filter(
-                AppSetting.org_id == org_id, AppSetting.setting_key == "google_api_key"
-            ).first()
-            cx_row = db.query(AppSetting).filter(
-                AppSetting.org_id == org_id, AppSetting.setting_key == "google_cx"
-            ).first()
-            if api_key_row and api_key_row.setting_value and cx_row and cx_row.setting_value:
-                for q in [query_loose, query_plain]:
-                    results = search_google(api_key_row.setting_value, cx_row.setting_value, q, db, num=5)
-                    for r in results:
-                        url = r.get("url", "")
-                        if _is_valid_company_url(url):
-                            return url
-        except Exception as e:
-            logger.warning(f"Google API search failed for {company_name}: {e}")
 
     # ── DuckDuckGo（フォールバック） ────────────────────────────────
     if not ddg_disabled:

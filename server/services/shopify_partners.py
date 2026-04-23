@@ -2,8 +2,6 @@ import logging
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 
-from server.models import AppSetting
-
 logger = logging.getLogger(__name__)
 
 SHOPIFY_PARTNER_QUERIES = [
@@ -20,21 +18,12 @@ def collect_shopify_partners_via_google(
     db: Session,
     org_id: int,
 ) -> list[dict]:
-    from server.services.google_search import search_google
+    from server.services.serper_search import search_serper, get_serper_api_key
     from server.services.aggregator import normalize_domain, is_aggregator_site
 
-    api_key_row = db.query(AppSetting).filter(
-        AppSetting.org_id == org_id, AppSetting.setting_key == "google_api_key"
-    ).first()
-    cx_row = db.query(AppSetting).filter(
-        AppSetting.org_id == org_id, AppSetting.setting_key == "google_cx"
-    ).first()
-
-    if not (api_key_row and api_key_row.setting_value and cx_row and cx_row.setting_value):
+    serper_key = get_serper_api_key()
+    if not serper_key:
         return []
-
-    api_key = api_key_row.setting_value
-    cx = cx_row.setting_value
 
     seen_domains = set()
     results = []
@@ -44,9 +33,9 @@ def collect_shopify_partners_via_google(
             break
 
         try:
-            items = search_google(api_key, cx, query, db, num=10)
+            items = search_serper(serper_key, query, num=10)
         except Exception as e:
-            logger.warning(f"Google search failed for Shopify query '{query}': {e}")
+            logger.warning(f"Serper search failed for Shopify query '{query}': {e}")
             continue
 
         for item in items:

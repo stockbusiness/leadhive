@@ -4,10 +4,10 @@ import { useAuth } from "../contexts/AuthContext";
 import { api } from "../api";
 import {
   CheckCircle, ChevronRight, ChevronLeft, X, Building2, FolderKanban,
-  Search, Key, Sparkles, Globe, BarChart2, Users, Zap, Loader2, Plus,
+  Search, Sparkles, Globe, BarChart2, Users, Zap, Loader2, Plus,
 } from "lucide-react";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 
 export default function Onboarding() {
   const { user, updateUser } = useAuth();
@@ -25,12 +25,6 @@ export default function Onboarding() {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [keywordsSaving, setKeywordsSaving] = useState(false);
   const [keywordsSaved, setKeywordsSaved] = useState(false);
-
-  const [googleApiKey, setGoogleApiKey] = useState("");
-  const [googleCx, setGoogleCx] = useState("");
-  const [googleSaving, setGoogleSaving] = useState(false);
-  const [googleTestResult, setGoogleTestResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [googleSaved, setGoogleSaved] = useState(false);
 
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState("");
@@ -97,36 +91,6 @@ export default function Onboarding() {
       setError(e.response?.data?.detail || "保存に失敗しました");
     }
     setKeywordsSaving(false);
-  };
-
-  const handleTestGoogle = async () => {
-    if (!googleApiKey.trim() || !googleCx.trim()) {
-      setGoogleTestResult({ ok: false, message: "APIキーとSearch Engine IDを入力してください" });
-      return;
-    }
-    setGoogleSaving(true);
-    setGoogleTestResult(null);
-    try {
-      const result = await api.onboarding.testGoogleApi(googleApiKey.trim(), googleCx.trim());
-      setGoogleTestResult({ ok: true, message: result.message || "接続成功" });
-    } catch (e: any) {
-      setGoogleTestResult({ ok: false, message: e.response?.data?.detail || "接続失敗" });
-    }
-    setGoogleSaving(false);
-  };
-
-  const handleSaveGoogle = async () => {
-    if (!googleApiKey.trim() && !googleCx.trim()) { setStep(6); return; }
-    setError("");
-    setGoogleSaving(true);
-    try {
-      await api.onboarding.saveSettings({ google_api_key: googleApiKey.trim(), google_cx: googleCx.trim() });
-      setGoogleSaved(true);
-      setTimeout(() => setStep(6), 600);
-    } catch (e: any) {
-      setError(e.response?.data?.detail || "保存に失敗しました");
-    }
-    setGoogleSaving(false);
   };
 
   const handleComplete = async (dest: string) => {
@@ -209,25 +173,10 @@ export default function Onboarding() {
             />
           )}
           {step === 5 && (
-            <StepGoogleApi
-              apiKey={googleApiKey}
-              setApiKey={setGoogleApiKey}
-              cx={googleCx}
-              setCx={setGoogleCx}
-              saving={googleSaving}
-              saved={googleSaved}
-              testResult={googleTestResult}
-              onTest={handleTestGoogle}
-              onNext={handleSaveGoogle}
-              onSkip={() => setStep(6)}
-            />
-          )}
-          {step === 6 && (
             <StepDone
               completing={completing}
               keywords={keywords}
               projectName={projectName}
-              googleSaved={googleSaved}
               onDashboard={() => handleComplete("/")}
               onScraper={() => handleComplete("/scraper")}
               registrationNumber={user?.registration_number ?? null}
@@ -237,7 +186,7 @@ export default function Onboarding() {
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-4">
-          {step < 6 && (
+          {step < 5 && (
             <button onClick={() => handleComplete("/")} className="hover:text-slate-300 transition-colors">
               スキップしてダッシュボードへ →
             </button>
@@ -484,98 +433,10 @@ function StepKeywords({
   );
 }
 
-function StepGoogleApi({
-  apiKey, setApiKey, cx, setCx, saving, saved, testResult, onTest, onNext, onSkip,
-}: {
-  apiKey: string; setApiKey: (v: string) => void;
-  cx: string; setCx: (v: string) => void;
-  saving: boolean; saved: boolean;
-  testResult: { ok: boolean; message: string } | null;
-  onTest: () => void; onNext: () => void; onSkip: () => void;
-}) {
-  return (
-    <div className="p-8">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
-          <Key size={20} className="text-amber-600" />
-        </div>
-        <div>
-          <p className="text-xs text-slate-400 font-medium">ステップ 5 / 6</p>
-          <h2 className="text-xl font-bold text-slate-800">Google APIキーを設定</h2>
-        </div>
-      </div>
-      <p className="text-sm text-slate-500 mb-4">
-        Google Custom Search APIを設定すると、キーワード検索で企業を自動収集できます。後から設定画面でも変更できます。
-      </p>
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-5 text-xs text-blue-700 space-y-1">
-        <p className="font-medium">取得方法</p>
-        <p>① <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a> でカスタム検索APIを有効化</p>
-        <p>② <a href="https://programmablesearchengine.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Programmable Search Engine</a> で検索エンジンを作成</p>
-      </div>
-      <div className="space-y-3 mb-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Google API Key</label>
-          <input
-            type="text"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="AIza..."
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Search Engine ID (CX)</label>
-          <input
-            type="text"
-            value={cx}
-            onChange={(e) => setCx(e.target.value)}
-            className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="1234567890abcdef1"
-          />
-        </div>
-      </div>
-      {testResult && (
-        <div className={`flex items-center gap-2 text-sm rounded-xl p-3 mb-4 ${testResult.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-          {testResult.ok ? <CheckCircle size={14} /> : <X size={14} />}
-          {testResult.message}
-        </div>
-      )}
-      {saved && (
-        <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 rounded-xl p-3 mb-4 text-sm">
-          <CheckCircle size={16} /> APIキーを保存しました
-        </div>
-      )}
-      <div className="flex gap-2 mb-3">
-        <button
-          onClick={onTest}
-          disabled={saving || !apiKey.trim() || !cx.trim()}
-          className="flex-1 border border-slate-300 hover:border-blue-400 text-slate-700 hover:text-blue-700 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
-        >
-          {saving ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-          接続テスト
-        </button>
-      </div>
-      <div className="flex gap-3">
-        <button onClick={onSkip} className="px-4 py-3 text-sm text-slate-500 hover:text-slate-700 transition-colors">
-          後で設定する
-        </button>
-        <button
-          onClick={onNext}
-          disabled={saving}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-        >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <ChevronRight size={18} />}
-          {apiKey.trim() ? "保存して次へ" : "スキップ"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function StepDone({
-  completing, keywords, projectName, googleSaved, onDashboard, onScraper, registrationNumber, isFounder,
+  completing, keywords, projectName, onDashboard, onScraper, registrationNumber, isFounder,
 }: {
-  completing: boolean; keywords: string[]; projectName: string; googleSaved: boolean;
+  completing: boolean; keywords: string[]; projectName: string;
   onDashboard: () => void; onScraper: () => void;
   registrationNumber: number | null; isFounder: boolean;
 }) {
@@ -583,7 +444,6 @@ function StepDone({
     { label: "組織名", done: true },
     { label: `プロジェクト${projectName ? `「${projectName}」` : ""}`, done: !!projectName },
     { label: `検索キーワード ${keywords.length > 0 ? `(${keywords.length}件)` : ""}`, done: keywords.length > 0 },
-    { label: "Google APIキー", done: googleSaved },
   ];
 
   return (

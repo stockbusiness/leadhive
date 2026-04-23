@@ -8,7 +8,7 @@ from server.services.encryption import encrypt_value, decrypt_value, should_encr
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 SETTING_KEYS = [
-    "google_api_key", "google_cx", "auto_collect_enabled", "auto_collect_time",
+    "auto_collect_enabled", "auto_collect_time",
     "google_places_api_key", "slack_webhook_url",
     "smtp_host", "smtp_port", "smtp_user", "smtp_password",
     "smtp_from_email", "smtp_from_name", "smtp_use_tls",
@@ -94,7 +94,6 @@ def get_setup_status(
         ).first()
         return bool(row and row.setting_value)
 
-    has_google = is_set("google_api_key")
     has_smtp = is_set("smtp_host")
     has_sendgrid = is_set("sendgrid_api_key")
     project_ids = [p.id for p in db.query(Project.id).filter(Project.org_id == current_user.org_id).all()]
@@ -102,7 +101,7 @@ def get_setup_status(
     company_count = db.query(Company).filter(Company.project_id.in_(project_ids)).count() if project_ids else 0
 
     return {
-        "has_google_api_key": has_google,
+        "has_google_api_key": False,
         "has_email_config": has_smtp or has_sendgrid,
         "keyword_count": keyword_count,
         "company_count": company_count,
@@ -160,36 +159,15 @@ def test_connection(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    import requests
-
-    api_key_setting = db.query(AppSetting).filter(
-        AppSetting.setting_key == "google_api_key",
-        AppSetting.org_id == current_user.org_id,
-    ).first()
-    cx_setting = db.query(AppSetting).filter(
-        AppSetting.setting_key == "google_cx",
-        AppSetting.org_id == current_user.org_id,
-    ).first()
-
-    if not api_key_setting or not api_key_setting.setting_value:
-        return {"success": False, "message": "Google API Keyが設定されていません"}
-    if not cx_setting or not cx_setting.setting_value:
-        return {"success": False, "message": "Search Engine ID (cx)が設定されていません"}
-
-    api_key = decrypt_value(api_key_setting.setting_value)
-    cx = decrypt_value(cx_setting.setting_value)
-
+    from server.services.serper_search import get_serper_api_key, search_serper
+    serper_key = get_serper_api_key()
+    if not serper_key:
+        return {"success": False, "message": "Serper APIキーが設定されていません"}
     try:
-        resp = requests.get(
-            "https://www.googleapis.com/customsearch/v1",
-            params={"key": api_key, "cx": cx, "q": "test", "num": 1},
-            timeout=10,
-        )
-        if resp.status_code == 200:
-            return {"success": True, "message": "接続成功！APIが正常に動作しています"}
-        else:
-            error_msg = resp.json().get("error", {}).get("message", resp.text[:200])
-            return {"success": False, "message": f"APIエラー: {error_msg}"}
+        results = search_serper(serper_key, "test", num=1)
+        if results is not None:
+            return {"success": True, "message": "Serper API 接続成功！"}
+        return {"success": False, "message": "Serper APIから応答がありません"}
     except Exception as e:
         return {"success": False, "message": f"接続エラー: {str(e)}"}
 

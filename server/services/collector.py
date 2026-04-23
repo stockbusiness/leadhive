@@ -9,7 +9,6 @@ from server.services.scraper import scrape_company_info, scrape_urls_parallel
 from server.services.categorizer import categorize_company, detect_flags
 from server.services.scorer import calculate_score
 from server.services.aggregator import normalize_domain, is_aggregator_site
-from server.services.google_search import search_google
 from server.services.serper_search import search_serper, get_serper_api_key
 
 logger = logging.getLogger(__name__)
@@ -161,25 +160,10 @@ def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> 
         query += f" -{ex}"
 
     serper_key = get_serper_api_key()
-    if serper_key:
-        search_results = search_serper(serper_key, query, num=30)
-        search_engine = "serper"
-    else:
-        api_key_setting = db.query(AppSetting).filter(AppSetting.setting_key == "google_api_key").first()
-        cx_setting = db.query(AppSetting).filter(AppSetting.setting_key == "google_cx").first()
-        if not api_key_setting or not api_key_setting.setting_value:
-            return {"error": "検索APIが設定されていません。管理画面でSerper APIキーを設定するか、Google API Keyを設定してください。"}
-        if not cx_setting or not cx_setting.setting_value:
-            return {"error": "Search Engine ID (cx)が設定されていません。設定画面で登録してください。"}
-        from server.services.encryption import decrypt_value as _dv
-        search_results = search_google(
-            _dv(api_key_setting.setting_value),
-            _dv(cx_setting.setting_value),
-            query,
-            db,
-            num=10,
-        )
-        search_engine = "google"
+    if not serper_key:
+        return {"error": "Serper APIキーが設定されていません。管理画面の「Serper API Key」を設定してください。"}
+    search_results = search_serper(serper_key, query, num=30)
+    search_engine = "serper"
 
     if search_results and "error" in search_results[0]:
         return {"error": f"検索APIエラー ({search_engine}): {search_results[0]['error']}"}

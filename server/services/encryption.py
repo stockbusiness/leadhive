@@ -59,8 +59,6 @@ def is_encrypted(value: str) -> bool:
 
 
 SENSITIVE_SETTING_KEYS = {
-    "google_api_key",
-    "google_cx",
     "google_places_api_key",
     "slack_webhook_url",
     "smtp_password",

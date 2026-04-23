@@ -24,6 +24,7 @@ KNOWN_ENCODINGS = {"utf-8", "shift_jis", "shift-jis", "euc-jp", "iso-2022-jp", "
 LEADHIVE_UA = "LeadHive/1.0 +https://leadhive.work"
 
 _robots_cache: dict[str, tuple[bool, float]] = {}
+_robots_txt_cache: dict[str, tuple[str, float]] = {}
 _ROBOTS_CACHE_TTL = 86400
 
 
@@ -44,6 +45,26 @@ def check_robots_allowed(url: str) -> bool:
         allowed = True
     _robots_cache[base] = (allowed, now)
     return allowed
+
+
+def fetch_robots_txt(url: str) -> str:
+    parsed = urlparse(url)
+    base = f"{parsed.scheme}://{parsed.netloc}"
+    now = time.time()
+    if base in _robots_txt_cache:
+        content, cached_at = _robots_txt_cache[base]
+        if now - cached_at < _ROBOTS_CACHE_TTL:
+            return content
+    try:
+        resp = requests.get(f"{base}/robots.txt", headers={"User-Agent": LEADHIVE_UA}, timeout=5)
+        if resp.status_code == 200:
+            content = resp.text
+        else:
+            content = ""
+    except Exception:
+        content = ""
+    _robots_txt_cache[base] = (content, now)
+    return content
 
 
 def _detect_encoding(response: requests.Response) -> str:
@@ -334,7 +355,9 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
             sns_links = {k: v for k, v in sns_data.items() if k in ("twitter", "instagram", "facebook", "youtube", "line", "tiktok")}
             sns_count = sns_data.get("sns_count", 0)
 
-            ec_score = calculate_ec_score(soup, html_source, text_content)
+            robots_txt_content = fetch_robots_txt(url)
+            all_links = [a.get("href", "") for a in soup.find_all("a", href=True)]
+            ec_score = calculate_ec_score(soup, html_source, text_content, all_links=all_links, robots_txt=robots_txt_content)
             if ec_score >= 70:
                 ec_flag_val = True
             elif ec_score < 40:
