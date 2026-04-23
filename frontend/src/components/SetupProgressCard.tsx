@@ -4,7 +4,6 @@ import { CheckCircle2, Circle, ChevronRight, X, Rocket } from "lucide-react";
 import { api } from "../api";
 
 interface SetupStatus {
-  has_google_api_key: boolean;
   has_email_config: boolean;
   keyword_count: number;
   company_count: number;
@@ -23,12 +22,6 @@ export default function SetupProgressCard() {
   if (dismissed || !status) return null;
 
   const steps = [
-    {
-      label: "Google APIキーを設定する",
-      done: status.has_google_api_key,
-      to: "/settings",
-      hint: "自動収集機能のために必要です",
-    },
     {
       label: "キーワードを登録する",
       done: status.keyword_count > 0,
