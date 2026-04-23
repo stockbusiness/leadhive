@@ -125,7 +125,7 @@ def _upsert_company_master(db: Session, company_data: dict, domain: str = None, 
         db.rollback()
 
 
-def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> dict:
+def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None, org_id: int = None) -> dict:
     keyword = db.query(SearchKeyword).filter(SearchKeyword.id == keyword_id).first()
     if not keyword:
         return {"error": "キーワードが見つかりません"}
@@ -137,8 +137,11 @@ def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> 
     project_scoring_rules = None
     if project_id:
         proj = db.query(Project).filter(Project.id == project_id).first()
-        if proj and proj.scoring_rules:
-            project_scoring_rules = proj.scoring_rules
+        if proj:
+            if proj.scoring_rules:
+                project_scoring_rules = proj.scoring_rules
+            if org_id is None:
+                org_id = proj.org_id
 
     query = keyword.keyword
     if keyword.region:
@@ -159,9 +162,9 @@ def collect_by_keyword(keyword_id: int, db: Session, project_id: int = None) -> 
     for ex in exclude_list:
         query += f" -{ex}"
 
-    serper_key = get_serper_api_key()
+    serper_key = get_serper_api_key(db=db, org_id=org_id)
     if not serper_key:
-        return {"error": "Serper APIキーが設定されていません。管理画面の「Serper API Key」を設定してください。"}
+        return {"error": "Serper APIキーが設定されていません。設定画面でSerper APIキーを登録してください。"}
     search_results = search_serper(serper_key, query, num=30)
     search_engine = "serper"
 

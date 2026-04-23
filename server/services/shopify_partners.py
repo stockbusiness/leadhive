@@ -21,7 +21,7 @@ def collect_shopify_partners_via_google(
     from server.services.serper_search import search_serper, get_serper_api_key
     from server.services.aggregator import normalize_domain, is_aggregator_site
 
-    serper_key = get_serper_api_key()
+    serper_key = get_serper_api_key(db=db, org_id=org_id)
     if not serper_key:
         return []
 

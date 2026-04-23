@@ -151,7 +151,7 @@ def find_website_for_company(company_name: str, location: str = "", db: Session 
     serper_key = None
     try:
         from server.services.serper_search import get_serper_api_key, search_serper
-        serper_key = get_serper_api_key()
+        serper_key = get_serper_api_key(db=db, org_id=org_id)
     except Exception:
         pass
 

@@ -15,6 +15,7 @@ SETTING_KEYS = [
     "followup_notify_enabled", "followup_notify_channel",
     "openai_api_key", "auto_enrich_enabled",
     "sendgrid_api_key", "sendgrid_from_email", "sendgrid_from_name",
+    "serper_api_key",
 ]
 
 MASKED_KEYS = {"api_key", "secret", "webhook", "password", "token"}
@@ -96,12 +97,13 @@ def get_setup_status(
 
     has_smtp = is_set("smtp_host")
     has_sendgrid = is_set("sendgrid_api_key")
+    has_serper = is_set("serper_api_key")
     project_ids = [p.id for p in db.query(Project.id).filter(Project.org_id == current_user.org_id).all()]
     keyword_count = db.query(SearchKeyword).filter(SearchKeyword.project_id.in_(project_ids)).count() if project_ids else 0
     company_count = db.query(Company).filter(Company.project_id.in_(project_ids)).count() if project_ids else 0
 
     return {
-        "has_google_api_key": False,
+        "has_serper_api_key": has_serper,
         "has_email_config": has_smtp or has_sendgrid,
         "keyword_count": keyword_count,
         "company_count": company_count,
@@ -160,9 +162,9 @@ def test_connection(
     db: Session = Depends(get_db),
 ):
     from server.services.serper_search import get_serper_api_key, search_serper
-    serper_key = get_serper_api_key()
+    serper_key = get_serper_api_key(db=db, org_id=current_user.org_id)
     if not serper_key:
-        return {"success": False, "message": "Serper APIキーが設定されていません"}
+        return {"success": False, "message": "Serper APIキーが設定されていません。設定画面で登録してください。"}
     try:
         results = search_serper(serper_key, "test", num=1)
         if results is not None:

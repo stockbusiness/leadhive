@@ -50,23 +50,39 @@ def search_serper(api_key: str, query: str, num: int = 10) -> list[dict]:
         return [{"error": str(e)}]
 
 
-def get_serper_api_key() -> Optional[str]:
+def get_serper_api_key(db=None, org_id: int = None) -> Optional[str]:
     import os
+    from server.services.encryption import decrypt_value
+
+    # 1. テナント設定（AppSetting）を優先確認
+    if db and org_id:
+        try:
+            from server.models import AppSetting
+            row = db.query(AppSetting).filter(
+                AppSetting.org_id == org_id,
+                AppSetting.setting_key == "serper_api_key",
+            ).first()
+            if row and row.setting_value:
+                return decrypt_value(row.setting_value)
+        except Exception:
+            pass
+
+    # 2. 環境変数（システム管理者のデフォルト）
     key = os.environ.get("SERPER_API_KEY", "")
     if key:
         return key
 
+    # 3. SystemSettings テーブル（管理画面で設定したシステム共通キー）
     try:
         from server.database import SessionLocal
         from server.models import SystemSettings
-        db = SessionLocal()
+        _db = SessionLocal()
         try:
-            from server.services.encryption import decrypt_value
-            row = db.query(SystemSettings).filter(SystemSettings.key == "serper_api_key").first()
+            row = _db.query(SystemSettings).filter(SystemSettings.key == "serper_api_key").first()
             if row and row.value:
                 return decrypt_value(row.value)
         finally:
-            db.close()
+            _db.close()
     except Exception:
         pass
 

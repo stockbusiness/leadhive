@@ -23,12 +23,8 @@ def get_search_engine_status(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    import os
-    from server.models import SystemSettings, AppSetting
-    serper_env = os.environ.get("SERPER_API_KEY", "")
-    serper_sys = db.query(SystemSettings).filter(SystemSettings.key == "serper_api_key").first()
-    has_serper = bool(serper_env) or bool(serper_sys and serper_sys.value)
-
+    from server.services.serper_search import get_serper_api_key
+    has_serper = bool(get_serper_api_key(db=db, org_id=current_user.org_id))
     active_engine = "serper" if has_serper else "none"
 
     return {
@@ -664,9 +660,9 @@ def collect_urls_preview(
             return {"error": "キーワードが見つかりません"}
 
         from server.services.serper_search import search_serper, get_serper_api_key
-        serper_key = get_serper_api_key()
+        serper_key = get_serper_api_key(db=db, org_id=current_user.org_id)
         if not serper_key:
-            return {"error": "Serper APIキーが設定されていません。管理画面の「Serper API Key」を設定してください。"}
+            return {"error": "Serper APIキーが設定されていません。設定画面でSerper APIキーを登録してください。"}
 
         urls = []
         seen = set()

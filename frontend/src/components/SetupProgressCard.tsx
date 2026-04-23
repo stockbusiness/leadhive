@@ -4,6 +4,7 @@ import { CheckCircle2, Circle, ChevronRight, X, Rocket } from "lucide-react";
 import { api } from "../api";
 
 interface SetupStatus {
+  has_serper_api_key: boolean;
   has_email_config: boolean;
   keyword_count: number;
   company_count: number;
@@ -22,6 +23,12 @@ export default function SetupProgressCard() {
   if (dismissed || !status) return null;
 
   const steps = [
+    {
+      label: "Serper APIキーを設定する",
+      done: status.has_serper_api_key,
+      to: "/settings",
+      hint: "serper.dev のAPIキーで検索機能を有効化できます",
+    },
     {
       label: "キーワードを登録する",
       done: status.keyword_count > 0,

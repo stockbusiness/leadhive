@@ -222,6 +222,11 @@ export default function Settings() {
   const [followupNotifyEnabled, setFollowupNotifyEnabled] = useState(false);
   const [followupNotifyChannel, setFollowupNotifyChannel] = useState("email");
 
+  const [serperApiKey, setSerperApiKey] = useState("");
+  const [serperApiKeySet, setSerperApiKeySet] = useState(false);
+  const [serperTesting, setSerperTesting] = useState(false);
+  const [serperMessage, setSerperMessage] = useState<MessageState | null>(null);
+
   const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [openaiApiKeySet, setOpenaiApiKeySet] = useState(false);
 
@@ -250,6 +255,7 @@ export default function Settings() {
       if (s.smtp_use_tls?.is_set) setSmtpUseTls(s.smtp_use_tls.value !== "false");
       if (s.followup_notify_enabled) setFollowupNotifyEnabled(s.followup_notify_enabled.value === "true");
       if (s.followup_notify_channel?.is_set) setFollowupNotifyChannel(s.followup_notify_channel.value);
+      if (s.serper_api_key) { setSerperApiKeySet(s.serper_api_key.is_set); if (s.serper_api_key.is_set) setSerperApiKey(s.serper_api_key.value); }
       if (s.openai_api_key) { setOpenaiApiKeySet(s.openai_api_key.is_set); if (s.openai_api_key.is_set) setOpenaiApiKey(s.openai_api_key.value); }
       if (s.sendgrid_api_key) { setSgApiKeySet(s.sendgrid_api_key.is_set); if (s.sendgrid_api_key.is_set) setSgApiKey(s.sendgrid_api_key.value); }
       if (s.sendgrid_from_email?.is_set) setSgFromEmail(s.sendgrid_from_email.value);
@@ -295,6 +301,7 @@ export default function Settings() {
     data.auto_enrich_enabled = autoEnrichEnabled ? "true" : "false";
     data.followup_notify_enabled = followupNotifyEnabled ? "true" : "false";
     data.followup_notify_channel = followupNotifyChannel;
+    if (serperApiKey && !serperApiKey.includes("*")) data.serper_api_key = serperApiKey;
     if (openaiApiKey && !openaiApiKey.includes("*")) data.openai_api_key = openaiApiKey;
     if (sgApiKey && !sgApiKey.includes("*")) data.sendgrid_api_key = sgApiKey;
     if (sgFromEmail) data.sendgrid_from_email = sgFromEmail;
@@ -779,6 +786,58 @@ export default function Settings() {
               <option value="both">メール + Slack</option>
             </select>
           </div>
+        </div>
+        <SaveButton saving={saving} onClick={handleSave} />
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
+        <SectionHeader icon={<Search size={20} className="text-blue-600" />} title="検索API設定（Serper）" />
+        <p className="text-sm text-slate-500">
+          企業収集機能に使用する
+          <a href="https://serper.dev" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline mx-1">serper.dev</a>
+          のAPIキーを設定してください。無料プランで月2,500件の検索が利用できます。
+        </p>
+        <div>
+          <label className={labelClass}>Serper APIキー {serperApiKeySet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}</label>
+          <input
+            type="password"
+            value={serperApiKey}
+            onChange={e => setSerperApiKey(e.target.value)}
+            placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            className={inputClass}
+          />
+          <p className="text-xs text-slate-400 mt-1">
+            <a href="https://serper.dev/api-key" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">serper.dev/api-key</a>
+            {" "}から発行できます。
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={async () => {
+              setSerperTesting(true);
+              setSerperMessage(null);
+              try {
+                const res = await api.settings.testConnection();
+                setSerperMessage({ type: res.success ? "success" : "error", text: res.message });
+              } catch {
+                setSerperMessage({ type: "error", text: "接続テストに失敗しました" });
+              } finally {
+                setSerperTesting(false);
+              }
+            }}
+            disabled={serperTesting}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {serperTesting ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+            接続テスト
+          </button>
+          {serperMessage && (
+            <span className={`text-sm flex items-center gap-1 ${serperMessage.type === "success" ? "text-emerald-600" : "text-red-500"}`}>
+              {serperMessage.type === "success" ? <CheckCircle size={14} /> : <XCircle size={14} />}
+              {serperMessage.text}
+            </span>
+          )}
         </div>
         <SaveButton saving={saving} onClick={handleSave} />
       </div>
