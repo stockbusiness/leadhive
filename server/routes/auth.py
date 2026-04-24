@@ -158,17 +158,14 @@ def _render_tpl(template: str, vars: dict) -> str:
     return result
 
 
-def _send_verification_email(user_email: str, token_str: str, base_url: str, db: Session) -> bool:
-    from server.services.mailer import get_system_smtp_settings, send_email
-    smtp_cfg = get_system_smtp_settings(db)
-    if not smtp_cfg.get("smtp_host"):
-        return False
+def _send_verification_email(user_email: str, token_str: str, base_url: str, db: Session, org_id: int = None) -> bool:
+    from server.services.mailer import send_with_fallback
     verify_url = f"{base_url}/verify-email?token={token_str}"
     tpl_vars = {"verify_url": verify_url, "user_email": user_email, "site_name": "LeadHive"}
     subject = _render_tpl(_get_tpl(db, "email_tpl_verification_subject", DEFAULT_VERIFICATION_SUBJECT), tpl_vars)
     html_body = _render_tpl(_get_tpl(db, "email_tpl_verification_html", DEFAULT_VERIFICATION_HTML), tpl_vars)
     text_body = _render_tpl(_get_tpl(db, "email_tpl_verification_text", DEFAULT_VERIFICATION_TEXT), tpl_vars)
-    ok, _ = send_email(user_email, subject, html_body, smtp_cfg, text_body)
+    ok, _ = send_with_fallback(db, user_email, subject, html_body, text_body, org_id=org_id)
     return ok
 
 
@@ -229,7 +226,7 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
         logger.warning("CommitRev lead_created error: %s", _cr_err)
 
     base_url = _get_base_url(request)
-    email_sent = _send_verification_email(body.email, token_str, base_url, db)
+    email_sent = _send_verification_email(body.email, token_str, base_url, db, org_id=user.org_id)
 
     return {
         "requires_verification": True,
@@ -291,7 +288,7 @@ def resend_verification(request: Request, body: ResendVerificationRequest, db: S
     db.commit()
 
     base_url = _get_base_url(request)
-    email_sent = _send_verification_email(body.email, token_str, base_url, db)
+    email_sent = _send_verification_email(body.email, token_str, base_url, db, org_id=user.org_id)
     return {
         "message": "確認メールを送信しました（アドレスが登録されている場合）",
         "email_sent": email_sent,
@@ -455,13 +452,8 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
     db.add(reset_token)
     db.commit()
 
-    from server.services.mailer import (
-        get_smtp_settings, send_email,
-        get_sendgrid_settings, send_via_sendgrid,
-        get_system_smtp_settings, get_system_sendgrid_settings,
-    )
+    from server.services.mailer import send_with_fallback
 
-    # 絶対URLを構築
     site_url = os.environ.get("SITE_URL", "https://leadhive.work").rstrip("/")
     reset_url = f"{site_url}/reset-password?token={token_str}"
 
@@ -472,71 +464,7 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
     <p style="color:#888;font-size:12px;">このメールに心当たりがない場合は無視してください。</p>
     """
 
-    import logging as _logging
-    _logger = _logging.getLogger("leadhive.password_reset")
-
-    sent = False
-    send_errors = []
-
-    # 1. テナントのSMTP
-    smtp_cfg = get_smtp_settings(db, user.org_id)
-    if smtp_cfg.get("smtp_host"):
-        _logger.info(f"[reset] trying tenant SMTP: host={smtp_cfg.get('smtp_host')} user_email={user.email}")
-        ok, msg = send_email(user.email, "パスワードリセット - LeadHive", html_body, smtp_cfg)
-        _logger.info(f"[reset] tenant SMTP result: ok={ok} msg={msg}")
-        if ok:
-            sent = True
-        else:
-            send_errors.append(f"tenant SMTP: {msg}")
-
-    # 2. テナントのSendGrid
-    if not sent:
-        sg_cfg = get_sendgrid_settings(db, user.org_id)
-        if sg_cfg.get("api_key"):
-            _logger.info(f"[reset] trying tenant SendGrid")
-            ok, msg = send_via_sendgrid(
-                to=user.email, subject="パスワードリセット - LeadHive",
-                html_body=html_body, api_key=sg_cfg["api_key"],
-                from_email=sg_cfg["from_email"], from_name=sg_cfg["from_name"],
-            )
-            _logger.info(f"[reset] tenant SendGrid result: ok={ok} msg={msg}")
-            if ok:
-                sent = True
-            else:
-                send_errors.append(f"tenant SendGrid: {msg}")
-
-    # 3. システムSMTP（フォールバック）
-    if not sent:
-        sys_smtp = get_system_smtp_settings(db)
-        if sys_smtp.get("smtp_host"):
-            _logger.info(f"[reset] trying system SMTP: host={sys_smtp.get('smtp_host')}")
-            ok, msg = send_email(user.email, "パスワードリセット - LeadHive", html_body, sys_smtp)
-            _logger.info(f"[reset] system SMTP result: ok={ok} msg={msg}")
-            if ok:
-                sent = True
-            else:
-                send_errors.append(f"system SMTP: {msg}")
-
-    # 4. システムSendGrid（フォールバック）
-    if not sent:
-        sys_sg = get_system_sendgrid_settings(db)
-        if sys_sg.get("api_key"):
-            _logger.info(f"[reset] trying system SendGrid")
-            ok, msg = send_via_sendgrid(
-                to=user.email, subject="パスワードリセット - LeadHive",
-                html_body=html_body, api_key=sys_sg["api_key"],
-                from_email=sys_sg["from_email"], from_name=sys_sg["from_name"],
-            )
-            _logger.info(f"[reset] system SendGrid result: ok={ok} msg={msg}")
-            if ok:
-                sent = True
-            else:
-                send_errors.append(f"system SendGrid: {msg}")
-
-    if not sent:
-        _logger.error(f"[reset] ALL email methods failed for {user.email}: {send_errors}")
-    else:
-        _logger.info(f"[reset] email sent successfully to {user.email}")
+    send_with_fallback(db, user.email, "パスワードリセット - LeadHive", html_body, org_id=user.org_id)
 
     return {
         "message": "パスワードリセットメールを送信しました（アドレスが登録されている場合）",
@@ -631,10 +559,7 @@ def accept_invitation(token: str, body: AcceptInviteRequest, db: Session = Depen
 
 
 def _send_welcome_email(email: str, name: str, db, org_id: int):
-    from server.services.mailer import get_smtp_settings, send_email
-    smtp_cfg = get_smtp_settings(db, org_id)
-    if not smtp_cfg.get("smtp_host"):
-        return
+    from server.services.mailer import send_with_fallback
     html_body = f"""
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
       <h2 style="color:#2563eb">LeadHiveへようこそ！</h2>
@@ -652,10 +577,10 @@ def _send_welcome_email(email: str, name: str, db, org_id: int):
           ダッシュボードを開く
         </a>
       </p>
-      <p style="color:#9ca3af;font-size:12px;margin-top:32px">LeadHive — COOLWORKS株式会社</p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:32px">LeadHive — 株式会社LEADMARK</p>
     </div>
     """
-    send_email(email, "【LeadHive】ご登録ありがとうございます！", html_body, smtp_cfg)
+    send_with_fallback(db, email, "【LeadHive】ご登録ありがとうございます！", html_body, org_id=org_id)
 
 
 @router.post("/logout-all")

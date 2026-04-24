@@ -173,3 +173,67 @@ def send_via_sendgrid(
         return False, "SendGrid への接続がタイムアウトしました"
     except Exception as e:
         return False, f"SendGrid 送信エラー: {str(e)}"
+
+
+def send_with_fallback(
+    db,
+    to: str,
+    subject: str,
+    html_body: str,
+    text_body: Optional[str] = None,
+    org_id: int = None,
+) -> tuple[bool, str]:
+    """
+    メール送信の優先フォールバックチェーン:
+      1. テナントSMTP (org_id指定時)
+      2. テナントSendGrid (org_id指定時)
+      3. システムSMTP (SystemSettings or 環境変数)
+      4. システムSendGrid (SystemSettings or 環境変数)
+    """
+    errors = []
+
+    if org_id:
+        smtp_cfg = get_smtp_settings(db, org_id)
+        if smtp_cfg.get("smtp_host"):
+            ok, msg = send_email(to, subject, html_body, smtp_cfg, text_body)
+            logger.info(f"[mail] tenant SMTP ok={ok} msg={msg}")
+            if ok:
+                return True, msg
+            errors.append(f"tenant SMTP: {msg}")
+
+        sg_cfg = get_sendgrid_settings(db, org_id)
+        if sg_cfg.get("api_key"):
+            ok, msg = send_via_sendgrid(
+                to=to, subject=subject, html_body=html_body,
+                api_key=sg_cfg["api_key"],
+                from_email=sg_cfg["from_email"], from_name=sg_cfg["from_name"],
+                text_body=text_body,
+            )
+            logger.info(f"[mail] tenant SendGrid ok={ok} msg={msg}")
+            if ok:
+                return True, msg
+            errors.append(f"tenant SendGrid: {msg}")
+
+    sys_smtp = get_system_smtp_settings(db)
+    if sys_smtp.get("smtp_host"):
+        ok, msg = send_email(to, subject, html_body, sys_smtp, text_body)
+        logger.info(f"[mail] system SMTP ok={ok} msg={msg}")
+        if ok:
+            return True, msg
+        errors.append(f"system SMTP: {msg}")
+
+    sys_sg = get_system_sendgrid_settings(db)
+    if sys_sg.get("api_key"):
+        ok, msg = send_via_sendgrid(
+            to=to, subject=subject, html_body=html_body,
+            api_key=sys_sg["api_key"],
+            from_email=sys_sg["from_email"], from_name=sys_sg["from_name"],
+            text_body=text_body,
+        )
+        logger.info(f"[mail] system SendGrid ok={ok} msg={msg}")
+        if ok:
+            return True, msg
+        errors.append(f"system SendGrid: {msg}")
+
+    logger.error(f"[mail] ALL methods failed to={to}: {errors}")
+    return False, "; ".join(errors) if errors else "メール設定がありません"
