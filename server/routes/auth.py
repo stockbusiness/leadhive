@@ -472,40 +472,71 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
     <p style="color:#888;font-size:12px;">このメールに心当たりがない場合は無視してください。</p>
     """
 
+    import logging as _logging
+    _logger = _logging.getLogger("leadhive.password_reset")
+
     sent = False
+    send_errors = []
+
     # 1. テナントのSMTP
     smtp_cfg = get_smtp_settings(db, user.org_id)
     if smtp_cfg.get("smtp_host"):
-        ok, _ = send_email(user.email, "パスワードリセット - LeadHive", html_body, smtp_cfg)
-        sent = ok
+        _logger.info(f"[reset] trying tenant SMTP: host={smtp_cfg.get('smtp_host')} user_email={user.email}")
+        ok, msg = send_email(user.email, "パスワードリセット - LeadHive", html_body, smtp_cfg)
+        _logger.info(f"[reset] tenant SMTP result: ok={ok} msg={msg}")
+        if ok:
+            sent = True
+        else:
+            send_errors.append(f"tenant SMTP: {msg}")
 
     # 2. テナントのSendGrid
     if not sent:
         sg_cfg = get_sendgrid_settings(db, user.org_id)
         if sg_cfg.get("api_key"):
-            ok, _ = send_via_sendgrid(
+            _logger.info(f"[reset] trying tenant SendGrid")
+            ok, msg = send_via_sendgrid(
                 to=user.email, subject="パスワードリセット - LeadHive",
                 html_body=html_body, api_key=sg_cfg["api_key"],
                 from_email=sg_cfg["from_email"], from_name=sg_cfg["from_name"],
             )
-            sent = ok
+            _logger.info(f"[reset] tenant SendGrid result: ok={ok} msg={msg}")
+            if ok:
+                sent = True
+            else:
+                send_errors.append(f"tenant SendGrid: {msg}")
 
     # 3. システムSMTP（フォールバック）
     if not sent:
         sys_smtp = get_system_smtp_settings(db)
         if sys_smtp.get("smtp_host"):
-            ok, _ = send_email(user.email, "パスワードリセット - LeadHive", html_body, sys_smtp)
-            sent = ok
+            _logger.info(f"[reset] trying system SMTP: host={sys_smtp.get('smtp_host')}")
+            ok, msg = send_email(user.email, "パスワードリセット - LeadHive", html_body, sys_smtp)
+            _logger.info(f"[reset] system SMTP result: ok={ok} msg={msg}")
+            if ok:
+                sent = True
+            else:
+                send_errors.append(f"system SMTP: {msg}")
 
     # 4. システムSendGrid（フォールバック）
     if not sent:
         sys_sg = get_system_sendgrid_settings(db)
         if sys_sg.get("api_key"):
-            send_via_sendgrid(
+            _logger.info(f"[reset] trying system SendGrid")
+            ok, msg = send_via_sendgrid(
                 to=user.email, subject="パスワードリセット - LeadHive",
                 html_body=html_body, api_key=sys_sg["api_key"],
                 from_email=sys_sg["from_email"], from_name=sys_sg["from_name"],
             )
+            _logger.info(f"[reset] system SendGrid result: ok={ok} msg={msg}")
+            if ok:
+                sent = True
+            else:
+                send_errors.append(f"system SendGrid: {msg}")
+
+    if not sent:
+        _logger.error(f"[reset] ALL email methods failed for {user.email}: {send_errors}")
+    else:
+        _logger.info(f"[reset] email sent successfully to {user.email}")
 
     return {
         "message": "パスワードリセットメールを送信しました（アドレスが登録されている場合）",
