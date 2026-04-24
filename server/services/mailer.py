@@ -112,15 +112,20 @@ def get_sendgrid_settings(db, org_id: int) -> dict:
 
 
 def get_system_sendgrid_settings(db) -> dict:
+    import os
     from server.models import SystemSettings
     from server.services.encryption import decrypt_value
     keys = ["sendgrid_api_key", "sendgrid_from_email", "sendgrid_from_name"]
     rows = db.query(SystemSettings).filter(SystemSettings.key.in_(keys)).all()
     raw = {r.key: decrypt_value(r.value or "") for r in rows}
+    # DB設定がなければ環境変数をフォールバックとして使用
+    api_key = raw.get("sendgrid_api_key") or os.environ.get("SENDGRID_API_KEY", "")
+    from_email = raw.get("sendgrid_from_email") or os.environ.get("SENDGRID_FROM_EMAIL", "noreply@leadhive.work")
+    from_name = raw.get("sendgrid_from_name") or os.environ.get("SENDGRID_FROM_NAME", "LeadHive")
     return {
-        "api_key": raw.get("sendgrid_api_key", ""),
-        "from_email": raw.get("sendgrid_from_email", ""),
-        "from_name": raw.get("sendgrid_from_name", "LeadHive"),
+        "api_key": api_key,
+        "from_email": from_email,
+        "from_name": from_name,
     }
 
 

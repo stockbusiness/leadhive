@@ -455,21 +455,60 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
     db.add(reset_token)
     db.commit()
 
-    from server.services.mailer import get_smtp_settings, send_email
-    smtp_cfg = get_smtp_settings(db, user.org_id)
-    reset_url = f"/reset-password?token={token_str}"
+    from server.services.mailer import (
+        get_smtp_settings, send_email,
+        get_sendgrid_settings, send_via_sendgrid,
+        get_system_smtp_settings, get_system_sendgrid_settings,
+    )
+
+    # 絶対URLを構築
+    site_url = os.environ.get("SITE_URL", "https://leadhive.work").rstrip("/")
+    reset_url = f"{site_url}/reset-password?token={token_str}"
+
     html_body = f"""
     <p>パスワードリセットのリクエストを受け付けました。</p>
     <p>以下のリンクから1時間以内にパスワードを再設定してください。</p>
     <p><a href="{reset_url}" style="background:#2563eb;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;">パスワードをリセットする</a></p>
     <p style="color:#888;font-size:12px;">このメールに心当たりがない場合は無視してください。</p>
     """
+
+    sent = False
+    # 1. テナントのSMTP
+    smtp_cfg = get_smtp_settings(db, user.org_id)
     if smtp_cfg.get("smtp_host"):
-        send_email(user.email, "パスワードリセット - LeadHive", html_body, smtp_cfg)
+        ok, _ = send_email(user.email, "パスワードリセット - LeadHive", html_body, smtp_cfg)
+        sent = ok
+
+    # 2. テナントのSendGrid
+    if not sent:
+        sg_cfg = get_sendgrid_settings(db, user.org_id)
+        if sg_cfg.get("api_key"):
+            ok, _ = send_via_sendgrid(
+                to=user.email, subject="パスワードリセット - LeadHive",
+                html_body=html_body, api_key=sg_cfg["api_key"],
+                from_email=sg_cfg["from_email"], from_name=sg_cfg["from_name"],
+            )
+            sent = ok
+
+    # 3. システムSMTP（フォールバック）
+    if not sent:
+        sys_smtp = get_system_smtp_settings(db)
+        if sys_smtp.get("smtp_host"):
+            ok, _ = send_email(user.email, "パスワードリセット - LeadHive", html_body, sys_smtp)
+            sent = ok
+
+    # 4. システムSendGrid（フォールバック）
+    if not sent:
+        sys_sg = get_system_sendgrid_settings(db)
+        if sys_sg.get("api_key"):
+            send_via_sendgrid(
+                to=user.email, subject="パスワードリセット - LeadHive",
+                html_body=html_body, api_key=sys_sg["api_key"],
+                from_email=sys_sg["from_email"], from_name=sys_sg["from_name"],
+            )
 
     return {
         "message": "パスワードリセットメールを送信しました（アドレスが登録されている場合）",
-        "reset_url": reset_url,
     }
 
 
