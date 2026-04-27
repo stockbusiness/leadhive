@@ -265,8 +265,8 @@ export const api = {
     slackTest: () =>
       axios.post("/api/settings/slack-test").then(r => r.data),
 
-    smtpTest: (testTo?: string) =>
-      axios.post("/api/settings/smtp-test", { test_to: testTo }).then(r => r.data),
+    smtpTest: (params?: { test_to?: string; smtp_host?: string; smtp_port?: string; smtp_user?: string; smtp_password?: string; smtp_from_email?: string; smtp_from_name?: string; smtp_use_tls?: string }) =>
+      axios.post("/api/settings/smtp-test", params ?? {}).then(r => r.data),
 
     sendgridTest: (testTo?: string) =>
       axios.post("/api/settings/sendgrid-test", { test_to: testTo }).then(r => r.data),

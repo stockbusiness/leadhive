@@ -382,7 +382,16 @@ export default function Settings() {
     setSmtpTesting(true);
     setSmtpMessage(null);
     try {
-      const data = await api.settings.smtpTest(smtpTestEmail || undefined);
+      const params: Record<string, string> = {};
+      if (smtpTestEmail) params.test_to = smtpTestEmail;
+      if (smtpHost) params.smtp_host = smtpHost;
+      if (smtpPort) params.smtp_port = smtpPort;
+      if (smtpUser) params.smtp_user = smtpUser;
+      if (smtpPassword && !smtpPassword.includes("*")) params.smtp_password = smtpPassword;
+      if (smtpFromEmail) params.smtp_from_email = smtpFromEmail;
+      if (smtpFromName) params.smtp_from_name = smtpFromName;
+      params.smtp_use_tls = smtpUseTls ? "true" : "false";
+      const data = await api.settings.smtpTest(params);
       setSmtpMessage({ type: data.success ? "success" : "error", text: data.message });
     } catch {
       setSmtpMessage({ type: "error", text: "SMTPテスト送信に失敗しました" });

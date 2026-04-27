@@ -144,8 +144,15 @@ def test_smtp(
     db: Session = Depends(get_db),
 ):
     from server.services.mailer import get_smtp_settings, send_email
+    # DBから設定を読み込み、リクエストで送られたフォーム値で上書き（保存前でもテスト可能）
     smtp_cfg = get_smtp_settings(db, current_user.org_id)
-    test_to = data.get("test_to", current_user.email)
+    override_keys = ["smtp_host", "smtp_port", "smtp_user", "smtp_password",
+                     "smtp_from_email", "smtp_from_name", "smtp_use_tls"]
+    for key in override_keys:
+        val = data.get(key)
+        if val is not None and str(val).strip():
+            smtp_cfg[key] = str(val).strip()
+    test_to = data.get("test_to") or current_user.email
     ok, msg = send_email(
         to=test_to,
         subject="LeadHiveテストメール",
