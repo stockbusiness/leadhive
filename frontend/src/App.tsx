@@ -53,6 +53,7 @@ import PlanLimitModal from "./components/common/PlanLimitModal";
 import AnnouncementBanner from "./components/common/AnnouncementBanner";
 import NotificationPanel from "./components/common/NotificationPanel";
 import CookieBanner from "./components/common/CookieBanner";
+import { SystemAdminRoute } from "./components/ProtectedRoute";
 import LandingPageNew from "./pages/LandingPageNew";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -299,7 +300,7 @@ function AppContent() {
             <SidebarLink to="/support" icon={<LifeBuoy size={18} />} label="サポート" onClick={closeSidebar} />
           </div>
 
-          {user?.role === "admin" && (
+          {user?.is_system_admin && (
             <div className="mt-4">
               <div className="px-3 py-1.5 flex items-center gap-2">
                 <div className="h-px flex-1 bg-slate-700" />
@@ -434,28 +435,28 @@ function AppContent() {
               <Route path="/manual" element={<Manual />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/users" element={<UserManagement />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/tenants" element={<AdminTenants />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/admin/announcements" element={<AdminAnnouncements />} />
-              <Route path="/admin/billing" element={<AdminBilling />} />
-              <Route path="/admin/smtp" element={<AdminSmtp />} />
-              <Route path="/admin/email-templates" element={<AdminEmailTemplates />} />
-              <Route path="/admin/features" element={<AdminFeatures />} />
-              <Route path="/admin/logs" element={<AdminLogs />} />
-              <Route path="/admin/plans" element={<AdminPlans />} />
-              <Route path="/admin/stripe" element={<AdminStripe />} />
-              <Route path="/admin/api-keys" element={<AdminApiKeys />} />
-              <Route path="/admin/auto-master" element={<AdminAutoMaster />} />
-              <Route path="/admin/security" element={<AdminSecurity />} />
-              <Route path="/admin/contact-settings" element={<AdminContact />} />
-              <Route path="/admin/hubsrev" element={<AdminHubsrev />} />
-              <Route path="/admin/commitrev" element={<AdminCommitrev />} />
-              <Route path="/admin/scoring-rules" element={<AdminScoringRules />} />
-              <Route path="/admin/legal" element={<AdminLegal />} />
-              <Route path="/admin/support" element={<AdminSupport />} />
-              <Route path="/admin/faq" element={<AdminFaq />} />
-              <Route path="/admin/status" element={<AdminStatus />} />
+              <Route path="/admin/dashboard" element={<SystemAdminRoute><AdminDashboard /></SystemAdminRoute>} />
+              <Route path="/admin/tenants" element={<SystemAdminRoute><AdminTenants /></SystemAdminRoute>} />
+              <Route path="/admin/users" element={<SystemAdminRoute><AdminUsers /></SystemAdminRoute>} />
+              <Route path="/admin/announcements" element={<SystemAdminRoute><AdminAnnouncements /></SystemAdminRoute>} />
+              <Route path="/admin/billing" element={<SystemAdminRoute><AdminBilling /></SystemAdminRoute>} />
+              <Route path="/admin/smtp" element={<SystemAdminRoute><AdminSmtp /></SystemAdminRoute>} />
+              <Route path="/admin/email-templates" element={<SystemAdminRoute><AdminEmailTemplates /></SystemAdminRoute>} />
+              <Route path="/admin/features" element={<SystemAdminRoute><AdminFeatures /></SystemAdminRoute>} />
+              <Route path="/admin/logs" element={<SystemAdminRoute><AdminLogs /></SystemAdminRoute>} />
+              <Route path="/admin/plans" element={<SystemAdminRoute><AdminPlans /></SystemAdminRoute>} />
+              <Route path="/admin/stripe" element={<SystemAdminRoute><AdminStripe /></SystemAdminRoute>} />
+              <Route path="/admin/api-keys" element={<SystemAdminRoute><AdminApiKeys /></SystemAdminRoute>} />
+              <Route path="/admin/auto-master" element={<SystemAdminRoute><AdminAutoMaster /></SystemAdminRoute>} />
+              <Route path="/admin/security" element={<SystemAdminRoute><AdminSecurity /></SystemAdminRoute>} />
+              <Route path="/admin/contact-settings" element={<SystemAdminRoute><AdminContact /></SystemAdminRoute>} />
+              <Route path="/admin/hubsrev" element={<SystemAdminRoute><AdminHubsrev /></SystemAdminRoute>} />
+              <Route path="/admin/commitrev" element={<SystemAdminRoute><AdminCommitrev /></SystemAdminRoute>} />
+              <Route path="/admin/scoring-rules" element={<SystemAdminRoute><AdminScoringRules /></SystemAdminRoute>} />
+              <Route path="/admin/legal" element={<SystemAdminRoute><AdminLegal /></SystemAdminRoute>} />
+              <Route path="/admin/support" element={<SystemAdminRoute><AdminSupport /></SystemAdminRoute>} />
+              <Route path="/admin/faq" element={<SystemAdminRoute><AdminFaq /></SystemAdminRoute>} />
+              <Route path="/admin/status" element={<SystemAdminRoute><AdminStatus /></SystemAdminRoute>} />
               <Route path="/support" element={<Support />} />
               <Route path="/support/:id" element={<SupportTicket />} />
               <Route path="/sales-ai" element={<SalesAI />} />
