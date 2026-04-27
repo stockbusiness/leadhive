@@ -1,10 +1,11 @@
 import json
 import asyncio
 import logging
+import time
 from datetime import datetime
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -366,10 +367,86 @@ def get_campaign(
     }
 
 
+_WEBHOOK_TIMESTAMP_TOLERANCE = 300  # 5 minutes
+_WEBHOOK_MAX_BODY_BYTES = 1 * 1024 * 1024  # 1 MB
+
+_seen_webhook_tokens: dict = {}
+_SEEN_TTL = _WEBHOOK_TIMESTAMP_TOLERANCE * 2
+
+
+def _purge_old_webhook_tokens() -> None:
+    cutoff = time.time() - _SEEN_TTL
+    expired = [k for k, v in _seen_webhook_tokens.items() if v < cutoff]
+    for k in expired:
+        del _seen_webhook_tokens[k]
+
+
+def _verify_sendgrid_signature(public_key_pem: str, payload: bytes, signature_b64: str, timestamp: str) -> bool:
+    try:
+        import base64
+        from cryptography.hazmat.primitives.asymmetric.ec import ECDSA
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.exceptions import InvalidSignature
+
+        public_key = serialization.load_pem_public_key(public_key_pem.encode())
+        timestamped_payload = timestamp.encode() + payload
+        sig_bytes = base64.b64decode(signature_b64)
+        public_key.verify(sig_bytes, timestamped_payload, ECDSA(hashes.SHA256()))
+        return True
+    except (InvalidSignature, Exception):
+        return False
+
+
 @router.post("/sendgrid-webhook", include_in_schema=False)
 async def sendgrid_webhook(request: Request, db: Session = Depends(get_db)):
+    import hashlib
+    from server.models import SystemSettings
+    from server.services.encryption import decrypt_value
+
+    raw_body = await request.body()
+
+    if len(raw_body) > _WEBHOOK_MAX_BODY_BYTES:
+        logger.warning("SendGrid webhook rejected: body too large (%d bytes)", len(raw_body))
+        return JSONResponse(status_code=413, content={"error": "payload too large"})
+
+    signature = request.headers.get("X-Twilio-Email-Event-Webhook-Signature", "")
+    timestamp = request.headers.get("X-Twilio-Email-Event-Webhook-Timestamp", "")
+
+    key_row = db.query(SystemSettings).filter(SystemSettings.key == "sendgrid_webhook_public_key").first()
+    public_key_pem = decrypt_value(key_row.value) if key_row and key_row.value else None
+
+    if not public_key_pem:
+        logger.warning("SendGrid webhook rejected: no webhook public key configured")
+        return JSONResponse(status_code=403, content={"error": "webhook verification not configured"})
+
+    if not signature or not timestamp:
+        logger.warning("SendGrid webhook rejected: missing signature or timestamp headers")
+        return JSONResponse(status_code=403, content={"error": "missing signature headers"})
+
     try:
-        body = await request.json()
+        ts_float = float(timestamp)
+    except (ValueError, TypeError):
+        logger.warning("SendGrid webhook rejected: unparseable timestamp")
+        return JSONResponse(status_code=403, content={"error": "invalid timestamp"})
+
+    if abs(time.time() - ts_float) > _WEBHOOK_TIMESTAMP_TOLERANCE:
+        logger.warning("SendGrid webhook rejected: timestamp outside tolerance window")
+        return JSONResponse(status_code=403, content={"error": "timestamp expired"})
+
+    if not _verify_sendgrid_signature(public_key_pem, raw_body, signature, timestamp):
+        logger.warning("SendGrid webhook rejected: invalid signature")
+        return JSONResponse(status_code=403, content={"error": "invalid signature"})
+
+    replay_token = hashlib.sha256(f"{timestamp}:{signature}".encode()).hexdigest()
+    _purge_old_webhook_tokens()
+    if replay_token in _seen_webhook_tokens:
+        logger.warning("SendGrid webhook rejected: replay detected")
+        return JSONResponse(status_code=403, content={"error": "duplicate request"})
+    _seen_webhook_tokens[replay_token] = time.time()
+
+    try:
+        import json as _json
+        body = _json.loads(raw_body)
     except Exception:
         return {"ok": True}
 

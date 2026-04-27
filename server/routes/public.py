@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from server.database import get_db
 from server.models import User, SystemSettings, OptOutList
+from server.services.rate_limiter import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,10 @@ GBIZ_BASE_URL = "https://info.gbiz.go.jp/hojin/v1/hojin"
 
 _stats_cache: dict = {"data": None, "at": 0.0}
 _STATS_TTL = 60.0  # 60秒キャッシュ
+
+_corporate_cache: dict = {}
+_CORPORATE_TTL = 3600.0  # 1時間キャッシュ
+_CORPORATE_CACHE_MAX = 5000
 
 
 @router.get("/stats")
@@ -37,9 +42,19 @@ def public_stats(db: Session = Depends(get_db)):
 
 
 @router.get("/corporate/{number}")
-def lookup_corporate(number: str, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def lookup_corporate(request: Request, number: str, db: Session = Depends(get_db)):
     if not number.isdigit() or len(number) != 13:
         raise HTTPException(status_code=400, detail="法人番号は13桁の数字で入力してください")
+
+    now = time.time()
+    cached = _corporate_cache.get(number)
+    if cached and now - cached["at"] < _CORPORATE_TTL:
+        return cached["data"]
+
+    if len(_corporate_cache) >= _CORPORATE_CACHE_MAX:
+        oldest = min(_corporate_cache, key=lambda k: _corporate_cache[k]["at"])
+        del _corporate_cache[oldest]
 
     from server.services.encryption import decrypt_value
     token_row = db.query(SystemSettings).filter(SystemSettings.key == "gbizinfo_api_token").first()
@@ -55,19 +70,25 @@ def lookup_corporate(number: str, db: Session = Depends(get_db)):
         }
         resp = requests.get(f"{GBIZ_BASE_URL}/{number}", headers=headers, timeout=10)
         if resp.status_code == 404:
-            return {"error": "not_found", "message": "該当する法人情報が見つかりませんでした"}
+            result = {"error": "not_found", "message": "該当する法人情報が見つかりませんでした"}
+            _corporate_cache[number] = {"data": result, "at": now}
+            return result
         resp.raise_for_status()
         data = resp.json()
         info = data.get("hojin-infos", [])
         if not info:
-            return {"error": "not_found", "message": "該当する法人情報が見つかりませんでした"}
+            result = {"error": "not_found", "message": "該当する法人情報が見つかりませんでした"}
+            _corporate_cache[number] = {"data": result, "at": now}
+            return result
         item = info[0]
-        return {
+        result = {
             "corporate_number": number,
             "name": item.get("name", ""),
             "address": item.get("location", ""),
             "business_summary": item.get("business_summary", "") or "",
         }
+        _corporate_cache[number] = {"data": result, "at": now}
+        return result
     except requests.RequestException as e:
         logger.warning(f"gBizINFO lookup failed for {number}: {e}")
         raise HTTPException(status_code=502, detail="法人情報の取得に失敗しました")
