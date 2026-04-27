@@ -185,6 +185,7 @@ export default function Settings() {
   const [smtpPort, setSmtpPort] = useState("587");
   const [smtpUser, setSmtpUser] = useState("");
   const [smtpPassword, setSmtpPassword] = useState("");
+  const [smtpPasswordDirty, setSmtpPasswordDirty] = useState(false);
   const [smtpFromEmail, setSmtpFromEmail] = useState("");
   const [smtpFromName, setSmtpFromName] = useState("LeadHive");
   const [smtpUseTls, setSmtpUseTls] = useState(true);
@@ -302,7 +303,7 @@ export default function Settings() {
     if (smtpHost) data.smtp_host = smtpHost;
     if (smtpPort) data.smtp_port = smtpPort;
     if (smtpUser) data.smtp_user = smtpUser;
-    if (smtpPassword && !smtpPassword.includes("*")) data.smtp_password = smtpPassword;
+    if (smtpPassword && smtpPasswordDirty) data.smtp_password = smtpPassword;
     if (smtpFromEmail) data.smtp_from_email = smtpFromEmail;
     if (smtpFromName) data.smtp_from_name = smtpFromName;
     data.smtp_use_tls = smtpUseTls ? "true" : "false";
@@ -394,7 +395,7 @@ export default function Settings() {
       if (smtpHost) payload.smtp_host = smtpHost;
       if (smtpPort) payload.smtp_port = smtpPort;
       if (smtpUser) payload.smtp_user = smtpUser;
-      if (smtpPassword && !smtpPassword.includes("*")) payload.smtp_password = smtpPassword;
+      if (smtpPassword && smtpPasswordDirty) payload.smtp_password = smtpPassword;
       if (smtpFromEmail) payload.smtp_from_email = smtpFromEmail;
       if (smtpFromName) payload.smtp_from_name = smtpFromName;
       payload.smtp_use_tls = smtpUseTls ? "true" : "false";
@@ -408,6 +409,7 @@ export default function Settings() {
       if (s.smtp_port?.is_set) setSmtpPort(s.smtp_port.value);
       if (s.smtp_user?.is_set) setSmtpUser(s.smtp_user.value);
       if (s.smtp_password?.is_set) setSmtpPassword(s.smtp_password.value);
+      setSmtpPasswordDirty(false);
       const missingFields: string[] = [];
       if (!s.smtp_host?.is_set) missingFields.push("ホスト");
       if (!s.smtp_user?.is_set) missingFields.push("ユーザー名");
@@ -432,7 +434,7 @@ export default function Settings() {
       if (smtpHost) params.smtp_host = smtpHost;
       if (smtpPort) params.smtp_port = smtpPort;
       if (smtpUser) params.smtp_user = smtpUser;
-      if (smtpPassword && !smtpPassword.includes("*")) params.smtp_password = smtpPassword;
+      if (smtpPassword && smtpPasswordDirty) params.smtp_password = smtpPassword;
       if (smtpFromEmail) params.smtp_from_email = smtpFromEmail;
       if (smtpFromName) params.smtp_from_name = smtpFromName;
       params.smtp_use_tls = smtpUseTls ? "true" : "false";
@@ -662,7 +664,7 @@ export default function Settings() {
           </div>
           <div className="col-span-2 sm:col-span-1">
             <label className={labelClass}>SMTPパスワード {smtpPasswordSet ? <span className="text-emerald-600 text-xs ml-2">設定済み</span> : <span className="text-red-500 text-xs ml-2">未設定（必須）</span>}</label>
-            <input type="password" value={smtpPassword} onChange={e => setSmtpPassword(e.target.value)} placeholder={smtpPasswordSet ? "変更する場合のみ入力" : "パスワードを入力してください（必須）"} className={inputClass} />
+            <input type="password" value={smtpPassword} onChange={e => { setSmtpPassword(e.target.value); setSmtpPasswordDirty(true); }} placeholder={smtpPasswordSet ? "変更する場合のみ入力" : "パスワードを入力してください（必須）"} className={inputClass} />
           </div>
           <div className="col-span-2 sm:col-span-1">
             <label className={labelClass}>送信元メールアドレス</label>
