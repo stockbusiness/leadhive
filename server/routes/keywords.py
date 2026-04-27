@@ -1,13 +1,17 @@
 from typing import Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from server.database import get_db
-from server.models import SearchKeyword, CollectionLog, User
+from server.models import SearchKeyword, CollectionLog, User, Project
 from server.auth import get_current_user
 from server.services.cache import cache_get, cache_set, cache_invalidate
 
 router = APIRouter(prefix="/api/keywords", tags=["keywords"])
+
+
+def _owned_project_ids(current_user: User, db: Session):
+    return [p.id for p in db.query(Project.id).filter(Project.org_id == current_user.org_id).all()]
 
 
 @router.get("")
@@ -16,13 +20,21 @@ def list_keywords(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    cache_key = f"keywords_list_{project_id}" if project_id else "keywords_list"
+    owned_ids = _owned_project_ids(current_user, db)
+    if project_id:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
+        cache_key = f"keywords_list_{current_user.org_id}_{project_id}"
+    else:
+        cache_key = f"keywords_list_{current_user.org_id}"
     cached = cache_get(cache_key, ttl=30)
     if cached:
         return cached
     q = db.query(SearchKeyword)
     if project_id:
         q = q.filter(SearchKeyword.project_id == project_id)
+    else:
+        q = q.filter(SearchKeyword.project_id.in_(owned_ids))
     keywords = q.order_by(SearchKeyword.created_at.desc()).all()
     result = {
         "keywords": [
@@ -48,13 +60,18 @@ def create_keyword(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    project_id = data.get("project_id")
+    if project_id:
+        owned_ids = _owned_project_ids(current_user, db)
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
     keyword = SearchKeyword(
         keyword=data["keyword"],
         category=data.get("category", ""),
         region=data.get("region", ""),
         exclude_keywords=data.get("exclude_keywords", ""),
         is_active=data.get("is_active", True),
-        project_id=data.get("project_id"),
+        project_id=project_id,
     )
     db.add(keyword)
     db.commit()
@@ -80,7 +97,11 @@ def update_keyword(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    keyword = db.query(SearchKeyword).filter(SearchKeyword.id == keyword_id).first()
+    owned_ids = _owned_project_ids(current_user, db)
+    keyword = db.query(SearchKeyword).filter(
+        SearchKeyword.id == keyword_id,
+        SearchKeyword.project_id.in_(owned_ids),
+    ).first()
     if not keyword:
         return {"error": "キーワードが見つかりません"}
 
@@ -110,6 +131,14 @@ def get_keyword_analytics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    owned_ids = _owned_project_ids(current_user, db)
+    if project_id:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
+        filter_ids = [project_id]
+    else:
+        filter_ids = owned_ids
+
     q = db.query(
         CollectionLog.keyword_id,
         CollectionLog.keyword_text,
@@ -120,23 +149,7 @@ def get_keyword_analytics(
         func.sum(CollectionLog.rejected_count).label("rejected_count"),
         func.sum(CollectionLog.error_count).label("error_count"),
         func.max(CollectionLog.created_at).label("last_run_at"),
-    ).filter(CollectionLog.project_id == project_id) if project_id else db.query(
-        CollectionLog.keyword_id,
-        CollectionLog.keyword_text,
-        func.count(CollectionLog.id).label("total_runs"),
-        func.sum(CollectionLog.total_found).label("total_found"),
-        func.sum(CollectionLog.success_count).label("success_count"),
-        func.sum(CollectionLog.duplicate_count).label("duplicate_count"),
-        func.sum(CollectionLog.rejected_count).label("rejected_count"),
-        func.sum(CollectionLog.error_count).label("error_count"),
-        func.max(CollectionLog.created_at).label("last_run_at"),
-    ).filter(
-        CollectionLog.project_id.in_(
-            db.query(SearchKeyword.project_id).filter(
-                SearchKeyword.project_id.isnot(None)
-            )
-        )
-    )
+    ).filter(CollectionLog.project_id.in_(filter_ids))
 
     rows = q.group_by(CollectionLog.keyword_id, CollectionLog.keyword_text).all()
 
@@ -309,7 +322,11 @@ def delete_keyword(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    keyword = db.query(SearchKeyword).filter(SearchKeyword.id == keyword_id).first()
+    owned_ids = _owned_project_ids(current_user, db)
+    keyword = db.query(SearchKeyword).filter(
+        SearchKeyword.id == keyword_id,
+        SearchKeyword.project_id.in_(owned_ids),
+    ).first()
     if not keyword:
         return {"error": "キーワードが見つかりません"}
     db.delete(keyword)

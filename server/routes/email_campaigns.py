@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from server.database import get_db, SessionLocal
-from server.models import EmailCampaign, EmailLog, Company, User
+from server.models import EmailCampaign, EmailLog, Company, User, Project
 from server.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -125,7 +125,13 @@ async def send_campaign(
     if not provider:
         raise HTTPException(status_code=400, detail="メール送信設定（SendGrid APIキーまたはSMTP）がされていません。設定画面で設定してください。")
 
-    companies = db.query(Company).filter(Company.id.in_(req.company_ids)).all()
+    owned_project_ids = [
+        p.id for p in db.query(Project.id).filter(Project.org_id == current_user.org_id).all()
+    ]
+    companies = db.query(Company).filter(
+        Company.id.in_(req.company_ids),
+        Company.project_id.in_(owned_project_ids),
+    ).all()
     sendable = [c for c in companies if c.email]
     no_email = [c for c in companies if not c.email]
 

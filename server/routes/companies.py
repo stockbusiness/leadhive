@@ -2,7 +2,7 @@ import io
 import csv
 import re
 from collections import defaultdict
-from fastapi import APIRouter, Depends, Query, Response, UploadFile, File
+from fastapi import APIRouter, Depends, Query, Response, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
 from typing import Optional, List
@@ -57,11 +57,13 @@ def list_companies(
     db: Session = Depends(get_db),
 ):
     query = db.query(Company)
+    owned_ids = _owned_projects(current_user, db)
     if project_id:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
         query = query.filter(Company.project_id == project_id)
     else:
-        project_ids = _owned_projects(current_user, db)
-        query = query.filter(Company.project_id.in_(project_ids))
+        query = query.filter(Company.project_id.in_(owned_ids))
 
     if category:
         query = query.filter(Company.category_main == category)
@@ -138,7 +140,19 @@ def create_company(
     from server.routes.plans import check_plan_limit
     check_plan_limit(current_user.org_id, "companies", db)
 
-    existing = db.query(Company).filter(Company.website_url == data.get("website_url")).first()
+    owned_ids = _owned_projects(current_user, db)
+
+    if data.get("project_id") and data["project_id"] not in owned_ids:
+        raise HTTPException(status_code=403, detail="アクセス権限がありません")
+
+    existing = (
+        db.query(Company)
+        .filter(
+            Company.website_url == data.get("website_url"),
+            Company.project_id.in_(owned_ids),
+        )
+        .first()
+    )
     if existing:
         return {"error": "この企業URLは既に登録されています", "company": company_to_dict(existing, db)}
 
@@ -195,11 +209,13 @@ def find_duplicates(
     db: Session = Depends(get_db),
 ):
     q = db.query(Company)
+    owned_ids = _owned_projects(current_user, db)
     if project_id:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
         q = q.filter(Company.project_id == project_id)
     else:
-        project_ids = _owned_projects(current_user, db)
-        q = q.filter(Company.project_id.in_(project_ids))
+        q = q.filter(Company.project_id.in_(owned_ids))
     companies = q.all()
     domain_groups = defaultdict(list)
     for c in companies:
@@ -229,11 +245,16 @@ def merge_companies(
     if not main_id or not merge_ids:
         return {"error": "main_id と merge_ids は必須です"}
 
-    main_company = db.query(Company).filter(Company.id == main_id).first()
+    owned_ids = _owned_projects(current_user, db)
+    main_company = db.query(Company).filter(
+        Company.id == main_id, Company.project_id.in_(owned_ids)
+    ).first()
     if not main_company:
         return {"error": "メイン企業が見つかりません"}
 
-    merge_companies_list = db.query(Company).filter(Company.id.in_(merge_ids)).all()
+    merge_companies_list = db.query(Company).filter(
+        Company.id.in_(merge_ids), Company.project_id.in_(owned_ids)
+    ).all()
     if not merge_companies_list:
         return {"error": "マージ対象の企業が見つかりません"}
 
@@ -292,7 +313,15 @@ def get_all_tags(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    tags = db.query(CompanyTag.tag_name).distinct().order_by(CompanyTag.tag_name).all()
+    owned_ids = _owned_projects(current_user, db)
+    owned_company_ids = db.query(Company.id).filter(Company.project_id.in_(owned_ids)).subquery()
+    tags = (
+        db.query(CompanyTag.tag_name)
+        .filter(CompanyTag.company_id.in_(owned_company_ids))
+        .distinct()
+        .order_by(CompanyTag.tag_name)
+        .all()
+    )
     return {"tags": [t[0] for t in tags]}
 
 
@@ -307,10 +336,12 @@ def get_pipeline(
         "フォーム送信済", "返信あり", "面談化", "代理店化", "失注",
     ]
 
+    owned = _owned_projects(current_user, db)
     if project_id:
+        if project_id not in owned:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
         query = db.query(Company).filter(Company.project_id == project_id)
     else:
-        owned = _owned_projects(current_user, db)
         query = db.query(Company).filter(Company.project_id.in_(owned))
 
     companies = query.order_by(Company.score_total.desc()).all()
@@ -362,11 +393,13 @@ def export_companies_xlsx_v2(
     from openpyxl.styles import Font, PatternFill, Alignment
 
     query = db.query(Company)
+    owned_ids = _owned_projects(current_user, db)
     if project_id:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
         query = query.filter(Company.project_id == project_id)
     else:
-        project_ids = _owned_projects(current_user, db)
-        query = query.filter(Company.project_id.in_(project_ids))
+        query = query.filter(Company.project_id.in_(owned_ids))
 
     if category:
         query = query.filter(Company.category_main == category)
@@ -509,7 +542,10 @@ def delete_company(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    company = db.query(Company).filter(Company.id == company_id).first()
+    owned_ids = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id, Company.project_id.in_(owned_ids)
+    ).first()
     if not company:
         return {"error": "企業が見つかりません"}
     db.delete(company)
@@ -602,6 +638,12 @@ def get_status_history(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    owned_ids = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id, Company.project_id.in_(owned_ids)
+    ).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="企業が見つかりません")
     history = (
         db.query(StatusHistory)
         .filter(StatusHistory.company_id == company_id)
@@ -630,6 +672,12 @@ def get_activities(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    owned_ids = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id, Company.project_id.in_(owned_ids)
+    ).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="企業が見つかりません")
     activities = (
         db.query(ActivityLog)
         .filter(ActivityLog.company_id == company_id)
@@ -710,11 +758,13 @@ def export_csv(
                 csv_limit = raw
 
     query = db.query(Company)
+    owned_ids = _owned_projects(current_user, db)
     if project_id:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
         query = query.filter(Company.project_id == project_id)
     else:
-        project_ids = _owned_projects(current_user, db)
-        query = query.filter(Company.project_id.in_(project_ids))
+        query = query.filter(Company.project_id.in_(owned_ids))
     if category:
         query = query.filter(Company.category_main == category)
     if status:
@@ -942,6 +992,12 @@ def get_company_tags(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    owned_ids = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id, Company.project_id.in_(owned_ids)
+    ).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="企業が見つかりません")
     tags = db.query(CompanyTag).filter(CompanyTag.company_id == company_id).all()
     return {"tags": [{"id": t.id, "tag_name": t.tag_name, "created_at": t.created_at.isoformat() if t.created_at else None} for t in tags]}
 
@@ -953,7 +1009,10 @@ def add_company_tag(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    company = db.query(Company).filter(Company.id == company_id).first()
+    owned_ids = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id, Company.project_id.in_(owned_ids)
+    ).first()
     if not company:
         return {"error": "企業が見つかりません"}
 
@@ -982,6 +1041,12 @@ def delete_company_tag(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    owned_ids = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id, Company.project_id.in_(owned_ids)
+    ).first()
+    if not company:
+        return {"error": "企業が見つかりません"}
     tag = db.query(CompanyTag).filter(
         CompanyTag.company_id == company_id,
         CompanyTag.tag_name == tag_name
@@ -999,7 +1064,10 @@ def rescrape_company(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    company = db.query(Company).filter(Company.id == company_id).first()
+    owned_ids = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id, Company.project_id.in_(owned_ids)
+    ).first()
     if not company:
         return {"error": "企業が見つかりません"}
 
@@ -1207,6 +1275,12 @@ def get_email_logs(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    owned_ids = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id, Company.project_id.in_(owned_ids)
+    ).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="企業が見つかりません")
     logs = (
         db.query(EmailSendLog)
         .filter(EmailSendLog.company_id == company_id)
@@ -1244,6 +1318,10 @@ def move_project(
     if not company_ids or not target_project_id:
         return {"error": "企業IDと移動先プロジェクトIDを指定してください"}
 
+    owned_ids = _owned_projects(current_user, db)
+    if target_project_id not in owned_ids:
+        raise HTTPException(status_code=403, detail="アクセス権限がありません")
+
     existing_domains = set(
         c.domain for c in db.query(Company.domain).filter(Company.project_id == target_project_id).all()
     )
@@ -1251,7 +1329,9 @@ def move_project(
     moved = 0
     skipped = 0
     for cid in company_ids:
-        company = db.query(Company).filter(Company.id == cid).first()
+        company = db.query(Company).filter(
+            Company.id == cid, Company.project_id.in_(owned_ids)
+        ).first()
         if not company:
             continue
         if company.domain in existing_domains:
