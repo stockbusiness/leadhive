@@ -360,6 +360,15 @@ def run_db_migrations():
                 db.add(Plan(**p))
         db.commit()
 
+        from server.models import AppSetting
+        from server.services.encryption import encrypt_value, is_encrypted
+        for key in ("commitrev_api_key", "commitrev_hmac_secret"):
+            rows = db.query(AppSetting).filter(AppSetting.setting_key == key).all()
+            for row in rows:
+                if row.setting_value and not is_encrypted(row.setting_value):
+                    row.setting_value = encrypt_value(row.setting_value)
+        db.commit()
+
         if db.query(User).count() == 0:
             _KNOWN_DEFAULT_PASSWORD = "LeadHive2026!"
             admin_email = os.environ.get("INITIAL_ADMIN_EMAIL", "admin@leadhive.work")

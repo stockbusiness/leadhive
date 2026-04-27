@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from server.database import get_db
 from server.models import AppSetting, User
-from server.auth import get_current_user
+from server.auth import get_current_user, require_admin
 from server.services.encryption import encrypt_value, decrypt_value, should_encrypt
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -56,7 +56,7 @@ def get_settings(
 @router.put("")
 def update_settings(
     data: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     if "slack_webhook_url" in data and data["slack_webhook_url"]:
@@ -118,7 +118,7 @@ def get_scheduler_status(current_user: User = Depends(get_current_user)):
 
 @router.post("/slack-test")
 def test_slack(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     from server.routes.plans import check_slack_allowed
@@ -140,7 +140,7 @@ def test_slack(
 @router.post("/smtp-test")
 def test_smtp(
     data: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     from server.services.mailer import get_smtp_settings, send_email
@@ -158,7 +158,7 @@ def test_smtp(
 
 @router.post("/test")
 def test_connection(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     from server.services.serper_search import get_serper_api_key, search_serper
@@ -177,7 +177,7 @@ def test_connection(
 @router.post("/sendgrid-test")
 def test_sendgrid(
     data: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     from server.services.mailer import get_sendgrid_settings, send_via_sendgrid

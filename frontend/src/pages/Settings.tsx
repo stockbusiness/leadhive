@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, DatabaseZap, ShieldCheck, Trash2, Download, LogOut, ExternalLink, AlertTriangle, QrCode, Zap } from "lucide-react";
 import axios from "axios";
@@ -35,11 +36,11 @@ function MessageBox({ msg }: { msg: MessageState }) {
   );
 }
 
-function SaveButton({ saving, onClick }: { saving: boolean; onClick: () => void }) {
+function SaveButton({ saving, onClick, disabled }: { saving: boolean; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       onClick={onClick}
-      disabled={saving}
+      disabled={saving || disabled}
       className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
     >
       {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -158,6 +159,8 @@ function PlanCurrentSection({ isAdmin }: { isAdmin: boolean }) {
 }
 
 export default function Settings() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [searchParams, setSearchParams] = useSearchParams();
   const [upgradeSuccess, setUpgradeSuccess] = useState(searchParams.get("upgrade") === "success");
   const [saving, setSaving] = useState(false);
@@ -506,6 +509,15 @@ export default function Settings() {
         />
       </div>
 
+      {!isAdmin && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+          <ShieldCheck size={18} className="text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800">
+            設定の閲覧のみ可能です。変更するには管理者権限が必要です。
+          </p>
+        </div>
+      )}
+
       {upgradeSuccess && (
         <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-300 rounded-xl px-5 py-4">
           <PartyPopper size={20} className="text-emerald-600 flex-shrink-0" />
@@ -563,7 +575,7 @@ export default function Settings() {
           <input type="password" value={placesApiKey} onChange={e => setPlacesApiKey(e.target.value)} placeholder="AIzaSy..." className={inputClass} />
           <p className="text-xs text-slate-400 mt-1">Google Cloud Console → APIとサービス → 認証情報 で取得（Places APIを有効化）</p>
         </div>
-        <SaveButton saving={saving} onClick={handleSave} />
+        <SaveButton saving={saving} onClick={handleSave} disabled={!isAdmin} />
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
@@ -621,8 +633,8 @@ export default function Settings() {
           </div>
         </div>
         <div className="flex gap-3">
-          <SaveButton saving={saving} onClick={handleSave} />
-          <button onClick={handleSmtpTest} disabled={smtpTesting || !smtpHost} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50">
+          <SaveButton saving={saving} onClick={handleSave} disabled={!isAdmin} />
+          <button onClick={handleSmtpTest} disabled={!isAdmin || smtpTesting || !smtpHost} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50">
             {smtpTesting ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
             テスト送信
           </button>
@@ -667,8 +679,8 @@ export default function Settings() {
           <input type="email" value={sgTestEmail} onChange={e => setSgTestEmail(e.target.value)} placeholder="test@example.com" className={inputClass} />
         </div>
         <div className="flex gap-3">
-          <SaveButton saving={saving} onClick={handleSave} />
-          <button onClick={handleSendgridTest} disabled={sgTesting || !sgApiKeySet} className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 transition-colors disabled:opacity-50">
+          <SaveButton saving={saving} onClick={handleSave} disabled={!isAdmin} />
+          <button onClick={handleSendgridTest} disabled={!isAdmin || sgTesting || !sgApiKeySet} className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 transition-colors disabled:opacity-50">
             {sgTesting ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
             テスト送信
           </button>
@@ -687,8 +699,8 @@ export default function Settings() {
           <input type="password" value={slackWebhookUrl} onChange={e => setSlackWebhookUrl(e.target.value)} placeholder="https://hooks.slack.com/services/..." className={inputClass} />
         </div>
         <div className="flex gap-3">
-          <SaveButton saving={saving} onClick={handleSave} />
-          <button onClick={handleSlackTest} disabled={slackTesting || (!slackWebhookSet && !slackWebhookUrl)} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50">
+          <SaveButton saving={saving} onClick={handleSave} disabled={!isAdmin} />
+          <button onClick={handleSlackTest} disabled={!isAdmin || slackTesting || (!slackWebhookSet && !slackWebhookUrl)} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50">
             {slackTesting ? <Loader2 size={16} className="animate-spin" /> : <MessageSquare size={16} />}
             テスト送信
           </button>
@@ -747,7 +759,7 @@ export default function Settings() {
             <input type="time" value={autoCollectTime} onChange={e => setAutoCollectTime(e.target.value)} disabled={!autoCollectEnabled} className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-slate-100" />
           </div>
         </div>
-        <SaveButton saving={saving} onClick={handleSave} />
+        <SaveButton saving={saving} onClick={handleSave} disabled={!isAdmin} />
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
@@ -772,7 +784,7 @@ export default function Settings() {
           <p>③ URLが見つかればスクレイピングしてCMS・メールを補完</p>
           <p className="text-indigo-500 font-medium mt-1">1プロジェクトあたり最大50社 / 日</p>
         </div>
-        <SaveButton saving={saving} onClick={handleSave} />
+        <SaveButton saving={saving} onClick={handleSave} disabled={!isAdmin} />
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
@@ -803,7 +815,7 @@ export default function Settings() {
             </select>
           </div>
         </div>
-        <SaveButton saving={saving} onClick={handleSave} />
+        <SaveButton saving={saving} onClick={handleSave} disabled={!isAdmin} />
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
@@ -842,7 +854,7 @@ export default function Settings() {
                 setSerperTesting(false);
               }
             }}
-            disabled={serperTesting}
+            disabled={!isAdmin || serperTesting}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50"
           >
             {serperTesting ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
@@ -855,7 +867,7 @@ export default function Settings() {
             </span>
           )}
         </div>
-        <SaveButton saving={saving} onClick={handleSave} />
+        <SaveButton saving={saving} onClick={handleSave} disabled={!isAdmin} />
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
@@ -875,7 +887,7 @@ export default function Settings() {
           />
           <p className="text-xs text-slate-400 mt-1">GPT-4o-miniを使用します。1回の分析で約0.01〜0.03ドルの費用がかかります。</p>
         </div>
-        <SaveButton saving={saving} onClick={handleSave} />
+        <SaveButton saving={saving} onClick={handleSave} disabled={!isAdmin} />
       </div>
 
       {isSystemAdmin && (
