@@ -189,6 +189,9 @@ export default function Settings() {
   const [smtpFromName, setSmtpFromName] = useState("LeadHive");
   const [smtpUseTls, setSmtpUseTls] = useState(true);
   const [smtpPasswordSet, setSmtpPasswordSet] = useState(false);
+  const [smtpHostSet, setSmtpHostSet] = useState(false);
+  const [smtpUserSet, setSmtpUserSet] = useState(false);
+  const [smtpSaving, setSmtpSaving] = useState(false);
   const [smtpTesting, setSmtpTesting] = useState(false);
   const [smtpTestEmail, setSmtpTestEmail] = useState("");
   const [smtpMessage, setSmtpMessage] = useState<MessageState | null>(null);
@@ -250,9 +253,9 @@ export default function Settings() {
       if (s.auto_collect_enabled) setAutoCollectEnabled(s.auto_collect_enabled.value === "true");
       if (s.auto_collect_time?.is_set) setAutoCollectTime(s.auto_collect_time.value);
       if (s.auto_enrich_enabled) setAutoEnrichEnabled(s.auto_enrich_enabled.value !== "false");
-      if (s.smtp_host?.is_set) setSmtpHost(s.smtp_host.value);
+      if (s.smtp_host) { setSmtpHostSet(s.smtp_host.is_set); if (s.smtp_host.is_set) setSmtpHost(s.smtp_host.value); }
       if (s.smtp_port?.is_set) setSmtpPort(s.smtp_port.value);
-      if (s.smtp_user?.is_set) setSmtpUser(s.smtp_user.value);
+      if (s.smtp_user) { setSmtpUserSet(s.smtp_user.is_set); if (s.smtp_user.is_set) setSmtpUser(s.smtp_user.value); }
       if (s.smtp_password) { setSmtpPasswordSet(s.smtp_password.is_set); if (s.smtp_password.is_set) setSmtpPassword(s.smtp_password.value); }
       if (s.smtp_from_email?.is_set) setSmtpFromEmail(s.smtp_from_email.value);
       if (s.smtp_from_name?.is_set) setSmtpFromName(s.smtp_from_name.value);
@@ -376,6 +379,48 @@ export default function Settings() {
       setSlackMessage({ type: "error", text: "保存に失敗しました" });
     }
     setSlackTriggersSaving(false);
+  };
+
+  const handleSmtpSave = async () => {
+    setSmtpSaving(true);
+    setSmtpMessage(null);
+    if (smtpHost && !smtpPasswordSet && !smtpPassword) {
+      setSmtpMessage({ type: "error", text: "SMTPパスワードを入力してください。パスワードが空の場合は保存されません。" });
+      setSmtpSaving(false);
+      return;
+    }
+    try {
+      const payload: Record<string, string> = {};
+      if (smtpHost) payload.smtp_host = smtpHost;
+      if (smtpPort) payload.smtp_port = smtpPort;
+      if (smtpUser) payload.smtp_user = smtpUser;
+      if (smtpPassword && !smtpPassword.includes("*")) payload.smtp_password = smtpPassword;
+      if (smtpFromEmail) payload.smtp_from_email = smtpFromEmail;
+      if (smtpFromName) payload.smtp_from_name = smtpFromName;
+      payload.smtp_use_tls = smtpUseTls ? "true" : "false";
+      await api.settings.update(payload);
+      const res = await api.settings.get();
+      const s = res.settings;
+      setSmtpHostSet(s.smtp_host?.is_set || false);
+      setSmtpUserSet(s.smtp_user?.is_set || false);
+      setSmtpPasswordSet(s.smtp_password?.is_set || false);
+      if (s.smtp_host?.is_set) setSmtpHost(s.smtp_host.value);
+      if (s.smtp_port?.is_set) setSmtpPort(s.smtp_port.value);
+      if (s.smtp_user?.is_set) setSmtpUser(s.smtp_user.value);
+      if (s.smtp_password?.is_set) setSmtpPassword(s.smtp_password.value);
+      const missingFields: string[] = [];
+      if (!s.smtp_host?.is_set) missingFields.push("ホスト");
+      if (!s.smtp_user?.is_set) missingFields.push("ユーザー名");
+      if (!s.smtp_password?.is_set) missingFields.push("パスワード");
+      if (missingFields.length > 0) {
+        setSmtpMessage({ type: "error", text: `保存しましたが、未設定の項目があります: ${missingFields.join("・")}` });
+      } else {
+        setSmtpMessage({ type: "success", text: "SMTP設定をすべて保存しました（ホスト・ユーザー名・パスワード: すべて設定済み）" });
+      }
+    } catch (err: any) {
+      setSmtpMessage({ type: "error", text: err.response?.data?.detail || "保存に失敗しました" });
+    }
+    setSmtpSaving(false);
   };
 
   const handleSmtpTest = async () => {
@@ -604,7 +649,7 @@ export default function Settings() {
         </p>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2 sm:col-span-1">
-            <label className={labelClass}>SMTPホスト</label>
+            <label className={labelClass}>SMTPホスト {smtpHostSet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}</label>
             <input type="text" value={smtpHost} onChange={e => setSmtpHost(e.target.value)} placeholder="smtp.gmail.com" className={inputClass} />
           </div>
           <div className="col-span-2 sm:col-span-1">
@@ -612,12 +657,12 @@ export default function Settings() {
             <input type="number" value={smtpPort} onChange={e => setSmtpPort(e.target.value)} placeholder="587" className={inputClass} />
           </div>
           <div className="col-span-2 sm:col-span-1">
-            <label className={labelClass}>SMTPユーザー名</label>
+            <label className={labelClass}>SMTPユーザー名 {smtpUserSet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}</label>
             <input type="text" value={smtpUser} onChange={e => setSmtpUser(e.target.value)} placeholder="your@email.com" className={inputClass} />
           </div>
           <div className="col-span-2 sm:col-span-1">
-            <label className={labelClass}>SMTPパスワード {smtpPasswordSet && <span className="text-emerald-600 text-xs ml-2">設定済み</span>}</label>
-            <input type="password" value={smtpPassword} onChange={e => setSmtpPassword(e.target.value)} placeholder="パスワード" className={inputClass} />
+            <label className={labelClass}>SMTPパスワード {smtpPasswordSet ? <span className="text-emerald-600 text-xs ml-2">設定済み</span> : <span className="text-red-500 text-xs ml-2">未設定（必須）</span>}</label>
+            <input type="password" value={smtpPassword} onChange={e => setSmtpPassword(e.target.value)} placeholder={smtpPasswordSet ? "変更する場合のみ入力" : "パスワードを入力してください（必須）"} className={inputClass} />
           </div>
           <div className="col-span-2 sm:col-span-1">
             <label className={labelClass}>送信元メールアドレス</label>
@@ -642,13 +687,19 @@ export default function Settings() {
           </div>
         </div>
         <div className="flex gap-3">
-          <SaveButton saving={saving} onClick={handleSave} disabled={!isAdmin} />
+          <SaveButton saving={smtpSaving} onClick={handleSmtpSave} disabled={!isAdmin} />
           <button onClick={handleSmtpTest} disabled={!isAdmin || smtpTesting || !smtpHost} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50">
             {smtpTesting ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
             テスト送信
           </button>
         </div>
         {smtpMessage && <MessageBox msg={smtpMessage} />}
+        {smtpHost && !smtpPasswordSet && !smtpPassword && (
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600" />
+            <span><strong>パスワードが未入力です。</strong>「SMTPパスワード」欄にパスワードを入力してから保存してください。パスワードなしでは保存されません。</span>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
