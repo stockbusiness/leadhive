@@ -2,7 +2,13 @@ import hmac
 import hashlib
 import os
 
-_SECRET = os.environ.get("SESSION_SECRET", "changeme-please-set-session-secret")
+_KNOWN_INSECURE_DEFAULT = "changeme-please-set-session-secret"
+_SECRET = os.environ.get("SESSION_SECRET", "")
+if not _SECRET or _SECRET == _KNOWN_INSECURE_DEFAULT:
+    raise RuntimeError(
+        "SESSION_SECRET environment variable is not set or is still the insecure default. "
+        "Set a strong, random value before starting the server."
+    )
 
 
 def generate_token(email: str) -> str:

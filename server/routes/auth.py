@@ -94,10 +94,6 @@ def _user_response(user: User, org: Organization) -> dict:
 
 
 def _get_base_url(request: Request) -> str:
-    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "")
-    proto = request.headers.get("x-forwarded-proto", "https")
-    if host:
-        return f"{proto}://{host}"
     return os.environ.get("APP_BASE_URL", "https://leadhive.work")
 
 

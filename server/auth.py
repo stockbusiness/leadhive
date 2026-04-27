@@ -9,7 +9,14 @@ from sqlalchemy.orm import Session
 from server.database import get_db
 from server.models import User
 
-SECRET_KEY = os.environ.get("SESSION_SECRET", "changeme-please-set-session-secret")
+_KNOWN_INSECURE_DEFAULT = "changeme-please-set-session-secret"
+_SESSION_SECRET_RAW = os.environ.get("SESSION_SECRET", "")
+if not _SESSION_SECRET_RAW or _SESSION_SECRET_RAW == _KNOWN_INSECURE_DEFAULT:
+    raise RuntimeError(
+        "SESSION_SECRET environment variable is not set or is still the insecure default. "
+        "Set a strong, random value before starting the server."
+    )
+SECRET_KEY = _SESSION_SECRET_RAW
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 

@@ -361,34 +361,34 @@ def run_db_migrations():
         db.commit()
 
         if db.query(User).count() == 0:
+            _KNOWN_DEFAULT_PASSWORD = "LeadHive2026!"
             admin_email = os.environ.get("INITIAL_ADMIN_EMAIL", "admin@leadhive.work")
-            admin_password = os.environ.get("INITIAL_ADMIN_PASSWORD", "LeadHive2026!")
-            org = Organization(name="LeadHive管理")
-            db.add(org)
-            db.flush()
-            enterprise_plan = db.query(Plan).filter(Plan.name == "エンタープライズ").first()
-            if enterprise_plan:
-                org.plan_id = enterprise_plan.id
-            admin = User(
-                org_id=org.id,
-                email=admin_email,
-                password_hash=hash_password(admin_password),
-                role="admin",
-                is_active=True,
-                is_system_admin=True,
-                registration_number=1,
-            )
-            db.add(admin)
-            db.commit()
-            print(f"[LeadHive] 初期管理者アカウントを作成しました: {admin_email}")
-        else:
-            admin_email = os.environ.get("INITIAL_ADMIN_EMAIL", "admin@leadhive.work")
-            existing_admin = db.query(User).filter(User.email == admin_email).first()
-            if existing_admin and not existing_admin.is_system_admin:
-                existing_admin.is_system_admin = True
-                existing_admin.is_active = True
+            admin_password = os.environ.get("INITIAL_ADMIN_PASSWORD", "")
+            if not admin_password or admin_password == _KNOWN_DEFAULT_PASSWORD:
+                print(
+                    "[LeadHive] CRITICAL: INITIAL_ADMIN_PASSWORD is not set or is still the "
+                    "insecure default. Set a strong, unique value in the environment before "
+                    "starting the server. Initial admin account was NOT created."
+                )
+            else:
+                org = Organization(name="LeadHive管理")
+                db.add(org)
+                db.flush()
+                enterprise_plan = db.query(Plan).filter(Plan.name == "エンタープライズ").first()
+                if enterprise_plan:
+                    org.plan_id = enterprise_plan.id
+                admin = User(
+                    org_id=org.id,
+                    email=admin_email,
+                    password_hash=hash_password(admin_password),
+                    role="admin",
+                    is_active=True,
+                    is_system_admin=True,
+                    registration_number=1,
+                )
+                db.add(admin)
                 db.commit()
-                print(f"[LeadHive] 初期管理者にシステム管理者権限を付与しました: {admin_email}")
+                print(f"[LeadHive] 初期管理者アカウントを作成しました: {admin_email}")
     finally:
         db.close()
 
