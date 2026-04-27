@@ -140,8 +140,8 @@ export default function PlanLimitModal({ message, onClose }: Props) {
             </div>
           )}
 
-          {/* Stripe checkout — 管理者・メンバー両方に表示 */}
-          {paidPlans.length > 0 && (
+          {/* Stripe checkout — 管理者のみ表示 */}
+          {isAdmin && paidPlans.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Stripeで今すぐアップグレード</p>
               <div className="flex items-center gap-2 mb-3">

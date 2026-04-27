@@ -228,7 +228,7 @@ class CheckoutBody(BaseModel):
 @router.post("/api/payments/checkout")
 def create_checkout_session(
     body: CheckoutBody,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     plan = db.query(Plan).filter(Plan.id == body.plan_id).first()
@@ -289,12 +289,11 @@ async def stripe_webhook(
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
+    if not webhook_secret:
+        raise HTTPException(status_code=400, detail="Webhook secret is not configured. Set the Stripe webhook secret in admin settings.")
+
     try:
-        if webhook_secret:
-            event = stripe_lib.Webhook.construct_event(payload, sig_header, webhook_secret)
-        else:
-            import json
-            event = json.loads(payload)
+        event = stripe_lib.Webhook.construct_event(payload, sig_header, webhook_secret)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -461,7 +460,7 @@ async def stripe_webhook(
 
 @router.post("/api/payments/customer-portal")
 def create_customer_portal(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     org = db.query(Organization).filter(Organization.id == current_user.org_id).first()

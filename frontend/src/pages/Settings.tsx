@@ -74,7 +74,7 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
   );
 }
 
-function PlanCurrentSection() {
+function PlanCurrentSection({ isAdmin }: { isAdmin: boolean }) {
   const [plan, setPlan] = useState<PlanData | null | undefined>(undefined);
   const [usage, setUsage] = useState<PlanUsage | null>(null);
 
@@ -106,7 +106,7 @@ function PlanCurrentSection() {
           {plan.description && (
             <p className="text-sm text-slate-500">{plan.description}</p>
           )}
-          {plan.price_monthly !== null && plan.price_monthly > 0 && (
+          {isAdmin && plan.price_monthly !== null && plan.price_monthly > 0 && (
             <div className="pt-1">
               <button
                 onClick={async () => {
@@ -197,6 +197,7 @@ export default function Settings() {
   const [slackTriggers, setSlackTriggers] = useState<Record<string, boolean>>({ rank_a_added: true, email_opened: true });
   const [slackTriggersSaving, setSlackTriggersSaving] = useState(false);
   const [isSystemAdmin, setIsSystemAdmin] = useState(false);
+  const [isOrgAdmin, setIsOrgAdmin] = useState(false);
   const [crApiKey, setCrApiKey] = useState("");
   const [crApiKeySet, setCrApiKeySet] = useState(false);
   const [crHmacSecret, setCrHmacSecret] = useState("");
@@ -263,6 +264,9 @@ export default function Settings() {
     });
     api.settings.getScheduler().then((data) => setSchedulerRunning(data.running)).catch(() => {});
     api.auth.me().then((u: any) => {
+      if (u?.role === "admin") {
+        setIsOrgAdmin(true);
+      }
       if (u?.is_system_admin) {
         setIsSystemAdmin(true);
         fetch("/api/admin/slack-triggers").then(r => r.json()).then(d => {
@@ -515,7 +519,7 @@ export default function Settings() {
         </div>
       )}
 
-      <PlanCurrentSection />
+      <PlanCurrentSection isAdmin={isOrgAdmin} />
 
       {message && <MessageBox msg={message} />}
 
