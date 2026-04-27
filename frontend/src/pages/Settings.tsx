@@ -564,6 +564,13 @@ export default function Settings() {
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
         <SectionHeader icon={<Mail size={20} className="text-slate-600" />} title="SMTPメール設定" />
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-800">
+            <strong>本番環境ではSMTPポート（465/587）がブロックされます。</strong>
+            メール送信には下の <strong>SendGrid設定</strong> を推奨します。SMTPはローカル開発環境でのみ動作確認できます。
+          </p>
+        </div>
         <p className="text-sm text-slate-500">
           メンバー招待やパスワードリセットにSMTPメール送信を使用します。設定しない場合は招待URLのコピーで対応できます。
           <a href="https://support.google.com/mail/answer/7126229" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-1">Gmailの設定方法</a>
@@ -623,11 +630,16 @@ export default function Settings() {
         <SectionHeader
           icon={<Zap size={20} className="text-amber-500" />}
           title="SendGrid API 設定"
-          badge={sgApiKeySet ? <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">設定済み</span> : undefined}
+          badge={
+            <span className="flex items-center gap-1">
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">本番環境推奨</span>
+              {sgApiKeySet && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">設定済み</span>}
+            </span>
+          }
         />
         <p className="text-sm text-slate-500">
-          SendGrid API を使用すると、SMTPよりも高い配信率・大量送信・配信統計が利用できます。設定された場合、SMTPより優先されます。
-          <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-1">APIキーの取得</a>
+          本番環境ではSMTPポートがブロックされるため、<strong className="text-slate-700">SendGridが唯一有効なメール配信手段</strong>です。設定された場合、SMTPより優先されます。
+          <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-1">APIキーの取得（無料プランあり）</a>
         </p>
         <div className="grid grid-cols-1 gap-4">
           <div>

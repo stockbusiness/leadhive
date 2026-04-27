@@ -72,17 +72,25 @@ def send_email(
         msg.attach(MIMEText(text_body, "plain", "utf-8"))
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
+    # ポート465はSSL直接接続（SMTP_SSL）、それ以外はSTARTTLS
+    use_ssl_direct = (port == 465)
+
     try:
-        if use_tls:
-            context = ssl.create_default_context()
-            with smtplib.SMTP(host, port, timeout=10) as server:
+        context = ssl.create_default_context()
+        if use_ssl_direct:
+            with smtplib.SMTP_SSL(host, port, timeout=15, context=context) as server:
+                if user and password:
+                    server.login(user, password)
+                server.sendmail(from_email, [to], msg.as_string())
+        elif use_tls:
+            with smtplib.SMTP(host, port, timeout=15) as server:
                 server.ehlo()
                 server.starttls(context=context)
                 if user and password:
                     server.login(user, password)
                 server.sendmail(from_email, [to], msg.as_string())
         else:
-            with smtplib.SMTP_SSL(host, port, timeout=10) as server:
+            with smtplib.SMTP(host, port, timeout=15) as server:
                 if user and password:
                     server.login(user, password)
                 server.sendmail(from_email, [to], msg.as_string())
