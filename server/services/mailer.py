@@ -75,28 +75,36 @@ def send_email(
     # ポート465はSSL直接接続（SMTP_SSL）、それ以外はSTARTTLS
     use_ssl_direct = (port == 465)
 
+    if not user or not password:
+        return False, "SMTPユーザー名またはパスワードが設定されていません"
+
     try:
         context = ssl.create_default_context()
         if use_ssl_direct:
+            # ポート465: SSL直接接続 → ehlo → login → send
             with smtplib.SMTP_SSL(host, port, timeout=15, context=context) as server:
-                if user and password:
-                    server.login(user, password)
+                server.ehlo()
+                server.login(user, password)
                 server.sendmail(from_email, [to], msg.as_string())
         elif use_tls:
+            # ポート587: STARTTLS → ehlo → starttls → login → send
             with smtplib.SMTP(host, port, timeout=15) as server:
                 server.ehlo()
                 server.starttls(context=context)
-                if user and password:
-                    server.login(user, password)
+                server.ehlo()
+                server.login(user, password)
                 server.sendmail(from_email, [to], msg.as_string())
         else:
+            # プレーン接続
             with smtplib.SMTP(host, port, timeout=15) as server:
-                if user and password:
-                    server.login(user, password)
+                server.ehlo()
+                server.login(user, password)
                 server.sendmail(from_email, [to], msg.as_string())
         return True, "送信成功"
     except smtplib.SMTPAuthenticationError:
         return False, "SMTP認証エラー: ユーザー名またはパスワードを確認してください"
+    except smtplib.SMTPRecipientsRefused as e:
+        return False, f"宛先拒否エラー: {e.recipients}"
     except smtplib.SMTPConnectError:
         return False, f"SMTPサーバーへの接続に失敗しました: {host}:{port}"
     except Exception as e:
