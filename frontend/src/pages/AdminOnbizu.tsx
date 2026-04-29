@@ -216,7 +216,10 @@ export default function AdminOnbizu() {
           {[
             { event: "user_registered", timing: "新規ユーザー登録時", effect: "ウェルカム・オンボーディング開始" },
             { event: "user_login", timing: "ログイン成功時", effect: "最終活動日の更新・停滞フラグの解除" },
-            { event: "onboarding_completed", timing: "オンボーディング完了時", effect: "完了日を記録" },
+            { event: "step_completed / org_name_set", timing: "初期設定 STEP2：組織名を設定したとき", effect: "進捗率の更新・停滞検知の起点" },
+            { event: "step_completed / project_created", timing: "初期設定 STEP3：プロジェクトを作成したとき", effect: "進捗率の更新・停滞検知の起点" },
+            { event: "step_completed / keywords_saved", timing: "初期設定 STEP4：キーワードを登録したとき", effect: "進捗率の更新・停滞検知の起点" },
+            { event: "onboarding_completed", timing: "初期設定 STEP5：セットアップ完了時", effect: "完了日を記録" },
             { event: "conversion", timing: "有料プランへの転換時（管理者操作）", effect: "コンバージョン数の更新" },
           ].map(({ event, timing, effect }) => (
             <div key={event} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3 py-2 border-b border-slate-200 last:border-0">

@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from server.database import get_db
@@ -5,6 +6,23 @@ from server.auth import get_current_user
 from server.models import User, Organization
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+VALID_STEPS = {"org_name_set", "project_created", "keywords_saved"}
+
+
+def _fire_step(db: Session, user: User, step_name: str) -> None:
+    try:
+        from server.services.onbizu import send_step_completed
+        send_step_completed(
+            db=db,
+            user_id=user.id,
+            email=user.email,
+            step_name=step_name,
+            display_name=user.display_name or "",
+        )
+    except Exception as err:
+        logger.warning("Onbizu step_completed error (%s): %s", step_name, err)
 
 
 @router.post("/complete")
@@ -28,10 +46,22 @@ def complete_onboarding(
             org_name=org.name,
         )
     except Exception as _ob_err:
-        import logging
-        logging.getLogger(__name__).warning("Onbizu onboarding_completed error: %s", _ob_err)
+        logger.warning("Onbizu onboarding_completed error: %s", _ob_err)
 
     return {"message": "オンボーディングが完了しました"}
+
+
+@router.post("/step")
+def report_step(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    step_name = (body.get("step_name") or "").strip()
+    if step_name not in VALID_STEPS:
+        raise HTTPException(status_code=400, detail=f"無効なステップ名: {step_name}")
+    _fire_step(db, current_user, step_name)
+    return {"message": f"ステップ完了を記録しました: {step_name}"}
 
 
 @router.patch("/org-name")
@@ -50,4 +80,7 @@ def update_org_name(
         raise HTTPException(status_code=404, detail="組織が見つかりません")
     org.name = org_name
     db.commit()
+
+    _fire_step(db, current_user, "org_name_set")
+
     return {"message": "組織名を更新しました", "org_name": org.name}

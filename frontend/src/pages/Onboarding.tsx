@@ -62,6 +62,7 @@ export default function Onboarding() {
     try {
       await api.projects.create({ name: projectName.trim() });
       setProjectCreated(true);
+      api.onboarding.stepCompleted("project_created").catch(() => {});
       setTimeout(() => setStep(4), 600);
     } catch (e: any) {
       setError(e.response?.data?.detail || "作成に失敗しました");
@@ -86,6 +87,7 @@ export default function Onboarding() {
         await api.keywords.create({ keyword: kw, is_active: true });
       }
       setKeywordsSaved(true);
+      api.onboarding.stepCompleted("keywords_saved").catch(() => {});
       setTimeout(() => setStep(5), 600);
     } catch (e: any) {
       setError(e.response?.data?.detail || "保存に失敗しました");

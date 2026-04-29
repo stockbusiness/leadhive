@@ -642,6 +642,8 @@ export const api = {
 
   onboarding: {
     complete: () => axios.post("/api/onboarding/complete").then(r => r.data),
+    stepCompleted: (stepName: string) =>
+      axios.post("/api/onboarding/step", { step_name: stepName }).then(r => r.data),
     updateOrgName: (orgName: string) =>
       axios.patch("/api/onboarding/org-name", { org_name: orgName }).then(r => r.data),
     testGoogleApi: (apiKey: string, cx: string) =>
