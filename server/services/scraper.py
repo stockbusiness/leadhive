@@ -9,7 +9,7 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
-from server.services.categorizer import calculate_ec_score
+from server.services.categorizer import calculate_ec_score, calculate_ec_scale
 
 logger = logging.getLogger(__name__)
 
@@ -358,6 +358,7 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
             robots_txt_content = fetch_robots_txt(url)
             all_links = [a.get("href", "") for a in soup.find_all("a", href=True)]
             ec_score = calculate_ec_score(soup, html_source, text_content, all_links=all_links, robots_txt=robots_txt_content)
+            ec_scale = calculate_ec_scale(soup, html_source, ec_score)
             if ec_score >= 70:
                 ec_flag_val = True
             elif ec_score < 40:
@@ -395,6 +396,7 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
                 "sns_line_url": sns_data.get("sns_line_url"),
                 "sns_count": sns_count,
                 "ec_score": ec_score,
+                "ec_scale": ec_scale,
                 "ec_flag": ec_flag_val,
                 "has_recruitment": has_recruitment,
                 "robots_disallow": False,

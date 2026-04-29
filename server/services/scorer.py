@@ -2,6 +2,11 @@ DEFAULT_SCORING_RULES = {
     "ec_flag": 25,
     "escms_target_flag": 20,
     "shopify_flag": 20,
+    "base_flag": 15,
+    "makeshop_flag": 15,
+    "futureshop_flag": 15,
+    "stores_flag": 15,
+    "rakuten_flag": 10,
     "production_flag": 15,
     "consulting_flag": 15,
     "operation_flag": 15,
@@ -30,7 +35,10 @@ def calculate_score(company_data: dict, custom_rules: dict = None, db=None) -> t
     if company_data.get("ec_flag") and "ec_flag" in rules:
         score += rules["ec_flag"]
 
-    for flag in ["shopify_flag", "production_flag", "consulting_flag", "operation_flag"]:
+    for flag in [
+        "shopify_flag", "base_flag", "makeshop_flag", "futureshop_flag", "stores_flag",
+        "rakuten_flag", "production_flag", "consulting_flag", "operation_flag",
+    ]:
         if company_data.get(flag) and flag in rules:
             score += rules[flag]
 

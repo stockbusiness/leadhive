@@ -50,6 +50,8 @@ export interface Company {
   employee_count?: number | null;
   escms_target_flag?: boolean;
   robots_disallow?: boolean;
+  ec_score?: number;
+  ec_scale?: "large" | "medium" | "small" | "";
   created_at?: string;
   updated_at?: string;
 }

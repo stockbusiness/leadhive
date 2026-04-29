@@ -142,6 +142,9 @@ export default function CompanyTable({
                     )}
                     <div className="flex flex-wrap gap-1 mt-1">
                       {c.ec_flag && <FlagBadge label="🛒 ECサイト" color="bg-blue-100 text-blue-700" />}
+                      {c.ec_scale === "large" && <FlagBadge label="規模:大" color="bg-indigo-100 text-indigo-700" />}
+                      {c.ec_scale === "medium" && <FlagBadge label="規模:中" color="bg-teal-100 text-teal-700" />}
+                      {c.ec_scale === "small" && <FlagBadge label="規模:小" color="bg-slate-100 text-slate-600" />}
                       {c.cms_type ? (
                         <CmsBadge cms={c.cms_type} />
                       ) : (
@@ -270,6 +273,9 @@ export default function CompanyTable({
                     </a>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {c.ec_flag && <FlagBadge label="🛒 ECサイト" color="bg-blue-100 text-blue-700" />}
+                      {c.ec_scale === "large" && <FlagBadge label="規模:大" color="bg-indigo-100 text-indigo-700" />}
+                      {c.ec_scale === "medium" && <FlagBadge label="規模:中" color="bg-teal-100 text-teal-700" />}
+                      {c.ec_scale === "small" && <FlagBadge label="規模:小" color="bg-slate-100 text-slate-600" />}
                       {c.cms_type ? (
                         <CmsBadge cms={c.cms_type} />
                       ) : (

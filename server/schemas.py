@@ -2,6 +2,16 @@ from sqlalchemy.orm import Session
 from server.models import Company, CompanyTag, User
 
 
+def _derive_ec_scale(ec_score: int) -> str:
+    if ec_score >= 70:
+        return "large"
+    if ec_score >= 50:
+        return "medium"
+    if ec_score >= 30:
+        return "small"
+    return ""
+
+
 def company_to_dict(c: Company, db: Session = None) -> dict:
     tags = []
     if db:
@@ -61,6 +71,8 @@ def company_to_dict(c: Company, db: Session = None) -> dict:
         "employee_count": getattr(c, "employee_count", None),
         "escms_target_flag": getattr(c, "escms_target_flag", False),
         "robots_disallow": getattr(c, "robots_disallow", False),
+        "ec_score": getattr(c, "ec_score", 0) or 0,
+        "ec_scale": _derive_ec_scale(getattr(c, "ec_score", 0) or 0),
         "created_at": c.created_at.isoformat() if c.created_at and hasattr(c.created_at, 'isoformat') else (str(c.created_at) if c.created_at else None),
         "updated_at": c.updated_at.isoformat() if c.updated_at and hasattr(c.updated_at, 'isoformat') else (str(c.updated_at) if c.updated_at else None),
     }

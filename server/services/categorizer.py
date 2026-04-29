@@ -57,6 +57,9 @@ EC_PAYMENT_KEYWORDS = ["決済方法", "お支払い方法", "支払方法", "�
 EC_STOCK_KEYWORDS = ["在庫あり", "在庫確認", "お届け日数", "在庫", "入荷待ち"]
 EC_ROBOTS_CART_PATTERN = re.compile(r"Disallow:\s*/(?:cart|checkout|order|purchase)", re.IGNORECASE)
 EC_SCALE_PRODUCT_PATTERN = re.compile(r"/(?:products?|items?|goods)/", re.IGNORECASE)
+EC_CHECKOUT_URL_PATTERN = re.compile(r"/(?:checkout|cart|basket|payment|order/confirm)", re.IGNORECASE)
+EC_RAKUTEN_SELLER_PATTERN = re.compile(r"item\.rakuten\.co\.jp/|store\.rakuten\.co\.jp/|rakuten\.co\.jp/shop/", re.IGNORECASE)
+EC_AMAZON_SELLER_PATTERN = re.compile(r"amazon\.co\.jp/stores/|amazon\.co\.jp/s\?|sellercentral\.amazon", re.IGNORECASE)
 
 
 def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_links: list = None,
@@ -78,6 +81,9 @@ def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_lin
     elif product_link_count >= 1:
         score += 5
 
+    if any(EC_CHECKOUT_URL_PATTERN.search(h) for h in link_hrefs):
+        score += 15
+
     if any(kw in text for kw in EC_CART_KEYWORDS):
         score += 20
 
@@ -93,6 +99,12 @@ def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_lin
     if any(kw in text for kw in EC_STOCK_KEYWORDS):
         score += 10
 
+    all_hrefs_text = " ".join(link_hrefs) + " " + html_lower
+    if EC_RAKUTEN_SELLER_PATTERN.search(all_hrefs_text):
+        score += 20
+    if EC_AMAZON_SELLER_PATTERN.search(all_hrefs_text):
+        score += 15
+
     if soup:
         og_type = soup.find("meta", property="og:type")
         if og_type and og_type.get("content", "").lower() in ("product", "og:product"):
@@ -105,6 +117,23 @@ def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_lin
         score += 10
 
     return min(score, 100)
+
+
+def calculate_ec_scale(soup: BeautifulSoup, html_source: str, ec_score: int) -> str:
+    """EC規模を推定する: large / medium / small / '' のいずれかを返す"""
+    if not soup or not html_source:
+        return ""
+    link_hrefs = [a.get("href", "") for a in soup.find_all("a", href=True)]
+    product_link_count = sum(1 for h in link_hrefs if EC_SCALE_PRODUCT_PATTERN.search(h))
+    checkout_detected = any(EC_CHECKOUT_URL_PATTERN.search(h) for h in link_hrefs)
+
+    if ec_score >= 70 and (product_link_count >= 20 or checkout_detected):
+        return "large"
+    if ec_score >= 50 and product_link_count >= 5:
+        return "medium"
+    if ec_score >= 30 or product_link_count >= 1:
+        return "small"
+    return ""
 
 
 def detect_flags(text: str, custom_flags: dict = None, cms_type: str = None,
