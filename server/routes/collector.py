@@ -804,3 +804,287 @@ def enrich_companies(
 
     threading.Thread(target=run, daemon=True).start()
     return {"job_id": job_id}
+
+
+# ─────────────────────────────────────────────────────────────
+# ① プラットフォーム別URL直接収集
+# ─────────────────────────────────────────────────────────────
+@router.post("/ec-platform")
+def ec_platform_collect(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    platform = (data.get("platform") or "Shopify").strip()
+    keyword = (data.get("keyword") or "").strip()
+    region = (data.get("region") or "").strip()
+    project_id = data.get("project_id")
+
+    PLATFORM_QUERIES: dict[str, list[str]] = {
+        "Shopify": [
+            f"site:myshopify.com {keyword}" if keyword else "site:myshopify.com 通販",
+            f"Shopify 自社EC 通販 {keyword} {region}".strip(),
+            f"Shopify ショップ 運営 {keyword} {region}".strip(),
+        ],
+        "BASE": [
+            f"site:base.shop {keyword}" if keyword else "site:base.shop 通販",
+            f"BASE ネットショップ {keyword} {region}".strip(),
+        ],
+        "STORES": [
+            f"site:stores.jp {keyword}" if keyword else "site:stores.jp 通販",
+            f"STORES ネットショップ {keyword} {region}".strip(),
+        ],
+        "MakeShop": [
+            f"inurl:makeshop.jp {keyword}" if keyword else "inurl:makeshop.jp 通販",
+            f"MakeShop 通販サイト 運営 {keyword} {region}".strip(),
+        ],
+        "futureshop": [
+            f"inurl:future-shop.jp {keyword}" if keyword else "inurl:future-shop.jp 通販",
+            f"futureshop EC 運営 {keyword} {region}".strip(),
+        ],
+        "カラーミー": [
+            f"inurl:shop-pro.jp {keyword}" if keyword else "inurl:shop-pro.jp 通販",
+            f"カラーミーショップ 運営 {keyword} {region}".strip(),
+        ],
+        "EC-CUBE": [
+            f"EC-CUBE 自社EC {keyword} {region}".strip(),
+            f"eccube 通販サイト 運営 {keyword} {region}".strip(),
+        ],
+        "WooCommerce": [
+            f"WooCommerce 通販サイト {keyword} {region}".strip(),
+            f"WooCommerce ネットショップ 運営 {keyword} {region}".strip(),
+        ],
+        "Yahoo!ショッピング": [
+            f"site:store.shopping.yahoo.co.jp {keyword}" if keyword else "site:store.shopping.yahoo.co.jp",
+            f"Yahoo!ショッピング 出店 {keyword} {region}".strip(),
+        ],
+        "楽天": [
+            f"site:item.rakuten.co.jp {keyword}" if keyword else "site:item.rakuten.co.jp 出店",
+            f"楽天市場 出店 ショップ {keyword} {region}".strip(),
+        ],
+    }
+
+    keywords_text = PLATFORM_QUERIES.get(platform, [
+        f"{platform} ECサイト 運営 {keyword} {region}".strip(),
+        f"{platform} 通販 自社EC {keyword} {region}".strip(),
+    ])
+    keywords_text = [kw for kw in keywords_text if kw.strip()]
+
+    job_id = str(uuid.uuid4())
+    job_update(job_id, type="progress", current=0, total=len(keywords_text),
+               message=f"{platform}向けEC収集を開始しています...", status="running",
+               job_type="ec_platform")
+
+    def run_platform():
+        new_db = SessionLocal()
+        try:
+            from server.models import SearchKeyword as SKW
+            total_success = total_dup = total_rej = 0
+            for i, kw_text in enumerate(keywords_text):
+                job_update(job_id, current=i, total=len(keywords_text),
+                           message=f"({i+1}/{len(keywords_text)}) {platform}探索: 「{kw_text}」...",
+                           status="running")
+                temp_kw = SKW(
+                    keyword=kw_text, category=platform, region=region,
+                    exclude_keywords="", is_active=True, project_id=project_id,
+                )
+                new_db.add(temp_kw)
+                new_db.commit()
+                new_db.refresh(temp_kw)
+                try:
+                    result = collect_by_keyword(temp_kw.id, new_db, project_id=project_id,
+                                               org_id=current_user.org_id)
+                    s = result.get("summary", {})
+                    total_success += s.get("success", 0)
+                    total_dup += s.get("duplicate", 0)
+                    total_rej += s.get("rejected", 0)
+                except Exception as e:
+                    logger.warning(f"ec-platform kw error: {e}")
+                    try:
+                        new_db.rollback()
+                    except Exception:
+                        pass
+
+            cache_invalidate("dashboard")
+            job_update(job_id, type="done",
+                       result={"total_success": total_success, "total_duplicate": total_dup,
+                               "total_rejected": total_rej},
+                       message=f"{platform}EC収集完了: {total_success}件獲得")
+        except Exception as e:
+            job_update(job_id, type="error", message=str(e))
+        finally:
+            new_db.close()
+
+    threading.Thread(target=run_platform, daemon=True).start()
+    return {"job_id": job_id}
+
+
+# ─────────────────────────────────────────────────────────────
+# ⑤ キーワード×都道府県マトリクス自動収集
+# ─────────────────────────────────────────────────────────────
+@router.post("/ec-matrix")
+def ec_matrix_collect(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    category_ids = data.get("category_ids") or ["all"]
+    prefectures = data.get("prefectures") or [""]
+    project_id = data.get("project_id")
+
+    EC_MATRIX_KEYWORDS: dict[str, str] = {
+        "apparel":       "アパレル ファッション 通販 自社EC",
+        "food":          "食品 グルメ 通販 自社EC",
+        "beauty":        "コスメ 化粧品 美容 通販 EC",
+        "sports":        "スポーツ アウトドア 通販 EC",
+        "interior":      "インテリア 雑貨 通販 自社EC",
+        "d2c":           "D2C ブランド 自社通販",
+        "shopify_users": "Shopify 通販 EC 運営",
+        "all":           "ECサイト 通販 自社EC 運営",
+    }
+
+    combos = []
+    for cat_id in category_ids:
+        base_kw = EC_MATRIX_KEYWORDS.get(cat_id, cat_id)
+        for pref in prefectures:
+            combos.append((cat_id, pref, f"{base_kw} {pref}".strip() if pref else base_kw))
+
+    if not combos:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="カテゴリと都道府県を1つ以上選択してください")
+
+    job_id = str(uuid.uuid4())
+    job_update(job_id, type="progress", current=0, total=len(combos),
+               message=f"マトリクス収集を開始 ({len(combos)}組み合わせ)...", status="running",
+               job_type="ec_matrix")
+
+    def run_matrix():
+        new_db = SessionLocal()
+        try:
+            from server.models import SearchKeyword as SKW
+            total_success = total_dup = total_rej = 0
+            for i, (cat_id, pref, kw_text) in enumerate(combos):
+                label = f"{cat_id}/{pref}" if pref else cat_id
+                job_update(job_id, current=i, total=len(combos),
+                           message=f"({i+1}/{len(combos)}) [{label}] 収集中...",
+                           status="running")
+                temp_kw = SKW(
+                    keyword=kw_text, category=cat_id, region=pref,
+                    exclude_keywords="", is_active=True, project_id=project_id,
+                )
+                new_db.add(temp_kw)
+                new_db.commit()
+                new_db.refresh(temp_kw)
+                try:
+                    result = collect_by_keyword(temp_kw.id, new_db, project_id=project_id,
+                                               org_id=current_user.org_id)
+                    s = result.get("summary", {})
+                    total_success += s.get("success", 0)
+                    total_dup += s.get("duplicate", 0)
+                    total_rej += s.get("rejected", 0)
+                except Exception as e:
+                    logger.warning(f"ec-matrix combo error ({kw_text}): {e}")
+                    try:
+                        new_db.rollback()
+                    except Exception:
+                        pass
+
+            cache_invalidate("dashboard")
+            job_update(job_id, type="done",
+                       result={"total_success": total_success, "total_duplicate": total_dup,
+                               "total_rejected": total_rej, "combos": len(combos)},
+                       message=f"マトリクス収集完了: {total_success}件獲得 ({len(combos)}組み合わせ)")
+        except Exception as e:
+            job_update(job_id, type="error", message=str(e))
+        finally:
+            new_db.close()
+
+    threading.Thread(target=run_matrix, daemon=True).start()
+    return {"job_id": job_id}
+
+
+# ─────────────────────────────────────────────────────────────
+# ⑥ 競合EC類似サイト検索
+# ─────────────────────────────────────────────────────────────
+@router.post("/ec-similar")
+def ec_similar_collect(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    company_id = data.get("company_id")
+    domain = (data.get("domain") or "").strip()
+    cms_type = (data.get("cms_type") or "").strip()
+    category = (data.get("category") or "").strip()
+    project_id = data.get("project_id")
+
+    if company_id:
+        from server.models import Company as CompanyModel
+        company = db.query(CompanyModel).filter(CompanyModel.id == company_id).first()
+        if company:
+            domain = company.domain or domain
+            cms_type = company.cms_type or cms_type
+            category = company.category_main or category
+
+    if not cms_type and not category:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="CMS種類かカテゴリを指定してください")
+
+    keywords_text = []
+    if cms_type:
+        keywords_text.append(f"{cms_type} 通販 ECサイト 運営")
+        if category:
+            keywords_text.append(f"{cms_type} {category} ネットショップ")
+    if category:
+        keywords_text.append(f"{category} 通販 自社EC ブランド")
+        keywords_text.append(f"{category} ECサイト 運営 会社")
+
+    keywords_text = list(dict.fromkeys(kw for kw in keywords_text if kw.strip()))[:5]
+
+    job_id = str(uuid.uuid4())
+    job_update(job_id, type="progress", current=0, total=len(keywords_text),
+               message="類似EC企業の検索を開始しています...", status="running",
+               job_type="ec_similar")
+
+    def run_similar():
+        new_db = SessionLocal()
+        try:
+            from server.models import SearchKeyword as SKW
+            total_success = total_dup = total_rej = 0
+            for i, kw_text in enumerate(keywords_text):
+                job_update(job_id, current=i, total=len(keywords_text),
+                           message=f"({i+1}/{len(keywords_text)}) 類似サイト探索: 「{kw_text}」...",
+                           status="running")
+                temp_kw = SKW(
+                    keyword=kw_text, category=cms_type or category, region="",
+                    exclude_keywords=domain, is_active=True, project_id=project_id,
+                )
+                new_db.add(temp_kw)
+                new_db.commit()
+                new_db.refresh(temp_kw)
+                try:
+                    result = collect_by_keyword(temp_kw.id, new_db, project_id=project_id,
+                                               org_id=current_user.org_id)
+                    s = result.get("summary", {})
+                    total_success += s.get("success", 0)
+                    total_dup += s.get("duplicate", 0)
+                    total_rej += s.get("rejected", 0)
+                except Exception as e:
+                    logger.warning(f"ec-similar kw error: {e}")
+                    try:
+                        new_db.rollback()
+                    except Exception:
+                        pass
+
+            cache_invalidate("dashboard")
+            job_update(job_id, type="done",
+                       result={"total_success": total_success, "total_duplicate": total_dup,
+                               "total_rejected": total_rej},
+                       message=f"類似EC検索完了: {total_success}件獲得")
+        except Exception as e:
+            job_update(job_id, type="error", message=str(e))
+        finally:
+            new_db.close()
+
+    threading.Thread(target=run_similar, daemon=True).start()
+    return {"job_id": job_id}

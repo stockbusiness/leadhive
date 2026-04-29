@@ -215,6 +215,10 @@ def extract_sns_links(soup: BeautifulSoup) -> dict:
         "sns_tiktok_url": None,
         "sns_line_url": None,
     }
+    shop_flags = {
+        "instagram_shop": False,
+        "tiktok_shop": False,
+    }
 
     for a in soup.find_all("a", href=True):
         href = a.get("href", "")
@@ -225,9 +229,12 @@ def extract_sns_links(soup: BeautifulSoup) -> dict:
             result["twitter"] = href
             individual["sns_x_url"] = href
 
-        if result["instagram"] is None and "instagram.com/" in href and "/p/" not in href:
-            result["instagram"] = href
-            individual["sns_instagram_url"] = href
+        if "instagram.com/" in href and "/p/" not in href:
+            if result["instagram"] is None:
+                result["instagram"] = href
+                individual["sns_instagram_url"] = href
+            if re.search(r"instagram\.com/[^/]+/shop|shop\.instagram\.com", href):
+                shop_flags["instagram_shop"] = True
 
         if result["facebook"] is None and re.search(r"facebook\.com/(?!(?:sharer|share|dialog|login|l\.php))", href):
             result["facebook"] = href
@@ -241,12 +248,78 @@ def extract_sns_links(soup: BeautifulSoup) -> dict:
             result["line"] = href
             individual["sns_line_url"] = href
 
-        if result["tiktok"] is None and "tiktok.com/" in href:
-            result["tiktok"] = href
-            individual["sns_tiktok_url"] = href
+        if "tiktok.com/" in href:
+            if result["tiktok"] is None:
+                result["tiktok"] = href
+                individual["sns_tiktok_url"] = href
+            if re.search(r"tiktok\.com/[^/]+/shop|shop\.tiktok\.com", href):
+                shop_flags["tiktok_shop"] = True
 
     sns_count = sum(1 for v in individual.values() if v)
-    return {**result, **individual, "sns_count": sns_count}
+    return {**result, **individual, **shop_flags, "sns_count": sns_count}
+
+
+def _find_tokusho_url(soup: BeautifulSoup, base_url: str) -> str:
+    patterns = [
+        r"tokusho", r"特定商取引", r"law", r"legal", r"tokuteishohoritsu",
+        r"tokuteishohotorihikiho", r"tokuteishouhou",
+    ]
+    for a in soup.find_all("a", href=True):
+        href = a.get("href", "")
+        link_text = a.get_text(strip=True)
+        combined = f"{href} {link_text}".lower()
+        if any(re.search(p, combined, re.IGNORECASE) for p in patterns):
+            full = urljoin(base_url, href)
+            if urlparse(full).netloc == urlparse(base_url).netloc:
+                return full
+    return ""
+
+
+def _extract_tokusho_contacts(tokusho_url: str) -> dict:
+    """特定商取引法ページから代表者名・住所・電話番号・メールアドレスを抽出する"""
+    result: dict = {}
+    try:
+        headers = {"User-Agent": LEADHIVE_UA}
+        resp = requests.get(tokusho_url, headers=headers, timeout=10)
+        resp.encoding = _detect_encoding(resp)
+        soup = BeautifulSoup(resp.text, "html.parser")
+        text = soup.get_text(separator="\n", strip=True)
+
+        rep_match = re.search(
+            r"(?:代表者|代表取締役|代表|運営責任者|販売責任者)[：:　\s]*([^\n　\s]{2,20})",
+            text
+        )
+        if rep_match:
+            result["contact_name"] = rep_match.group(1).strip()
+
+        addr_match = re.search(
+            r"(?:住所|所在地|所在)[：:　\s]*([^\n]{5,60}(?:丁目|番地|号|ビル|[0-9]-[0-9])[^\n]{0,30})",
+            text
+        )
+        if addr_match:
+            result["address_raw"] = addr_match.group(1).strip()
+            for pref in PREFECTURES:
+                if pref in addr_match.group(1):
+                    result["prefecture"] = pref
+                    break
+
+        phone_match = re.search(
+            r"(?:電話番号|TEL|Tel|tel)[：:　\s]*(\d{2,4}[-\-]\d{2,4}[-\-]\d{3,4})",
+            text
+        )
+        if phone_match:
+            result["phone"] = phone_match.group(1)
+
+        email_match = re.search(
+            r"(?:メール|電子メール|mail|email|E-Mail)[：:　\s]*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})",
+            text, re.IGNORECASE
+        )
+        if email_match:
+            result["email"] = email_match.group(1)
+
+    except Exception as e:
+        logger.debug(f"tokusho extraction error: {e}")
+    return result
 
 
 def detect_recruitment(soup: BeautifulSoup, text: str) -> bool:
@@ -334,6 +407,7 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
             phone = extract_phone(text_content)
             prefecture, city = extract_location(text_content)
             contact_url = find_contact_page(soup, url)
+            tokusho_url = _find_tokusho_url(soup, url)
 
             email = extract_email_from_soup(soup, text_content)
 
@@ -376,15 +450,24 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
                 "stores_flag": cms_type == "STORES",
             }
 
+            tokusho_data = {}
+            if tokusho_url:
+                tokusho_data = _extract_tokusho_contacts(tokusho_url)
+
+            ret_prefecture = tokusho_data.get("prefecture") or prefecture
+            ret_city = city
+            ret_phone = tokusho_data.get("phone") or phone
+            ret_email = tokusho_data.get("email") or email
+
             return {
                 "company_name": company_name,
                 "website_url": url,
                 "domain": domain,
-                "contact_url": contact_url,
-                "prefecture": prefecture,
-                "city": city,
-                "phone": phone,
-                "email": email,
+                "contact_url": tokusho_url or contact_url,
+                "prefecture": ret_prefecture,
+                "city": ret_city,
+                "phone": ret_phone,
+                "email": ret_email,
                 "cms_type": cms_type or None,
                 "cms_detected_at": cms_detected_at,
                 "sns_links": sns_links,
@@ -395,6 +478,8 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
                 "sns_tiktok_url": sns_data.get("sns_tiktok_url"),
                 "sns_line_url": sns_data.get("sns_line_url"),
                 "sns_count": sns_count,
+                "instagram_shop": sns_data.get("instagram_shop", False),
+                "tiktok_shop": sns_data.get("tiktok_shop", False),
                 "ec_score": ec_score,
                 "ec_scale": ec_scale,
                 "ec_flag": ec_flag_val,

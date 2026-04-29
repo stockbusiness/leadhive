@@ -1,7 +1,10 @@
 import io
 import csv
 import re
+import logging
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, Query, Response, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
@@ -1343,3 +1346,50 @@ def move_project(
 
     db.commit()
     return {"moved": moved, "skipped": skipped}
+
+
+@router.post("/bulk-rescore")
+def bulk_rescore_companies(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.services.scorer import calculate_score
+
+    project_id = data.get("project_id")
+    q = db.query(Company)
+    if project_id:
+        q = q.filter(Company.project_id == project_id)
+    companies_list = q.all()
+
+    updated = 0
+    for company in companies_list:
+        try:
+            flags = {
+                "shopify_flag": company.shopify_flag or False,
+                "ec_flag": company.ec_flag or False,
+                "amazon_flag": company.amazon_flag or False,
+                "rakuten_flag": company.rakuten_flag or False,
+                "base_flag": getattr(company, "base_flag", False) or False,
+                "makeshop_flag": getattr(company, "makeshop_flag", False) or False,
+                "futureshop_flag": getattr(company, "futureshop_flag", False) or False,
+                "stores_flag": getattr(company, "stores_flag", False) or False,
+                "consulting_flag": company.consulting_flag or False,
+                "operation_flag": company.operation_flag or False,
+                "production_flag": company.production_flag or False,
+            }
+            score_total, score_rank = calculate_score(
+                flags,
+                ec_score=company.ec_score or 0,
+                adjustment=company.score_adjustment or 0,
+                scoring_rules=None,
+            )
+            company.score_total = score_total
+            company.score_rank = score_rank
+            updated += 1
+        except Exception as e:
+            logger.warning(f"rescore error company {company.id}: {e}")
+            continue
+
+    db.commit()
+    return {"updated": updated, "total": len(companies_list), "message": f"{updated}件のスコアを再計算しました"}

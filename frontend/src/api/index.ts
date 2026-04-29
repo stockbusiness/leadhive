@@ -42,6 +42,9 @@ export const api = {
     bulkStatus: (companyIds: number[], newStatus: string) =>
       axios.put("/api/companies/bulk-status", { company_ids: companyIds, new_status: newStatus }).then(r => r.data),
 
+    bulkRescore: (params: { project_id?: number }) =>
+      axios.post<{ updated: number; total: number; message: string }>("/api/companies/bulk-rescore", params).then(r => r.data),
+
     exportCsvUrl: (params: URLSearchParams) =>
       `/api/companies/csv?${params.toString()}`,
 
@@ -198,6 +201,15 @@ export const api = {
 
     ecDiscovery: (params: { category_id: string; region?: string; project_id?: number }) =>
       axios.post<{ job_id: string }>("/api/collect/ec-discovery", params).then(r => r.data),
+
+    ecPlatform: (params: { platform: string; keyword?: string; region?: string; project_id?: number }) =>
+      axios.post<{ job_id: string }>("/api/collect/ec-platform", params).then(r => r.data),
+
+    ecMatrix: (params: { category_ids: string[]; prefectures: string[]; project_id?: number }) =>
+      axios.post<{ job_id: string }>("/api/collect/ec-matrix", params).then(r => r.data),
+
+    ecSimilar: (params: { company_id?: number; domain?: string; cms_type?: string; category?: string; project_id?: number }) =>
+      axios.post<{ job_id: string }>("/api/collect/ec-similar", params).then(r => r.data),
 
     jobStatus: (jobId: string) =>
       axios.get<{
