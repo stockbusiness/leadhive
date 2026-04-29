@@ -303,6 +303,23 @@ def assign_plan(
             import logging
             logging.getLogger(__name__).warning("CommitRev assign_plan event failed: %s", _e)
 
+    if plan.stripe_price_id:
+        try:
+            from server.services.onbizu import send_conversion
+            admin = db.query(User).filter(User.org_id == org_id, User.role == "admin").first()
+            if admin:
+                send_conversion(
+                    db=db,
+                    user_id=admin.id,
+                    email=admin.email,
+                    display_name=admin.display_name or "",
+                    plan_name=plan.name,
+                    stripe_session_id=f"manual_assign_{org_id}_{plan_id}",
+                )
+        except Exception as _ob_e:
+            import logging
+            logging.getLogger(__name__).warning("Onbizu conversion event failed: %s", _ob_e)
+
     return {"success": True, "org_id": org_id, "plan_id": plan_id}
 
 

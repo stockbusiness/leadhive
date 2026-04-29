@@ -20,6 +20,7 @@ from server.routes import support
 from server.routes import admin_hubsrev
 from server.routes import admin_scoring
 from server.routes import admin_commitrev
+from server.routes import admin_onbizu
 from server.routes import faq
 from server.routes import status_page
 from server.routes import webhooks
@@ -522,6 +523,7 @@ app.include_router(support.router)
 app.include_router(admin_hubsrev.router)
 app.include_router(admin_scoring.router)
 app.include_router(admin_commitrev.router)
+app.include_router(admin_onbizu.router)
 app.include_router(faq.router)
 app.include_router(status_page.router)
 app.include_router(webhooks.router)

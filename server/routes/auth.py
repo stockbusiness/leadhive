@@ -221,6 +221,16 @@ def register(request: Request, body: RegisterRequest, db: Session = Depends(get_
     except Exception as _cr_err:
         logger.warning("CommitRev lead_created error: %s", _cr_err)
 
+    try:
+        from server.services.onbizu import send_user_registered
+        send_user_registered(
+            db=db, user_id=user.id, email=body.email,
+            display_name=getattr(body, "display_name", "") or "",
+            org_name=body.org_name,
+        )
+    except Exception as _ob_err:
+        logger.warning("Onbizu user_registered error: %s", _ob_err)
+
     base_url = _get_base_url(request)
     email_sent = _send_verification_email(body.email, token_str, base_url, db, org_id=user.org_id)
 
@@ -376,6 +386,15 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     _log_security_event(db, "login_success", user_id=user.id, org_id=user.org_id,
                         ip_address=ip, user_agent=ua,
                         details={"email": body.email})
+
+    try:
+        from server.services.onbizu import send_user_login
+        send_user_login(
+            db=db, user_id=user.id, email=user.email,
+            display_name=user.display_name or "",
+        )
+    except Exception as _ob_err:
+        logger.warning("Onbizu user_login error: %s", _ob_err)
 
     org = db.query(Organization).filter(Organization.id == user.org_id).first()
     token = create_access_token({"sub": str(user.id), "tv": user.token_version or 1})

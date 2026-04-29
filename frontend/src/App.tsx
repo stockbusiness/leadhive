@@ -88,6 +88,7 @@ const AdminFeatures = lazy(() => import("./pages/AdminFeatures"));
 const AdminContact = lazy(() => import("./pages/AdminContact"));
 const AdminHubsrev = lazy(() => import("./pages/AdminHubsrev"));
 const AdminCommitrev = lazy(() => import("./pages/AdminCommitrev"));
+const AdminOnbizu = lazy(() => import("./pages/AdminOnbizu"));
 const Support = lazy(() => import("./pages/Support"));
 const SupportTicket = lazy(() => import("./pages/SupportTicket"));
 const AdminSupport = lazy(() => import("./pages/AdminSupport"));
@@ -320,6 +321,7 @@ function AppContent() {
                 <SidebarLink to="/admin/contact-settings" icon={<Mail size={18} />} label="問い合わせフォーム設定" onClick={closeSidebar} />
                 <SidebarLink to="/admin/hubsrev" icon={<Link2 size={18} />} label="Hubsrev 連携" onClick={closeSidebar} />
                 <SidebarLink to="/admin/commitrev" icon={<Link2 size={18} />} label="CommitRev 連携" onClick={closeSidebar} />
+                <SidebarLink to="/admin/onbizu" icon={<Zap size={18} />} label="Onbizu 連携" onClick={closeSidebar} />
                 <SidebarLink to="/admin/legal" icon={<Scale size={18} />} label="特定商取引法の表記" onClick={closeSidebar} />
                 <SidebarLink to="/admin/support" icon={<LifeBuoy size={18} />} label="サポートチケット管理" onClick={closeSidebar} />
                 <SidebarLink to="/admin/faq" icon={<HelpCircle size={18} />} label="FAQ管理" onClick={closeSidebar} />
@@ -452,6 +454,7 @@ function AppContent() {
               <Route path="/admin/contact-settings" element={<SystemAdminRoute><AdminContact /></SystemAdminRoute>} />
               <Route path="/admin/hubsrev" element={<SystemAdminRoute><AdminHubsrev /></SystemAdminRoute>} />
               <Route path="/admin/commitrev" element={<SystemAdminRoute><AdminCommitrev /></SystemAdminRoute>} />
+              <Route path="/admin/onbizu" element={<SystemAdminRoute><AdminOnbizu /></SystemAdminRoute>} />
               <Route path="/admin/scoring-rules" element={<SystemAdminRoute><AdminScoringRules /></SystemAdminRoute>} />
               <Route path="/admin/legal" element={<SystemAdminRoute><AdminLegal /></SystemAdminRoute>} />
               <Route path="/admin/support" element={<SystemAdminRoute><AdminSupport /></SystemAdminRoute>} />

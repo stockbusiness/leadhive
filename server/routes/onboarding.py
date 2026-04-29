@@ -17,6 +17,20 @@ def complete_onboarding(
         raise HTTPException(status_code=404, detail="組織が見つかりません")
     org.onboarding_completed = True
     db.commit()
+
+    try:
+        from server.services.onbizu import send_onboarding_completed
+        send_onboarding_completed(
+            db=db,
+            user_id=current_user.id,
+            email=current_user.email,
+            display_name=current_user.display_name or "",
+            org_name=org.name,
+        )
+    except Exception as _ob_err:
+        import logging
+        logging.getLogger(__name__).warning("Onbizu onboarding_completed error: %s", _ob_err)
+
     return {"message": "オンボーディングが完了しました"}
 
 
