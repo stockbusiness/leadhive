@@ -562,6 +562,9 @@ export const api = {
     getSendgrid: () => axios.get("/api/admin/sendgrid-settings").then(r => r.data),
     saveSendgrid: (data: Record<string, string>) => axios.put("/api/admin/sendgrid-settings", data).then(r => r.data),
     testSendgrid: () => axios.post("/api/admin/sendgrid-settings/test").then(r => r.data),
+    getResend: () => axios.get("/api/admin/resend-settings").then(r => r.data),
+    saveResend: (data: Record<string, string>) => axios.put("/api/admin/resend-settings", data).then(r => r.data),
+    testResend: () => axios.post("/api/admin/resend-settings/test").then(r => r.data),
   },
 
   adminEmailTemplates: {

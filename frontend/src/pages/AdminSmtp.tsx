@@ -19,6 +19,13 @@ type SendgridSettings = {
   sendgrid_from_name: string;
 };
 
+type ResendSettings = {
+  resend_api_key: string;
+  resend_api_key_set?: boolean;
+  resend_from_email: string;
+  resend_from_name: string;
+};
+
 const PRESETS = [
   { label: "Gmail", host: "smtp.gmail.com", port: "587" },
   { label: "SendGrid (SMTP)", host: "smtp.sendgrid.net", port: "587" },
@@ -38,7 +45,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 }
 
 export default function AdminSmtp() {
-  const [tab, setTab] = useState<"smtp" | "sendgrid">("smtp");
+  const [tab, setTab] = useState<"smtp" | "sendgrid" | "resend">("smtp");
 
   const [form, setForm] = useState<SmtpSettings>({
     smtp_host: "", smtp_port: "587", smtp_user: "", smtp_password: "", smtp_from_email: "", smtp_from_name: "LeadHive",
@@ -62,6 +69,17 @@ export default function AdminSmtp() {
   const [sgError, setSgError] = useState("");
   const [sgSuccess, setSgSuccess] = useState("");
 
+  const [rs, setRs] = useState<ResendSettings>({
+    resend_api_key: "", resend_from_email: "", resend_from_name: "LeadHive",
+  });
+  const [rsApiKeySet, setRsApiKeySet] = useState(false);
+  const [showRsKey, setShowRsKey] = useState(false);
+  const [rsLoading, setRsLoading] = useState(true);
+  const [rsSaving, setRsSaving] = useState(false);
+  const [rsTesting, setRsTesting] = useState(false);
+  const [rsError, setRsError] = useState("");
+  const [rsSuccess, setRsSuccess] = useState("");
+
   useEffect(() => {
     api.adminSmtp.get().then(r => {
       setForm(f => ({ ...f, ...r }));
@@ -78,6 +96,16 @@ export default function AdminSmtp() {
       setSgApiKeySet(!!r.sendgrid_api_key_set);
       setSgLoading(false);
     }).catch(() => setSgLoading(false));
+
+    api.adminSmtp.getResend().then(r => {
+      setRs({
+        resend_api_key: r.resend_api_key || "",
+        resend_from_email: r.resend_from_email || "",
+        resend_from_name: r.resend_from_name || "LeadHive",
+      });
+      setRsApiKeySet(!!r.resend_api_key_set);
+      setRsLoading(false);
+    }).catch(() => setRsLoading(false));
   }, []);
 
   const save = async () => {
@@ -142,13 +170,48 @@ export default function AdminSmtp() {
     }
   };
 
+  const rsSave = async () => {
+    setRsSaving(true);
+    setRsError(""); setRsSuccess("");
+    try {
+      const payload: Record<string, string> = {
+        resend_from_email: rs.resend_from_email,
+        resend_from_name: rs.resend_from_name,
+      };
+      if (rs.resend_api_key && !rs.resend_api_key.includes("*")) {
+        payload.resend_api_key = rs.resend_api_key;
+      }
+      await api.adminSmtp.saveResend(payload);
+      setRsSuccess("Resend設定を保存しました");
+      setRsApiKeySet(true);
+      setTimeout(() => setRsSuccess(""), 3000);
+    } catch (e: any) {
+      setRsError(e?.response?.data?.detail || "保存に失敗しました");
+    } finally {
+      setRsSaving(false);
+    }
+  };
+
+  const rsTest = async () => {
+    setRsTesting(true);
+    setRsError(""); setRsSuccess("");
+    try {
+      const r = await api.adminSmtp.testResend();
+      setRsSuccess(r.message);
+    } catch (e: any) {
+      setRsError(e?.response?.data?.detail || "テスト送信に失敗しました");
+    } finally {
+      setRsTesting(false);
+    }
+  };
+
   const applyPreset = (p: typeof PRESETS[number]) => {
     setForm(f => ({ ...f, smtp_host: p.host, smtp_port: p.port }));
   };
 
   const inp = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
-  if (loading && sgLoading) return <div className="flex justify-center items-center h-64"><Loader2 size={28} className="animate-spin text-blue-500" /></div>;
+  if (loading && sgLoading && rsLoading) return <div className="flex justify-center items-center h-64"><Loader2 size={28} className="animate-spin text-blue-500" /></div>;
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
@@ -173,8 +236,16 @@ export default function AdminSmtp() {
           className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${tab === "sendgrid" ? "bg-white text-blue-700 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}
         >
           <Zap size={15} />
-          SendGrid API
+          SendGrid
           {sgApiKeySet && <span className="ml-1 text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">設定済み</span>}
+        </button>
+        <button
+          onClick={() => setTab("resend")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${tab === "resend" ? "bg-white text-blue-700 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}
+        >
+          <Zap size={15} />
+          Resend
+          {rsApiKeySet && <span className="ml-1 text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">設定済み</span>}
         </button>
       </div>
 
@@ -307,6 +378,65 @@ export default function AdminSmtp() {
           <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1">
             <p>・APIキーは暗号化してデータベースに保存されます</p>
             <p>・SendGrid の Sender Authentication で送信元ドメインを認証してください</p>
+            <p>・テスト送信はシステム管理者のメールアドレスに送信されます</p>
+          </div>
+        </div>
+      )}
+
+      {tab === "resend" && (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
+          {rsError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-start gap-2"><AlertCircle size={16} className="mt-0.5 flex-shrink-0" />{rsError}</div>}
+          {rsSuccess && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 flex items-start gap-2"><CheckCircle size={16} className="mt-0.5 flex-shrink-0" />{rsSuccess}</div>}
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
+            <p className="font-semibold mb-1">Resend API 方式（推奨）</p>
+            <p className="text-xs">HTTPS経由で送信するため本番環境のポート制限に影響されません。月3,000通・日100通まで無料で利用できます。</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 pt-2">
+            <Field label={`Resend APIキー${rsApiKeySet ? "（設定済み）" : ""}`} required>
+              <div className="relative">
+                <input
+                  type={showRsKey ? "text" : "password"}
+                  className={`${inp} pr-10`}
+                  value={rs.resend_api_key}
+                  onChange={e => setRs(s => ({ ...s, resend_api_key: e.target.value }))}
+                  placeholder={rsApiKeySet ? "変更する場合のみ入力" : "re_xxxxxxxxxxxxxxxx"}
+                />
+                <button type="button" onClick={() => setShowRsKey(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {showRsKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Resend ダッシュボード</a> → API Keys → Create API Key（Sending access）
+              </p>
+            </Field>
+            <Field label="送信元メールアドレス" required>
+              <input className={inp} value={rs.resend_from_email} onChange={e => setRs(s => ({ ...s, resend_from_email: e.target.value }))} placeholder="noreply@leadhive.work" />
+              <p className="text-xs text-slate-400 mt-1">Resend でドメイン認証済みのメールアドレスを使用してください</p>
+            </Field>
+            <Field label="送信者名">
+              <input className={inp} value={rs.resend_from_name} onChange={e => setRs(s => ({ ...s, resend_from_name: e.target.value }))} placeholder="LeadHive" />
+            </Field>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 flex gap-3">
+            <button onClick={rsSave} disabled={rsSaving}
+              className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-60">
+              {rsSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              保存
+            </button>
+            <button onClick={rsTest} disabled={rsTesting || !rsApiKeySet}
+              className="flex items-center gap-2 px-5 py-2 bg-slate-100 text-slate-700 text-sm rounded-lg hover:bg-slate-200 disabled:opacity-60 border border-slate-300">
+              {rsTesting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              テスト送信
+            </button>
+          </div>
+
+          <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1">
+            <p>・APIキーは暗号化してデータベースに保存されます</p>
+            <p>・Resend のドメイン認証（DNS設定）を完了させてから送信元アドレスを設定してください</p>
             <p>・テスト送信はシステム管理者のメールアドレスに送信されます</p>
           </div>
         </div>

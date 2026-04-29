@@ -191,6 +191,64 @@ def send_via_sendgrid(
         return False, f"SendGrid 送信エラー: {str(e)}"
 
 
+def get_system_resend_settings(db) -> dict:
+    from server.models import SystemSettings
+    from server.services.encryption import decrypt_value
+    keys = ["resend_api_key", "resend_from_email", "resend_from_name"]
+    rows = db.query(SystemSettings).filter(SystemSettings.key.in_(keys)).all()
+    raw = {r.key: decrypt_value(r.value or "") for r in rows}
+    return {
+        "api_key": raw.get("resend_api_key", ""),
+        "from_email": raw.get("resend_from_email", ""),
+        "from_name": raw.get("resend_from_name", "LeadHive"),
+    }
+
+
+def send_via_resend(
+    to: str,
+    subject: str,
+    html_body: str,
+    api_key: str,
+    from_email: str,
+    from_name: str = "LeadHive",
+    text_body: Optional[str] = None,
+) -> tuple[bool, str]:
+    if not api_key:
+        return False, "Resend APIキーが設定されていません"
+    if not from_email:
+        return False, "送信元メールアドレスが設定されていません"
+
+    import httpx
+
+    payload: dict = {
+        "from": f"{from_name} <{from_email}>",
+        "to": [to],
+        "subject": subject,
+        "html": html_body,
+    }
+    if text_body:
+        payload["text"] = text_body
+
+    try:
+        resp = httpx.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=15,
+        )
+        if resp.status_code in (200, 201):
+            return True, "Resend で送信しました"
+        body = resp.text[:300]
+        return False, f"Resend エラー ({resp.status_code}): {body}"
+    except httpx.TimeoutException:
+        return False, "Resend への接続がタイムアウトしました"
+    except Exception as e:
+        return False, f"Resend 送信エラー: {str(e)}"
+
+
 def send_with_fallback(
     db,
     to: str,
@@ -205,6 +263,7 @@ def send_with_fallback(
       2. テナントSendGrid (org_id指定時)
       3. システムSMTP (SystemSettings or 環境変数)
       4. システムSendGrid (SystemSettings or 環境変数)
+      5. システムResend (SystemSettings)
     """
     errors = []
 
@@ -250,6 +309,19 @@ def send_with_fallback(
         if ok:
             return True, msg
         errors.append(f"system SendGrid: {msg}")
+
+    sys_resend = get_system_resend_settings(db)
+    if sys_resend.get("api_key"):
+        ok, msg = send_via_resend(
+            to=to, subject=subject, html_body=html_body,
+            api_key=sys_resend["api_key"],
+            from_email=sys_resend["from_email"], from_name=sys_resend["from_name"],
+            text_body=text_body,
+        )
+        logger.info(f"[mail] system Resend ok={ok} msg={msg}")
+        if ok:
+            return True, msg
+        errors.append(f"system Resend: {msg}")
 
     logger.error(f"[mail] ALL methods failed to={to}: {errors}")
     return False, "; ".join(errors) if errors else "メール設定がありません"

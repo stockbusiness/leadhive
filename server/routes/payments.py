@@ -1269,6 +1269,73 @@ def test_admin_sendgrid(
 
 
 # ──────────────────────────────────────────────────────────────
+#  Admin: Resend Settings
+# ──────────────────────────────────────────────────────────────
+RESEND_ADMIN_KEYS = ["resend_api_key", "resend_from_email", "resend_from_name"]
+
+
+@router.get("/api/admin/resend-settings")
+def get_admin_resend_settings(
+    current_user: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    data: dict = {}
+    for key in RESEND_ADMIN_KEYS:
+        val = get_setting(db, key)
+        if key == "resend_api_key" and val:
+            data[key] = ""
+            data["resend_api_key_set"] = True
+        else:
+            data[key] = val or ""
+    return data
+
+
+class ResendSettingsBody(BaseModel):
+    resend_api_key: Optional[str] = None
+    resend_from_email: Optional[str] = None
+    resend_from_name: Optional[str] = None
+
+
+@router.put("/api/admin/resend-settings")
+def save_admin_resend_settings(
+    body: ResendSettingsBody,
+    current_user: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    for key in RESEND_ADMIN_KEYS:
+        val = getattr(body, key)
+        if key == "resend_api_key" and val == "":
+            continue
+        if val is not None:
+            set_setting(db, key, val)
+    db.commit()
+    return {"message": "Resend設定を保存しました"}
+
+
+@router.post("/api/admin/resend-settings/test")
+def test_admin_resend(
+    current_user: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    from server.services.mailer import get_system_resend_settings, send_via_resend
+    cfg = get_system_resend_settings(db)
+    if not cfg["api_key"]:
+        raise HTTPException(status_code=400, detail="Resend APIキーが設定されていません")
+    ok, msg = send_via_resend(
+        to=current_user.email,
+        subject="LeadHive Resend テストメール（システム管理者）",
+        html_body="<p>LeadHive管理者からのResendテストメールです。設定が正常に動作しています。</p>",
+        api_key=cfg["api_key"],
+        from_email=cfg["from_email"],
+        from_name=cfg["from_name"],
+        text_body="LeadHive管理者からのResendテストメールです。",
+    )
+    if not ok:
+        raise HTTPException(status_code=500, detail=msg)
+    return {"success": True, "message": msg}
+
+
+# ──────────────────────────────────────────────────────────────
 #  Admin: Email Templates
 # ──────────────────────────────────────────────────────────────
 from server.routes.auth import (
