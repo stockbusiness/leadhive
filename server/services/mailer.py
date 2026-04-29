@@ -1,3 +1,4 @@
+import os
 import smtplib
 import ssl
 from email.mime.text import MIMEText
@@ -6,6 +7,29 @@ from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+_SUPPORT_URL = os.environ.get("APP_BASE_URL", "https://leadhive.work") + "/support"
+
+_FOOTER_HTML = f"""
+<div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;font-family:sans-serif;">
+  <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 6px;">
+    このメールへの返信はできません。
+  </p>
+  <p style="color:#94a3b8;font-size:12px;margin:0;">
+    お問い合わせは
+    <a href="{_SUPPORT_URL}" style="color:#3b82f6;text-decoration:none;">サポートフォーム</a>
+    よりお願いいたします。
+  </p>
+</div>
+"""
+
+_FOOTER_TEXT = f"\n\n---\nこのメールへの返信はできません。\nお問い合わせは {_SUPPORT_URL} よりお願いいたします。\n"
+
+
+def _with_footer(html_body: str, text_body: Optional[str]) -> tuple[str, Optional[str]]:
+    new_html = html_body + _FOOTER_HTML if html_body else html_body
+    new_text = (text_body or "") + _FOOTER_TEXT if text_body is not None else None
+    return new_html, new_text
 
 
 def get_smtp_settings(db, org_id: int) -> dict:
@@ -45,6 +69,7 @@ def send_email(
     text_body: Optional[str] = None,
     extra_headers: Optional[dict] = None,
 ) -> tuple[bool, str]:
+    html_body, text_body = _with_footer(html_body, text_body)
     host = smtp_settings.get("smtp_host", "")
     port = int(smtp_settings.get("smtp_port", "587") or "587")
     user = smtp_settings.get("smtp_user", "")
@@ -154,6 +179,7 @@ def send_via_sendgrid(
     from_name: str = "LeadHive",
     text_body: Optional[str] = None,
 ) -> tuple[bool, str]:
+    html_body, text_body = _with_footer(html_body, text_body)
     if not api_key:
         return False, "SendGrid APIキーが設定されていません"
     if not from_email:
@@ -213,6 +239,7 @@ def send_via_resend(
     from_name: str = "LeadHive",
     text_body: Optional[str] = None,
 ) -> tuple[bool, str]:
+    html_body, text_body = _with_footer(html_body, text_body)
     if not api_key:
         return False, "Resend APIキーが設定されていません"
     if not from_email:
