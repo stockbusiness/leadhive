@@ -558,13 +558,13 @@ export const api = {
   adminSmtp: {
     get: () => axios.get("/api/admin/smtp-settings").then(r => r.data),
     save: (data: Record<string, string>) => axios.put("/api/admin/smtp-settings", data).then(r => r.data),
-    test: () => axios.post("/api/admin/smtp-settings/test").then(r => r.data),
+    test: (testTo?: string) => axios.post("/api/admin/smtp-settings/test", { test_to: testTo ?? "" }).then(r => r.data),
     getSendgrid: () => axios.get("/api/admin/sendgrid-settings").then(r => r.data),
     saveSendgrid: (data: Record<string, string>) => axios.put("/api/admin/sendgrid-settings", data).then(r => r.data),
-    testSendgrid: () => axios.post("/api/admin/sendgrid-settings/test").then(r => r.data),
+    testSendgrid: (testTo?: string) => axios.post("/api/admin/sendgrid-settings/test", { test_to: testTo ?? "" }).then(r => r.data),
     getResend: () => axios.get("/api/admin/resend-settings").then(r => r.data),
     saveResend: (data: Record<string, string>) => axios.put("/api/admin/resend-settings", data).then(r => r.data),
-    testResend: () => axios.post("/api/admin/resend-settings/test").then(r => r.data),
+    testResend: (testTo?: string) => axios.post("/api/admin/resend-settings/test", { test_to: testTo ?? "" }).then(r => r.data),
   },
 
   adminEmailTemplates: {

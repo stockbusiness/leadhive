@@ -69,6 +69,8 @@ export default function AdminSmtp() {
   const [sgError, setSgError] = useState("");
   const [sgSuccess, setSgSuccess] = useState("");
 
+  const [testTo, setTestTo] = useState("");
+
   const [rs, setRs] = useState<ResendSettings>({
     resend_api_key: "", resend_from_email: "", resend_from_name: "LeadHive",
   });
@@ -126,7 +128,7 @@ export default function AdminSmtp() {
     setTesting(true);
     setError(""); setSuccess("");
     try {
-      const r = await api.adminSmtp.test();
+      const r = await api.adminSmtp.test(testTo || undefined);
       setSuccess(r.message);
     } catch (e: any) {
       setError(e?.response?.data?.detail || "テスト送信に失敗しました");
@@ -161,7 +163,7 @@ export default function AdminSmtp() {
     setSgTesting(true);
     setSgError(""); setSgSuccess("");
     try {
-      const r = await api.adminSmtp.testSendgrid();
+      const r = await api.adminSmtp.testSendgrid(testTo || undefined);
       setSgSuccess(r.message);
     } catch (e: any) {
       setSgError(e?.response?.data?.detail || "テスト送信に失敗しました");
@@ -196,7 +198,7 @@ export default function AdminSmtp() {
     setRsTesting(true);
     setRsError(""); setRsSuccess("");
     try {
-      const r = await api.adminSmtp.testResend();
+      const r = await api.adminSmtp.testResend(testTo || undefined);
       setRsSuccess(r.message);
     } catch (e: any) {
       setRsError(e?.response?.data?.detail || "テスト送信に失敗しました");
@@ -247,6 +249,20 @@ export default function AdminSmtp() {
           Resend
           {rsApiKeySet && <span className="ml-1 text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">設定済み</span>}
         </button>
+      </div>
+
+      <div className="mb-4 flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+        <Send size={15} className="text-slate-400 flex-shrink-0" />
+        <div className="flex-1">
+          <label className="text-xs font-semibold text-slate-500 block mb-1">テスト送信先メールアドレス</label>
+          <input
+            type="email"
+            value={testTo}
+            onChange={e => setTestTo(e.target.value)}
+            className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            placeholder="空欄の場合は管理者自身のアドレスに送信"
+          />
+        </div>
       </div>
 
       {tab === "smtp" && (

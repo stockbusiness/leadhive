@@ -1165,6 +1165,7 @@ def save_smtp_settings(
 
 @router.post("/api/admin/smtp-settings/test")
 def test_smtp(
+    body: dict = {},
     current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
@@ -1174,6 +1175,7 @@ def test_smtp(
     password = get_setting(db, "smtp_password")
     from_email = get_setting(db, "smtp_from_email") or user
     from_name = get_setting(db, "smtp_from_name") or "LeadHive"
+    test_to = (body.get("test_to") or "").strip() or current_user.email
 
     if not host or not user or not password:
         raise HTTPException(status_code=400, detail="SMTP設定が不完全です")
@@ -1182,21 +1184,21 @@ def test_smtp(
         port = int(port_str)
         msg = MIMEMultipart()
         msg["From"] = f"{from_name} <{from_email}>"
-        msg["To"] = current_user.email
+        msg["To"] = test_to
         msg["Subject"] = "LeadHive SMTP テスト"
         msg.attach(MIMEText("LeadHive からのSMTPテストメールです。正常に受信できました。", "plain", "utf-8"))
 
         if port == 465:
             with smtplib.SMTP_SSL(host, port, timeout=10) as server:
                 server.login(user, password)
-                server.sendmail(from_email, current_user.email, msg.as_string())
+                server.sendmail(from_email, test_to, msg.as_string())
         else:
             with smtplib.SMTP(host, port, timeout=10) as server:
                 server.ehlo()
                 server.starttls()
                 server.login(user, password)
-                server.sendmail(from_email, current_user.email, msg.as_string())
-        return {"success": True, "message": f"{current_user.email} にテストメールを送信しました"}
+                server.sendmail(from_email, test_to, msg.as_string())
+        return {"success": True, "message": f"{test_to} にテストメールを送信しました"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1247,6 +1249,7 @@ def save_admin_sendgrid_settings(
 
 @router.post("/api/admin/sendgrid-settings/test")
 def test_admin_sendgrid(
+    body: dict = {},
     current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
@@ -1254,8 +1257,9 @@ def test_admin_sendgrid(
     cfg = get_system_sendgrid_settings(db)
     if not cfg["api_key"]:
         raise HTTPException(status_code=400, detail="SendGrid APIキーが設定されていません")
+    test_to = (body.get("test_to") or "").strip() or current_user.email
     ok, msg = send_via_sendgrid(
-        to=current_user.email,
+        to=test_to,
         subject="LeadHive SendGrid テストメール（システム管理者）",
         html_body="<p>LeadHive管理者からのSendGridテストメールです。設定が正常に動作しています。</p>",
         api_key=cfg["api_key"],
@@ -1265,7 +1269,7 @@ def test_admin_sendgrid(
     )
     if not ok:
         raise HTTPException(status_code=500, detail=msg)
-    return {"success": True, "message": msg}
+    return {"success": True, "message": f"{test_to} に" + msg}
 
 
 # ──────────────────────────────────────────────────────────────
@@ -1314,6 +1318,7 @@ def save_admin_resend_settings(
 
 @router.post("/api/admin/resend-settings/test")
 def test_admin_resend(
+    body: dict = {},
     current_user: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
@@ -1321,8 +1326,9 @@ def test_admin_resend(
     cfg = get_system_resend_settings(db)
     if not cfg["api_key"]:
         raise HTTPException(status_code=400, detail="Resend APIキーが設定されていません")
+    test_to = (body.get("test_to") or "").strip() or current_user.email
     ok, msg = send_via_resend(
-        to=current_user.email,
+        to=test_to,
         subject="LeadHive Resend テストメール（システム管理者）",
         html_body="<p>LeadHive管理者からのResendテストメールです。設定が正常に動作しています。</p>",
         api_key=cfg["api_key"],
@@ -1332,7 +1338,7 @@ def test_admin_resend(
     )
     if not ok:
         raise HTTPException(status_code=500, detail=msg)
-    return {"success": True, "message": msg}
+    return {"success": True, "message": f"{test_to} に" + msg}
 
 
 # ──────────────────────────────────────────────────────────────
