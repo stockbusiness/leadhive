@@ -429,14 +429,15 @@ def _cleanup_stale_jobs():
 
 
 def _schedule_periodic_restart(interval_hours: int = 24):
-    """定期的にプロセスを終了してVMデプロイの自動再起動を促す"""
+    """定期的にプロセスを終了してデプロイの自動再起動を促す"""
     def _restart_worker():
         import time
         secs = interval_hours * 3600
         print(f"[LeadHive] 定期再起動タイマー開始: {interval_hours}時間後に再起動します")
         time.sleep(secs)
-        print(f"[LeadHive] 定期再起動: {interval_hours}時間経過のためプロセスを終了します")
-        os._exit(0)
+        print(f"[LeadHive] 定期再起動: {interval_hours}時間経過のためプロセスを再起動します")
+        # exit code 1 で終了することで本番環境（Replit Deploy）の自動再起動を確実に発動
+        os._exit(1)
     t = threading.Thread(target=_restart_worker, daemon=True)
     t.start()
 
