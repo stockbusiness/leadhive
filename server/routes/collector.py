@@ -3,6 +3,7 @@ import json
 import logging
 import uuid
 import threading
+from datetime import datetime
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -81,6 +82,15 @@ def get_job_status(
     row = db.query(JobLog).filter(JobLog.job_id == job_id).first()
     if not row:
         return {"found": False, "status": "not_found"}
+    # Job is in DB but NOT in memory → server restarted mid-job, mark as interrupted
+    if row.status == "running":
+        row.status = "interrupted"
+        row.message = "サーバー再起動によりジョブが中断されました。再度お試しください。"
+        row.finished_at = datetime.utcnow()
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
     return {
         "found": True,
         "status": row.status,

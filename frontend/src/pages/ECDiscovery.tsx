@@ -145,9 +145,9 @@ export default function ECDiscovery() {
           const saved = loadJob();
           if (saved) { saved.status = "done"; saved.result = jobResult ?? undefined; saveJob(saved); }
           fetchRecentEcCompanies();
-        } else if (data.status === "error") {
+        } else if (data.status === "error" || data.status === "interrupted") {
           clearInterval(pollRef.current!);
-          setError(data.message || "エラーが発生しました");
+          setError(data.message || (data.status === "interrupted" ? "サーバー再起動によりジョブが中断されました。再度お試しください。" : "エラーが発生しました"));
           setProgressMsg("");
           setRunning(false);
           clearJob();
