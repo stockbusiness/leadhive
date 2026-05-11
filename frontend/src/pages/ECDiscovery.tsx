@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ShoppingBag, Play, CheckCircle, XCircle, Loader2, ChevronRight, BarChart3, RefreshCw, MapPin, ExternalLink, Globe, Info } from "lucide-react";
+import { ShoppingBag, Play, CheckCircle, XCircle, Loader2, ChevronRight, BarChart3, RefreshCw, MapPin, ExternalLink, Globe, Info, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
 import type { Company } from "../types";
+import EmailCampaignModal from "../components/EmailCampaignModal";
 
 type CategoryId = "all" | "apparel" | "food" | "cosme" | "btob" | "handmade" | "interior" | "d2c" | "shopify_users";
 
@@ -90,6 +91,9 @@ export default function ECDiscovery() {
   const [collectedCompanies, setCollectedCompanies] = useState<Company[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [savedJobMeta, setSavedJobMeta] = useState<{ label: string; icon: string; region: string } | null>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [ecEmailIds, setEcEmailIds] = useState<number[]>([]);
+  const [fetchingEmailIds, setFetchingEmailIds] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentJobIdRef = useRef<string | null>(null);
@@ -535,6 +539,31 @@ export default function ECDiscovery() {
               <ChevronRight size={14} />
             </Link>
             <button
+              onClick={async () => {
+                setFetchingEmailIds(true);
+                try {
+                  const params: Record<string, string | number | boolean> = { ec_only: true };
+                  if (currentProject?.id) params.project_id = currentProject.id;
+                  const data = await api.companies.getAllIds(params);
+                  if (data.ids.length === 0) {
+                    alert("メールアドレスを持つEC企業が見つかりませんでした");
+                    return;
+                  }
+                  setEcEmailIds(data.ids);
+                  setShowEmailModal(true);
+                } catch {
+                  alert("EC企業IDの取得に失敗しました");
+                } finally {
+                  setFetchingEmailIds(false);
+                }
+              }}
+              disabled={fetchingEmailIds}
+              className="flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-green-700 transition-colors text-sm disabled:opacity-60"
+            >
+              {fetchingEmailIds ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+              収集したEC企業にメール送信
+            </button>
+            <button
               onClick={handleReset}
               className="flex items-center gap-2 text-sm text-slate-600 border border-slate-300 px-5 py-2.5 rounded-lg hover:bg-slate-50 transition-colors font-medium"
             >
@@ -543,6 +572,15 @@ export default function ECDiscovery() {
             </button>
           </div>
         </div>
+      )}
+
+      {showEmailModal && (
+        <EmailCampaignModal
+          companyIds={ecEmailIds}
+          companies={[]}
+          onClose={() => setShowEmailModal(false)}
+          onDone={() => setShowEmailModal(false)}
+        />
       )}
     </div>
   );

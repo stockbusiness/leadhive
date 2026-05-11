@@ -63,6 +63,8 @@ export default function Companies() {
   const [xlsxExporting, setXlsxExporting] = useState(false);
   const [csvPlan, setCsvPlan] = useState<PlanData | null | undefined>(undefined);
   const [showEmailCampaignModal, setShowEmailCampaignModal] = useState(false);
+  const [selectingAll, setSelectingAll] = useState(false);
+  const [allSelectedMode, setAllSelectedMode] = useState(false);
 
   useEffect(() => {
     api.plans.current().then((d) => setCsvPlan(d.plan ?? null)).catch(() => setCsvPlan(null));
@@ -107,6 +109,7 @@ export default function Companies() {
 
   useEffect(() => {
     setSelectedIds(new Set());
+    setAllSelectedMode(false);
   }, [page, filters]);
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -195,6 +198,32 @@ export default function Companies() {
         fetchCompanies();
       }
     }).catch(() => alert("再スクレイピングに失敗しました"));
+  };
+
+  const handleSelectAllFiltered = async () => {
+    setSelectingAll(true);
+    try {
+      const params: Record<string, string | number | boolean | undefined> = {};
+      if (filters.category) params.category = filters.category;
+      if (filters.status) params.status = filters.status;
+      if (filters.score_rank) params.score_rank = filters.score_rank;
+      if (filters.has_contact) params.has_contact = filters.has_contact === "true";
+      if (filters.search) params.search = filters.search;
+      if (filters.tag) params.tag = filters.tag;
+      if (filters.assignee_id === "unassigned") params.assignee_id = 0;
+      else if (filters.assignee_id) params.assignee_id = Number(filters.assignee_id);
+      if (filters.follow_up_filter) params.follow_up_filter = filters.follow_up_filter;
+      if (filters.cms_type) params.cms_type = filters.cms_type;
+      if (filters.ec_only === "true") params.ec_only = true;
+      if (currentProject?.id) params.project_id = currentProject.id;
+      const data = await api.companies.getAllIds(params);
+      setSelectedIds(new Set(data.ids));
+      setAllSelectedMode(true);
+    } catch {
+      alert("全件選択に失敗しました");
+    } finally {
+      setSelectingAll(false);
+    }
   };
 
   const handleBulkStatusChange = () => {
@@ -387,60 +416,78 @@ export default function Companies() {
       <CompanyFilterBar filters={filters} onFilterChange={handleFilterChange} />
 
       {selectedIds.size > 0 && viewMode === "list" && (
-        <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-          <CheckSquare size={18} className="text-blue-600" />
-          <span className="text-sm font-medium text-blue-800">
-            {selectedIds.size}件選択中
-          </span>
-          {isAdmin ? (
-            <>
-              <select
-                value={bulkStatus}
-                onChange={(e) => setBulkStatus(e.target.value)}
-                className="text-sm border border-blue-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">ステータスを選択...</option>
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+        <div className="space-y-0">
+          <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex-wrap">
+            <CheckSquare size={18} className="text-blue-600 flex-shrink-0" />
+            <span className="text-sm font-medium text-blue-800">
+              {selectedIds.size}件選択中
+            </span>
+            {!allSelectedMode && total > companies.length && (
               <button
-                onClick={handleBulkStatusChange}
-                disabled={!bulkStatus || bulkLoading}
-                className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSelectAllFiltered}
+                disabled={selectingAll}
+                className="text-sm text-blue-600 hover:text-blue-800 underline underline-offset-2 disabled:opacity-50"
               >
-                {bulkLoading ? "処理中..." : "一括変更"}
+                {selectingAll ? "取得中..." : `フィルター条件の全${total}件を選択する`}
               </button>
-            </>
-          ) : (
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "ステータス一括変更は有料プランで利用できます。" } }))}
-              className="flex items-center gap-1.5 bg-slate-200 text-slate-500 px-3 py-1 rounded text-sm cursor-not-allowed"
-            >
-              <Lock size={13} />
-              一括変更（ロック中）
-            </button>
-          )}
-          <button
-            onClick={() => setShowMoveModal(true)}
-            className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 transition-colors"
-          >
-            <MoveRight size={14} />
-            プロジェクト移動
-          </button>
-          <button
-            onClick={() => setShowEmailCampaignModal(true)}
-            className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
-          >
-            <Mail size={14} />
-            一括メール送信
-          </button>
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            className="text-sm text-slate-500 hover:text-slate-700 ml-auto"
-          >
-            選択解除
-          </button>
+            )}
+            {allSelectedMode && (
+              <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full font-medium">
+                全件選択中
+              </span>
+            )}
+            <div className="flex items-center gap-2 flex-wrap ml-auto">
+              {isAdmin ? (
+                <>
+                  <select
+                    value={bulkStatus}
+                    onChange={(e) => setBulkStatus(e.target.value)}
+                    className="text-sm border border-blue-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">ステータスを選択...</option>
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleBulkStatusChange}
+                    disabled={!bulkStatus || bulkLoading}
+                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkLoading ? "処理中..." : "一括変更"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "ステータス一括変更は有料プランで利用できます。" } }))}
+                  className="flex items-center gap-1.5 bg-slate-200 text-slate-500 px-3 py-1 rounded text-sm cursor-not-allowed"
+                >
+                  <Lock size={13} />
+                  一括変更
+                </button>
+              )}
+              <button
+                onClick={() => setShowMoveModal(true)}
+                className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 transition-colors"
+              >
+                <MoveRight size={14} />
+                <span className="hidden sm:inline">プロジェクト移動</span>
+              </button>
+              <button
+                onClick={() => setShowEmailCampaignModal(true)}
+                className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 transition-colors font-medium"
+              >
+                <Mail size={14} />
+                一括メール送信
+              </button>
+              <button
+                onClick={() => { setSelectedIds(new Set()); setAllSelectedMode(false); }}
+                className="text-sm text-slate-400 hover:text-slate-600"
+              >
+                解除
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

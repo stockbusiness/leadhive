@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Mail, Send, Info, CheckCircle2, AlertCircle, Loader2, ChevronDown, ChevronUp, Zap, Server } from "lucide-react";
+import { X, Mail, Send, Info, CheckCircle2, AlertCircle, Loader2, ChevronDown, ChevronUp, Zap, Server, FileText } from "lucide-react";
 import { STATUSES } from "../constants";
+import { api } from "../api";
 
 interface Company {
   id: number;
@@ -34,6 +35,88 @@ const VARIABLE_HINTS = [
   { var: "{{都道府県}}", desc: "都道府県" },
   { var: "{{市区町村}}", desc: "市区町村" },
   { var: "{{電話番号}}", desc: "電話番号" },
+];
+
+const EMAIL_TEMPLATES = [
+  {
+    label: "EC向け：サービス提案",
+    subject: "{{会社名}} 様｜EC事業者向けサービスのご案内",
+    body: `{{会社名}} ご担当者様
+
+はじめてご連絡申し上げます。
+株式会社〇〇の△△と申します。
+
+{{会社名}} 様のECサイトを拝見し、ご連絡させていただきました。
+
+弊社では、ECサイトオーナー様向けに〔サービス内容を記載〕をご提供しております。
+売上向上・業務効率化に多くのEC事業者様にご活用いただいております。
+
+もしよろしければ、詳細資料のご送付や、オンラインでのご説明の機会をいただけますでしょうか。
+
+ご多忙のところ恐れ入りますが、何卒ご検討いただけますと幸いです。
+
+━━━━━━━━━━━━━━━
+株式会社〇〇
+担当：△△
+TEL：03-xxxx-xxxx
+━━━━━━━━━━━━━━━
+
+※ 配信停止をご希望の場合は、本メールにその旨ご返信ください。`,
+  },
+  {
+    label: "初回アポイント依頼",
+    subject: "【ご挨拶】{{会社名}} 様へ、お打ち合わせのお願い",
+    body: `{{会社名}} ご担当者様
+
+突然のご連絡失礼いたします。
+〇〇株式会社の△△と申します。
+
+この度、{{会社名}} 様のご事業に関心を持ち、ご連絡させていただきました。
+
+弊社は〔会社・サービスの簡単な説明〕を行っております。
+{{会社名}} 様のビジネスにお役立ていただける点があると考え、
+一度お話しする機会をいただければ幸いです。
+
+15〜30分程度のオンラインミーティングをご希望でしたら、
+ご都合の良い日時をお知らせください。
+
+どうぞよろしくお願いいたします。
+
+━━━━━━━━━━━━━━━
+〇〇株式会社
+担当：△△
+Email：contact@example.com
+━━━━━━━━━━━━━━━`,
+  },
+  {
+    label: "資料送付のご案内",
+    subject: "{{会社名}} 様｜〔サービス名〕資料のご送付",
+    body: `{{会社名}} ご担当者様
+
+はじめてご連絡申し上げます。
+〇〇株式会社の△△でございます。
+
+{{会社名}} 様のECご事業を拝見し、弊社サービスをご活用いただける可能性があると感じ、
+資料をお届けしたくご連絡いたしました。
+
+■ 弊社サービスの特徴
+・〔特徴1〕
+・〔特徴2〕
+・〔特徴3〕
+
+詳細については添付資料をご覧いただくか、
+お気軽にご返信またはお電話にてお問い合わせください。
+
+ご検討のほど、どうぞよろしくお願い申し上げます。
+
+━━━━━━━━━━━━━━━
+〇〇株式会社
+担当：△△
+TEL：03-xxxx-xxxx
+━━━━━━━━━━━━━━━
+
+※ 今後のご案内が不要な場合はご返信にてお知らせください。`,
+  },
 ];
 
 type Tab = "compose" | "preview" | "settings";
@@ -106,6 +189,7 @@ export default function EmailCampaignModal({ companyIds, companies, onClose, onD
   const [htmlBody, setHtmlBody] = useState("");
   const [autoStatusOnOpen, setAutoStatusOnOpen] = useState("");
   const [autoStatusOnClick, setAutoStatusOnClick] = useState("");
+  const [backendPresets, setBackendPresets] = useState<{ id: string; label: string; title: string; content: string }[]>([]);
 
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState<ProgressEvent[]>([]);
@@ -129,6 +213,21 @@ export default function EmailCampaignModal({ companyIds, companies, onClose, onD
       progressRef.current.scrollTop = progressRef.current.scrollHeight;
     }
   }, [progress]);
+
+  useEffect(() => {
+    api.templates.ecPresets().then((data) => {
+      setBackendPresets(
+        data.presets
+          .filter((p: { is_email?: boolean }) => p.is_email)
+          .map((p: { id: string; label: string; platform?: string; title: string; content: string }) => ({
+            id: p.id,
+            label: p.platform ? `[${p.platform}] ${p.label}` : p.label,
+            title: p.title,
+            content: p.content,
+          }))
+      );
+    }).catch(() => {});
+  }, []);
 
   const insertVariable = (v: string) => {
     setHtmlBody((prev) => prev + v);
@@ -299,6 +398,32 @@ export default function EmailCampaignModal({ companyIds, companies, onClose, onD
             </div>
           ) : tab === "compose" ? (
             <div className="space-y-4">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+                <div className="px-4 py-2.5 flex items-center gap-2">
+                  <FileText size={14} className="text-indigo-500 shrink-0" />
+                  <span className="text-sm font-medium text-slate-700">テンプレートから始める</span>
+                </div>
+                <div className="flex gap-2 px-4 pb-3 flex-wrap">
+                  {EMAIL_TEMPLATES.map((tpl) => (
+                    <button
+                      key={tpl.label}
+                      onClick={() => { setSubject(tpl.subject); setHtmlBody(tpl.body); }}
+                      className="text-xs bg-white border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                  {backendPresets.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      onClick={() => { setSubject(tpl.title); setHtmlBody(tpl.content); }}
+                      className="text-xs bg-white border border-green-200 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-50 transition-colors font-medium"
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <InfoBox />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">

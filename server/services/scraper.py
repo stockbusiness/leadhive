@@ -173,6 +173,36 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
     if "weebly.com" in html_lower:
         return "Weebly"
 
+    if (
+        "bigcommerce.com" in html_lower
+        or response_headers.get("x-bc-store-uuid")
+        or "cdn11.bigcommerce.com" in html_lower
+    ):
+        return "BigCommerce"
+
+    if (
+        "mage" in html_lower and ("Mage.Cookies" in html_source or "Magento" in html_source)
+    ) or "magento" in html_lower or "adobe commerce" in html_lower:
+        return "Magento"
+
+    if "shoplineapp.com" in html_lower or "shopline.com" in html_lower:
+        return "Shopline"
+
+    if "prestashop" in html_lower or "presta-shop" in html_lower:
+        return "PrestaShop"
+
+    if "opencart" in html_lower:
+        return "OpenCart"
+
+    if "cafe24.com" in html_lower or "eclounge.net" in html_lower:
+        return "Cafe24"
+
+    if "colorfulbox" in html_lower or "colorfulbox.jp" in html_lower:
+        return "カラフルボックスEC"
+
+    if "melcart.jp" in html_lower:
+        return "メルカート"
+
     return ""
 
 
@@ -191,6 +221,14 @@ EC_PLATFORM_LABELS = {
     "Yahoo!ショッピング": "Yahoo!ショッピング",
     "aishipR": "aishipR",
     "ショップサーブ": "ショップサーブ",
+    "BigCommerce": "BigCommerce",
+    "Magento": "Magento",
+    "Shopline": "Shopline",
+    "PrestaShop": "PrestaShop",
+    "OpenCart": "OpenCart",
+    "Cafe24": "Cafe24",
+    "カラフルボックスEC": "カラフルボックスEC",
+    "メルカート": "メルカート",
     "WordPress": "WordPress",
     "Wix": "Wix",
     "Squarespace": "Squarespace",

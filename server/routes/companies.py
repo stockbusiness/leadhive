@@ -480,6 +480,90 @@ def export_companies_xlsx_v2(
     )
 
 
+@router.get("/ids")
+def get_company_ids(
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    score_rank: Optional[str] = None,
+    has_contact: Optional[bool] = None,
+    search: Optional[str] = None,
+    tag: Optional[str] = None,
+    assignee_id: Optional[int] = None,
+    follow_up_filter: Optional[str] = None,
+    cms_type: Optional[str] = None,
+    ec_only: Optional[bool] = None,
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Company.id, Company.email)
+    owned_ids = _owned_projects(current_user, db)
+    if project_id:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
+        query = query.filter(Company.project_id == project_id)
+    else:
+        query = query.filter(Company.project_id.in_(owned_ids))
+    if category:
+        query = query.filter(Company.category_main == category)
+    if status:
+        query = query.filter(Company.status == status)
+    if score_rank:
+        query = query.filter(Company.score_rank == score_rank)
+    if has_contact is not None:
+        if has_contact:
+            query = query.filter(Company.contact_url.isnot(None), Company.contact_url != "")
+        else:
+            query = query.filter((Company.contact_url.is_(None)) | (Company.contact_url == ""))
+    if search:
+        query = query.filter(
+            Company.company_name.ilike(f"%{search}%")
+            | Company.website_url.ilike(f"%{search}%")
+            | Company.domain.ilike(f"%{search}%")
+            | Company.notes.ilike(f"%{search}%")
+        )
+    if tag:
+        tagged_ids = db.query(CompanyTag.company_id).filter(CompanyTag.tag_name == tag).subquery()
+        query = query.filter(Company.id.in_(tagged_ids))
+    if assignee_id is not None:
+        if assignee_id == 0:
+            query = query.filter(Company.assignee_id.is_(None))
+        else:
+            query = query.filter(Company.assignee_id == assignee_id)
+    if cms_type:
+        if cms_type == "EC_PLATFORMS":
+            ec_platforms = ["Shopify", "WooCommerce", "BASE", "MakeShop", "futureshop",
+                            "カラーミー", "EC-CUBE", "STORES", "ロリポップEC", "NEXT ENGINE",
+                            "カート365", "Yahoo!ショッピング", "aishipR", "ショップサーブ"]
+            query = query.filter(Company.cms_type.in_(ec_platforms))
+        else:
+            query = query.filter(Company.cms_type == cms_type)
+    if ec_only:
+        query = query.filter(Company.ec_flag == True)
+    if follow_up_filter:
+        today = date.today()
+        if follow_up_filter == "overdue":
+            query = query.filter(Company.follow_up_date.isnot(None), Company.follow_up_date < today)
+        elif follow_up_filter == "today":
+            query = query.filter(Company.follow_up_date == today)
+        elif follow_up_filter == "week":
+            query = query.filter(
+                Company.follow_up_date.isnot(None),
+                Company.follow_up_date >= today,
+                Company.follow_up_date <= today + timedelta(days=7),
+            )
+    MAX_BULK = 500
+    rows = query.limit(MAX_BULK).all()
+    ids = [r[0] for r in rows]
+    with_email = sum(1 for r in rows if r[1])
+    return {
+        "ids": ids,
+        "total": len(ids),
+        "with_email": with_email,
+        "capped": len(rows) == MAX_BULK,
+    }
+
+
 @router.get("/{company_id}")
 def get_company(
     company_id: int,

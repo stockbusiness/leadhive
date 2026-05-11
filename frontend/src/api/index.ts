@@ -124,6 +124,11 @@ export const api = {
 
     patchStatus: (id: number, status: string) =>
       axios.patch<{ id: number; status: string }>(`/api/companies/${id}/status`, { status }).then(r => r.data),
+
+    getAllIds: (params: Record<string, string | number | boolean | undefined>) =>
+      axios.get<{ ids: number[]; total: number; with_email: number; capped: boolean }>(
+        "/api/companies/ids", { params }
+      ).then(r => r.data),
   },
 
   keywords: {
