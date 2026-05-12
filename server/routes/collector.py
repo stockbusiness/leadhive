@@ -152,6 +152,36 @@ def get_job_status(
     }
 
 
+@router.post("/cancel/{job_id}")
+def cancel_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """実行中のジョブをキャンセルする"""
+    from server.models import JobLog
+    from datetime import datetime as _dt
+    state = job_get(job_id)
+    if state:
+        # メモリ上のステータスをcancelledに変更 → run()ループがチェックして停止
+        from server.services.collector import _job_store, _job_store_lock
+        with _job_store_lock:
+            if job_id in _job_store:
+                _job_store[job_id]["status"] = "cancelled"
+                _job_store[job_id]["type"] = "error"
+                _job_store[job_id]["message"] = "ユーザーによってキャンセルされました"
+    row = db.query(JobLog).filter(JobLog.job_id == job_id).first()
+    if row and row.status == "running":
+        row.status = "interrupted"
+        row.message = "ユーザーによってキャンセルされました"
+        row.finished_at = _dt.utcnow()
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+    return {"cancelled": True, "job_id": job_id}
+
+
 @router.post("/async")
 def collect_async(
     data: dict,
@@ -286,7 +316,10 @@ def collect_ec_discovery(
     if region:
         keywords_text = [f"{kw} {region}" for kw in keywords_text]
 
+    _PER_KW_TIMEOUT = 300  # 1キーワードあたり最大5分
+
     def run():
+        import concurrent.futures as _cf
         db = SessionLocal()
         try:
             from server.services.collector import collect_by_keyword
@@ -298,6 +331,12 @@ def collect_ec_discovery(
             total_kws = len(keywords_text)
 
             for i, kw_text in enumerate(keywords_text):
+                # ジョブがキャンセルされていたら終了
+                current_state = job_get(job_id)
+                if current_state.get("status") == "cancelled":
+                    logger.info(f"EC discovery job {job_id} cancelled at keyword {i+1}/{total_kws}")
+                    break
+
                 job_update(
                     job_id,
                     current=i,
@@ -317,7 +356,14 @@ def collect_ec_discovery(
                 db.commit()
                 db.refresh(temp_kw)
                 try:
-                    result = collect_by_keyword(temp_kw.id, db, project_id=project_id)
+                    # 1キーワードあたり最大_PER_KW_TIMEOUT秒でタイムアウト
+                    with _cf.ThreadPoolExecutor(max_workers=1) as _kw_pool:
+                        _kw_fut = _kw_pool.submit(collect_by_keyword, temp_kw.id, db, project_id=project_id)
+                        try:
+                            result = _kw_fut.result(timeout=_PER_KW_TIMEOUT)
+                        except _cf.TimeoutError:
+                            logger.warning(f"EC discovery keyword timeout ({_PER_KW_TIMEOUT}s): {kw_text}")
+                            result = {"summary": {"success": 0, "duplicate": 0, "rejected": 0}}
                     summary = result.get("summary", {})
                     total_success += summary.get("success", 0)
                     total_duplicate += summary.get("duplicate", 0)

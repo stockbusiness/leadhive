@@ -649,16 +649,26 @@ def crawl_delay(domain: str):
 
 
 def scrape_urls_parallel(urls: list[str], max_workers: int = 5) -> list[dict]:
+    from concurrent.futures import TimeoutError as _FutureTimeoutError
     results = [None] * len(urls)
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_index = {
             executor.submit(scrape_company_info, url): i
             for i, url in enumerate(urls)
         }
-        for future in as_completed(future_to_index):
-            idx = future_to_index[future]
-            try:
-                results[idx] = future.result()
-            except Exception as e:
-                results[idx] = {"error": str(e), "error_type": "executor_error", "website_url": urls[idx], "domain": urlparse(urls[idx]).netloc}
+        try:
+            # バッチ全体に120秒のタイムアウトを設定（ハング防止）
+            for future in as_completed(future_to_index, timeout=120):
+                idx = future_to_index[future]
+                try:
+                    results[idx] = future.result(timeout=25)
+                except Exception as e:
+                    results[idx] = {"error": str(e), "error_type": "executor_error", "website_url": urls[idx], "domain": urlparse(urls[idx]).netloc}
+        except _FutureTimeoutError:
+            logger.warning(f"scrape_urls_parallel: バッチタイムアウト（120秒）。未処理URLをスキップします。")
+            for future, idx in future_to_index.items():
+                if results[idx] is None:
+                    url = urls[idx]
+                    results[idx] = {"error": "batch_timeout", "error_type": "batch_timeout", "website_url": url, "domain": urlparse(url).netloc}
+                future.cancel()
     return results

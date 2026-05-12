@@ -275,6 +275,16 @@ export default function ECDiscovery() {
     currentJobIdRef.current = null;
   };
 
+  const handleCancel = async () => {
+    const jobId = currentJobIdRef.current;
+    if (jobId) {
+      try {
+        await api.collector.cancelJob(jobId);
+      } catch (_) {}
+    }
+    handleReset();
+  };
+
   const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
   const selectedPreset = CATEGORY_PRESETS.find(c => c.id === selectedCategory)!;
   const displayMeta = savedJobMeta ?? { label: selectedPreset.label, icon: selectedPreset.icon, region };
@@ -379,12 +389,20 @@ export default function ECDiscovery() {
 
       {running && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
-          <div className="flex items-center gap-3">
-            <Loader2 size={22} className="text-emerald-600 animate-spin flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="font-semibold text-slate-800">EC収集中...</p>
-              <p className="text-sm text-slate-500 truncate">{progressMsg || "処理中..."}</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Loader2 size={22} className="text-emerald-600 animate-spin flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="font-semibold text-slate-800">EC収集中...</p>
+                <p className="text-sm text-slate-500 truncate">{progressMsg || "処理中..."}</p>
+              </div>
             </div>
+            <button
+              onClick={handleCancel}
+              className="flex-shrink-0 flex items-center gap-1.5 text-xs text-slate-500 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
+            >
+              キャンセル
+            </button>
           </div>
 
           <div>

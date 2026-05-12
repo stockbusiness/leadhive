@@ -225,6 +225,9 @@ export const api = {
         total?: number;
         result?: { total_success: number; total_duplicate: number; total_rejected: number; keywords_processed: number };
       }>(`/api/collect/job-status/${jobId}`).then(r => r.data),
+
+    cancelJob: (jobId: string) =>
+      axios.post<{ cancelled: boolean; job_id: string }>(`/api/collect/cancel/${jobId}`).then(r => r.data),
   },
 
   templates: {
