@@ -408,7 +408,11 @@ export default function ECDiscovery() {
           <div>
             <div className="flex justify-between text-xs text-slate-500 mb-1.5">
               <span>進捗</span>
-              <span>{progressCurrent} / {progressTotal || "?"} キーワード</span>
+              <span>
+                {progressTotal > 0
+                  ? `${progressCurrent} / ${progressTotal} バッチ`
+                  : "処理中..."}
+              </span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
               <div

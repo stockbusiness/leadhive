@@ -316,60 +316,123 @@ def collect_ec_discovery(
     if region:
         keywords_text = [f"{kw} {region}" for kw in keywords_text]
 
-    _PER_KW_TIMEOUT = 300  # 1キーワードあたり最大5分
+    # スレッド開始前にorg_idとscoring_rulesを取得
+    org_id = getattr(current_user, "org_id", None)
+    scoring_rules = None
+    if project_id:
+        _pre_db = SessionLocal()
+        try:
+            from server.models import Project as _Proj
+            _proj = _pre_db.query(_Proj).filter(_Proj.id == project_id).first()
+            if _proj and _proj.scoring_rules:
+                scoring_rules = _proj.scoring_rules
+        except Exception:
+            pass
+        finally:
+            _pre_db.close()
 
     def run():
-        import concurrent.futures as _cf
         db = SessionLocal()
         try:
-            from server.services.collector import collect_by_keyword
-            from server.models import SearchKeyword as SKW
+            from server.services.collector import _process_search_results
+            from server.services.serper_search import search_serper, get_serper_api_key
+            from server.models import Company, RejectedUrl
 
+            total_kws = len(keywords_text)
             total_success = 0
             total_duplicate = 0
             total_rejected = 0
-            total_kws = len(keywords_text)
+
+            # Serper API キー取得
+            serper_key = get_serper_api_key(db=db, org_id=org_id)
+            if not serper_key:
+                job_update(job_id, type="error", message="Serper APIキーが設定されていません。設定画面で登録してください。")
+                return
+
+            # 既存ドメイン・除外ドメインを一括ロード（重複排除用）
+            rej_q = db.query(RejectedUrl.domain)
+            comp_q = db.query(Company.domain)
+            if project_id:
+                rej_q = rej_q.filter(RejectedUrl.project_id == project_id)
+                comp_q = comp_q.filter(Company.project_id == project_id)
+            rejected_domains = set(r.domain for r in rej_q.all())
+            existing_domains = set(c.domain for c in comp_q.all())
+
+            # ========== Phase 1: 全キーワードを検索してURLを収集 ==========
+            all_search_results = []
+            seen_urls: set = set()
 
             for i, kw_text in enumerate(keywords_text):
-                # ジョブがキャンセルされていたら終了
-                current_state = job_get(job_id)
-                if current_state.get("status") == "cancelled":
-                    logger.info(f"EC discovery job {job_id} cancelled at keyword {i+1}/{total_kws}")
+                if job_get(job_id).get("status") == "cancelled":
+                    logger.info(f"EC discovery {job_id} cancelled at search phase {i+1}/{total_kws}")
                     break
 
                 job_update(
                     job_id,
                     current=i,
                     total=total_kws,
-                    message=f"({i+1}/{total_kws}) EC探索: 「{kw_text}」...",
+                    message=f"[検索 {i+1}/{total_kws}] 「{kw_text}」を検索中...",
                     status="running",
                 )
-                temp_kw = SKW(
-                    keyword=kw_text,
-                    category="EC運営",
-                    region=region,
-                    exclude_keywords="",
-                    is_active=True,
-                    project_id=project_id,
-                )
-                db.add(temp_kw)
-                db.commit()
-                db.refresh(temp_kw)
                 try:
-                    # 1キーワードあたり最大_PER_KW_TIMEOUT秒でタイムアウト
-                    with _cf.ThreadPoolExecutor(max_workers=1) as _kw_pool:
-                        _kw_fut = _kw_pool.submit(collect_by_keyword, temp_kw.id, db, project_id=project_id)
-                        try:
-                            result = _kw_fut.result(timeout=_PER_KW_TIMEOUT)
-                        except _cf.TimeoutError:
-                            logger.warning(f"EC discovery keyword timeout ({_PER_KW_TIMEOUT}s): {kw_text}")
-                            result = {"summary": {"success": 0, "duplicate": 0, "rejected": 0}}
-                    summary = result.get("summary", {})
-                    total_success += summary.get("success", 0)
-                    total_duplicate += summary.get("duplicate", 0)
-                    total_rejected += summary.get("rejected", 0)
+                    results = search_serper(serper_key, kw_text, num=30)
+                    if results and not ("error" in results[0]):
+                        for r in results:
+                            url = r.get("url", "")
+                            if url and url not in seen_urls:
+                                seen_urls.add(url)
+                                all_search_results.append(r)
                 except Exception as e:
-                    logger.warning(f"EC discovery keyword error ({kw_text}): {e}")
+                    logger.warning(f"EC discovery search error ({kw_text}): {e}")
+
+            total_urls_found = len(all_search_results)
+            logger.info(f"EC discovery {job_id}: {total_urls_found} unique URLs from {total_kws} keywords")
+
+            if not all_search_results:
+                job_update(
+                    job_id, type="done",
+                    result={"total_success": 0, "total_duplicate": 0, "total_rejected": 0, "keywords_processed": total_kws},
+                    message="URLが見つかりませんでした",
+                )
+                return
+
+            # ========== Phase 2: 100件ずつスクレイプ・保存 ==========
+            CHUNK_SIZE = 100
+            chunks = [all_search_results[c:c + CHUNK_SIZE] for c in range(0, total_urls_found, CHUNK_SIZE)]
+            total_chunks = len(chunks)
+
+            for chunk_idx, chunk in enumerate(chunks):
+                if job_get(job_id).get("status") == "cancelled":
+                    logger.info(f"EC discovery {job_id} cancelled at save batch {chunk_idx+1}/{total_chunks}")
+                    break
+
+                chunk_start = chunk_idx * CHUNK_SIZE + 1
+                chunk_end = min(chunk_start + len(chunk) - 1, total_urls_found)
+
+                job_update(
+                    job_id,
+                    current=chunk_idx,
+                    total=total_chunks,
+                    message=f"[保存 {chunk_idx+1}/{total_chunks}] {chunk_start}〜{chunk_end}件目を処理中... (保存済み: {total_success}件)",
+                    status="running",
+                )
+                try:
+                    # _process_search_results は企業を1件ずつ即時保存する
+                    # rejected_domains / existing_domains はチャンク間で共有され重複排除される
+                    results = _process_search_results(
+                        chunk, db, rejected_domains, existing_domains,
+                        project_id=project_id,
+                        scoring_rules=scoring_rules,
+                    )
+                    total_success += sum(1 for r in results if r and r.get("status") == "success")
+                    total_duplicate += sum(1 for r in results if r and r.get("status") == "duplicate")
+                    total_rejected += sum(1 for r in results if r and r.get("status") == "rejected")
+                    logger.info(
+                        f"EC discovery batch {chunk_idx+1}/{total_chunks}: "
+                        f"+{sum(1 for r in results if r and r.get('status')=='success')} saved, total={total_success}"
+                    )
+                except Exception as e:
+                    logger.warning(f"EC discovery batch {chunk_idx+1} error: {e}")
                     try:
                         db.rollback()
                     except Exception:
@@ -385,7 +448,7 @@ def collect_ec_discovery(
                     "total_rejected": total_rejected,
                     "keywords_processed": total_kws,
                 },
-                message=f"EC専用収集完了: {total_success}件獲得",
+                message=f"EC専用収集完了: {total_success}件獲得（{total_urls_found}URL中）",
             )
         except Exception as e:
             job_update(job_id, type="error", message=str(e))
