@@ -42,19 +42,70 @@ async def collect_progress(job_id: str):
         waited = 0
         interval = 0.5
         sent_done = False
+        db_checked = False
+
         while waited < max_wait:
             state = job_get(job_id)
-            if not state:
-                await asyncio.sleep(interval)
-                waited += interval
-                continue
-            data = json.dumps(state, ensure_ascii=False)
-            yield f"data: {data}\n\n"
-            if state.get("type") in ("done", "error"):
-                sent_done = True
-                break
+            if state:
+                data = json.dumps(state, ensure_ascii=False)
+                yield f"data: {data}\n\n"
+                if state.get("type") in ("done", "error"):
+                    sent_done = True
+                    break
+            else:
+                # ジョブがメモリにない場合、10秒待ってからDBを確認する
+                # （サーバー再起動後の再接続時に900秒待つのを防ぐ）
+                if not db_checked and waited >= 10:
+                    db_checked = True
+                    try:
+                        from server.database import SessionLocal
+                        from server.models import JobLog
+                        from datetime import datetime as _dt
+                        _db = SessionLocal()
+                        try:
+                            row = _db.query(JobLog).filter(JobLog.job_id == job_id).first()
+                            if not row:
+                                yield f"data: {json.dumps({'type': 'error', 'status': 'error', 'message': 'ジョブが見つかりません。再度収集を開始してください。'}, ensure_ascii=False)}\n\n"
+                                sent_done = True
+                                break
+                            elif row.status in ("interrupted", "error"):
+                                msg = row.message or "サーバー再起動によりジョブが中断されました。再度お試しください。"
+                                if row.status == "running":
+                                    row.status = "interrupted"
+                                    row.message = msg
+                                    row.finished_at = _dt.utcnow()
+                                    try:
+                                        _db.commit()
+                                    except Exception:
+                                        _db.rollback()
+                                yield f"data: {json.dumps({'type': 'error', 'status': 'interrupted', 'message': msg}, ensure_ascii=False)}\n\n"
+                                sent_done = True
+                                break
+                            elif row.status == "running":
+                                # DBには"running"があるが、サーバー再起動でメモリ消失 → interrupted扱い
+                                row.status = "interrupted"
+                                row.message = "サーバー再起動によりジョブが中断されました。再度お試しください。"
+                                row.finished_at = _dt.utcnow()
+                                try:
+                                    _db.commit()
+                                except Exception:
+                                    _db.rollback()
+                                yield f"data: {json.dumps({'type': 'error', 'status': 'interrupted', 'message': row.message}, ensure_ascii=False)}\n\n"
+                                sent_done = True
+                                break
+                            elif row.status == "done":
+                                yield f"data: {json.dumps({'type': 'done', 'status': 'done', 'message': '収集は完了済みです'}, ensure_ascii=False)}\n\n"
+                                sent_done = True
+                                break
+                            # それ以外は待機継続（起動直後など）
+                        finally:
+                            _db.close()
+                    except Exception as _e:
+                        logger.warning(f"SSE DB fallback check error: {_e}")
+
             await asyncio.sleep(interval)
             waited += interval
+
         if not sent_done:
             yield f"data: {json.dumps({'type': 'error', 'message': 'タイムアウト'})}\n\n"
         job_cleanup(job_id)

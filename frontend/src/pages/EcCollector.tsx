@@ -55,11 +55,11 @@ function useJobProgress() {
     es.onmessage = (evt) => {
       try {
         const data = JSON.parse(evt.data);
-        if (data.status === "running") {
+        if (data.status === "running" || data.type === "progress") {
           setProgressMsg(data.message || "収集中...");
           setProgressCurrent(data.current ?? 0);
           setProgressTotal(data.total ?? 0);
-        } else if (data.status === "done" || data.status === "completed") {
+        } else if (data.status === "done" || data.status === "completed" || data.type === "done") {
           setJobStatus("done");
           setProgressMsg("収集完了！");
           setResult({
@@ -68,16 +68,19 @@ function useJobProgress() {
             errors: data.errors ?? [],
           });
           es.close();
-        } else if (data.status === "error") {
+        } else if (data.status === "error" || data.status === "interrupted" || data.type === "error") {
           setJobStatus("error");
-          setErrorMsg(data.message || "収集中にエラーが発生しました");
+          const defaultMsg = data.status === "interrupted"
+            ? "サーバー再起動によりジョブが中断されました。再度お試しください。"
+            : "収集中にエラーが発生しました";
+          setErrorMsg(data.message || defaultMsg);
           es.close();
         }
       } catch {}
     };
     es.onerror = () => {
       setJobStatus("error");
-      setErrorMsg("接続が切れました。ページを再読み込みして再度お試しください。");
+      setErrorMsg("接続が切れました。しばらく待つか、再試行してください。");
       es.close();
     };
   };

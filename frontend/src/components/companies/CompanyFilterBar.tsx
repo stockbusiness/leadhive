@@ -26,6 +26,18 @@ const CMS_COLORS: Record<string, string> = {
   futureshop: "bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-200",
   "カラーミー": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
   "EC-CUBE": "bg-cyan-100 text-cyan-800 border-cyan-300 hover:bg-cyan-200",
+  "ロリポップEC": "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300 hover:bg-fuchsia-200",
+  aishipR: "bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200",
+  "ショップサーブ": "bg-lime-100 text-lime-800 border-lime-300 hover:bg-lime-200",
+  "カート365": "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200",
+  BigCommerce: "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200",
+  Magento: "bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200",
+  Shopline: "bg-violet-100 text-violet-800 border-violet-300 hover:bg-violet-200",
+  PrestaShop: "bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200",
+  OpenCart: "bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-200",
+  Cafe24: "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200",
+  "カラフルボックスEC": "bg-pink-100 text-pink-800 border-pink-300 hover:bg-pink-200",
+  "メルカート": "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
   WordPress: "bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-200",
   Wix: "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
 };
@@ -190,9 +202,8 @@ export default function CompanyFilterBar({
         >
           <option value="">全CMS/プラットフォーム</option>
           <option value="EC_PLATFORMS">🛒 ECプラットフォーム全般</option>
-          <optgroup label="ECカート">
+          <optgroup label="ECカート（国内）">
             <option value="Shopify">Shopify</option>
-            <option value="WooCommerce">WooCommerce</option>
             <option value="BASE">BASE</option>
             <option value="STORES">STORES</option>
             <option value="MakeShop">MakeShop</option>
@@ -203,6 +214,17 @@ export default function CompanyFilterBar({
             <option value="aishipR">aishipR</option>
             <option value="ショップサーブ">ショップサーブ</option>
             <option value="カート365">カート365</option>
+            <option value="カラフルボックスEC">カラフルボックスEC</option>
+            <option value="メルカート">メルカート</option>
+          </optgroup>
+          <optgroup label="ECカート（海外系）">
+            <option value="WooCommerce">WooCommerce</option>
+            <option value="BigCommerce">BigCommerce</option>
+            <option value="Magento">Magento</option>
+            <option value="Shopline">Shopline</option>
+            <option value="PrestaShop">PrestaShop</option>
+            <option value="OpenCart">OpenCart</option>
+            <option value="Cafe24">Cafe24</option>
           </optgroup>
           <optgroup label="CMS">
             <option value="WordPress">WordPress</option>

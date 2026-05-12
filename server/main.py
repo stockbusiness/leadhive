@@ -429,13 +429,33 @@ def _cleanup_stale_jobs():
 
 
 def _schedule_periodic_restart(interval_hours: int = 24):
-    """定期的にプロセスを終了してデプロイの自動再起動を促す"""
+    """定期的にプロセスを終了してデプロイの自動再起動を促す。
+    収集ジョブ実行中は再起動を遅延させ、ジョブ完了後に実施する。"""
     def _restart_worker():
         import time
+        from server.services.collector import _job_store, _job_store_lock
         secs = interval_hours * 3600
         print(f"[LeadHive] 定期再起動タイマー開始: {interval_hours}時間後に再起動します")
         time.sleep(secs)
-        print(f"[LeadHive] 定期再起動: {interval_hours}時間経過のためプロセスを再起動します")
+        # 収集ジョブが実行中の場合は最大30分待機してから再起動
+        wait_limit = 30 * 60
+        wait_elapsed = 0
+        wait_interval = 60
+        while wait_elapsed < wait_limit:
+            with _job_store_lock:
+                active = [
+                    jid for jid, state in _job_store.items()
+                    if state.get("status") == "running" and not jid.startswith("_")
+                ]
+            if not active:
+                break
+            print(f"[LeadHive] 定期再起動待機中: {len(active)}件の収集ジョブ実行中 ({wait_elapsed//60}分/{wait_limit//60}分経過)")
+            time.sleep(wait_interval)
+            wait_elapsed += wait_interval
+        if wait_elapsed >= wait_limit:
+            print("[LeadHive] 定期再起動: 待機上限(30分)に達したため強制再起動します")
+        else:
+            print(f"[LeadHive] 定期再起動: {interval_hours}時間経過・ジョブ完了を確認したためプロセスを再起動します")
         # exit code 1 で終了することで本番環境（Replit Deploy）の自動再起動を確実に発動
         os._exit(1)
     t = threading.Thread(target=_restart_worker, daemon=True)

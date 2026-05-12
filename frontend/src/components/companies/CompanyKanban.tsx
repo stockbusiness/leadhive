@@ -61,16 +61,28 @@ function CompanyCard({ company, isDragging }: { company: Company; isDragging?: b
         {company.cms_type ? (
           <span className={`text-[10px] px-1.5 py-0.5 rounded ${
             company.cms_type === "Shopify" ? "bg-green-100 text-green-700" :
-            company.cms_type === "BASE" ? "bg-orange-100 text-orange-700" :
+            company.cms_type === "BASE" ? "bg-pink-100 text-pink-700" :
             company.cms_type === "MakeShop" ? "bg-blue-100 text-blue-700" :
-            company.cms_type === "futureshop" ? "bg-sky-100 text-sky-700" :
-            company.cms_type === "STORES" ? "bg-pink-100 text-pink-700" :
-            company.cms_type === "EC-CUBE" ? "bg-amber-100 text-amber-700" :
-            company.cms_type === "Wix" ? "bg-sky-100 text-sky-700" :
-            company.cms_type === "WordPress" ? "bg-blue-100 text-blue-700" :
+            company.cms_type === "futureshop" ? "bg-indigo-100 text-indigo-700" :
+            company.cms_type === "STORES" ? "bg-orange-100 text-orange-700" :
+            company.cms_type === "EC-CUBE" ? "bg-cyan-100 text-cyan-700" :
+            company.cms_type === "WooCommerce" ? "bg-purple-100 text-purple-700" :
+            company.cms_type === "カラーミー" ? "bg-red-100 text-red-700" :
+            company.cms_type === "ロリポップEC" ? "bg-fuchsia-100 text-fuchsia-700" :
+            company.cms_type === "aishipR" ? "bg-teal-100 text-teal-700" :
+            company.cms_type === "BigCommerce" ? "bg-blue-100 text-blue-700" :
+            company.cms_type === "Magento" ? "bg-orange-100 text-orange-700" :
+            company.cms_type === "Shopline" ? "bg-violet-100 text-violet-700" :
+            company.cms_type === "PrestaShop" ? "bg-rose-100 text-rose-700" :
+            company.cms_type === "OpenCart" ? "bg-sky-100 text-sky-700" :
+            company.cms_type === "Cafe24" ? "bg-emerald-100 text-emerald-700" :
+            company.cms_type === "カラフルボックスEC" ? "bg-pink-100 text-pink-700" :
+            company.cms_type === "メルカート" ? "bg-yellow-100 text-yellow-700" :
+            company.cms_type === "Wix" ? "bg-yellow-100 text-yellow-700" :
+            company.cms_type === "WordPress" ? "bg-sky-100 text-sky-700" :
             "bg-slate-100 text-slate-600"
           }`}>
-            {["Shopify", "BASE", "EC-CUBE", "MakeShop", "futureshop", "STORES"].includes(company.cms_type) ? `🛒 ${company.cms_type}` : company.cms_type}
+            {["Shopify","BASE","EC-CUBE","MakeShop","futureshop","STORES","WooCommerce","カラーミー","ロリポップEC","aishipR","BigCommerce","Magento","Shopline","PrestaShop","OpenCart","Cafe24","カラフルボックスEC","メルカート"].includes(company.cms_type) ? `🛒 ${company.cms_type}` : company.cms_type}
           </span>
         ) : (
           <>
