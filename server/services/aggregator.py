@@ -61,6 +61,30 @@ KNOWN_AGGREGATOR_DOMAINS = [
     "mapfan.com", "goo.ne.jp", "nuvilog.jp",
     # SNS・コミュニティ
     "pinterest.com", "tiktok.com", "line.me",
+    # メディア・雑誌・ニュースサイト
+    "ascii.jp", "nikkeibp.co.jp", "nikkei-trendy.com",
+    "impress.co.jp", "itmedia.co.jp", "cnet.com", "techcrunch.com",
+    "diamond.jp", "toyokeizai.net", "president.jp",
+    "dime.jp", "gizmodo.jp", "engadget.com",
+    "buzzfeed.com", "huffingtonpost.jp", "livedoor.jp",
+    "excite.co.jp", "infoseek.co.jp", "biglobe.ne.jp",
+    "mag2.com", "allabout.co.jp", "mynavi.jp",
+    "itmedia.co.jp", "keizai.biz", "sbbit.jp",
+    "markezine.jp", "nikkansports.com", "sanspo.com",
+    "mediaonline.jp", "fnn.jp", "tv-asahi.co.jp",
+    "ntv.co.jp", "tbs.co.jp", "nhk.jp",
+    # 電子書籍・出版
+    "bookwalker.jp", "ebookjapan.yahoo.co.jp", "honto.jp",
+    "kindle.amazon.co.jp", "dbook.docomo.ne.jp", "cmoa.jp",
+    # 官公庁・学術・PDFが多いサイト
+    "meti.go.jp", "mof.go.jp", "cao.go.jp", "soumu.go.jp",
+    "jftc.go.jp", "fsa.go.jp", "mhlw.go.jp",
+    "ndl.go.jp", "ipa.go.jp", "nict.go.jp",
+    "jst.go.jp", "jsps.go.jp", "riken.jp",
+    "ac.jp",  # 大学・学術機関全般（サブドメインに含む）
+    # 証券・IR・投資情報
+    "irbank.net", "kabuyoho.ir-bank.net", "tanshin.co.jp",
+    "traders.co.jp", "monex.co.jp", "sbi.co.jp",
 ]
 
 AGGREGATOR_TITLE_PATTERNS = [
@@ -68,12 +92,18 @@ AGGREGATOR_TITLE_PATTERNS = [
     r"ランキング", r"比較", r"まとめ",
     r"一覧", r"徹底比較", r"厳選",
     r"best\s*\d+", r"top\s*\d+",
+    r"とは(何か|どんな|[\?？])", r"解説", r"メリット.*デメリット",
+    r"号\s*[-–]\s*", r"アーカイブ", r"懸賞", r"報告書", r"論文",
+    r"年\d+月", r"短期大学", r"大学院",
 ]
 
 AGGREGATOR_URL_PATTERNS = [
     r"ranking", r"matome", r"hikaku",
     r"compare", r"best-?of", r"top-?\d+",
     r"recommend", r"osusume",
+    r"/\d{4}/\d{2}/",   # 日付パス（ブログ記事）
+    r"/articles?/", r"/news/", r"/column/", r"/media/",
+    r"/blog/", r"/archive", r"\.pdf($|\?)",
 ]
 
 

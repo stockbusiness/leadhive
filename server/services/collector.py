@@ -148,6 +148,75 @@ def _detect_ec_platform_from_url(url: str, title: str = "", snippet: str = "") -
     return flags
 
 
+_EC_POSITIVE_KEYWORDS = [
+    "通販", "ネットショップ", "オンラインショップ", "公式ショップ", "公式ストア",
+    "公式通販", "自社ec", "d2c", "定期便", "お取り寄せ", "カート", "購入",
+    "ショッピング", "shop", "store", "ec", "ecommerce", "買う", "注文",
+    "オンライン販売", "直販", "直売", "通信販売",
+]
+
+_NON_EC_TITLE_PATTERNS = [
+    r"^\[PDF\]", r"^PDF\s", r"\[PDF\]", r"\.pdf$",
+    r"とは(何か|どんな|[\?？\s])", r"メリット.*デメリット", r"デメリット.*メリット",
+    r"解説(記事|コラム)?$", r"入門", r"基礎知識",
+    r"号\s*[-–―]\s*", r"アーカイブ", r"懸賞", r"報告書", r"統合報告",
+    r"論文", r"学術", r"授業", r"シラバス",
+    r"年\d+月", r"短期大学", r"大学院", r"専門学校",
+    r"プレスリリース", r"ニュースリリース", r"お知らせ$",
+    r"\d{4}年\d+月\d+日",
+]
+
+_NON_EC_URL_PATTERNS = [
+    r"\.pdf($|\?|#)", r"/\d{4}/\d{2}/\d{2}/", r"/\d{4}/\d{2}/",
+    r"/news/", r"/article", r"/column/", r"/blog/",
+    r"/media/", r"/press/", r"/release/",
+    r"/archive", r"/report/", r"/pdf/",
+    r"/recruit/", r"/ir/", r"/investor/",
+    r"/about/", r"/company/philosophy",
+    r"/seminar/", r"/event/", r"/whitepaper/",
+]
+
+
+def _is_likely_ec_shop(url: str, title: str, snippet: str, platform_flags: dict) -> tuple[bool, str]:
+    """EC shopである可能性が高いかどうかを判定する（軽量チェック）。
+    Returns (is_ec, reject_reason). reject_reason が空文字なら通過。
+    """
+    url_lower = url.lower()
+    title_lower = title.lower()
+    combined = f"{title} {snippet}".lower()
+
+    # 1. PDFチェック（最優先）
+    if url_lower.endswith(".pdf") or "/.pdf" in url_lower or "%2Fpdf" in url_lower:
+        return False, "PDFファイル"
+    if re.search(r"^\s*\[pdf\]", title_lower, re.IGNORECASE) or title_lower.startswith("[pdf]"):
+        return False, "PDFファイル（タイトル）"
+
+    # 2. URL深度チェック（ブログ記事・ニュース記事）
+    path = urlparse(url).path
+    for pattern in _NON_EC_URL_PATTERNS:
+        if re.search(pattern, path, re.IGNORECASE):
+            return False, f"記事/PDF URLパターン: {pattern}"
+
+    # 3. タイトルの非ECパターン
+    for pattern in _NON_EC_TITLE_PATTERNS:
+        if re.search(pattern, title, re.IGNORECASE):
+            return False, f"非ECタイトルパターン: {pattern}"
+
+    # 4. 学術・官公庁ドメイン（ac.jp, go.jp）
+    netloc = urlparse(url).netloc.lower()
+    if netloc.endswith(".ac.jp") or netloc.endswith(".go.jp") or netloc.endswith(".ed.jp"):
+        return False, "学術・官公庁ドメイン"
+
+    # 5. EC信頼性チェック: プラットフォーム検出なし かつ EC陽性シグナルが皆無の場合は除外
+    has_platform = bool(platform_flags.get("cms_type"))
+    if not has_platform:
+        has_positive = any(kw in combined for kw in _EC_POSITIVE_KEYWORDS)
+        if not has_positive:
+            return False, "ECシグナルなし（プラットフォーム未検出・キーワードなし）"
+
+    return True, ""
+
+
 def _save_ec_from_search_results_lightweight(
     search_results: list[dict],
     db: Session,
@@ -175,6 +244,15 @@ def _save_ec_from_search_results_lightweight(
             results.append({"url": url, "status": "rejected", "message": "拒否リストに登録済み"})
             continue
 
+        # プラットフォーム判定（is_likely_ec_shop のチェックで使うために先に実行）
+        platform_flags = _detect_ec_platform_from_url(url, title, snippet)
+
+        # EC適格性チェック（PDF・記事・非ECページを除外）
+        is_ec, reject_reason = _is_likely_ec_shop(url, title, snippet, platform_flags)
+        if not is_ec:
+            results.append({"url": url, "status": "rejected", "message": f"EC非適格: {reject_reason}"})
+            continue
+
         is_agg, reason = is_aggregator_site(url, title)
         if is_agg:
             existing_rej = db.query(RejectedUrl).filter(RejectedUrl.domain == domain).first()
@@ -191,9 +269,6 @@ def _save_ec_from_search_results_lightweight(
         if domain in existing_domains:
             results.append({"url": url, "status": "duplicate", "message": "既に登録済み"})
             continue
-
-        # URLパターン・メタ情報からECプラットフォーム判定
-        platform_flags = _detect_ec_platform_from_url(url, title, snippet)
 
         company_name = title.strip() if title else domain
         # タイトルが長すぎる場合は短縮
