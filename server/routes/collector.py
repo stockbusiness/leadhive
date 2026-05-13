@@ -406,12 +406,21 @@ def collect_ec_discovery(
                     rej_count=0,
                 )
                 try:
-                    results = search_serper(serper_key, kw_text, num=100)
+                    results = search_serper(serper_key, kw_text, num=200)
                     if results and not ("error" in results[0]):
+                        from server.services.collector import _normalize_to_homepage
+                        from urllib.parse import urlparse as _up
+                        from server.services.aggregator import normalize_domain as _nd
                         for r in results:
                             url = r.get("url", "")
-                            if url and url not in seen_urls:
-                                seen_urls.add(url)
+                            if not url:
+                                continue
+                            # ホームページURLでの重複排除（/blog/ 等のパス違いを同一サイトとして扱う）
+                            homepage = _normalize_to_homepage(url)
+                            domain_key = _nd(_up(homepage).netloc)
+                            if domain_key and domain_key not in seen_urls:
+                                seen_urls.add(domain_key)
+                                # 元のURLを保持してスニペット情報も引き継ぐ
                                 all_search_results.append(r)
                 except Exception as e:
                     logger.warning(f"EC discovery search error ({kw_text}): {e}")

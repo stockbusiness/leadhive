@@ -240,26 +240,29 @@ def _save_ec_from_search_results_lightweight(
         if not url:
             continue
 
-        domain = normalize_domain(urlparse(url).netloc)
+        # ★ 先にホームページURLに正規化する（/blog/ や /news/ パスによる誤除外を防ぐ）
+        homepage_url = _normalize_to_homepage(url)
+        domain = normalize_domain(urlparse(homepage_url).netloc)
 
         if domain in rejected_domains:
             results.append({"url": url, "status": "rejected", "message": "拒否リストに登録済み"})
             continue
 
-        # プラットフォーム判定（is_likely_ec_shop のチェックで使うために先に実行）
-        platform_flags = _detect_ec_platform_from_url(url, title, snippet)
+        # プラットフォーム判定（正規化URLで実行）
+        platform_flags = _detect_ec_platform_from_url(homepage_url, title, snippet)
 
-        # EC適格性チェック（PDF・記事・非ECページを除外）
-        is_ec, reject_reason = _is_likely_ec_shop(url, title, snippet, platform_flags)
+        # EC適格性チェック（正規化URLで実行: PDFパスや日付パスはホームページには存在しない）
+        is_ec, reject_reason = _is_likely_ec_shop(homepage_url, title, snippet, platform_flags)
         if not is_ec:
             results.append({"url": url, "status": "rejected", "message": f"EC非適格: {reject_reason}"})
             continue
 
-        is_agg, reason = is_aggregator_site(url, title)
+        # アグリゲーターチェック（正規化URLで実行: /blog/ 等サブパスを持つEC店舗を誤除外しない）
+        is_agg, reason = is_aggregator_site(homepage_url, title)
         if is_agg:
             existing_rej = db.query(RejectedUrl).filter(RejectedUrl.domain == domain).first()
             if not existing_rej:
-                db.add(RejectedUrl(domain=domain, url=url, reason=reason))
+                db.add(RejectedUrl(domain=domain, url=homepage_url, reason=reason))
                 try:
                     db.commit()
                 except Exception:
@@ -271,9 +274,6 @@ def _save_ec_from_search_results_lightweight(
         if domain in existing_domains:
             results.append({"url": url, "status": "duplicate", "message": "既に登録済み"})
             continue
-
-        # URLをホームページに正規化して保存（/about/ や /products/xxx 等を / に統一）
-        homepage_url = _normalize_to_homepage(url)
 
         company_name = title.strip() if title else domain
         # タイトルが長すぎる場合は短縮
