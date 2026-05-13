@@ -373,6 +373,11 @@ def collect_ec_discovery(
                     total=total_kws,
                     message=f"[検索 {i+1}/{total_kws}] 「{kw_text}」を検索中...",
                     status="running",
+                    phase="search",
+                    urls_found=len(all_search_results),
+                    saved_count=0,
+                    dup_count=0,
+                    rej_count=0,
                 )
                 try:
                     results = search_serper(serper_key, kw_text, num=30)
@@ -413,8 +418,13 @@ def collect_ec_discovery(
                     job_id,
                     current=chunk_idx,
                     total=total_chunks,
-                    message=f"[保存 {chunk_idx+1}/{total_chunks}] {chunk_start}〜{chunk_end}件目を処理中... (保存済み: {total_success}件)",
+                    message=f"[保存 {chunk_idx+1}/{total_chunks}] {chunk_start}〜{chunk_end}件目を処理中...",
                     status="running",
+                    phase="save",
+                    urls_found=total_urls_found,
+                    saved_count=total_success,
+                    dup_count=total_duplicate,
+                    rej_count=total_rejected,
                 )
                 try:
                     # _process_search_results は企業を1件ずつ即時保存する

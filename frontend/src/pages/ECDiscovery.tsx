@@ -86,6 +86,11 @@ export default function ECDiscovery() {
   const [progressMsg, setProgressMsg] = useState("");
   const [progressCurrent, setProgressCurrent] = useState(0);
   const [progressTotal, setProgressTotal] = useState(0);
+  const [progressPhase, setProgressPhase] = useState<"search" | "save" | "">("");
+  const [progressSaved, setProgressSaved] = useState(0);
+  const [progressDup, setProgressDup] = useState(0);
+  const [progressRej, setProgressRej] = useState(0);
+  const [progressUrlsFound, setProgressUrlsFound] = useState(0);
   const [result, setResult] = useState<JobResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [collectedCompanies, setCollectedCompanies] = useState<Company[]>([]);
@@ -139,6 +144,11 @@ export default function ECDiscovery() {
         if (data.message) setProgressMsg(data.message);
         if (data.current !== undefined) setProgressCurrent(data.current);
         if (data.total !== undefined) setProgressTotal(data.total);
+        if (data.phase !== undefined) setProgressPhase(data.phase);
+        if (data.saved_count !== undefined) setProgressSaved(data.saved_count);
+        if (data.dup_count !== undefined) setProgressDup(data.dup_count);
+        if (data.rej_count !== undefined) setProgressRej(data.rej_count);
+        if (data.urls_found !== undefined) setProgressUrlsFound(data.urls_found);
 
         if (data.status === "done") {
           clearInterval(pollRef.current!);
@@ -227,6 +237,11 @@ export default function ECDiscovery() {
           if (msg.message) setProgressMsg(msg.message);
           if (msg.current !== undefined) setProgressCurrent(msg.current);
           if (msg.total !== undefined) setProgressTotal(msg.total);
+          if (msg.phase !== undefined) setProgressPhase(msg.phase);
+          if (msg.saved_count !== undefined) setProgressSaved(msg.saved_count);
+          if (msg.dup_count !== undefined) setProgressDup(msg.dup_count);
+          if (msg.rej_count !== undefined) setProgressRej(msg.rej_count);
+          if (msg.urls_found !== undefined) setProgressUrlsFound(msg.urls_found);
 
           if (msg.type === "done") {
             stopAll();
@@ -269,6 +284,11 @@ export default function ECDiscovery() {
     setProgressMsg("");
     setProgressCurrent(0);
     setProgressTotal(0);
+    setProgressPhase("");
+    setProgressSaved(0);
+    setProgressDup(0);
+    setProgressRej(0);
+    setProgressUrlsFound(0);
     setCollectedCompanies([]);
     setSavedJobMeta(null);
     clearJob();
@@ -407,22 +427,52 @@ export default function ECDiscovery() {
 
           <div>
             <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-              <span>進捗</span>
-              <span>
-                {progressTotal > 0
-                  ? `${progressCurrent} / ${progressTotal} バッチ`
-                  : "処理中..."}
+              <span className="flex items-center gap-1.5">
+                {progressPhase === "search" ? (
+                  <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[11px] font-medium">
+                    🔍 検索フェーズ
+                  </span>
+                ) : progressPhase === "save" ? (
+                  <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[11px] font-medium">
+                    💾 保存フェーズ
+                  </span>
+                ) : (
+                  <span className="text-slate-400">準備中</span>
+                )}
+              </span>
+              <span className="text-slate-400">
+                {progressTotal > 0 ? `${progressCurrent + 1} / ${progressTotal} ステップ` : "処理中..."}
               </span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
               <div
-                className="bg-emerald-500 h-3 rounded-full transition-all duration-500"
+                className={`h-3 rounded-full transition-all duration-500 ${progressPhase === "search" ? "bg-blue-500" : "bg-emerald-500"}`}
                 style={{ width: progressTotal > 0 ? `${progressPercent}%` : "5%" }}
               />
             </div>
             {progressTotal > 0 && (
               <p className="text-right text-xs text-slate-400 mt-1">{progressPercent}%</p>
             )}
+          </div>
+
+          {/* 詳細ステータス */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="bg-slate-50 rounded-lg px-3 py-2.5 text-center border border-slate-100">
+              <p className="text-[11px] text-slate-400 mb-0.5">探索URL数</p>
+              <p className="text-lg font-bold text-slate-700">{progressUrlsFound.toLocaleString()}</p>
+            </div>
+            <div className="bg-emerald-50 rounded-lg px-3 py-2.5 text-center border border-emerald-100">
+              <p className="text-[11px] text-emerald-600 mb-0.5">保存済み</p>
+              <p className="text-lg font-bold text-emerald-700">{progressSaved.toLocaleString()}</p>
+            </div>
+            <div className="bg-amber-50 rounded-lg px-3 py-2.5 text-center border border-amber-100">
+              <p className="text-[11px] text-amber-600 mb-0.5">重複スキップ</p>
+              <p className="text-lg font-bold text-amber-700">{progressDup.toLocaleString()}</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg px-3 py-2.5 text-center border border-slate-100">
+              <p className="text-[11px] text-slate-400 mb-0.5">除外</p>
+              <p className="text-lg font-bold text-slate-500">{progressRej.toLocaleString()}</p>
+            </div>
           </div>
 
           <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
