@@ -167,19 +167,21 @@ _NON_EC_TITLE_PATTERNS = [
     r"\d{4}年\d+月\d+日",
 ]
 
-_NON_EC_URL_PATTERNS = [
-    r"\.pdf($|\?|#)", r"/\d{4}/\d{2}/\d{2}/", r"/\d{4}/\d{2}/",
-    r"/news/", r"/article", r"/column/", r"/blog/",
-    r"/media/", r"/press/", r"/release/",
-    r"/archive", r"/report/", r"/pdf/",
-    r"/recruit/", r"/ir/", r"/investor/",
-    r"/about/", r"/company/philosophy",
-    r"/seminar/", r"/event/", r"/whitepaper/",
-]
+def _normalize_to_homepage(url: str) -> str:
+    """URLをサイトのトップページに正規化する。
+    例: https://example.com/about/company → https://example.com/
+    サブドメインは保持（shop.example.com → shop.example.com/）
+    """
+    try:
+        parsed = urlparse(url)
+        return f"{parsed.scheme}://{parsed.netloc}/"
+    except Exception:
+        return url
 
 
 def _is_likely_ec_shop(url: str, title: str, snippet: str, platform_flags: dict) -> tuple[bool, str]:
     """EC shopである可能性が高いかどうかを判定する（軽量チェック）。
+    URLはSerperが返した元のURLで判定し、保存時にホームページに正規化する。
     Returns (is_ec, reject_reason). reject_reason が空文字なら通過。
     """
     url_lower = url.lower()
@@ -187,23 +189,22 @@ def _is_likely_ec_shop(url: str, title: str, snippet: str, platform_flags: dict)
     combined = f"{title} {snippet}".lower()
 
     # 1. PDFチェック（最優先）
-    if url_lower.endswith(".pdf") or "/.pdf" in url_lower or "%2Fpdf" in url_lower:
+    if url_lower.endswith(".pdf") or re.search(r"\.pdf($|\?|#)", url_lower):
         return False, "PDFファイル"
-    if re.search(r"^\s*\[pdf\]", title_lower, re.IGNORECASE) or title_lower.startswith("[pdf]"):
+    if re.search(r"^\s*\[pdf\]", title_lower) or title_lower.startswith("[pdf]"):
         return False, "PDFファイル（タイトル）"
 
-    # 2. URL深度チェック（ブログ記事・ニュース記事）
+    # 2. 明らかなブログ記事URL（日付3階層: /2022/06/15/）
     path = urlparse(url).path
-    for pattern in _NON_EC_URL_PATTERNS:
-        if re.search(pattern, path, re.IGNORECASE):
-            return False, f"記事/PDF URLパターン: {pattern}"
+    if re.search(r"/\d{4}/\d{2}/\d{2}/", path):
+        return False, "ブログ記事URL（日付3階層）"
 
     # 3. タイトルの非ECパターン
     for pattern in _NON_EC_TITLE_PATTERNS:
         if re.search(pattern, title, re.IGNORECASE):
             return False, f"非ECタイトルパターン: {pattern}"
 
-    # 4. 学術・官公庁ドメイン（ac.jp, go.jp）
+    # 4. 学術・官公庁ドメイン
     netloc = urlparse(url).netloc.lower()
     if netloc.endswith(".ac.jp") or netloc.endswith(".go.jp") or netloc.endswith(".ed.jp"):
         return False, "学術・官公庁ドメイン"
@@ -271,13 +272,16 @@ def _save_ec_from_search_results_lightweight(
             results.append({"url": url, "status": "duplicate", "message": "既に登録済み"})
             continue
 
+        # URLをホームページに正規化して保存（/about/ や /products/xxx 等を / に統一）
+        homepage_url = _normalize_to_homepage(url)
+
         company_name = title.strip() if title else domain
         # タイトルが長すぎる場合は短縮
         if len(company_name) > 200:
             company_name = company_name[:200]
 
         company_data = {
-            "website_url": url,
+            "website_url": homepage_url,
             "domain": domain,
             "company_name": company_name,
             "ec_flag": platform_flags["ec_flag"],
