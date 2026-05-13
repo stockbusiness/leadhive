@@ -6,10 +6,21 @@ logger = logging.getLogger(__name__)
 
 
 def search_serper(api_key: str, query: str, num: int = 10) -> list[dict]:
+    """Serper APIで検索する。
+    numに応じてページングを自動制御する。
+    Serperは1リクエストあたり最大100件（num=100）を返せる。
+    100件を超える場合はページングで追加取得する。
+    """
     try:
         results = []
-        pages_needed = max(1, (num + 9) // 10)
-        for page in range(1, pages_needed + 1):
+        # 1リクエストで取得する件数（Serper上限100件）
+        per_request = min(num, 100)
+        page = 1
+
+        while len(results) < num:
+            remaining = num - len(results)
+            batch_size = min(per_request, remaining, 100)
+
             resp = requests.post(
                 "https://google.serper.dev/search",
                 headers={
@@ -20,7 +31,7 @@ def search_serper(api_key: str, query: str, num: int = 10) -> list[dict]:
                     "q": query,
                     "gl": "jp",
                     "hl": "ja",
-                    "num": 10,
+                    "num": batch_size,
                     "page": page,
                 },
                 timeout=15,
@@ -41,8 +52,11 @@ def search_serper(api_key: str, query: str, num: int = 10) -> list[dict]:
                     "title": item.get("title", ""),
                     "snippet": item.get("snippet", ""),
                 })
-            if len(results) >= num:
+
+            if len(page_results) < batch_size:
                 break
+
+            page += 1
 
         return results[:num] if results else [{"error": "検索結果が0件でした"}]
     except Exception as e:

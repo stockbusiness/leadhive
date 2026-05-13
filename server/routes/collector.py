@@ -406,7 +406,7 @@ def collect_ec_discovery(
                     rej_count=0,
                 )
                 try:
-                    results = search_serper(serper_key, kw_text, num=50)
+                    results = search_serper(serper_key, kw_text, num=100)
                     if results and not ("error" in results[0]):
                         for r in results:
                             url = r.get("url", "")
