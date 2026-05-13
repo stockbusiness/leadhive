@@ -406,7 +406,7 @@ def collect_ec_discovery(
                     rej_count=0,
                 )
                 try:
-                    results = search_serper(serper_key, kw_text, num=200)
+                    results = search_serper(serper_key, kw_text, num=500)
                     if results and not ("error" in results[0]):
                         from server.services.collector import _normalize_to_homepage
                         from urllib.parse import urlparse as _up
