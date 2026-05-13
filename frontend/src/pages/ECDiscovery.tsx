@@ -6,7 +6,11 @@ import { useProject } from "../contexts/ProjectContext";
 import type { Company } from "../types";
 import EmailCampaignModal from "../components/EmailCampaignModal";
 
-type CategoryId = "all" | "apparel" | "food" | "cosme" | "btob" | "handmade" | "interior" | "d2c" | "shopify_users";
+type CategoryId =
+  | "all" | "apparel" | "food" | "cosme" | "btob" | "handmade" | "interior" | "d2c" | "shopify_users"
+  | "sports" | "electronics" | "toys_hobby" | "pet" | "baby_kids" | "health" | "garden" | "car_bike"
+  | "jewelry" | "stationery" | "music" | "anime_game" | "craft" | "woocommerce" | "base_stores"
+  | "makeshop" | "futureshop_ecbeing" | "regional_brand" | "luxury";
 
 interface CategoryPreset {
   id: CategoryId;
@@ -17,15 +21,34 @@ interface CategoryPreset {
 }
 
 const CATEGORY_PRESETS: CategoryPreset[] = [
-  { id: "all", label: "すべて", description: "全業種のECサイトを幅広く探索", icon: "🌐", color: "bg-slate-100 border-slate-300 text-slate-700" },
-  { id: "apparel", label: "アパレル", description: "レディース・メンズファッション、自社ECブランド", icon: "👗", color: "bg-pink-50 border-pink-300 text-pink-700" },
-  { id: "food", label: "食品・グルメ", description: "産直・お取り寄せ・定期便食品EC", icon: "🍱", color: "bg-orange-50 border-orange-300 text-orange-700" },
-  { id: "cosme", label: "コスメ・美容", description: "スキンケア・化粧品D2Cブランド", icon: "💄", color: "bg-rose-50 border-rose-300 text-rose-700" },
-  { id: "btob", label: "BtoB EC", description: "法人向け卸売・業務用受発注システム", icon: "🏭", color: "bg-blue-50 border-blue-300 text-blue-700" },
-  { id: "handmade", label: "ハンドメイド", description: "作家・手作り作品の自社販売サイト", icon: "🎨", color: "bg-purple-50 border-purple-300 text-purple-700" },
-  { id: "interior", label: "インテリア・雑貨", description: "家具・セレクトショップ・雑貨EC", icon: "🪑", color: "bg-amber-50 border-amber-300 text-amber-700" },
-  { id: "d2c", label: "D2C ブランド", description: "直販・サブスク・定期便の自社EC", icon: "📦", color: "bg-emerald-50 border-emerald-300 text-emerald-700" },
-  { id: "shopify_users", label: "Shopify ユーザー", description: "Shopify導入中のEC事業者", icon: "🛒", color: "bg-green-50 border-green-300 text-green-700" },
+  { id: "all",               label: "すべて",              description: "全業種のECサイトを幅広く探索",                    icon: "🌐", color: "bg-slate-100 border-slate-300 text-slate-700" },
+  { id: "apparel",           label: "アパレル",            description: "レディース・メンズファッション、自社ECブランド",   icon: "👗", color: "bg-pink-50 border-pink-300 text-pink-700" },
+  { id: "food",              label: "食品・グルメ",         description: "産直・お取り寄せ・定期便食品EC",                  icon: "🍱", color: "bg-orange-50 border-orange-300 text-orange-700" },
+  { id: "cosme",             label: "コスメ・美容",         description: "スキンケア・化粧品D2Cブランド",                   icon: "💄", color: "bg-rose-50 border-rose-300 text-rose-700" },
+  { id: "btob",              label: "BtoB EC",             description: "法人向け卸売・業務用受発注システム",               icon: "🏭", color: "bg-blue-50 border-blue-300 text-blue-700" },
+  { id: "handmade",          label: "ハンドメイド",         description: "作家・手作り作品の自社販売サイト",                icon: "🎨", color: "bg-purple-50 border-purple-300 text-purple-700" },
+  { id: "interior",          label: "インテリア・雑貨",     description: "家具・セレクトショップ・雑貨EC",                 icon: "🪑", color: "bg-amber-50 border-amber-300 text-amber-700" },
+  { id: "d2c",               label: "D2C ブランド",        description: "直販・サブスク・定期便の自社EC",                  icon: "📦", color: "bg-emerald-50 border-emerald-300 text-emerald-700" },
+  { id: "shopify_users",     label: "Shopify",             description: "Shopify導入中のEC事業者",                        icon: "🛒", color: "bg-green-50 border-green-300 text-green-700" },
+  { id: "sports",            label: "スポーツ・アウトドア", description: "キャンプ・釣り・ゴルフ・フィットネス用品EC",       icon: "⛺", color: "bg-teal-50 border-teal-300 text-teal-700" },
+  { id: "electronics",       label: "家電・PC・ガジェット", description: "カメラ・オーディオ・スマホ周辺機器EC",            icon: "💻", color: "bg-indigo-50 border-indigo-300 text-indigo-700" },
+  { id: "toys_hobby",        label: "おもちゃ・ホビー",     description: "プラモ・フィギュア・ボードゲームEC",              icon: "🎮", color: "bg-violet-50 border-violet-300 text-violet-700" },
+  { id: "pet",               label: "ペット用品",           description: "ドッグフード・ペットケア・用品EC",                icon: "🐾", color: "bg-lime-50 border-lime-300 text-lime-700" },
+  { id: "baby_kids",         label: "ベビー・キッズ",       description: "子供服・知育玩具・育児用品EC",                   icon: "👶", color: "bg-sky-50 border-sky-300 text-sky-700" },
+  { id: "health",            label: "健康・サプリ",         description: "プロテイン・サプリ・健康食品D2C",                 icon: "💊", color: "bg-cyan-50 border-cyan-300 text-cyan-700" },
+  { id: "garden",            label: "ガーデニング・植物",   description: "観葉植物・種子・園芸用品EC",                     icon: "🌿", color: "bg-green-50 border-green-300 text-green-700" },
+  { id: "car_bike",          label: "車・バイク・自転車",   description: "カー用品・バイクパーツ・自転車EC",               icon: "🚗", color: "bg-zinc-100 border-zinc-300 text-zinc-700" },
+  { id: "jewelry",           label: "ジュエリー・小物",     description: "アクセサリー・時計・バッグ・財布EC",             icon: "💎", color: "bg-fuchsia-50 border-fuchsia-300 text-fuchsia-700" },
+  { id: "stationery",        label: "文具・ステーショナリー", description: "手帳・ペン・ラッピング・画材EC",               icon: "✏️", color: "bg-yellow-50 border-yellow-300 text-yellow-700" },
+  { id: "music",             label: "楽器・音楽機材",       description: "ギター・DTM機材・音響機器EC",                    icon: "🎸", color: "bg-red-50 border-red-300 text-red-700" },
+  { id: "anime_game",        label: "アニメ・ゲーム",       description: "フィギュア・グッズ・コスプレ・トレカEC",          icon: "🎌", color: "bg-pink-50 border-pink-200 text-pink-800" },
+  { id: "craft",             label: "工芸品・伝統工芸",     description: "漆器・陶芸・染め物・和雑貨EC",                  icon: "🏺", color: "bg-stone-50 border-stone-300 text-stone-700" },
+  { id: "woocommerce",       label: "WooCommerce / EC-CUBE", description: "WooCommerce・EC-CUBE構築の自社ECサイト",        icon: "🔧", color: "bg-purple-50 border-purple-200 text-purple-800" },
+  { id: "base_stores",       label: "BASE / STORES",        description: "BASE・STORESで運営する個人・小規模EC",           icon: "🏪", color: "bg-orange-50 border-orange-200 text-orange-800" },
+  { id: "makeshop",          label: "MakeShop / カラーミー", description: "MakeShop・カラーミーショップ運営EC事業者",      icon: "🛍️", color: "bg-blue-50 border-blue-200 text-blue-800" },
+  { id: "futureshop_ecbeing", label: "futureshop / ecbeing", description: "futureshop・ecbeing構築の中大規模EC事業者",    icon: "🏢", color: "bg-slate-50 border-slate-200 text-slate-800" },
+  { id: "regional_brand",    label: "地域ブランド・産直",   description: "地方特産品・地産地消・地域工芸の通販EC",          icon: "🗾", color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
+  { id: "luxury",            label: "高級・プレミアム",     description: "ラグジュアリー・オーダーメイド・プレミアム通販",  icon: "✨", color: "bg-amber-50 border-amber-200 text-amber-800" },
 ];
 
 const REGIONS = [
