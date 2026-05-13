@@ -334,7 +334,7 @@ def collect_ec_discovery(
     def run():
         db = SessionLocal()
         try:
-            from server.services.collector import _process_search_results
+            from server.services.collector import _process_search_results, _save_ec_from_search_results_lightweight
             from server.services.serper_search import search_serper, get_serper_api_key
             from server.models import Company, RejectedUrl
 
@@ -427,9 +427,9 @@ def collect_ec_discovery(
                     rej_count=total_rejected,
                 )
                 try:
-                    # _process_search_results は企業を1件ずつ即時保存する
+                    # 軽量版: スクレイピングなしでSerper検索結果から直接保存（高速）
                     # rejected_domains / existing_domains はチャンク間で共有され重複排除される
-                    results = _process_search_results(
+                    results = _save_ec_from_search_results_lightweight(
                         chunk, db, rejected_domains, existing_domains,
                         project_id=project_id,
                         scoring_rules=scoring_rules,

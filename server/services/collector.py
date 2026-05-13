@@ -69,6 +69,206 @@ def job_cleanup(job_id: str):
         _job_store.pop(job_id, None)
 
 
+def _detect_ec_platform_from_url(url: str, title: str = "", snippet: str = "") -> dict:
+    """URLパターン・タイトル・スニペットからECプラットフォームとフラグを判定する（スクレイピング不要）。"""
+    netloc = urlparse(url).netloc.lower()
+    url_lower = url.lower()
+    combined = f"{title} {snippet}".lower()
+
+    flags: dict = {
+        "ec_flag": True,
+        "shopify_flag": False,
+        "base_flag": False,
+        "stores_flag": False,
+        "makeshop_flag": False,
+        "futureshop_flag": False,
+        "rakuten_flag": False,
+        "amazon_flag": False,
+        "cms_type": None,
+        "ec_score": 0,
+    }
+
+    # プラットフォーム検出（URLベース）
+    if "myshopify.com" in netloc or "shopify" in netloc:
+        flags["shopify_flag"] = True
+        flags["cms_type"] = "Shopify"
+        flags["ec_score"] = 80
+    elif "base.shop" in netloc or "thebase.in" in netloc:
+        flags["base_flag"] = True
+        flags["cms_type"] = "BASE"
+        flags["ec_score"] = 75
+    elif "stores.jp" in netloc:
+        flags["stores_flag"] = True
+        flags["cms_type"] = "STORES"
+        flags["ec_score"] = 75
+    elif "makeshop.jp" in netloc:
+        flags["makeshop_flag"] = True
+        flags["cms_type"] = "MakeShop"
+        flags["ec_score"] = 75
+    elif "futureshop.jp" in netloc:
+        flags["futureshop_flag"] = True
+        flags["cms_type"] = "FutureShop"
+        flags["ec_score"] = 75
+    elif "shop-pro.jp" in netloc or "colormelabo.jp" in netloc:
+        flags["cms_type"] = "カラーミーショップ"
+        flags["ec_score"] = 70
+    elif "wixsite.com" in netloc or "wix.com" in netloc:
+        flags["cms_type"] = "Wix"
+        flags["ec_score"] = 40
+    elif "shoplogic.jp" in netloc:
+        flags["cms_type"] = "ショップサーブ"
+        flags["ec_score"] = 70
+    elif "lolipop.jp" in netloc:
+        flags["cms_type"] = "ロリポップ"
+        flags["ec_score"] = 40
+    elif "rakuten.co.jp" in netloc or "rshop.to" in netloc:
+        flags["rakuten_flag"] = True
+        flags["cms_type"] = "楽天市場"
+        flags["ec_score"] = 60
+    elif "amazon.co.jp" in netloc or "amazon.com" in netloc:
+        flags["amazon_flag"] = True
+        flags["cms_type"] = "Amazon"
+        flags["ec_score"] = 50
+    else:
+        # URLパターンなし → タイトル・スニペットから軽量スコア
+        ec_kws = ["通販", "ネットショップ", "オンラインショップ", "ec", "ショッピング", "shop", "store",
+                  "d2c", "自社ec", "定期便", "お取り寄せ"]
+        ec_kws_strong = ["ネットショップ", "通販サイト", "公式オンラインストア", "公式通販", "自社ec", "公式ショップ"]
+        score = 30  # EC discovery のキーワードで見つかった時点でベーススコア
+        for kw in ec_kws_strong:
+            if kw in combined:
+                score += 15
+                break
+        for kw in ec_kws:
+            if kw in combined:
+                score += 10
+                break
+        flags["ec_score"] = min(score, 100)
+
+    return flags
+
+
+def _save_ec_from_search_results_lightweight(
+    search_results: list[dict],
+    db: Session,
+    rejected_domains: set,
+    existing_domains: set,
+    project_id: int = None,
+    scoring_rules: dict = None,
+) -> list[dict]:
+    """スクレイピングなしでSerper検索結果から直接ECサイトを保存する。
+    EC Discovery専用の高速版。1件あたり数ms以内で完了する。
+    """
+    results = []
+
+    for sr in search_results:
+        url = sr.get("url", "")
+        title = sr.get("title", "") or ""
+        snippet = sr.get("snippet", "") or ""
+
+        if not url:
+            continue
+
+        domain = normalize_domain(urlparse(url).netloc)
+
+        if domain in rejected_domains:
+            results.append({"url": url, "status": "rejected", "message": "拒否リストに登録済み"})
+            continue
+
+        is_agg, reason = is_aggregator_site(url, title)
+        if is_agg:
+            existing_rej = db.query(RejectedUrl).filter(RejectedUrl.domain == domain).first()
+            if not existing_rej:
+                db.add(RejectedUrl(domain=domain, url=url, reason=reason))
+                try:
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                rejected_domains.add(domain)
+            results.append({"url": url, "status": "rejected", "message": f"まとめサイトとして除外: {reason}"})
+            continue
+
+        if domain in existing_domains:
+            results.append({"url": url, "status": "duplicate", "message": "既に登録済み"})
+            continue
+
+        # URLパターン・メタ情報からECプラットフォーム判定
+        platform_flags = _detect_ec_platform_from_url(url, title, snippet)
+
+        company_name = title.strip() if title else domain
+        # タイトルが長すぎる場合は短縮
+        if len(company_name) > 200:
+            company_name = company_name[:200]
+
+        company_data = {
+            "website_url": url,
+            "domain": domain,
+            "company_name": company_name,
+            "ec_flag": platform_flags["ec_flag"],
+            "ec_score": platform_flags["ec_score"],
+            "shopify_flag": platform_flags["shopify_flag"],
+            "base_flag": platform_flags["base_flag"],
+            "stores_flag": platform_flags["stores_flag"],
+            "makeshop_flag": platform_flags["makeshop_flag"],
+            "futureshop_flag": platform_flags["futureshop_flag"],
+            "rakuten_flag": platform_flags["rakuten_flag"],
+            "amazon_flag": platform_flags["amazon_flag"],
+            "cms_type": platform_flags["cms_type"],
+            "escms_target_flag": bool(
+                platform_flags["ec_flag"] and
+                platform_flags["cms_type"] and
+                platform_flags["cms_type"] != "Shopify"
+            ),
+        }
+
+        if project_id:
+            company_data["project_id"] = project_id
+
+        score, rank = calculate_score(company_data, custom_rules=scoring_rules if scoring_rules else None, db=db if not scoring_rules else None)
+        company_data["score_total"] = score
+        company_data["score_rank"] = rank
+
+        company_fields = {k: v for k, v in company_data.items() if hasattr(Company, k)}
+        company = Company(**company_fields)
+        try:
+            db.add(company)
+            db.commit()
+            db.refresh(company)
+        except IntegrityError:
+            db.rollback()
+            existing_domains.add(domain)
+            results.append({"url": url, "status": "duplicate", "message": "既に登録済み（DB重複スキップ）"})
+            continue
+        except Exception as e:
+            db.rollback()
+            results.append({"url": url, "status": "error", "message": f"DB保存エラー: {e}"})
+            continue
+
+        existing_domains.add(domain)
+
+        if rank == "A":
+            try:
+                from server.services.slack_notifier import notify_rank_a_company
+                notify_rank_a_company(db, company.company_name or domain, domain=domain)
+            except Exception:
+                pass
+
+        try:
+            _upsert_company_master(db, company_data, domain, source="ec_discovery")
+        except IntegrityError:
+            db.rollback()
+        except Exception:
+            pass
+
+        results.append({
+            "url": url, "status": "success",
+            "message": f"{company_name} (スコア: {score}, {platform_flags['cms_type'] or 'EC'})",
+            "company_id": company.id,
+        })
+
+    return results
+
+
 def _upsert_company_master(db: Session, company_data: dict, domain: str = None, source: str = "unknown", corporate_number: str = None):
     try:
         search_parts = [
