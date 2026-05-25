@@ -38,6 +38,11 @@ const CMS_COLORS: Record<string, string> = {
   Cafe24: "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200",
   "カラフルボックスEC": "bg-pink-100 text-pink-800 border-pink-300 hover:bg-pink-200",
   "メルカート": "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
+  "Yahoo!ショッピング": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
+  "NEXT ENGINE": "bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200",
+  "独自EC": "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200",
+  "楽天市場": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
+  "Amazon": "bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200",
   WordPress: "bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-200",
   Wix: "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
 };
@@ -213,9 +218,16 @@ export default function CompanyFilterBar({
             <option value="ロリポップEC">ロリポップEC</option>
             <option value="aishipR">aishipR</option>
             <option value="ショップサーブ">ショップサーブ</option>
+            <option value="NEXT ENGINE">NEXT ENGINE</option>
             <option value="カート365">カート365</option>
             <option value="カラフルボックスEC">カラフルボックスEC</option>
             <option value="メルカート">メルカート</option>
+            <option value="独自EC">独自EC</option>
+          </optgroup>
+          <optgroup label="モール・マーケットプレイス">
+            <option value="Yahoo!ショッピング">Yahoo!ショッピング</option>
+            <option value="楽天市場">楽天市場</option>
+            <option value="Amazon">Amazon</option>
           </optgroup>
           <optgroup label="ECカート（海外系）">
             <option value="WooCommerce">WooCommerce</option>

@@ -198,6 +198,7 @@ def run_db_migrations():
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS makeshop_flag BOOLEAN DEFAULT FALSE",
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS futureshop_flag BOOLEAN DEFAULT FALSE",
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS stores_flag BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE companies ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)",
         ]:
             conn.execute(sa.text(stmt))
 
@@ -239,6 +240,13 @@ def run_db_migrations():
         """))
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_id ON audit_logs (company_id)"))
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_audit_logs_sent_at ON audit_logs (sent_at DESC)"))
+
+        # companies.org_id の修復: project_id が設定済みの企業に org_id を自動設定
+        conn.execute(sa.text("""
+            UPDATE companies SET org_id = projects.org_id
+            FROM projects
+            WHERE companies.project_id = projects.id AND companies.org_id IS NULL
+        """))
 
         conn.execute(sa.text("""
             CREATE TABLE IF NOT EXISTS opt_out_list (

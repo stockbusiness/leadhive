@@ -7,7 +7,7 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, Query, Response, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc
+from sqlalchemy import desc, asc, or_
 from typing import Optional, List
 from datetime import date, timedelta
 from server.database import get_db
@@ -66,7 +66,12 @@ def list_companies(
             raise HTTPException(status_code=403, detail="アクセス権限がありません")
         query = query.filter(Company.project_id == project_id)
     else:
-        query = query.filter(Company.project_id.in_(owned_ids))
+        query = query.filter(
+            or_(
+                Company.project_id.in_(owned_ids),
+                Company.org_id == current_user.org_id,
+            )
+        )
 
     if category:
         query = query.filter(Company.category_main == category)
@@ -402,7 +407,12 @@ def export_companies_xlsx_v2(
             raise HTTPException(status_code=403, detail="アクセス権限がありません")
         query = query.filter(Company.project_id == project_id)
     else:
-        query = query.filter(Company.project_id.in_(owned_ids))
+        query = query.filter(
+            or_(
+                Company.project_id.in_(owned_ids),
+                Company.org_id == current_user.org_id,
+            )
+        )
 
     if category:
         query = query.filter(Company.category_main == category)
@@ -503,7 +513,12 @@ def get_company_ids(
             raise HTTPException(status_code=403, detail="アクセス権限がありません")
         query = query.filter(Company.project_id == project_id)
     else:
-        query = query.filter(Company.project_id.in_(owned_ids))
+        query = query.filter(
+            or_(
+                Company.project_id.in_(owned_ids),
+                Company.org_id == current_user.org_id,
+            )
+        )
     if category:
         query = query.filter(Company.category_main == category)
     if status:
@@ -851,7 +866,12 @@ def export_csv(
             raise HTTPException(status_code=403, detail="アクセス権限がありません")
         query = query.filter(Company.project_id == project_id)
     else:
-        query = query.filter(Company.project_id.in_(owned_ids))
+        query = query.filter(
+            or_(
+                Company.project_id.in_(owned_ids),
+                Company.org_id == current_user.org_id,
+            )
+        )
     if category:
         query = query.filter(Company.category_main == category)
     if status:

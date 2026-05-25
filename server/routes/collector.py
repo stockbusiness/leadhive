@@ -518,17 +518,24 @@ def collect_ec_discovery(
     # スレッド開始前にorg_idとscoring_rulesを取得
     org_id = getattr(current_user, "org_id", None)
     scoring_rules = None
-    if project_id:
-        _pre_db = SessionLocal()
-        try:
-            from server.models import Project as _Proj
+
+    # project_id が未指定の場合はorg内の最初のプロジェクトを自動割当（NULLで保存すると一覧に表示されない）
+    _pre_db = SessionLocal()
+    try:
+        from server.models import Project as _Proj
+        if project_id:
             _proj = _pre_db.query(_Proj).filter(_Proj.id == project_id).first()
-            if _proj and _proj.scoring_rules:
-                scoring_rules = _proj.scoring_rules
-        except Exception:
-            pass
-        finally:
-            _pre_db.close()
+        else:
+            _proj = _pre_db.query(_Proj).filter(_Proj.org_id == org_id).order_by(_Proj.id.asc()).first()
+            if _proj:
+                project_id = _proj.id
+                logger.info(f"EC discovery: project_id未指定のため自動割当 project_id={project_id}")
+        if _proj and _proj.scoring_rules:
+            scoring_rules = _proj.scoring_rules
+    except Exception:
+        pass
+    finally:
+        _pre_db.close()
 
     def run():
         db = SessionLocal()
@@ -641,6 +648,7 @@ def collect_ec_discovery(
                         chunk, db, rejected_domains, existing_domains,
                         project_id=project_id,
                         scoring_rules=scoring_rules,
+                        org_id=org_id,
                     )
                     total_success += sum(1 for r in results if r and r.get("status") == "success")
                     total_duplicate += sum(1 for r in results if r and r.get("status") == "duplicate")

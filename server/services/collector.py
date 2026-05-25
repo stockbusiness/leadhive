@@ -108,10 +108,10 @@ def _detect_ec_platform_from_url(url: str, title: str = "", snippet: str = "") -
         flags["ec_score"] = 75
     elif "futureshop.jp" in netloc:
         flags["futureshop_flag"] = True
-        flags["cms_type"] = "FutureShop"
+        flags["cms_type"] = "futureshop"
         flags["ec_score"] = 75
     elif "shop-pro.jp" in netloc or "colormelabo.jp" in netloc:
-        flags["cms_type"] = "カラーミーショップ"
+        flags["cms_type"] = "カラーミー"
         flags["ec_score"] = 70
     elif "wixsite.com" in netloc or "wix.com" in netloc:
         flags["cms_type"] = "Wix"
@@ -120,8 +120,8 @@ def _detect_ec_platform_from_url(url: str, title: str = "", snippet: str = "") -
         flags["cms_type"] = "ショップサーブ"
         flags["ec_score"] = 70
     elif "lolipop.jp" in netloc:
-        flags["cms_type"] = "ロリポップ"
-        flags["ec_score"] = 40
+        flags["cms_type"] = "ロリポップEC"
+        flags["ec_score"] = 55
     elif "rakuten.co.jp" in netloc or "rshop.to" in netloc:
         flags["rakuten_flag"] = True
         flags["cms_type"] = "楽天市場"
@@ -130,6 +130,25 @@ def _detect_ec_platform_from_url(url: str, title: str = "", snippet: str = "") -
         flags["amazon_flag"] = True
         flags["cms_type"] = "Amazon"
         flags["ec_score"] = 50
+    elif "store.shopping.yahoo.co.jp" in netloc or "shopping.yahoo.co.jp" in netloc:
+        flags["cms_type"] = "Yahoo!ショッピング"
+        flags["ec_score"] = 60
+    elif "next-engine.com" in netloc or "next-engine.org" in netloc:
+        flags["cms_type"] = "NEXT ENGINE"
+        flags["ec_score"] = 65
+    elif "ec-cube.net" in netloc or "cube.ne.jp" in netloc:
+        flags["cms_type"] = "EC-CUBE"
+        flags["ec_score"] = 70
+    elif "aishipr.com" in netloc or "aiship.jp" in netloc:
+        flags["cms_type"] = "aishipR"
+        flags["ec_score"] = 65
+    elif "cart.jp" in netloc:
+        flags["cms_type"] = "カートジェイピー"
+        flags["ec_score"] = 60
+    elif "canmake.co.jp" in netloc or "meishodo.co.jp" in netloc:
+        # 既知の独自ECブランドのパターンは除外（誤検知防止）
+        flags["cms_type"] = "独自EC"
+        flags["ec_score"] = 65
     else:
         # URLパターンなし → タイトル・スニペットから軽量スコア
         ec_kws = ["通販", "ネットショップ", "オンラインショップ", "ec", "ショッピング", "shop", "store",
@@ -144,6 +163,19 @@ def _detect_ec_platform_from_url(url: str, title: str = "", snippet: str = "") -
             if kw in combined:
                 score += 10
                 break
+
+        # WooCommerce検出（URLパス・スニペットベース）
+        woo_signals = ["woocommerce", "wp-content/plugins/woocommerce", "add-to-cart", "?add-to-cart="]
+        if any(s in url_lower for s in woo_signals) or "woocommerce" in combined:
+            flags["cms_type"] = "WooCommerce"
+            score = max(score, 70)
+        # 特商法ページ検出（自社EC運営の強いシグナル）
+        elif "tokushoho" in url_lower or "law.html" in url_lower or "legal.html" in url_lower:
+            score = max(score, 50)
+        # カート・決済ページシグナル
+        elif any(s in url_lower for s in ["/cart", "/checkout", "/basket", "/カート", "/purchase"]):
+            score = max(score, 55)
+
         flags["ec_score"] = min(score, 100)
 
     return flags
@@ -226,6 +258,7 @@ def _save_ec_from_search_results_lightweight(
     existing_domains: set,
     project_id: int = None,
     scoring_rules: dict = None,
+    org_id: int = None,
 ) -> list[dict]:
     """スクレイピングなしでSerper検索結果から直接ECサイトを保存する。
     EC Discovery専用の高速版。1件あたり数ms以内で完了する。
@@ -303,6 +336,8 @@ def _save_ec_from_search_results_lightweight(
 
         if project_id:
             company_data["project_id"] = project_id
+        if org_id:
+            company_data["org_id"] = org_id
 
         score, rank = calculate_score(company_data, custom_rules=scoring_rules if scoring_rules else None, db=db if not scoring_rules else None)
         company_data["score_total"] = score
