@@ -1065,29 +1065,40 @@ def collect_urls_preview(
 
         def _build_query_variations(base_keyword: str, region: str = "") -> list[str]:
             region_suffix = f" {region}" if region else ""
-            variations = []
-            # 1. オリジナルクエリ
-            variations.append(base_keyword + region_suffix)
-            # 2. ダブルクォートを除去した広い検索
-            stripped = base_keyword.replace('"', '').strip()
-            if stripped != base_keyword and stripped:
-                variations.append(stripped + region_suffix)
-                if "会社" not in stripped and "企業" not in stripped:
-                    variations.append(stripped + " 会社" + region_suffix)
-                    variations.append(stripped + " 企業" + region_suffix)
-            else:
-                # クォートなし → サフィックスを追加
-                if "会社" not in base_keyword and "企業" not in base_keyword:
-                    variations.append(base_keyword + " 会社" + region_suffix)
-                    variations.append(base_keyword + " 企業" + region_suffix)
-            return variations[:4]  # 最大4バリエーション
+            base = base_keyword.strip()
+            stripped = base.replace('"', '').strip()
+            core = stripped if stripped != base else base
+
+            seen_q: set = set()
+            result: list = []
+
+            def _add(q: str):
+                q = q.strip()
+                if q and q not in seen_q:
+                    seen_q.add(q)
+                    result.append(q)
+
+            _add(base + region_suffix)                        # 1. オリジナル
+            if stripped != base:
+                _add(stripped + region_suffix)               # 2. クォート除去
+
+            # 3〜8. ビジネス系サフィックス
+            for sfx in [" 会社", " 企業", " サービス", " 支援", " 事業者", " オンライン"]:
+                if sfx.strip() not in core:
+                    _add(core + sfx + region_suffix)
+
+            max_v = 8 if single_kw_mode else 3
+            return result[:max_v]
+
+        single_kw_mode = len(keywords_data) == 1
+        num_per_query = 50 if single_kw_mode else 30
 
         urls = []
         seen_domains = set()
         for kw in keywords_data:
             variations = _build_query_variations(kw.keyword, kw.region or "")
             for q in variations:
-                results = search_serper(serper_key, q, num=30)
+                results = search_serper(serper_key, q, num=num_per_query)
                 for r in results:
                     url = r.get("url", "")
                     if not url or r.get("error"):
