@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2, Search, ChevronDown, ChevronUp, DatabaseZap, ShieldBan, ExternalLink, AlertTriangle } from "lucide-react";
+import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2, Search, ChevronDown, ChevronUp, DatabaseZap, ShieldBan, ExternalLink, AlertTriangle, Store } from "lucide-react";
 import { Link } from "react-router-dom";
 import HelpTooltip from "../components/HelpTooltip";
 import { api } from "../api";
@@ -7,7 +7,7 @@ import { ResultRow } from "../components/common";
 import { useProject } from "../contexts/ProjectContext";
 import type { SearchKeyword, ScrapeResult, CollectSummary } from "../types";
 
-type CollectTab = "google-api" | "directory" | "shopify" | "google-maps" | "houjin-db" | "enrich";
+type CollectTab = "google-api" | "ec-search" | "directory" | "shopify" | "google-maps" | "houjin-db" | "enrich";
 
 export default function Scraper() {
   const { currentProject } = useProject();
@@ -39,9 +39,14 @@ export default function Scraper() {
   const [gbizPrefecture, setGbizPrefecture] = useState("");
   const [gbizMaxResults, setGbizMaxResults] = useState(20);
 
+  const [ecSearchKeyword, setEcSearchKeyword] = useState("");
+  const [ecSearchNumResults, setEcSearchNumResults] = useState(100);
+  const [ecSearchModifier, setEcSearchModifier] = useState("通販 ネットショップ");
+
   type StagedUrl = {
     id: string; url: string; name: string; source: string; selected: boolean; location?: string;
     address?: string; phone?: string; rating?: number; user_ratings_total?: number; has_url?: boolean;
+    excluded?: boolean; exclude_reason?: string | null;
   };
   const [stagedUrls, setStagedUrls] = useState<StagedUrl[]>([]);
   const [activeCollectType, setActiveCollectType] = useState<string>("");
@@ -104,7 +109,7 @@ export default function Scraper() {
           data.urls.map((u: any, i: number) => ({
             ...u,
             id: `${i}-${u.url || u.name}`,
-            selected: u.has_url !== false,
+            selected: u.has_url !== false && !u.excluded,
           }))
         );
       }
@@ -178,6 +183,7 @@ export default function Scraper() {
 
   const tabs: { key: CollectTab; label: string; icon: typeof Zap }[] = [
     { key: "google-api", label: "Google API検索", icon: Zap },
+    { key: "ec-search", label: "ECサイト検索", icon: Store },
     { key: "directory", label: "ディレクトリ収集", icon: List },
     { key: "shopify", label: "Shopifyパートナー", icon: ShoppingBag },
     { key: "google-maps", label: "Googleマップ", icon: MapPin },
@@ -230,6 +236,23 @@ export default function Scraper() {
               loading={stagingLoading}
               onCollect={() => handleCollectUrls("google-api", {
                 keyword_id: selectedKeyword !== "all" ? selectedKeyword : undefined,
+              })}
+            />
+          )}
+
+          {activeTab === "ec-search" && (
+            <EcSearchSection
+              keyword={ecSearchKeyword}
+              onKeywordChange={setEcSearchKeyword}
+              numResults={ecSearchNumResults}
+              onNumResultsChange={setEcSearchNumResults}
+              modifier={ecSearchModifier}
+              onModifierChange={setEcSearchModifier}
+              loading={stagingLoading}
+              onCollect={() => handleCollectUrls("ec-search", {
+                keyword: ecSearchKeyword,
+                num_results: ecSearchNumResults,
+                ec_modifier: ecSearchModifier,
               })}
             />
           )}
@@ -660,6 +683,88 @@ function GbizSection({
   );
 }
 
+function EcSearchSection({
+  keyword, onKeywordChange, numResults, onNumResultsChange,
+  modifier, onModifierChange, loading, onCollect,
+}: {
+  keyword: string; onKeywordChange: (v: string) => void;
+  numResults: number; onNumResultsChange: (v: number) => void;
+  modifier: string; onModifierChange: (v: string) => void;
+  loading: boolean; onCollect: () => void;
+}) {
+  const EC_MODIFIERS = [
+    { label: "通販・ネットショップ（汎用）", value: "通販 ネットショップ" },
+    { label: "自社EC（独自ドメイン重視）", value: "自社EC 通販サイト" },
+    { label: "Shopify利用企業", value: "Shopify 通販" },
+    { label: "食品・産直EC", value: "食品 産直 通販" },
+    { label: "アパレル・ファッションEC", value: "ファッション 通販 EC" },
+    { label: "コスメ・美容EC", value: "コスメ 美容 通販" },
+    { label: "BtoB・業務用EC", value: "業務用 法人向け 通販" },
+    { label: "D2Cブランド", value: "D2C ブランド 通販" },
+  ];
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-2 bg-purple-50 border border-purple-200 rounded-lg p-3">
+        <Store size={16} className="text-purple-600 mt-0.5 flex-shrink-0" />
+        <p className="text-sm text-slate-600">
+          業種・商材キーワードにEC修飾語を組み合わせてSerper APIで検索し、ECサイトのURLをまとめて収集します。
+          まとめサイト・比較サイトは自動的に除外候補として表示されます。
+        </p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">業種・商材キーワード</label>
+          <input
+            type="text"
+            placeholder="例: アパレル、食品、コスメ、インテリア"
+            value={keyword}
+            onChange={(e) => onKeywordChange(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && keyword.trim() && !loading && onCollect()}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">EC検索モード</label>
+          <select
+            value={modifier}
+            onChange={(e) => onModifierChange(e.target.value)}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+          >
+            {EC_MODIFIERS.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="flex gap-3 items-end">
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">最大取得件数</label>
+          <select
+            value={numResults}
+            onChange={(e) => onNumResultsChange(Number(e.target.value))}
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+          >
+            {[50, 100, 200].map((n) => (
+              <option key={n} value={n}>{n}件</option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={onCollect}
+          disabled={loading || !keyword.trim()}
+          className="flex items-center gap-2 bg-purple-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Store size={16} />}
+          ECサイトを収集
+        </button>
+        {!keyword.trim() && (
+          <p className="text-xs text-slate-400">キーワードを入力してください</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function EnrichSection({
   projectId,
   esRef,
@@ -1002,6 +1107,7 @@ function CollectSummaryCard({ summary }: { summary: any }) {
 type StagedUrlItem = {
   id: string; url: string; name: string; source: string; selected: boolean; location?: string;
   address?: string; phone?: string; rating?: number; user_ratings_total?: number; has_url?: boolean;
+  excluded?: boolean; exclude_reason?: string | null;
 };
 
 function GmStagingCards({
@@ -1286,9 +1392,14 @@ function StagingTable({
                   <td className="px-3 py-2 text-center">
                     <input type="checkbox" checked={u.selected} onChange={() => onToggleOne(u.id)} className="rounded" />
                   </td>
-                  <td className="px-3 py-2 font-medium text-slate-700 max-w-[200px] truncate">
-                    {u.name || "—"}
-                    {u.location && <span className="ml-1 text-xs text-slate-400">{u.location}</span>}
+                  <td className="px-3 py-2 font-medium text-slate-700 max-w-[200px]">
+                    <div className="truncate">{u.name || "—"}</div>
+                    {u.location && <span className="text-xs text-slate-400">{u.location}</span>}
+                    {u.excluded && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded" title={u.exclude_reason || "まとめサイト除外候補"}>
+                        <ShieldBan size={9} /> 除外候補
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2 max-w-[300px]">
                     <a href={u.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs truncate block">

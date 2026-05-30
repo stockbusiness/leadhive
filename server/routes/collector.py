@@ -1050,7 +1050,7 @@ def collect_urls_preview(
             q = db.query(SearchKeyword).filter(SearchKeyword.is_active == True)
             if project_id:
                 q = q.filter(SearchKeyword.project_id == project_id)
-            keywords_data = q.limit(5).all()
+            keywords_data = q.limit(50).all()
 
         if not keywords_data:
             return {"error": "キーワードが見つかりません"}
@@ -1060,16 +1060,72 @@ def collect_urls_preview(
         if not serper_key:
             return {"error": "Serper APIキーが設定されていません。設定画面でSerper APIキーを登録してください。"}
 
+        from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain
+        from urllib.parse import urlparse as _up
+
         urls = []
-        seen = set()
+        seen_domains = set()
         for kw in keywords_data:
             query = kw.keyword + (f" {kw.region}" if kw.region else "")
-            results = search_serper(serper_key, query, num=10)
+            results = search_serper(serper_key, query, num=100)
             for r in results:
                 url = r.get("url", "")
-                if url and url not in seen:
-                    seen.add(url)
-                    urls.append({"url": url, "name": r.get("title", ""), "source": f"Serper検索: {kw.keyword}"})
+                if not url:
+                    continue
+                domain = _ndomain(_up(url).netloc)
+                if domain in seen_domains:
+                    continue
+                seen_domains.add(domain)
+                homepage = f"{_up(url).scheme}://{_up(url).netloc}/"
+                is_agg, reason = is_aggregator_site(url, r.get("title", ""))
+                urls.append({
+                    "url": homepage,
+                    "name": r.get("title", ""),
+                    "source": f"Serper検索: {kw.keyword}",
+                    "excluded": is_agg,
+                    "exclude_reason": reason if is_agg else None,
+                })
+        return {"urls": urls, "count": len(urls)}
+
+    elif type_ == "ec-search":
+        keyword = data.get("keyword", "").strip()
+        if not keyword:
+            return {"error": "キーワードを入力してください"}
+
+        num_results = min(int(data.get("num_results", 100)), 200)
+        ec_modifier = data.get("ec_modifier", "通販 ネットショップ").strip()
+
+        from server.services.serper_search import search_serper, get_serper_api_key
+        serper_key = get_serper_api_key(db=db, org_id=current_user.org_id)
+        if not serper_key:
+            return {"error": "Serper APIキーが設定されていません。設定画面でSerper APIキーを登録してください。"}
+
+        from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain
+        from urllib.parse import urlparse as _up
+
+        query = f"{keyword} {ec_modifier}" if ec_modifier else keyword
+        results = search_serper(serper_key, query, num=num_results)
+
+        urls = []
+        seen_domains = set()
+        for r in results:
+            url = r.get("url", "")
+            if not url:
+                continue
+            domain = _ndomain(_up(url).netloc)
+            if domain in seen_domains:
+                continue
+            seen_domains.add(domain)
+            homepage = f"{_up(url).scheme}://{_up(url).netloc}/"
+            is_agg, reason = is_aggregator_site(url, r.get("title", ""))
+            urls.append({
+                "url": homepage,
+                "name": r.get("title", ""),
+                "source": f"ECサイト検索: {keyword}",
+                "excluded": is_agg,
+                "exclude_reason": reason if is_agg else None,
+            })
+
         return {"urls": urls, "count": len(urls)}
 
     return {"error": "不明な収集タイプです"}
