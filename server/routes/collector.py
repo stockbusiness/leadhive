@@ -1063,7 +1063,8 @@ def collect_urls_preview(
         from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain
         from urllib.parse import urlparse as _up
 
-        def _build_query_variations(base_keyword: str, region: str = "") -> list[str]:
+        def _build_query_variations(base_keyword: str, region: str = "", single_mode: bool = True) -> list[tuple]:
+            """クエリバリエーションと各numのペアリストを返す"""
             region_suffix = f" {region}" if region else ""
             base = base_keyword.strip()
             stripped = base.replace('"', '').strip()
@@ -1072,33 +1073,41 @@ def collect_urls_preview(
             seen_q: set = set()
             result: list = []
 
-            def _add(q: str):
+            def _add(q: str, n: int):
                 q = q.strip()
                 if q and q not in seen_q:
                     seen_q.add(q)
-                    result.append(q)
+                    result.append((q, n))
 
-            _add(base + region_suffix)                        # 1. オリジナル
-            if stripped != base:
-                _add(stripped + region_suffix)               # 2. クォート除去
+            if single_mode:
+                # 単一キーワード: 深く掘る
+                _add(base + region_suffix, 50)                    # 1. オリジナル
+                if stripped != base:
+                    _add(stripped + region_suffix, 200)           # 2. クォート除去 → 深ページネーション
+                else:
+                    _add(core + region_suffix, 200)               # 2. クォートなし版でも深く
+                # 3〜6. ビジネス系サフィックス（各50件）
+                for sfx in [" 会社", " 企業", " サービス", " 支援"]:
+                    if sfx.strip() not in core:
+                        _add(core + sfx + region_suffix, 50)
+            else:
+                # 複数キーワード: タイムアウト防止で浅く
+                _add(base + region_suffix, 30)
+                if stripped != base:
+                    _add(stripped + region_suffix, 60)
+                else:
+                    _add(core + " 会社" + region_suffix, 30)
 
-            # 3〜8. ビジネス系サフィックス
-            for sfx in [" 会社", " 企業", " サービス", " 支援", " 事業者", " オンライン"]:
-                if sfx.strip() not in core:
-                    _add(core + sfx + region_suffix)
-
-            max_v = 8 if single_kw_mode else 3
-            return result[:max_v]
+            return result
 
         single_kw_mode = len(keywords_data) == 1
-        num_per_query = 50 if single_kw_mode else 30
 
         urls = []
         seen_domains = set()
         for kw in keywords_data:
-            variations = _build_query_variations(kw.keyword, kw.region or "")
-            for q in variations:
-                results = search_serper(serper_key, q, num=num_per_query)
+            variations = _build_query_variations(kw.keyword, kw.region or "", single_mode=single_kw_mode)
+            for q, num_q in variations:
+                results = search_serper(serper_key, q, num=num_q)
                 for r in results:
                     url = r.get("url", "")
                     if not url or r.get("error"):
