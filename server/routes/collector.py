@@ -1063,28 +1063,48 @@ def collect_urls_preview(
         from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain
         from urllib.parse import urlparse as _up
 
+        def _build_query_variations(base_keyword: str, region: str = "") -> list[str]:
+            region_suffix = f" {region}" if region else ""
+            variations = []
+            # 1. オリジナルクエリ
+            variations.append(base_keyword + region_suffix)
+            # 2. ダブルクォートを除去した広い検索
+            stripped = base_keyword.replace('"', '').strip()
+            if stripped != base_keyword and stripped:
+                variations.append(stripped + region_suffix)
+                if "会社" not in stripped and "企業" not in stripped:
+                    variations.append(stripped + " 会社" + region_suffix)
+                    variations.append(stripped + " 企業" + region_suffix)
+            else:
+                # クォートなし → サフィックスを追加
+                if "会社" not in base_keyword and "企業" not in base_keyword:
+                    variations.append(base_keyword + " 会社" + region_suffix)
+                    variations.append(base_keyword + " 企業" + region_suffix)
+            return variations[:4]  # 最大4バリエーション
+
         urls = []
         seen_domains = set()
         for kw in keywords_data:
-            query = kw.keyword + (f" {kw.region}" if kw.region else "")
-            results = search_serper(serper_key, query, num=100)
-            for r in results:
-                url = r.get("url", "")
-                if not url:
-                    continue
-                domain = _ndomain(_up(url).netloc)
-                if domain in seen_domains:
-                    continue
-                seen_domains.add(domain)
-                homepage = f"{_up(url).scheme}://{_up(url).netloc}/"
-                is_agg, reason = is_aggregator_site(url, r.get("title", ""))
-                urls.append({
-                    "url": homepage,
-                    "name": r.get("title", ""),
-                    "source": f"Serper検索: {kw.keyword}",
-                    "excluded": is_agg,
-                    "exclude_reason": reason if is_agg else None,
-                })
+            variations = _build_query_variations(kw.keyword, kw.region or "")
+            for q in variations:
+                results = search_serper(serper_key, q, num=30)
+                for r in results:
+                    url = r.get("url", "")
+                    if not url or r.get("error"):
+                        continue
+                    domain = _ndomain(_up(url).netloc)
+                    if domain in seen_domains:
+                        continue
+                    seen_domains.add(domain)
+                    homepage = f"{_up(url).scheme}://{_up(url).netloc}/"
+                    is_agg, reason = is_aggregator_site(url, r.get("title", ""))
+                    urls.append({
+                        "url": homepage,
+                        "name": r.get("title", ""),
+                        "source": f"Serper: {q[:40]}",
+                        "excluded": is_agg,
+                        "exclude_reason": reason if is_agg else None,
+                    })
         return {"urls": urls, "count": len(urls)}
 
     elif type_ == "ec-search":
