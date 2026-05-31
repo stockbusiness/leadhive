@@ -1060,8 +1060,16 @@ def collect_urls_preview(
         if not serper_key:
             return {"error": "Serper APIキーが設定されていません。設定画面でSerper APIキーを登録してください。"}
 
-        from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain
+        from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain, KNOWN_AGGREGATOR_DOMAINS
         from urllib.parse import urlparse as _up
+
+        def _is_agg_domain_only(url: str) -> tuple:
+            """ホームページ正規化後はパス・タイトル判定不要 → ドメイン一致のみで除外"""
+            domain = _ndomain(_up(url).netloc)
+            for agg in KNOWN_AGGREGATOR_DOMAINS:
+                if agg in domain:
+                    return True, f"既知のまとめサイト: {agg}"
+            return False, ""
 
         # Google検索クエリに直接付与するノイズドメイン除外リスト
         _QUERY_EXCLUDE_SITES = [
@@ -1126,7 +1134,7 @@ def collect_urls_preview(
                         continue
                     seen_domains.add(domain)
                     homepage = f"{_up(url).scheme}://{_up(url).netloc}/"
-                    is_agg, reason = is_aggregator_site(url, r.get("title", ""))
+                    is_agg, reason = _is_agg_domain_only(url)
                     urls.append({
                         "url": homepage,
                         "name": r.get("title", ""),
