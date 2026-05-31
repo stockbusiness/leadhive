@@ -5,17 +5,18 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-def search_serper(api_key: str, query: str, num: int = 10) -> list[dict]:
+def search_serper(api_key: str, query: str, num: int = 10, start_page: int = 1) -> list[dict]:
     """Serper APIで検索する。
     numに応じてページングを自動制御する。
     Serperは1リクエストあたり最大100件（num=100）を返せる。
     100件を超える場合はページングで追加取得する。
+    start_page: 開始ページ番号（継続収集時に使用）
     """
     try:
         results = []
         # 1リクエストで取得する件数（Serper上限100件）
         per_request = min(num, 100)
-        page = 1
+        page = max(1, start_page)
 
         while len(results) < num:
             remaining = num - len(results)

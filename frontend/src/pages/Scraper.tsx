@@ -20,6 +20,7 @@ export default function Scraper() {
   const [collectLoading, setCollectLoading] = useState(false);
   const [collectResults, setCollectResults] = useState<any>(null);
   const [selectedKeyword, setSelectedKeyword] = useState<number | "all">("all");
+  const [googleApiPageStart, setGoogleApiPageStart] = useState(1);
   const [activeTab, setActiveTab] = useState<CollectTab>("google-api");
   const [progressMsg, setProgressMsg] = useState("");
   const [progressCurrent, setProgressCurrent] = useState(0);
@@ -99,9 +100,10 @@ export default function Scraper() {
     setStagedUrls([]);
     setScrapeResults(null);
     setActiveCollectType(type);
+    if (type === "google-api") setGoogleApiPageStart(1);
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
     try {
-      const data = await api.collector.urlsPreview({ type, ...extraParams, project_id: currentProject?.id });
+      const data = await api.collector.urlsPreview({ type, ...extraParams, project_id: currentProject?.id, page_start: 1 });
       if (data.error) {
         setStagingError(data.error);
       } else {
@@ -112,9 +114,45 @@ export default function Scraper() {
             selected: u.has_url !== false && !u.excluded,
           }))
         );
+        if (type === "google-api" && data.next_page_start) {
+          setGoogleApiPageStart(data.next_page_start);
+        }
       }
     } catch (err: any) {
       setStagingError(err.response?.data?.detail || "URL収集エラーが発生しました");
+    }
+    setStagingLoading(false);
+  };
+
+  const handleCollectMoreUrls = async (extraParams: Record<string, unknown> = {}) => {
+    if (googleApiPageStart <= 1 || stagingLoading) return;
+    setStagingLoading(true);
+    setStagingError(null);
+    try {
+      const existingUrls = stagedUrls.map((u) => u.url).filter(Boolean);
+      const data = await api.collector.urlsPreview({
+        type: "google-api",
+        ...extraParams,
+        project_id: currentProject?.id,
+        page_start: googleApiPageStart,
+        existing_urls: existingUrls,
+      });
+      if (data.error) {
+        setStagingError(data.error);
+      } else {
+        const existingUrlSet = new Set(existingUrls);
+        const newUrls = (data.urls as any[])
+          .filter((u) => !existingUrlSet.has(u.url))
+          .map((u, i) => ({
+            ...u,
+            id: `more-${googleApiPageStart}-${i}-${u.url}`,
+            selected: u.has_url !== false && !u.excluded,
+          }));
+        setStagedUrls((prev) => [...prev, ...newUrls]);
+        if (data.next_page_start) setGoogleApiPageStart(data.next_page_start);
+      }
+    } catch (err: any) {
+      setStagingError(err.response?.data?.detail || "追加収集エラーが発生しました");
     }
     setStagingLoading(false);
   };
@@ -232,11 +270,16 @@ export default function Scraper() {
             <GoogleApiSection
               keywords={keywords}
               selectedKeyword={selectedKeyword}
-              onSelectKeyword={setSelectedKeyword}
+              onSelectKeyword={(v) => { setSelectedKeyword(v); setGoogleApiPageStart(1); setStagedUrls([]); setScrapeResults(null); }}
               loading={stagingLoading}
               onCollect={() => handleCollectUrls("google-api", {
                 keyword_id: selectedKeyword !== "all" ? selectedKeyword : undefined,
               })}
+              onCollectMore={() => handleCollectMoreUrls({
+                keyword_id: selectedKeyword !== "all" ? selectedKeyword : undefined,
+              })}
+              nextPageStart={googleApiPageStart}
+              hasResults={activeCollectType === "google-api" && stagedUrls.length > 0}
             />
           )}
 
@@ -369,26 +412,31 @@ export default function Scraper() {
 }
 
 function GoogleApiSection({
-  keywords, selectedKeyword, onSelectKeyword, loading, onCollect, progressMsg, progressCurrent, progressTotal,
+  keywords, selectedKeyword, onSelectKeyword, loading, onCollect, onCollectMore, nextPageStart, hasResults,
+  progressMsg, progressCurrent, progressTotal,
 }: {
   keywords: SearchKeyword[];
   selectedKeyword: number | "all";
   onSelectKeyword: (v: number | "all") => void;
   loading: boolean;
   onCollect: () => void;
+  onCollectMore?: () => void;
+  nextPageStart?: number;
+  hasResults?: boolean;
   progressMsg?: string;
   progressCurrent?: number;
   progressTotal?: number;
 }) {
   const pct = progressTotal && progressTotal > 0 ? Math.round((progressCurrent! / progressTotal) * 100) : 0;
+  const canLoadMore = hasResults && nextPageStart && nextPageStart > 1 && !loading;
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-500">
         登録済みの検索キーワードを使ってGoogle Custom Search APIで候補企業を自動収集します。
         APIキーが必要です（設定画面で登録）。
       </p>
-      <div className="flex gap-3 items-end">
-        <div className="flex-1">
+      <div className="flex gap-3 items-end flex-wrap">
+        <div className="flex-1 min-w-0">
           <label className="block text-xs font-medium text-slate-600 mb-1">対象キーワード</label>
           <select
             value={selectedKeyword}
@@ -403,14 +451,27 @@ function GoogleApiSection({
             ))}
           </select>
         </div>
-        <button
-          onClick={onCollect}
-          disabled={loading || keywords.length === 0}
-          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
-        >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-          URLを収集
-        </button>
+        <div className="flex gap-2 flex-shrink-0">
+          <button
+            onClick={onCollect}
+            disabled={loading || keywords.length === 0}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+            URLを収集
+          </button>
+          {canLoadMore && (
+            <button
+              onClick={onCollectMore}
+              disabled={loading}
+              title={`Googleページ${nextPageStart}〜から続けて収集し、一覧に追加します`}
+              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            >
+              <Search size={16} />
+              さらに追加収集
+            </button>
+          )}
+        </div>
       </div>
       {loading && progressMsg && (
         <div className="space-y-1">

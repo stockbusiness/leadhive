@@ -1118,13 +1118,26 @@ def collect_urls_preview(
             return result
 
         single_kw_mode = len(keywords_data) == 1
+        # 継続収集: 前回の最終ページの次から開始
+        page_start = max(1, int(data.get("page_start", 1)))
+        # 各バッチで消費するSerperページ数（deepクエリのnum=200=2ページ分）
+        pages_per_batch = 2 if single_kw_mode else 1
 
         urls = []
         seen_domains = set()
+        # フロントエンドが送ってきた「既に持っているドメイン」を除外リストに追加
+        for already_url in data.get("existing_urls", []):
+            try:
+                d = _ndomain(_up(already_url).netloc)
+                if d:
+                    seen_domains.add(d)
+            except Exception:
+                pass
+
         for kw in keywords_data:
             variations = _build_query_variations(kw.keyword, kw.region or "", single_mode=single_kw_mode)
             for q, num_q in variations:
-                results = search_serper(serper_key, q, num=num_q)
+                results = search_serper(serper_key, q, num=num_q, start_page=page_start)
                 for r in results:
                     url = r.get("url", "")
                     if not url or r.get("error"):
@@ -1138,11 +1151,12 @@ def collect_urls_preview(
                     urls.append({
                         "url": homepage,
                         "name": r.get("title", ""),
-                        "source": f"Serper: {q[:40]}",
+                        "source": f"Serper: {q[:40]} (P{page_start}〜)",
                         "excluded": is_agg,
                         "exclude_reason": reason if is_agg else None,
                     })
-        return {"urls": urls, "count": len(urls)}
+        next_page_start = page_start + pages_per_batch
+        return {"urls": urls, "count": len(urls), "next_page_start": next_page_start}
 
     elif type_ == "ec-search":
         keyword = data.get("keyword", "").strip()
