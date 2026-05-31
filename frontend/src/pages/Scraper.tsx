@@ -170,6 +170,42 @@ export default function Scraper() {
       const { job_id } = await api.collector.scrapeStaged(selected, currentProject?.id);
       const es = new EventSource(`/api/collect/progress/${job_id}`);
       esRef.current = es;
+
+      // SSE切断後のポーリングフォールバック
+      const startPolling = (jid: string) => {
+        setScrapeProgressMsg("接続を再試行中...");
+        let attempts = 0;
+        const maxAttempts = 360; // 最大30分 (5秒×360)
+        const poll = async () => {
+          if (attempts++ >= maxAttempts) {
+            setScrapeResults({ error: "タイムアウト: スクレイピングが完了しませんでした" });
+            setScrapeProgressMsg("");
+            setScrapeInProgress(false);
+            return;
+          }
+          try {
+            const s = await api.collector.jobStatus(jid);
+            if (s.message) setScrapeProgressMsg(s.message);
+            if (s.current !== undefined) setScrapeProgressCurrent(s.current);
+            if (s.total !== undefined) setScrapeProgressTotal(s.total);
+            if (s.status === "done") {
+              setScrapeResults(s.result || { summary: { total: 0 }, results: [] });
+              setScrapeProgressMsg("");
+              setScrapeInProgress(false);
+            } else if (s.status === "error" || s.status === "interrupted" || s.status === "not_found") {
+              setScrapeResults({ error: s.message || "スクレイピングが中断されました" });
+              setScrapeProgressMsg("");
+              setScrapeInProgress(false);
+            } else {
+              setTimeout(poll, 5000);
+            }
+          } catch {
+            setTimeout(poll, 5000);
+          }
+        };
+        setTimeout(poll, 3000);
+      };
+
       es.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data);
@@ -190,10 +226,10 @@ export default function Scraper() {
         } catch {}
       };
       es.onerror = () => {
-        setScrapeResults({ error: "接続エラーが発生しました" });
-        setScrapeProgressMsg("");
-        setScrapeInProgress(false);
         es.close();
+        esRef.current = null;
+        // SSE切断 → ポーリングへ切り替え（エラー表示しない）
+        startPolling(job_id);
       };
     } catch (err: any) {
       setScrapeResults({ error: err.response?.data?.detail || "スクレイピングエラーが発生しました" });
