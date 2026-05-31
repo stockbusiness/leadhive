@@ -1063,12 +1063,21 @@ def collect_urls_preview(
         from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain
         from urllib.parse import urlparse as _up
 
+        # Google検索クエリに直接付与するノイズドメイン除外リスト
+        _QUERY_EXCLUDE_SITES = [
+            "lancers.jp", "coconala.com", "crowdworks.jp",
+            "note.com", "ameblo.jp", "hatenablog.com",
+            "prtimes.jp", "youtube.com", "twitter.com", "x.com",
+        ]
+        _EXCLUDE_SUFFIX = " " + " ".join(f"-site:{d}" for d in _QUERY_EXCLUDE_SITES)
+
         def _build_query_variations(base_keyword: str, region: str = "", single_mode: bool = True) -> list[tuple]:
             """クエリバリエーションと各numのペアリストを返す"""
             region_suffix = f" {region}" if region else ""
             base = base_keyword.strip()
             stripped = base.replace('"', '').strip()
             core = stripped if stripped != base else base
+            ex = _EXCLUDE_SUFFIX  # -site: 除外を全クエリに付与
 
             seen_q: set = set()
             result: list = []
@@ -1081,22 +1090,22 @@ def collect_urls_preview(
 
             if single_mode:
                 # 単一キーワード: 深く掘る
-                _add(base + region_suffix, 50)                    # 1. オリジナル
+                _add(base + region_suffix + ex, 50)                # 1. オリジナル + 除外
                 if stripped != base:
-                    _add(stripped + region_suffix, 200)           # 2. クォート除去 → 深ページネーション
+                    _add(stripped + region_suffix + ex, 200)       # 2. クォート除去 + 深ページネーション
                 else:
-                    _add(core + region_suffix, 200)               # 2. クォートなし版でも深く
+                    _add(core + region_suffix + ex, 200)           # 2. 同上
                 # 3〜6. ビジネス系サフィックス（各50件）
                 for sfx in [" 会社", " 企業", " サービス", " 支援"]:
                     if sfx.strip() not in core:
-                        _add(core + sfx + region_suffix, 50)
+                        _add(core + sfx + region_suffix + ex, 50)
             else:
                 # 複数キーワード: タイムアウト防止で浅く
-                _add(base + region_suffix, 30)
+                _add(base + region_suffix + ex, 30)
                 if stripped != base:
-                    _add(stripped + region_suffix, 60)
+                    _add(stripped + region_suffix + ex, 60)
                 else:
-                    _add(core + " 会社" + region_suffix, 30)
+                    _add(core + " 会社" + region_suffix + ex, 30)
 
             return result
 
