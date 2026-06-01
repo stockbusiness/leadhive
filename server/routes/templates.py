@@ -126,6 +126,36 @@ def get_ec_template_presets(
     return {"presets": presets}
 
 
+@router.put("/{template_id}")
+def update_template(
+    template_id: int,
+    data: dict,
+    current_user: User = Depends(require_phase0_unlock),
+    db: Session = Depends(get_db),
+):
+    template = db.query(MemoTemplate).filter(MemoTemplate.id == template_id, MemoTemplate.org_id == current_user.org_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="テンプレートが見つかりません")
+    title = data.get("title", "").strip()
+    content = data.get("content", "").strip()
+    if not title or not content:
+        raise HTTPException(status_code=400, detail="タイトルと内容を入力してください")
+    template.title = title
+    template.content = content
+    db.commit()
+    db.refresh(template)
+    cache_invalidate(f"templates_list_{current_user.org_id}")
+    return {
+        "template": {
+            "id": template.id,
+            "title": template.title,
+            "content": template.content,
+            "is_email_template": bool(template.is_email_template),
+            "created_at": template.created_at.isoformat() if template.created_at else None,
+        }
+    }
+
+
 @router.delete("/{template_id}")
 def delete_template(
     template_id: int,

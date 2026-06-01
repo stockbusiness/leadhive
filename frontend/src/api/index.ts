@@ -240,6 +240,9 @@ export const api = {
     create: (data: { title: string; content: string; is_email_template?: boolean }) =>
       axios.post<{ template: MemoTemplate }>("/api/templates", data).then(r => r.data),
 
+    update: (id: number, data: { title: string; content: string }) =>
+      axios.put<{ template: MemoTemplate }>(`/api/templates/${id}`, data).then(r => r.data),
+
     delete: (id: number) =>
       axios.delete(`/api/templates/${id}`).then(r => r.data),
 

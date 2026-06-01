@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Mail, Plus, Trash2, Lock, ShoppingCart, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
+import { FileText, Mail, Plus, Trash2, Lock, ShoppingCart, ChevronDown, ChevronUp, Copy, Check, Pencil, X } from "lucide-react";
 import { api } from "../api";
 import type { MemoTemplate, EcTemplatePreset } from "../types";
 import { useAuth } from "../contexts/AuthContext";
@@ -18,6 +18,10 @@ export default function Templates() {
   const [selectedEcPreset, setSelectedEcPreset] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [importedPresets, setImportedPresets] = useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   const fetchTemplates = () => {
     api.templates.list().then((data) => {
@@ -60,6 +64,32 @@ export default function Templates() {
   const handleDelete = (id: number) => {
     if (confirm("このテンプレートを削除しますか？")) {
       api.templates.delete(id).then(() => fetchTemplates());
+    }
+  };
+
+  const startEdit = (t: MemoTemplate) => {
+    setEditingId(t.id);
+    setEditTitle(t.title);
+    setEditContent(t.content);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditTitle("");
+    setEditContent("");
+  };
+
+  const handleUpdate = async (id: number) => {
+    if (!editTitle.trim() || !editContent.trim()) return;
+    setEditSaving(true);
+    try {
+      await api.templates.update(id, { title: editTitle.trim(), content: editContent.trim() });
+      setEditingId(null);
+      fetchTemplates();
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || "更新に失敗しました");
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -307,33 +337,77 @@ export default function Templates() {
         ) : (
           filteredTemplates.map((t) => (
             <div key={t.id} className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-medium text-slate-800">{t.title}</h4>
-                    {isEmailTab && (
-                      <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">件名</span>
-                    )}
+              {editingId === t.id ? (
+                <div className="space-y-3">
+                  {isEmailTab && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-xs text-blue-700">
+                      <p className="font-medium mb-1">利用可能な変数:</p>
+                      <p>{"{会社名}"} {"{担当者名}"} {"{メールアドレス}"} {"{電話番号}"} {"{都道府県}"} {"{市区町村}"} {"{WebサイトURL}"}</p>
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder={isEmailTab ? "件名テンプレート" : "テンプレート名"}
+                  />
+                  <textarea
+                    value={editContent}
+                    onChange={e => setEditContent(e.target.value)}
+                    rows={isEmailTab ? 6 : 3}
+                    className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="テンプレート内容"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleUpdate(t.id)}
+                      disabled={editSaving || !editTitle.trim() || !editContent.trim()}
+                      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      <Check size={14} />
+                      {editSaving ? "保存中..." : "保存"}
+                    </button>
+                    <button onClick={cancelEdit} className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm border border-slate-300 text-slate-600 hover:bg-slate-50">
+                      <X size={14} />
+                      キャンセル
+                    </button>
                   </div>
-                  <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{t.content}</p>
-                  <p className="text-xs text-slate-400 mt-2">
-                    {t.created_at ? new Date(t.created_at).toLocaleDateString("ja-JP") : ""}
-                  </p>
                 </div>
-                {isSystemAdmin ? (
-                  <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:text-red-600 p-1 ml-3" title="削除">
-                    <Trash2 size={16} />
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "テンプレートの削除は有料プランで利用できます。" } }))}
-                    className="text-slate-300 p-1 ml-3 cursor-not-allowed"
-                    title="削除（ロック中）"
-                  >
-                    <Lock size={16} />
-                  </button>
-                )}
-              </div>
+              ) : (
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium text-slate-800">{t.title}</h4>
+                      {isEmailTab && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">件名</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{t.content}</p>
+                    <p className="text-xs text-slate-400 mt-2">
+                      {t.created_at ? new Date(t.created_at).toLocaleDateString("ja-JP") : ""}
+                    </p>
+                  </div>
+                  {isSystemAdmin ? (
+                    <div className="flex items-center gap-1 ml-3 flex-shrink-0">
+                      <button onClick={() => startEdit(t)} className="text-slate-400 hover:text-blue-600 p-1" title="編集">
+                        <Pencil size={15} />
+                      </button>
+                      <button onClick={() => handleDelete(t.id)} className="text-slate-400 hover:text-red-600 p-1" title="削除">
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "テンプレートの削除は有料プランで利用できます。" } }))}
+                      className="text-slate-300 p-1 ml-3 cursor-not-allowed"
+                      title="削除（ロック中）"
+                    >
+                      <Lock size={16} />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
