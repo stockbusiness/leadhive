@@ -103,6 +103,46 @@ def _build_company_info(company: dict) -> str:
     return "\n".join(lines)
 
 
+def generate_from_custom_template(company: dict, template_content: str, template_title: str) -> dict:
+    """カスタムMemoTemplateを変数置換して生成（Claude不使用）"""
+    import uuid
+
+    name = company.get("company_name") or "貴社"
+    prefecture = company.get("prefecture") or ""
+    city = company.get("city") or ""
+    category = company.get("category_main") or ""
+    domain = company.get("domain") or company.get("website_url") or ""
+    score = company.get("score_total") or 0
+    cms = company.get("cms_type") or ""
+
+    replacements = {
+        "{会社名}": name,
+        "{担当者名}": "ご担当者",
+        "{URL}": domain,
+        "{業種}": category,
+        "{都道府県}": prefecture,
+        "{市区町村}": city,
+        "{スコア}": str(score),
+        "{CMS}": cms,
+        "【会社名】": name,
+        "【担当者名】": "ご担当者",
+        "【URL】": domain,
+        "【業種】": category,
+        "【都道府県】": prefecture,
+    }
+
+    body = template_content
+    for var, val in replacements.items():
+        body = body.replace(var, val)
+
+    return {
+        "subject": template_title,
+        "body": body,
+        "ai_prompt_id": f"custom:{uuid.uuid4()}",
+        "template_type": "custom",
+    }
+
+
 def generate_sales_message(company: dict, template_type: str) -> dict:
     import anthropic
 

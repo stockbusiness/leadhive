@@ -406,6 +406,8 @@ export default function SalesAI() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [templateType, setTemplateType] = useState<TemplateType>("shopify");
+  const [customTemplateId, setCustomTemplateId] = useState<number | null>(null);
+  const [customTemplates, setCustomTemplates] = useState<{ id: number; title: string; content: string }[]>([]);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState("");
   const [genSuccess, setGenSuccess] = useState("");
@@ -455,6 +457,10 @@ export default function SalesAI() {
 
   useEffect(() => {
     api.salesAi.checkApiKey().then(r => setHasApiKey(r.has_api_key)).catch(() => setHasApiKey(false));
+    api.templates.list().then(r => {
+      const emailTpls = (r.templates || []).filter((t: any) => t.is_email_template);
+      setCustomTemplates(emailTpls);
+    }).catch(() => {});
   }, []);
 
   const loadCompanies = useCallback(async () => {
@@ -588,7 +594,7 @@ export default function SalesAI() {
     setGenError("");
     setGenSuccess("");
     try {
-      const res = await api.salesAi.generateBatch(selectedIds, templateType, currentProject?.id);
+      const res = await api.salesAi.generateBatch(selectedIds, templateType, currentProject?.id, customTemplateId ?? undefined);
       setGenSuccess(`${res.total_generated}件の営業文を生成しました。「レビュー・送信」タブで確認できます。`);
       if (res.errors?.length > 0) {
         setGenError(`${res.errors.length}件は生成できませんでした: ${res.errors[0]?.error}`);
@@ -622,7 +628,7 @@ export default function SalesAI() {
     for (let i = 0; i < chunks.length; i++) {
       setAutoBatchBatch(i + 1);
       try {
-        const res = await api.salesAi.generateBatch(chunks[i], templateType, currentProject?.id);
+        const res = await api.salesAi.generateBatch(chunks[i], templateType, currentProject?.id, customTemplateId ?? undefined);
         totalGenerated += res.total_generated || 0;
         setAutoBatchDone((i + 1) * BATCH > ids.length ? ids.length : (i + 1) * BATCH);
       } catch (e: any) {
@@ -723,20 +729,44 @@ export default function SalesAI() {
                 <Filter size={16} className="text-slate-500" />
                 テンプレート選択
               </h3>
+              <p className="text-xs text-slate-400 font-medium mb-1">AI生成テンプレート</p>
               <div className="space-y-2">
                 {(["shopify", "ec_support", "partner"] as TemplateType[]).map(t => (
                   <button
                     key={t}
-                    onClick={() => setTemplateType(t)}
+                    onClick={() => { setTemplateType(t); setCustomTemplateId(null); }}
                     className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                      templateType === t ? "border-violet-500 bg-violet-50" : "border-slate-200 hover:bg-slate-50"
+                      customTemplateId === null && templateType === t ? "border-violet-500 bg-violet-50" : "border-slate-200 hover:bg-slate-50"
                     }`}
                   >
-                    <p className={`text-sm font-medium ${templateType === t ? "text-violet-700" : "text-slate-700"}`}>{TEMPLATE_LABELS[t]}</p>
+                    <p className={`text-sm font-medium ${customTemplateId === null && templateType === t ? "text-violet-700" : "text-slate-700"}`}>{TEMPLATE_LABELS[t]}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{TEMPLATE_DESCRIPTIONS[t]}</p>
                   </button>
                 ))}
               </div>
+
+              {customTemplates.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="text-xs text-slate-400 font-medium mb-2">設定済みのメールテンプレート</p>
+                  <div className="space-y-2">
+                    {customTemplates.map(tpl => (
+                      <button
+                        key={tpl.id}
+                        onClick={() => setCustomTemplateId(tpl.id)}
+                        className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                          customTemplateId === tpl.id ? "border-emerald-500 bg-emerald-50" : "border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText size={12} className={customTemplateId === tpl.id ? "text-emerald-600" : "text-slate-400"} />
+                          <p className={`text-sm font-medium truncate ${customTemplateId === tpl.id ? "text-emerald-700" : "text-slate-700"}`}>{tpl.title}</p>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">変数置換で一括生成（AI不使用）</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">

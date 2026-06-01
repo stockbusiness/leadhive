@@ -73,12 +73,14 @@ class GenerateRequest(BaseModel):
     company_id: int
     template_type: str
     project_id: Optional[int] = None
+    custom_template_id: Optional[int] = None
 
 
 class GenerateBatchRequest(BaseModel):
     company_ids: list[int]
     template_type: str
     project_id: Optional[int] = None
+    custom_template_id: Optional[int] = None
 
 
 class UpdateMessageRequest(BaseModel):
@@ -150,10 +152,20 @@ def generate_batch(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from server.services.ai_writer import generate_sales_message
+    from server.services.ai_writer import generate_sales_message, generate_from_custom_template
 
     if len(req.company_ids) > 50:
         raise HTTPException(status_code=400, detail="一括生成は最大50件です")
+
+    custom_tpl = None
+    if req.custom_template_id:
+        from server.models import MemoTemplate
+        custom_tpl = db.query(MemoTemplate).filter(
+            MemoTemplate.id == req.custom_template_id,
+            MemoTemplate.org_id == current_user.org_id,
+        ).first()
+        if not custom_tpl:
+            raise HTTPException(status_code=404, detail="カスタムテンプレートが見つかりません")
 
     results = []
     errors = []
@@ -172,7 +184,10 @@ def generate_batch(
             continue
 
         try:
-            result = generate_sales_message(company_dict, req.template_type)
+            if custom_tpl:
+                result = generate_from_custom_template(company_dict, custom_tpl.content, custom_tpl.title)
+            else:
+                result = generate_sales_message(company_dict, req.template_type)
         except RuntimeError as e:
             errors.append({"company_id": company_id, "error": str(e)})
             continue
@@ -181,11 +196,12 @@ def generate_batch(
             errors.append({"company_id": company_id, "error": f"AI生成エラー: {str(e)}"})
             continue
 
+        effective_type = f"custom:{custom_tpl.id}" if custom_tpl else req.template_type
         msg = SalesMessage(
             org_id=current_user.org_id,
             company_id=company_id,
             project_id=req.project_id,
-            template_type=req.template_type,
+            template_type=effective_type,
             subject=result["subject"],
             body=result["body"],
             ai_prompt_id=result["ai_prompt_id"],

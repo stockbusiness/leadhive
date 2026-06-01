@@ -695,11 +695,11 @@ export const api = {
   },
 
   salesAi: {
-    generate: (companyId: number, templateType: string, projectId?: number) =>
-      axios.post("/api/sales-ai/generate", { company_id: companyId, template_type: templateType, project_id: projectId }).then(r => r.data),
+    generate: (companyId: number, templateType: string, projectId?: number, customTemplateId?: number) =>
+      axios.post("/api/sales-ai/generate", { company_id: companyId, template_type: templateType, project_id: projectId, custom_template_id: customTemplateId }).then(r => r.data),
 
-    generateBatch: (companyIds: number[], templateType: string, projectId?: number) =>
-      axios.post("/api/sales-ai/generate-batch", { company_ids: companyIds, template_type: templateType, project_id: projectId }).then(r => r.data),
+    generateBatch: (companyIds: number[], templateType: string, projectId?: number, customTemplateId?: number) =>
+      axios.post("/api/sales-ai/generate-batch", { company_ids: companyIds, template_type: templateType, project_id: projectId, custom_template_id: customTemplateId }).then(r => r.data),
 
     listMessages: (status?: string) =>
       axios.get("/api/sales-ai/messages", { params: status ? { status } : {} }).then(r => r.data),
