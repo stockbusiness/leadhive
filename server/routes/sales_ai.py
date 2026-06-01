@@ -81,6 +81,13 @@ class GenerateBatchRequest(BaseModel):
     template_type: str
     project_id: Optional[int] = None
     custom_template_id: Optional[int] = None
+    skip_existing: bool = False
+
+
+class BulkSendRequest(BaseModel):
+    send_method: str = "manual"
+    profile_id: Optional[int] = None
+    message_ids: Optional[list[int]] = None
 
 
 class UpdateMessageRequest(BaseModel):
@@ -169,8 +176,19 @@ def generate_batch(
 
     results = []
     errors = []
+    skipped = 0
 
     for company_id in req.company_ids:
+        if req.skip_existing:
+            existing = db.query(SalesMessage).filter(
+                SalesMessage.org_id == current_user.org_id,
+                SalesMessage.company_id == company_id,
+                SalesMessage.status != "failed",
+            ).first()
+            if existing:
+                skipped += 1
+                continue
+
         company_dict = _get_company_dict(company_id, db)
         if not company_dict:
             errors.append({"company_id": company_id, "error": "企業が見つかりません"})
@@ -218,6 +236,7 @@ def generate_batch(
         "errors": errors,
         "total_requested": len(req.company_ids),
         "total_generated": len(results),
+        "total_skipped": skipped,
     }
 
 
@@ -512,6 +531,11 @@ def send_message(
     msg.sent_at = datetime.utcnow()
     msg.sent_by = current_user.id
 
+    if final_status == "sent" and c:
+        early_statuses = {"未確認", "対象候補", "アプローチ前"}
+        if c.status in early_statuses or c.status is None:
+            c.status = "フォーム送信済"
+
     audit = AuditLog(
         company_id=msg.company_id,
         send_method=req.send_method,
@@ -529,6 +553,64 @@ def send_message(
     result["send_result"] = send_result
     result["send_detail"] = send_note
     return result
+
+
+@router.post("/messages/bulk-send")
+def bulk_send_messages(
+    req: BulkSendRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """レビュー済みメッセージを一括送信（手動記録）する。"""
+    owned_pids = [p.id for p in _owned_projects(current_user, db)]
+
+    q = (
+        db.query(SalesMessage)
+        .join(Company, SalesMessage.company_id == Company.id)
+        .filter(
+            SalesMessage.status == "reviewed",
+            Company.project_id.in_(owned_pids),
+        )
+    )
+    if req.message_ids:
+        q = q.filter(SalesMessage.id.in_(req.message_ids))
+
+    msgs = q.all()
+    send_method = req.send_method or "manual"
+    early_statuses = {"未確認", "対象候補", "アプローチ前"}
+
+    sent_count = 0
+    failed_count = 0
+
+    for msg in msgs:
+        try:
+            c = db.query(Company).filter(Company.id == msg.company_id).first()
+            msg.status = "sent"
+            msg.sent_at = datetime.utcnow()
+            msg.sent_by = current_user.id
+            if c and (c.status in early_statuses or c.status is None):
+                c.status = "フォーム送信済"
+            db.add(AuditLog(
+                company_id=msg.company_id,
+                send_method=send_method,
+                sent_by_user_id=current_user.id,
+                message_id=msg.id,
+                ai_prompt_id=msg.ai_prompt_id,
+                result="sent",
+                note=f"一括送信 ({send_method})",
+            ))
+            sent_count += 1
+        except Exception as e:
+            logger.warning(f"bulk_send: error on message {msg.id}: {e}")
+            failed_count += 1
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"DB更新に失敗しました: {str(e)}")
+
+    return {"sent": sent_count, "failed": failed_count, "total": len(msgs)}
 
 
 @router.delete("/messages/{message_id}")

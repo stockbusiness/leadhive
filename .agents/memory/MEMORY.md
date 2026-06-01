@@ -1,1 +1,1 @@
-- [React コンポーネント内部定義でIME破壊](react-inner-component-ime.md) — コンポーネント関数内にサブコンポーネントを定義するとキー入力のたびに再マウントされIMEが壊れる
+- [SalesAI bulk-send pattern](salesai-bulksend.md) — bulk-send joins SalesMessage+Company via project ownership; always insert fixed POST paths before dynamic {id} paths in FastAPI

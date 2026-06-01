@@ -457,6 +457,11 @@ export default function SalesAI() {
   const [scheduleLastRunCount, setScheduleLastRunCount] = useState(0);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleRunning, setScheduleRunning] = useState(false);
+
+  const [skipExisting, setSkipExisting] = useState(false);
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkSendResult, setBulkSendResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const [bulkSendConfirm, setBulkSendConfirm] = useState(false);
   const [scheduleSaveMsg, setScheduleSaveMsg] = useState("");
 
   useEffect(() => {
@@ -602,8 +607,9 @@ export default function SalesAI() {
     setGenError("");
     setGenSuccess("");
     try {
-      const res = await api.salesAi.generateBatch(selectedIds, templateType, currentProject?.id, customTemplateId ?? undefined);
-      setGenSuccess(`${res.total_generated}件の営業文を生成しました。「レビュー・送信」タブで確認できます。`);
+      const res = await api.salesAi.generateBatch(selectedIds, templateType, currentProject?.id, customTemplateId ?? undefined, skipExisting);
+      const skippedMsg = res.total_skipped > 0 ? `（${res.total_skipped}件はスキップ）` : "";
+      setGenSuccess(`${res.total_generated}件の営業文を生成しました${skippedMsg}。「レビュー・送信」タブで確認できます。`);
       if (res.errors?.length > 0) {
         setGenError(`${res.errors.length}件は生成できませんでした: ${res.errors[0]?.error}`);
       }
@@ -636,7 +642,7 @@ export default function SalesAI() {
     for (let i = 0; i < chunks.length; i++) {
       setAutoBatchBatch(i + 1);
       try {
-        const res = await api.salesAi.generateBatch(chunks[i], templateType, currentProject?.id, customTemplateId ?? undefined);
+        const res = await api.salesAi.generateBatch(chunks[i], templateType, currentProject?.id, customTemplateId ?? undefined, skipExisting);
         totalGenerated += res.total_generated || 0;
         setAutoBatchDone((i + 1) * BATCH > ids.length ? ids.length : (i + 1) * BATCH);
       } catch (e: any) {
@@ -649,6 +655,21 @@ export default function SalesAI() {
     setGenSuccess(`全${totalGenerated}件の営業文を生成しました。「レビュー・送信」タブで確認できます。`);
     setSelectedIds([]);
     loadMessages();
+  };
+
+  const handleBulkSend = async () => {
+    setBulkSending(true);
+    setBulkSendResult(null);
+    setBulkSendConfirm(false);
+    try {
+      const res = await api.salesAi.bulkSend("manual");
+      setBulkSendResult(res);
+      loadMessages();
+    } catch (e: any) {
+      setGenError(e?.response?.data?.detail || "一括送信に失敗しました");
+    } finally {
+      setBulkSending(false);
+    }
   };
 
   const handleSendConfirm = async (sendMethod: string, profileId?: number): Promise<{ send_result?: string; send_detail?: string }> => {
@@ -804,9 +825,18 @@ export default function SalesAI() {
                 </div>
               )}
 
-              <div className="border-b border-slate-100 pb-3">
-                <p className="text-xs text-slate-500 mb-2 font-medium">選択した企業に生成（最大50件）</p>
-                <p className="text-sm text-slate-600 mb-2">
+              <div className="border-b border-slate-100 pb-3 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={skipExisting}
+                    onChange={e => setSkipExisting(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-violet-600"
+                  />
+                  <span className="text-xs text-slate-600">生成済みの企業はスキップ</span>
+                </label>
+                <p className="text-xs text-slate-500 font-medium">選択した企業に生成（最大50件）</p>
+                <p className="text-sm text-slate-600">
                   <span className="font-semibold text-slate-800">{selectedIds.length}件</span> 選択中
                 </p>
                 <button
@@ -992,8 +1022,8 @@ export default function SalesAI() {
 
       {activeTab === "messages" && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               {["", "draft", "reviewed", "sent"].map(s => (
                 <button
                   key={s}
@@ -1006,7 +1036,41 @@ export default function SalesAI() {
                 </button>
               ))}
             </div>
-            <button onClick={loadMessages} className="ml-auto text-slate-500 hover:text-slate-700">
+
+            {messages.some(m => m.status === "reviewed") && !bulkSendResult && (
+              bulkSendConfirm ? (
+                <div className="flex items-center gap-2 ml-auto">
+                  <span className="text-xs text-slate-600">レビュー済み{messages.filter(m => m.status === "reviewed").length}件を一括送信（手動記録）しますか？</span>
+                  <button
+                    onClick={handleBulkSend}
+                    disabled={bulkSending}
+                    className="flex items-center gap-1.5 text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  >
+                    {bulkSending ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
+                    確認して送信
+                  </button>
+                  <button onClick={() => setBulkSendConfirm(false)} className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg">キャンセル</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setBulkSendConfirm(true)}
+                  className="ml-auto flex items-center gap-1.5 text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-slate-700 transition-colors"
+                >
+                  <Send size={12} /> 一括送信
+                </button>
+              )
+            )}
+
+            {bulkSendResult && (
+              <div className="ml-auto flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600" />
+                <span className="text-xs text-emerald-700 font-medium">{bulkSendResult.sent}件を送信しました</span>
+                {bulkSendResult.failed > 0 && <span className="text-xs text-red-600">（{bulkSendResult.failed}件失敗）</span>}
+                <button onClick={() => setBulkSendResult(null)} className="text-slate-400 hover:text-slate-600"><X size={12} /></button>
+              </div>
+            )}
+
+            <button onClick={loadMessages} className={`${!messages.some(m => m.status === "reviewed") && !bulkSendResult ? "ml-auto" : ""} text-slate-500 hover:text-slate-700`}>
               <RefreshCw size={16} className={loadingMessages ? "animate-spin" : ""} />
             </button>
           </div>
