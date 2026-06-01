@@ -435,7 +435,7 @@ def send_message(
         if prof:
             sender_name = prof.display_name or current_user.display_name or current_user.email or ""
             sender_email = prof.email or smtp_s.get("smtp_from_email") or current_user.email or ""
-            sender_company = org.name if org else ""
+            sender_company = prof.company_name or (org.name if org else "")
             sender_phone = prof.phone or ""
             sender_title = prof.title or ""
             sender_department = prof.department or ""

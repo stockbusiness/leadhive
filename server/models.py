@@ -78,6 +78,7 @@ class FormSenderProfile(Base):
     id = Column(Integer, primary_key=True, index=True)
     org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
+    company_name = Column(String(255), nullable=True)
     display_name = Column(String(255), nullable=True)
     title = Column(String(100), nullable=True)
     department = Column(String(100), nullable=True)
