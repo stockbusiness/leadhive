@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect } from "react";
+import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { Routes, Route, NavLink, useNavigate, Navigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -131,6 +131,8 @@ function PageLoader() {
 function ProfileModal({ onClose }: { onClose: () => void }) {
   const { user, updateUser } = useAuth();
   const [displayName, setDisplayName] = useState(user?.display_name || "");
+  const [title, setTitle] = useState(user?.title || "");
+  const [phone, setPhone] = useState(user?.phone || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -142,14 +144,19 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
     setError("");
     setSuccess("");
     try {
-      const payload: any = { display_name: displayName };
+      const payload: any = { display_name: displayName, title, phone };
       if (newPassword) {
         if (!currentPassword) { setError("現在のパスワードを入力してください"); setSaving(false); return; }
         payload.current_password = currentPassword;
         payload.new_password = newPassword;
       }
       const res = await api.auth.updateProfile(payload);
-      updateUser({ display_name: res.user.display_name, email: res.user.email });
+      if (res.access_token) {
+        localStorage.setItem("access_token", res.access_token);
+        const axios = (await import("axios")).default;
+        axios.defaults.headers.common["Authorization"] = `Bearer ${res.access_token}`;
+      }
+      updateUser({ display_name: res.user.display_name, email: res.user.email, title: res.user.title, phone: res.user.phone });
       setSuccess("プロフィールを更新しました");
       setCurrentPassword("");
       setNewPassword("");
@@ -162,8 +169,8 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-5 border-b border-slate-200">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 sticky top-0 bg-white">
           <h3 className="text-lg font-bold text-slate-800">プロフィール編集</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
@@ -175,9 +182,20 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
             <input type="email" value={user?.email || ""} disabled className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-400" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">表示名</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">担当者名 <span className="text-red-500">*</span></label>
             <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="山田 太郎" />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">役職</label>
+              <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="営業部 マネージャー" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">電話番号</label>
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="03-1234-5678" />
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 -mt-2">担当者名・役職・電話番号はフォーム自動送信時に使われます</p>
           <div className="pt-2 border-t border-slate-100">
             <p className="text-xs font-semibold text-slate-600 mb-3">パスワード変更（任意）</p>
             <div className="space-y-3">
@@ -192,7 +210,7 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         </div>
-        <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
+        <div className="p-4 border-t border-slate-200 flex justify-end gap-3 sticky bottom-0 bg-white">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">キャンセル</button>
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -200,6 +218,14 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function NavSeparator({ label }: { label: string }) {
+  return (
+    <div className="px-3 pt-3 pb-1">
+      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{label}</p>
     </div>
   );
 }
@@ -212,6 +238,16 @@ function AppContent() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [planLimitMessage, setPlanLimitMessage] = useState<string | null>(null);
+  const [adminNavOpen, setAdminNavOpen] = useState(() => {
+    try { return localStorage.getItem("lh_admin_nav") === "open"; } catch { return false; }
+  });
+  const [helpOpen, setHelpOpen] = useState(false);
+  const toggleAdminNav = () => setAdminNavOpen(v => {
+    const next = !v;
+    try { localStorage.setItem("lh_admin_nav", next ? "open" : "closed"); } catch {}
+    return next;
+  });
+  const _ref = useRef(null);
 
   const closeSidebar = () => setSidebarOpen(false);
 
@@ -277,21 +313,29 @@ function AppContent() {
           <div className="space-y-1">
             <SidebarLink to="/" icon={<LayoutDashboard size={18} />} label="ダッシュボード" onClick={closeSidebar} />
             <SidebarLink to="/companies" icon={<Building2 size={18} />} label="候補企業一覧" onClick={closeSidebar} />
+            <SidebarLink to="/sales-ai" icon={<Bot size={18} />} label="営業AI" onClick={closeSidebar} />
+            <SidebarLink to="/pipeline" icon={<GanttChartSquare size={18} />} label="パイプライン" onClick={closeSidebar} />
+            <SidebarLink to="/email-campaigns" icon={<Mail size={18} />} label="一括メール送信" onClick={closeSidebar} />
+          </div>
+
+          <NavSeparator label="収集" />
+          <div className="space-y-1">
             <SidebarLink to="/keywords" icon={<Search size={18} />} label="検索条件管理" onClick={closeSidebar} />
             {(user?.feature_ec_discovery || user?.is_system_admin) && (
               <SidebarLink to="/ec-discovery" icon={<ShoppingBag size={18} />} label="EC企業収集" onClick={closeSidebar} />
             )}
             <SidebarLink to="/scraper" icon={<Globe size={18} />} label="URL収集" onClick={closeSidebar} />
             <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" onClick={closeSidebar} />
-            <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" onClick={closeSidebar} />
+          </div>
+
+          <NavSeparator label="管理" />
+          <div className="space-y-1">
+            <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" onClick={closeSidebar} />
             <SidebarLink to="/templates" icon={<FileText size={18} />} label="メモテンプレート" onClick={closeSidebar} />
+            <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" onClick={closeSidebar} />
             {user?.is_system_admin && (
               <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" onClick={closeSidebar} />
             )}
-            <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" onClick={closeSidebar} />
-            <SidebarLink to="/sales-ai" icon={<Bot size={18} />} label="営業AI" onClick={closeSidebar} />
-            <SidebarLink to="/pipeline" icon={<GanttChartSquare size={18} />} label="パイプライン" onClick={closeSidebar} />
-            <SidebarLink to="/email-campaigns" icon={<Mail size={18} />} label="一括メール送信" onClick={closeSidebar} />
             {user?.role === "admin" && (
               <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
             )}
@@ -302,45 +346,67 @@ function AppContent() {
           </div>
 
           {user?.is_system_admin && (
-            <div className="mt-4">
-              <div className="px-3 py-1.5 flex items-center gap-2">
+            <div className="mt-2">
+              <button
+                onClick={toggleAdminNav}
+                className="w-full px-3 py-1.5 flex items-center gap-2 text-slate-500 hover:text-slate-300 transition-colors"
+              >
                 <div className="h-px flex-1 bg-slate-700" />
-                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">システム管理</span>
+                <span className="text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap flex items-center gap-1">
+                  システム管理
+                  <ChevronDown size={10} className={`transition-transform ${adminNavOpen ? "rotate-180" : ""}`} />
+                </span>
                 <div className="h-px flex-1 bg-slate-700" />
-              </div>
-              <div className="space-y-1 mt-1">
-                <SidebarLink to="/admin/dashboard" icon={<BarChart2 size={18} />} label="管理ダッシュボード" onClick={closeSidebar} />
-                <SidebarLink to="/admin/tenants" icon={<Building2 size={18} />} label="テナント管理" onClick={closeSidebar} />
-                <SidebarLink to="/admin/users" icon={<Users size={18} />} label="全ユーザー管理" onClick={closeSidebar} />
-                <SidebarLink to="/admin/announcements" icon={<Megaphone size={18} />} label="お知らせ配信" onClick={closeSidebar} />
-                <SidebarLink to="/admin/plans" icon={<Crown size={18} />} label="プラン管理" onClick={closeSidebar} />
-                <SidebarLink to="/admin/billing" icon={<CreditCard size={18} />} label="請求・履歴" onClick={closeSidebar} />
-                <SidebarLink to="/admin/stripe" icon={<CreditCard size={18} />} label="Stripe設定" onClick={closeSidebar} />
-                <SidebarLink to="/admin/smtp" icon={<Mail size={18} />} label="SMTP設定" onClick={closeSidebar} />
-                <SidebarLink to="/admin/email-templates" icon={<Mail size={18} />} label="メールテンプレート" onClick={closeSidebar} />
-                <SidebarLink to="/admin/contact-settings" icon={<Mail size={18} />} label="問い合わせフォーム設定" onClick={closeSidebar} />
-                <SidebarLink to="/admin/hubsrev" icon={<Link2 size={18} />} label="Hubsrev 連携" onClick={closeSidebar} />
-                <SidebarLink to="/admin/commitrev" icon={<Link2 size={18} />} label="CommitRev 連携" onClick={closeSidebar} />
-                <SidebarLink to="/admin/onbizu" icon={<Zap size={18} />} label="Onbizu 連携" onClick={closeSidebar} />
-                <SidebarLink to="/admin/legal" icon={<Scale size={18} />} label="特定商取引法の表記" onClick={closeSidebar} />
-                <SidebarLink to="/admin/support" icon={<LifeBuoy size={18} />} label="サポートチケット管理" onClick={closeSidebar} />
-                <SidebarLink to="/admin/faq" icon={<HelpCircle size={18} />} label="FAQ管理" onClick={closeSidebar} />
-                <SidebarLink to="/admin/status" icon={<Activity size={18} />} label="ステータスページ" onClick={closeSidebar} />
-                <SidebarLink to="/admin/features" icon={<Sliders size={18} />} label="機能フラグ" onClick={closeSidebar} />
-                <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
-                <SidebarLink to="/admin/auto-master" icon={<DatabaseZap size={18} />} label="マスターDB自動収集" onClick={closeSidebar} />
-                <SidebarLink to="/admin/scoring-rules" icon={<Star size={18} />} label="スコアリングルール" onClick={closeSidebar} />
-                <SidebarLink to="/admin/security" icon={<Shield size={18} />} label="セキュリティ管理" onClick={closeSidebar} />
-                <SidebarLink to="/admin/logs" icon={<ScrollText size={18} />} label="システムログ" onClick={closeSidebar} />
-              </div>
+              </button>
+              {adminNavOpen && (
+                <div className="space-y-1 mt-1">
+                  <SidebarLink to="/admin/dashboard" icon={<BarChart2 size={18} />} label="管理ダッシュボード" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/tenants" icon={<Building2 size={18} />} label="テナント管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/users" icon={<Users size={18} />} label="全ユーザー管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/announcements" icon={<Megaphone size={18} />} label="お知らせ配信" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/plans" icon={<Crown size={18} />} label="プラン管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/billing" icon={<CreditCard size={18} />} label="請求・履歴" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/stripe" icon={<CreditCard size={18} />} label="Stripe設定" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/smtp" icon={<Mail size={18} />} label="SMTP設定" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/email-templates" icon={<Mail size={18} />} label="メールテンプレート" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/contact-settings" icon={<Mail size={18} />} label="問い合わせフォーム設定" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/hubsrev" icon={<Link2 size={18} />} label="Hubsrev 連携" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/commitrev" icon={<Link2 size={18} />} label="CommitRev 連携" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/onbizu" icon={<Zap size={18} />} label="Onbizu 連携" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/legal" icon={<Scale size={18} />} label="特定商取引法の表記" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/support" icon={<LifeBuoy size={18} />} label="サポートチケット管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/faq" icon={<HelpCircle size={18} />} label="FAQ管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/status" icon={<Activity size={18} />} label="ステータスページ" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/features" icon={<Sliders size={18} />} label="機能フラグ" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/auto-master" icon={<DatabaseZap size={18} />} label="マスターDB自動収集" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/scoring-rules" icon={<Star size={18} />} label="スコアリングルール" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/security" icon={<Shield size={18} />} label="セキュリティ管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/logs" icon={<ScrollText size={18} />} label="システムログ" onClick={closeSidebar} />
+                </div>
+              )}
             </div>
           )}
         </nav>
 
         <div className="p-2 border-t border-slate-700 space-y-1">
-          <SidebarLink to="/roadmap" icon={<Map size={18} />} label="ロードマップ" onClick={closeSidebar} />
-          <SidebarLink to="/guide" icon={<Zap size={18} />} label="機能ガイド" onClick={closeSidebar} />
-          <SidebarLink to="/manual" icon={<BookOpen size={18} />} label="マニュアル" onClick={closeSidebar} />
+          <div>
+            <button
+              onClick={() => setHelpOpen(v => !v)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+            >
+              <HelpCircle size={18} />
+              <span className="flex-1 text-left">ヘルプ</span>
+              <ChevronDown size={14} className={`transition-transform ${helpOpen ? "rotate-180" : ""}`} />
+            </button>
+            {helpOpen && (
+              <div className="space-y-1 ml-2">
+                <SidebarLink to="/roadmap" icon={<Map size={16} />} label="ロードマップ" onClick={closeSidebar} />
+                <SidebarLink to="/guide" icon={<Zap size={16} />} label="機能ガイド" onClick={closeSidebar} />
+                <SidebarLink to="/manual" icon={<BookOpen size={16} />} label="マニュアル" onClick={closeSidebar} />
+              </div>
+            )}
+          </div>
           <SidebarLink to="/settings" icon={<Settings size={18} />} label="設定" onClick={closeSidebar} />
           <button
             onClick={toggleTheme}
