@@ -632,6 +632,32 @@ def delete_message(
     return {"ok": True}
 
 
+@router.post("/messages/bulk-delete")
+def bulk_delete_messages(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """指定した未送信メッセージを一括削除する。"""
+    message_ids = data.get("message_ids") or []
+    if not message_ids:
+        raise HTTPException(status_code=400, detail="message_ids を指定してください")
+
+    msgs = db.query(SalesMessage).filter(
+        SalesMessage.id.in_(message_ids),
+        SalesMessage.org_id == current_user.org_id,
+        SalesMessage.status != "sent",
+    ).all()
+
+    deleted = 0
+    for msg in msgs:
+        db.delete(msg)
+        deleted += 1
+
+    db.commit()
+    return {"deleted": deleted}
+
+
 @router.post("/opt-out")
 def add_opt_out(
     req: OptOutRequest,

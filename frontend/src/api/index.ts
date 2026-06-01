@@ -719,6 +719,9 @@ export const api = {
     deleteMessage: (id: number) =>
       axios.delete(`/api/sales-ai/messages/${id}`).then(r => r.data),
 
+    bulkDeleteMessages: (messageIds: number[]) =>
+      axios.post("/api/sales-ai/messages/bulk-delete", { message_ids: messageIds }).then(r => r.data),
+
     addOptOut: (data: { email?: string; domain?: string; company_id?: number; reason?: string }) =>
       axios.post("/api/sales-ai/opt-out", data).then(r => r.data),
 

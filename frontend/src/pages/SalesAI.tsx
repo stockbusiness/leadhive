@@ -462,6 +462,9 @@ export default function SalesAI() {
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkSendResult, setBulkSendResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
   const [bulkSendConfirm, setBulkSendConfirm] = useState(false);
+
+  const [selectedMsgIds, setSelectedMsgIds] = useState<number[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [scheduleSaveMsg, setScheduleSaveMsg] = useState("");
 
   useEffect(() => {
@@ -671,6 +674,28 @@ export default function SalesAI() {
       setBulkSending(false);
     }
   };
+
+  const handleBulkDelete = async () => {
+    if (selectedMsgIds.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      await api.salesAi.bulkDeleteMessages(selectedMsgIds);
+      setSelectedMsgIds([]);
+      loadMessages();
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || "一括削除に失敗しました");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const toggleMsgSelect = (id: number) =>
+    setSelectedMsgIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const toggleSelectAll = (visibleIds: number[]) =>
+    setSelectedMsgIds(prev =>
+      visibleIds.every(id => prev.includes(id)) ? prev.filter(id => !visibleIds.includes(id)) : [...new Set([...prev, ...visibleIds])]
+    );
 
   const handleSendConfirm = async (sendMethod: string, profileId?: number): Promise<{ send_result?: string; send_detail?: string }> => {
     if (!sendTarget) return {};
@@ -1087,68 +1112,104 @@ export default function SalesAI() {
             </div>
           ) : (
             <div className="space-y-3">
+              {messages.filter(m => m.status !== "sent" && (msgFilter === "" || m.status === msgFilter)).length > 0 && (
+                <div className="flex items-center gap-3 px-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={
+                        messages.filter(m => m.status !== "sent" && (msgFilter === "" || m.status === msgFilter)).length > 0 &&
+                        messages.filter(m => m.status !== "sent" && (msgFilter === "" || m.status === msgFilter)).map(m => m.id).every(id => selectedMsgIds.includes(id))
+                      }
+                      onChange={() => toggleSelectAll(messages.filter(m => m.status !== "sent" && (msgFilter === "" || m.status === msgFilter)).map(m => m.id))}
+                      className="w-4 h-4 accent-red-500"
+                    />
+                    <span className="text-xs text-slate-500">全選択</span>
+                  </label>
+                  {selectedMsgIds.length > 0 && (
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={bulkDeleting}
+                      className="flex items-center gap-1.5 text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                    >
+                      {bulkDeleting ? <RefreshCw size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                      {selectedMsgIds.length}件を一括削除
+                    </button>
+                  )}
+                </div>
+              )}
               {messages.map(m => (
-                <div key={m.id} className="bg-white rounded-xl border border-slate-200 p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[m.status]}`}>
-                          {STATUS_LABELS[m.status]}
-                        </span>
-                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                          {TEMPLATE_LABELS[m.template_type]}
-                        </span>
-                        <span className="text-sm font-medium text-slate-700">{m.company_name}</span>
-                      </div>
-                      <p className="font-medium text-slate-800 truncate">件名: {m.subject}</p>
-                      <p className="text-sm text-slate-500 mt-1 line-clamp-2">{m.body}</p>
-                      {m.sent_at && (
-                        <p className="text-xs text-slate-400 mt-1">送信: {new Date(m.sent_at).toLocaleString("ja-JP")}</p>
-                      )}
-                      {m.status === "sent" && (
-                        <p className="text-xs mt-0.5">
-                          {(m.open_count ?? 0) > 0 ? (
-                            <span className="text-green-600 font-medium">
-                              ✓ 開封済 {m.open_count}回
-                              {m.opened_at && ` (初回: ${new Date(m.opened_at).toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })})`}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">未開封</span>
-                          )}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {m.status !== "sent" && (
-                        <>
-                          <button
-                            onClick={() => setEditTarget(m)}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50"
-                          >
-                            <Edit3 size={13} />
-                            編集
-                          </button>
-                          <button
-                            onClick={() => setSendTarget(m)}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700"
-                          >
-                            <Send size={13} />
-                            送信
-                          </button>
-                          <button
-                            onClick={() => handleDelete(m.id)}
-                            className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </>
-                      )}
-                      {m.status === "sent" && (
-                        <div className="flex items-center gap-1 text-green-600 text-xs">
-                          <CheckCircle2 size={14} />
-                          送信済
+                <div key={m.id} className={`bg-white rounded-xl border p-5 transition-colors ${selectedMsgIds.includes(m.id) ? "border-red-300 bg-red-50/30" : "border-slate-200"}`}>
+                  <div className="flex items-start gap-3">
+                    {m.status !== "sent" && (
+                      <input
+                        type="checkbox"
+                        checked={selectedMsgIds.includes(m.id)}
+                        onChange={() => toggleMsgSelect(m.id)}
+                        className="mt-1 w-4 h-4 accent-red-500 flex-shrink-0"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0 flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[m.status]}`}>
+                            {STATUS_LABELS[m.status]}
+                          </span>
+                          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                            {TEMPLATE_LABELS[m.template_type]}
+                          </span>
+                          <span className="text-sm font-medium text-slate-700">{m.company_name}</span>
                         </div>
-                      )}
+                        <p className="font-medium text-slate-800 truncate">件名: {m.subject}</p>
+                        <p className="text-sm text-slate-500 mt-1 line-clamp-2">{m.body}</p>
+                        {m.sent_at && (
+                          <p className="text-xs text-slate-400 mt-1">送信: {new Date(m.sent_at).toLocaleString("ja-JP")}</p>
+                        )}
+                        {m.status === "sent" && (
+                          <p className="text-xs mt-0.5">
+                            {(m.open_count ?? 0) > 0 ? (
+                              <span className="text-green-600 font-medium">
+                                ✓ 開封済 {m.open_count}回
+                                {m.opened_at && ` (初回: ${new Date(m.opened_at).toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })})`}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">未開封</span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {m.status !== "sent" && (
+                          <>
+                            <button
+                              onClick={() => setEditTarget(m)}
+                              className="flex items-center gap-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50"
+                            >
+                              <Edit3 size={13} />
+                              編集
+                            </button>
+                            <button
+                              onClick={() => setSendTarget(m)}
+                              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700"
+                            >
+                              <Send size={13} />
+                              送信
+                            </button>
+                            <button
+                              onClick={() => handleDelete(m.id)}
+                              className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                        {m.status === "sent" && (
+                          <div className="flex items-center gap-1 text-green-600 text-xs">
+                            <CheckCircle2 size={14} />
+                            送信済
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
