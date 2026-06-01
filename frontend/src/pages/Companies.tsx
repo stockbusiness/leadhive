@@ -39,6 +39,7 @@ export default function Companies() {
     follow_up_filter: searchParams.get("follow_up_filter") || "",
     cms_type: searchParams.get("cms_type") || "",
     ec_only: searchParams.get("ec_only") || "",
+    ec_scale: searchParams.get("ec_scale") || "",
   });
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem("leadhive_view_mode") as ViewMode) || "list";
@@ -96,6 +97,7 @@ export default function Companies() {
     if (filters.follow_up_filter) params.follow_up_filter = filters.follow_up_filter;
     if (filters.cms_type) params.cms_type = filters.cms_type;
     if (filters.ec_only === "true") params.ec_only = true;
+    if (filters.ec_scale) params.ec_scale = filters.ec_scale;
 
     api.companies.list(params).then((data) => {
       setCompanies(data.companies);
@@ -127,6 +129,7 @@ export default function Companies() {
     if (filters.has_contact) params.set("has_contact", filters.has_contact);
     if (filters.cms_type) params.set("cms_type", filters.cms_type);
     if (filters.ec_only === "true") params.set("ec_only", "true");
+    if (filters.ec_scale) params.set("ec_scale", filters.ec_scale);
     if (currentProject?.id) params.set("project_id", String(currentProject.id));
     try {
       const { blob, count, limit } = await api.companies.exportCsv(params);
@@ -165,6 +168,7 @@ export default function Companies() {
       if (filters.score_rank) params.set("score_rank", filters.score_rank);
       if (filters.cms_type) params.set("cms_type", filters.cms_type);
       if (filters.ec_only === "true") params.set("ec_only", "true");
+      if (filters.ec_scale) params.set("ec_scale", filters.ec_scale);
       if (currentProject?.id) params.set("project_id", String(currentProject.id));
       const resp = await fetch(`/api/companies/export.xlsx?${params.toString()}`);
       const blob = await resp.blob();
@@ -215,6 +219,7 @@ export default function Companies() {
       if (filters.follow_up_filter) params.follow_up_filter = filters.follow_up_filter;
       if (filters.cms_type) params.cms_type = filters.cms_type;
       if (filters.ec_only === "true") params.ec_only = true;
+      if (filters.ec_scale) params.ec_scale = filters.ec_scale;
       if (currentProject?.id) params.project_id = currentProject.id;
       const data = await api.companies.getAllIds(params);
       setSelectedIds(new Set(data.ids));

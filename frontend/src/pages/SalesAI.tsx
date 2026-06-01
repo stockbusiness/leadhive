@@ -153,28 +153,45 @@ interface SendPreview {
   can_send_email: boolean;
 }
 
+interface FormSenderProfile {
+  id: number;
+  name: string;
+  display_name: string;
+  title: string;
+  phone: string;
+  email: string;
+  is_default: boolean;
+}
+
 function SendConfirmModal({ message, onClose, onConfirm }: {
   message: SalesMessage;
   onClose: () => void;
-  onConfirm: (sendMethod: string) => Promise<{ send_result?: string; send_detail?: string }>;
+  onConfirm: (sendMethod: string, profileId?: number) => Promise<{ send_result?: string; send_detail?: string }>;
 }) {
   const [sendMethod, setSendMethod] = useState("email");
   const [sending, setSending] = useState(false);
   const [preview, setPreview] = useState<SendPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(true);
   const [result, setResult] = useState<{ ok: boolean; detail: string } | null>(null);
+  const [formProfiles, setFormProfiles] = useState<FormSenderProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     setPreviewLoading(true);
     api.salesAi.getSendPreview(message.id)
       .then(r => { setPreview(r); setPreviewLoading(false); })
       .catch(() => setPreviewLoading(false));
+    api.formProfiles.list().then(d => {
+      setFormProfiles(d.profiles);
+      const def = d.profiles.find((p: FormSenderProfile) => p.is_default);
+      if (def) setSelectedProfileId(def.id);
+    }).catch(() => {});
   }, [message.id]);
 
   const handleSend = async () => {
     setSending(true);
     try {
-      const res = await onConfirm(sendMethod);
+      const res = await onConfirm(sendMethod, sendMethod === "form" ? selectedProfileId : undefined);
       const ok = res?.send_result === "sent";
       setResult({ ok, detail: res?.send_detail || (ok ? "送信しました" : "送信に失敗しました") });
     } catch (e: any) {
@@ -288,15 +305,49 @@ function SendConfirmModal({ message, onClose, onConfirm }: {
             </div>
           </div>
           {sendMethod === "form" && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700 space-y-1">
-              <p className="font-semibold">フォーム自動送信について</p>
-              <p>・AIがコンタクトフォームの項目を自動判別して入力・送信します</p>
-              <p>・送信者名/メール/会社名はアカウント設定から自動取得されます</p>
-              {preview?.contact_url
-                ? <p className="text-green-700">・コンタクトURLあり — フォームを検出できる可能性が高いです</p>
-                : <p className="text-amber-700">・コンタクトURLが未登録のため、トップページから自動探索します</p>
-              }
-              <p className="text-slate-500">※ reCAPTCHA / JavaScript必須フォームは非対応です</p>
+            <div className="space-y-3">
+              {formProfiles.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">送信者プロフィール</label>
+                  <select
+                    value={selectedProfileId ?? ""}
+                    onChange={e => setSelectedProfileId(e.target.value ? Number(e.target.value) : undefined)}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">プロフィールを選択（デフォルト: 自分の設定）</option>
+                    {formProfiles.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}{p.display_name ? ` — ${p.display_name}` : ""}{p.title ? ` / ${p.title}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedProfileId && (() => {
+                    const prof = formProfiles.find(p => p.id === selectedProfileId);
+                    return prof ? (
+                      <p className="text-xs text-slate-500 mt-1">
+                        名前: {prof.display_name || "—"} / 役職: {prof.title || "—"} / 電話: {prof.phone || "—"}
+                      </p>
+                    ) : null;
+                  })()}
+                  <p className="text-xs text-blue-500 mt-1">
+                    プロフィールの管理は <a href="/form-profiles" target="_blank" className="underline">フォーム送信プロフィール設定</a> から
+                  </p>
+                </div>
+              )}
+              {formProfiles.length === 0 && (
+                <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  送信者プロフィールが未設定です。<a href="/form-profiles" target="_blank" className="text-blue-500 underline">フォーム送信プロフィール設定</a>で登録するか、自分のプロフィール設定が使われます。
+                </div>
+              )}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700 space-y-1">
+                <p className="font-semibold">フォーム自動送信について</p>
+                <p>・AIがコンタクトフォームの項目を自動判別して入力・送信します</p>
+                {preview?.contact_url
+                  ? <p className="text-green-700">・コンタクトURLあり — フォームを検出できる可能性が高いです</p>
+                  : <p className="text-amber-700">・コンタクトURLが未登録のため、トップページから自動探索します</p>
+                }
+                <p className="text-slate-500">※ reCAPTCHA / JavaScript必須フォームは非対応です</p>
+              </div>
             </div>
           )}
           <p className="text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -546,9 +597,9 @@ export default function SalesAI() {
     }
   };
 
-  const handleSendConfirm = async (sendMethod: string): Promise<{ send_result?: string; send_detail?: string }> => {
+  const handleSendConfirm = async (sendMethod: string, profileId?: number): Promise<{ send_result?: string; send_detail?: string }> => {
     if (!sendTarget) return {};
-    const updated = await api.salesAi.sendMessage(sendTarget.id, sendMethod);
+    const updated = await api.salesAi.sendMessage(sendTarget.id, sendMethod, undefined, profileId);
     setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
     return { send_result: updated.send_result, send_detail: updated.send_detail };
   };

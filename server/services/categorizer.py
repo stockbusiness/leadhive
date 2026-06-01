@@ -41,6 +41,9 @@ DEFAULT_FLAG_KEYWORDS = {
     "makeshop_flag": ["makeshop", "メイクショップ"],
     "futureshop_flag": ["futureshop", "フューチャーショップ", "future-shop"],
     "stores_flag": ["stores.jp", "stores.store"],
+    "woocommerce_flag": ["woocommerce", "ウーコマース", "woo commerce"],
+    "yahoo_shopping_flag": ["yahoo!ショッピング", "yahoo shopping", "ストア.yahoo", "store.yahoo.co.jp"],
+    "lolipop_flag": ["ロリポップec", "lolipop-ec", "lolipop.jp"],
     "consulting_flag": ["コンサル", "支援", "戦略"],
     "operation_flag": ["運営代行", "運用代行"],
     "production_flag": ["制作", "構築", "開発"],
@@ -170,6 +173,9 @@ def detect_flags(text: str, custom_flags: dict = None, cms_type: str = None,
         "MakeShop": "makeshop_flag",
         "futureshop": "futureshop_flag",
         "STORES": "stores_flag",
+        "WooCommerce": "woocommerce_flag",
+        "Yahoo!ショッピング": "yahoo_shopping_flag",
+        "ロリポップEC": "lolipop_flag",
     }
     if effective_cms in CMS_TO_FLAG:
         result[CMS_TO_FLAG[effective_cms]] = True

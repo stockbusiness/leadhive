@@ -312,6 +312,58 @@ def get_ec_keyword_templates(
                 {"keyword": "Shopify 導入 通販 会社", "category": "EC運営", "region": ""},
             ],
         },
+        {
+            "id": "pet",
+            "label": "ペット用品EC",
+            "icon": "🐾",
+            "description": "ペットフード・用品のEC運営企業向け",
+            "keywords": [
+                {"keyword": "ペット用品 通販 自社EC", "category": "EC運営", "region": ""},
+                {"keyword": "ドッグフード 猫用品 通販 ブランド", "category": "EC運営", "region": ""},
+                {"keyword": "ペットグッズ ネットショップ 運営会社", "category": "EC運営", "region": ""},
+                {"keyword": "犬 猫 D2C 通販 自社", "category": "EC運営", "region": ""},
+                {"keyword": "ペット 定期便 EC 自社ブランド", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "sports",
+            "label": "スポーツ・アウトドアEC",
+            "icon": "⛺",
+            "description": "スポーツ用品・アウトドア用品のEC向け",
+            "keywords": [
+                {"keyword": "スポーツ用品 通販 自社EC", "category": "EC運営", "region": ""},
+                {"keyword": "アウトドア キャンプ 通販 ブランド", "category": "EC運営", "region": ""},
+                {"keyword": "フィットネス 器具 通販 D2C", "category": "EC運営", "region": ""},
+                {"keyword": "サーフ スノボ 通販 ネットショップ", "category": "EC運営", "region": ""},
+                {"keyword": "登山 トレラン 通販 公式ショップ", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "hobby",
+            "label": "ホビー・趣味・コレクターEC",
+            "icon": "🎮",
+            "description": "フィギュア・ゲーム・趣味グッズのEC向け",
+            "keywords": [
+                {"keyword": "フィギュア 模型 通販 自社EC", "category": "EC運営", "region": ""},
+                {"keyword": "ゲーム グッズ 通販 ネットショップ", "category": "EC運営", "region": ""},
+                {"keyword": "コレクター グッズ 通販 ブランド", "category": "EC運営", "region": ""},
+                {"keyword": "プラモデル 工具 通販 EC 会社", "category": "EC運営", "region": ""},
+                {"keyword": "アニメ グッズ 自社通販 運営", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "electronics",
+            "label": "家電・ガジェット・IT周辺機器EC",
+            "icon": "💻",
+            "description": "家電・ガジェット・PC周辺機器のEC向け",
+            "keywords": [
+                {"keyword": "ガジェット 通販 自社EC 会社", "category": "EC運営", "region": ""},
+                {"keyword": "スマホ アクセサリー 通販 D2C", "category": "EC運営", "region": ""},
+                {"keyword": "PC周辺機器 通販 ネットショップ", "category": "EC運営", "region": ""},
+                {"keyword": "家電 通販 自社ブランド EC", "category": "EC運営", "region": ""},
+                {"keyword": "IoT スマートホーム 通販 EC", "category": "EC運営", "region": ""},
+            ],
+        },
     ]
     return {"templates": templates}
 

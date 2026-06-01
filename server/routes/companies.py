@@ -51,6 +51,7 @@ def list_companies(
     follow_up_filter: Optional[str] = None,
     cms_type: Optional[str] = None,
     ec_only: Optional[bool] = None,
+    ec_scale: Optional[str] = None,
     sort_by: str = "score_total",
     sort_order: str = "desc",
     page: int = 1,
@@ -109,6 +110,8 @@ def list_companies(
             query = query.filter(Company.cms_type == cms_type)
     if ec_only:
         query = query.filter(Company.ec_flag == True)
+    if ec_scale:
+        query = query.filter(Company.ec_scale == ec_scale)
     if follow_up_filter:
         today = date.today()
         if follow_up_filter == "overdue":
@@ -392,6 +395,7 @@ def export_companies_xlsx_v2(
     project_id: Optional[int] = None,
     cms_type: Optional[str] = None,
     ec_only: Optional[bool] = None,
+    ec_scale: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -436,6 +440,8 @@ def export_companies_xlsx_v2(
             query = query.filter(Company.cms_type == cms_type)
     if ec_only:
         query = query.filter(Company.ec_flag == True)
+    if ec_scale:
+        query = query.filter(Company.ec_scale == ec_scale)
 
     companies = query.order_by(desc(Company.score_total)).limit(5000).all()
 
@@ -502,6 +508,7 @@ def get_company_ids(
     follow_up_filter: Optional[str] = None,
     cms_type: Optional[str] = None,
     ec_only: Optional[bool] = None,
+    ec_scale: Optional[str] = None,
     project_id: Optional[int] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -555,6 +562,8 @@ def get_company_ids(
             query = query.filter(Company.cms_type == cms_type)
     if ec_only:
         query = query.filter(Company.ec_flag == True)
+    if ec_scale:
+        query = query.filter(Company.ec_scale == ec_scale)
     if follow_up_filter:
         today = date.today()
         if follow_up_filter == "overdue":
@@ -839,6 +848,7 @@ def export_csv(
     project_id: Optional[int] = None,
     cms_type: Optional[str] = None,
     ec_only: Optional[bool] = None,
+    ec_scale: Optional[str] = None,
     current_user: User = Depends(require_phase0_unlock),
     db: Session = Depends(get_db),
 ):
@@ -890,6 +900,8 @@ def export_csv(
             query = query.filter(Company.cms_type == cms_type)
     if ec_only:
         query = query.filter(Company.ec_flag == True)
+    if ec_scale:
+        query = query.filter(Company.ec_scale == ec_scale)
 
     query = query.order_by(desc(Company.score_total))
     if csv_limit is not None:

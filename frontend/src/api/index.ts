@@ -681,6 +681,19 @@ export const api = {
       axios.put("/api/settings/", data).then(r => r.data),
   },
 
+  formProfiles: {
+    list: () =>
+      axios.get<{ profiles: any[] }>("/api/form-profiles").then(r => r.data),
+    create: (data: { name: string; display_name?: string; title?: string; phone?: string; email?: string; is_default?: boolean }) =>
+      axios.post<{ profile: any }>("/api/form-profiles", data).then(r => r.data),
+    update: (id: number, data: { name: string; display_name?: string; title?: string; phone?: string; email?: string; is_default?: boolean }) =>
+      axios.put<{ profile: any }>(`/api/form-profiles/${id}`, data).then(r => r.data),
+    delete: (id: number) =>
+      axios.delete(`/api/form-profiles/${id}`).then(r => r.data),
+    setDefault: (id: number) =>
+      axios.post(`/api/form-profiles/${id}/set-default`).then(r => r.data),
+  },
+
   salesAi: {
     generate: (companyId: number, templateType: string, projectId?: number) =>
       axios.post("/api/sales-ai/generate", { company_id: companyId, template_type: templateType, project_id: projectId }).then(r => r.data),
@@ -697,8 +710,8 @@ export const api = {
     getSendPreview: (id: number) =>
       axios.get(`/api/sales-ai/messages/${id}/send-preview`).then(r => r.data),
 
-    sendMessage: (id: number, sendMethod: string, note?: string) =>
-      axios.post(`/api/sales-ai/messages/${id}/send`, { send_method: sendMethod, note }).then(r => r.data),
+    sendMessage: (id: number, sendMethod: string, note?: string, profileId?: number) =>
+      axios.post(`/api/sales-ai/messages/${id}/send`, { send_method: sendMethod, note, profile_id: profileId }).then(r => r.data),
 
     deleteMessage: (id: number) =>
       axios.delete(`/api/sales-ai/messages/${id}`).then(r => r.data),

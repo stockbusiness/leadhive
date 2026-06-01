@@ -119,6 +119,7 @@ const AdminStatus = lazy(() => import("./pages/AdminStatus"));
 const AdminScoringRules = lazy(() => import("./pages/AdminScoringRules"));
 const PartnerLP = lazy(() => import("./pages/PartnerLP"));
 const ECDiscovery = lazy(() => import("./pages/ECDiscovery"));
+const FormProfiles = lazy(() => import("./pages/FormProfiles"));
 
 function PageLoader() {
   return (
@@ -342,6 +343,7 @@ function AppContent() {
             {user?.role === "admin" && (
               <SidebarLink to="/webhooks" icon={<Link2 size={18} />} label="Webhook設定" onClick={closeSidebar} />
             )}
+            <SidebarLink to="/form-profiles" icon={<Globe size={18} />} label="フォーム送信プロフィール" onClick={closeSidebar} />
             <SidebarLink to="/support" icon={<LifeBuoy size={18} />} label="サポート" onClick={closeSidebar} />
           </div>
 
@@ -533,6 +535,7 @@ function AppContent() {
               <Route path="/email-campaigns" element={<EmailCampaigns />} />
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/webhooks" element={<Webhooks />} />
+              <Route path="/form-profiles" element={<FormProfiles />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

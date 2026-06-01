@@ -72,6 +72,20 @@ class User(Base):
     terms_accepted_at = Column(DateTime, nullable=True)
 
 
+class FormSenderProfile(Base):
+    __tablename__ = "form_sender_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    title = Column(String(100), nullable=True)
+    phone = Column(String(50), nullable=True)
+    email = Column(String(255), nullable=True)
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class OrgInvitation(Base):
     __tablename__ = "org_invitations"
 

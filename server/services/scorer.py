@@ -6,6 +6,9 @@ DEFAULT_SCORING_RULES = {
     "makeshop_flag": 15,
     "futureshop_flag": 15,
     "stores_flag": 15,
+    "woocommerce_flag": 15,
+    "yahoo_shopping_flag": 10,
+    "lolipop_flag": 10,
     "rakuten_flag": 10,
     "production_flag": 15,
     "consulting_flag": 15,
@@ -17,6 +20,8 @@ DEFAULT_SCORING_RULES = {
     "sns_count_1": 5,
     "phone": 5,
     "location": 5,
+    "ec_scale_large": 10,
+    "ec_scale_medium": 5,
     "info_missing_penalty": -10,
     "no_contact_penalty": -15,
     "not_ec_related_penalty": -20,
@@ -37,6 +42,7 @@ def calculate_score(company_data: dict, custom_rules: dict = None, db=None) -> t
 
     for flag in [
         "shopify_flag", "base_flag", "makeshop_flag", "futureshop_flag", "stores_flag",
+        "woocommerce_flag", "yahoo_shopping_flag", "lolipop_flag",
         "rakuten_flag", "production_flag", "consulting_flag", "operation_flag",
     ]:
         if company_data.get(flag) and flag in rules:
@@ -53,6 +59,12 @@ def calculate_score(company_data: dict, custom_rules: dict = None, db=None) -> t
         score += rules["location"]
     if company_data.get("amazon_flag") and company_data.get("rakuten_flag") and "multi_platform" in rules:
         score += rules["multi_platform"]
+
+    ec_scale = company_data.get("ec_scale", "") or ""
+    if ec_scale == "large" and "ec_scale_large" in rules:
+        score += rules["ec_scale_large"]
+    elif ec_scale == "medium" and "ec_scale_medium" in rules:
+        score += rules["ec_scale_medium"]
 
     if company_data.get("has_recruitment") and "has_recruitment" in rules:
         score += rules["has_recruitment"]
@@ -88,6 +100,9 @@ def calculate_score(company_data: dict, custom_rules: dict = None, db=None) -> t
         company_data.get("ec_flag"),
         company_data.get("amazon_flag"),
         company_data.get("rakuten_flag"),
+        company_data.get("woocommerce_flag"),
+        company_data.get("yahoo_shopping_flag"),
+        company_data.get("lolipop_flag"),
         company_data.get("consulting_flag"),
         company_data.get("operation_flag"),
         company_data.get("production_flag"),

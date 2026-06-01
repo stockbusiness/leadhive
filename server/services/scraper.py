@@ -203,6 +203,35 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
     if "melcart.jp" in html_lower:
         return "メルカート"
 
+    if (
+        "squareup.com" in html_lower
+        or "square-online" in html_lower
+        or "squarespace-cdns.com" in html_lower
+        or response_headers.get("x-sq-version")
+    ):
+        return "Square Online"
+
+    if "netshop.imweb.me" in html_lower or "imweb.me" in html_lower:
+        return "Imweb"
+
+    if "thebase.in" in html_lower or "thebase.com" in html_lower:
+        return "BASE"
+
+    if "shopify.io" in html_lower or "cdn.shopifycloud.com" in html_lower:
+        return "Shopify"
+
+    if "volusion.com" in html_lower:
+        return "Volusion"
+
+    if "cscart" in html_lower or "cs-cart" in html_lower:
+        return "CS-Cart"
+
+    if "nopcommerce" in html_lower:
+        return "nopCommerce"
+
+    if "oscommerce" in html_lower:
+        return "osCommerce"
+
     return ""
 
 

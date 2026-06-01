@@ -15,6 +15,7 @@ interface Filters {
   follow_up_filter: string;
   cms_type: string;
   ec_only: string;
+  ec_scale: string;
 }
 
 const CMS_COLORS: Record<string, string> = {
@@ -254,6 +255,18 @@ export default function CompanyFilterBar({
         >
           <option value="">EC判定</option>
           <option value="true">🛍️ EC企業のみ</option>
+        </select>
+        <select
+          value={filters.ec_scale}
+          onChange={(e) => onFilterChange({ ...filters, ec_scale: e.target.value })}
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+            filters.ec_scale ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-slate-300"
+          }`}
+        >
+          <option value="">EC規模</option>
+          <option value="large">📦 大規模 (商品多数)</option>
+          <option value="medium">📦 中規模</option>
+          <option value="small">📦 小規模</option>
         </select>
       </div>
 

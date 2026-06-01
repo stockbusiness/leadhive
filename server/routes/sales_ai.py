@@ -89,6 +89,7 @@ class UpdateMessageRequest(BaseModel):
 class SendMessageRequest(BaseModel):
     send_method: str = "email"
     note: Optional[str] = None
+    profile_id: Optional[int] = None
 
 
 class OptOutRequest(BaseModel):
@@ -422,11 +423,27 @@ def send_message(
         except Exception:
             pass
 
-        sender_name = current_user.display_name or current_user.email or ""
-        sender_email = smtp_s.get("smtp_from_email") or current_user.email or ""
-        sender_company = org.name if org else ""
-        sender_phone = current_user.phone or (org.phone if org else "") or ""
-        sender_title = current_user.title or ""
+        if req.profile_id:
+            from server.models import FormSenderProfile
+            prof = db.query(FormSenderProfile).filter(
+                FormSenderProfile.id == req.profile_id,
+                FormSenderProfile.org_id == current_user.org_id
+            ).first()
+        else:
+            prof = None
+
+        if prof:
+            sender_name = prof.display_name or current_user.display_name or current_user.email or ""
+            sender_email = prof.email or smtp_s.get("smtp_from_email") or current_user.email or ""
+            sender_company = org.name if org else ""
+            sender_phone = prof.phone or ""
+            sender_title = prof.title or ""
+        else:
+            sender_name = current_user.display_name or current_user.email or ""
+            sender_email = smtp_s.get("smtp_from_email") or current_user.email or ""
+            sender_company = org.name if org else ""
+            sender_phone = current_user.phone or (org.phone if org else "") or ""
+            sender_title = current_user.title or ""
 
         form_result = send_form_auto(
             company_name=c.company_name if c else "",
