@@ -1180,25 +1180,36 @@ def test_smtp(
     if not host or not user or not password:
         raise HTTPException(status_code=400, detail="SMTP設定が不完全です")
 
+    from email.header import Header
+
+    def _enc(text: str) -> str:
+        try:
+            text.encode("ascii")
+            return text
+        except UnicodeEncodeError:
+            return Header(text, "utf-8").encode()
+
     try:
         port = int(port_str)
         msg = MIMEMultipart()
-        msg["From"] = f"{from_name} <{from_email}>"
+        msg["From"] = f"{_enc(from_name)} <{from_email}>" if from_name else from_email
         msg["To"] = test_to
-        msg["Subject"] = "LeadHive SMTP テスト"
+        msg["Subject"] = _enc("LeadHive SMTP テスト")
         msg.attach(MIMEText("LeadHive からのSMTPテストメールです。正常に受信できました。", "plain", "utf-8"))
 
         if port == 465:
             with smtplib.SMTP_SSL(host, port, timeout=10) as server:
                 server.login(user, password)
-                server.sendmail(from_email, test_to, msg.as_string())
+                server.sendmail(from_email, test_to, msg.as_bytes())
         else:
             with smtplib.SMTP(host, port, timeout=10) as server:
                 server.ehlo()
                 server.starttls()
                 server.login(user, password)
-                server.sendmail(from_email, test_to, msg.as_string())
+                server.sendmail(from_email, test_to, msg.as_bytes())
         return {"success": True, "message": f"{test_to} にテストメールを送信しました"}
+    except UnicodeEncodeError:
+        raise HTTPException(status_code=400, detail="SMTP設定値に全角文字が含まれています。パスワード・ホスト名は半角で入力してください。")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

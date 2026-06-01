@@ -84,9 +84,18 @@ def send_email(
     if not from_email:
         return False, "送信元メールアドレスが設定されていません"
 
+    from email.header import Header
+
+    def _encode_header(text: str) -> str:
+        try:
+            text.encode("ascii")
+            return text
+        except UnicodeEncodeError:
+            return Header(text, "utf-8").encode()
+
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"{from_name} <{from_email}>"
+    msg["Subject"] = _encode_header(subject)
+    msg["From"] = f"{_encode_header(from_name)} <{from_email}>" if from_name else from_email
     msg["To"] = to
 
     if extra_headers:
