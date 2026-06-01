@@ -373,6 +373,9 @@ export default function SalesAI() {
   const [addingOptOut, setAddingOptOut] = useState(false);
 
   const [companySearch, setCompanySearch] = useState("");
+  const [filterRanks, setFilterRanks] = useState<string[]>([]);
+  const [filterEcOnly, setFilterEcOnly] = useState(false);
+  const [filterEmailOnly, setFilterEmailOnly] = useState(false);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
 
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -501,12 +504,25 @@ export default function SalesAI() {
     );
   };
 
-  const filteredCompanies = companies.filter(c =>
-    !companySearch || (c.company_name || "").toLowerCase().includes(companySearch.toLowerCase())
-  );
+  const filteredCompanies = companies.filter(c => {
+    if (companySearch && !(c.company_name || "").toLowerCase().includes(companySearch.toLowerCase())) return false;
+    if (filterRanks.length > 0 && !filterRanks.includes(c.score_rank)) return false;
+    if (filterEcOnly && !c.ec_flag) return false;
+    if (filterEmailOnly && !c.email) return false;
+    return true;
+  });
 
   const toggleCompany = (id: number) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const selectAllFiltered = () => {
+    const ids = filteredCompanies.slice(0, 50).map(c => c.id);
+    setSelectedIds(ids);
+  };
+
+  const toggleRankFilter = (rank: string) => {
+    setFilterRanks(prev => prev.includes(rank) ? prev.filter(r => r !== rank) : [...prev, rank]);
   };
 
   const handleGenerateBatch = async () => {
@@ -659,18 +675,72 @@ export default function SalesAI() {
 
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="p-4 border-b border-slate-100 flex items-center gap-3">
-                <Search size={16} className="text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="企業名で検索..."
-                  value={companySearch}
-                  onChange={e => setCompanySearch(e.target.value)}
-                  className="flex-1 text-sm outline-none"
-                />
-                {selectedIds.length > 0 && (
-                  <button onClick={() => setSelectedIds([])} className="text-xs text-slate-500 hover:text-slate-700">すべて解除</button>
-                )}
+              <div className="p-3 border-b border-slate-100 space-y-2">
+                <div className="flex items-center gap-3">
+                  <Search size={16} className="text-slate-400 flex-shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="企業名で検索..."
+                    value={companySearch}
+                    onChange={e => setCompanySearch(e.target.value)}
+                    className="flex-1 text-sm outline-none"
+                  />
+                  {selectedIds.length > 0 && (
+                    <button onClick={() => setSelectedIds([])} className="text-xs text-slate-500 hover:text-slate-700 flex-shrink-0">すべて解除</button>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-slate-400 mr-1">絞込:</span>
+                  {["A", "B", "C", "D"].map(rank => (
+                    <button
+                      key={rank}
+                      onClick={() => toggleRankFilter(rank)}
+                      className={`text-xs px-2 py-0.5 rounded border font-medium transition-colors ${
+                        filterRanks.includes(rank)
+                          ? "bg-violet-600 text-white border-violet-600"
+                          : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {rank}ランク
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setFilterEcOnly(v => !v)}
+                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                      filterEcOnly ? "bg-emerald-600 text-white border-emerald-600" : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    ECのみ
+                  </button>
+                  <button
+                    onClick={() => setFilterEmailOnly(v => !v)}
+                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                      filterEmailOnly ? "bg-blue-600 text-white border-blue-600" : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    メールあり
+                  </button>
+                  {(filterRanks.length > 0 || filterEcOnly || filterEmailOnly) && (
+                    <button
+                      onClick={() => { setFilterRanks([]); setFilterEcOnly(false); setFilterEmailOnly(false); }}
+                      className="text-xs text-slate-400 hover:text-slate-600 ml-1"
+                    >
+                      リセット
+                    </button>
+                  )}
+                  <div className="ml-auto">
+                    <button
+                      onClick={selectAllFiltered}
+                      disabled={filteredCompanies.length === 0}
+                      className="text-xs px-2.5 py-0.5 rounded border border-violet-400 text-violet-600 hover:bg-violet-50 disabled:opacity-40 transition-colors"
+                    >
+                      絞込結果を全選択（最大50件）
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400">
+                  {filteredCompanies.length}件表示 / 全{companies.length}件
+                </p>
               </div>
               <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
                 {filteredCompanies.length === 0 ? (
