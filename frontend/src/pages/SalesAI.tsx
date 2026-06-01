@@ -37,6 +37,8 @@ interface Company {
   cms_type?: string;
   email?: string;
   prefecture?: string;
+  category_main?: string;
+  project_id?: number;
 }
 
 const TEMPLATE_LABELS: Record<TemplateType, string> = {
@@ -435,6 +437,8 @@ export default function SalesAI() {
   const [filterRanks, setFilterRanks] = useState<string[]>([]);
   const [filterEcOnly, setFilterEcOnly] = useState(false);
   const [filterEmailOnly, setFilterEmailOnly] = useState(false);
+  const [filterCategory, setFilterCategory] = useState("");
+  const [showAllProjects, setShowAllProjects] = useState(false);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
 
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -464,12 +468,13 @@ export default function SalesAI() {
   }, []);
 
   const loadCompanies = useCallback(async () => {
-    if (!currentProject) return;
     try {
-      const res = await api.companies.list({ project_id: currentProject.id, per_page: 9999, sort: "score_total", order: "desc" });
+      const params: any = { per_page: 9999, sort: "score_total", order: "desc" };
+      if (!showAllProjects && currentProject) params.project_id = currentProject.id;
+      const res = await api.companies.list(params);
       setCompanies((res.companies || []) as any);
     } catch {}
-  }, [currentProject]);
+  }, [currentProject, showAllProjects]);
 
   const loadMessages = useCallback(async () => {
     setLoadingMessages(true);
@@ -572,8 +577,11 @@ export default function SalesAI() {
     if (filterRanks.length > 0 && !filterRanks.includes(c.score_rank)) return false;
     if (filterEcOnly && !c.ec_flag) return false;
     if (filterEmailOnly && !c.email) return false;
+    if (filterCategory && c.category_main !== filterCategory) return false;
     return true;
   });
+
+  const categoryOptions = Array.from(new Set(companies.map(c => c.category_main).filter(Boolean))) as string[];
 
   const toggleCompany = (id: number) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -833,19 +841,32 @@ export default function SalesAI() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <div className="p-3 border-b border-slate-100 space-y-2">
-                <div className="flex items-center gap-3">
-                  <Search size={16} className="text-slate-400 flex-shrink-0" />
-                  <input
-                    type="text"
-                    placeholder="企業名で検索..."
-                    value={companySearch}
-                    onChange={e => setCompanySearch(e.target.value)}
-                    className="flex-1 text-sm outline-none"
-                  />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setShowAllProjects(v => !v); setSelectedIds([]); }}
+                    className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors flex-shrink-0 ${
+                      showAllProjects
+                        ? "bg-slate-700 text-white border-slate-700"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {showAllProjects ? "全プロジェクト表示中" : "現在のプロジェクト"}
+                  </button>
+                  <div className="flex items-center gap-1.5 flex-1 border border-slate-200 rounded-lg px-2 py-1">
+                    <Search size={13} className="text-slate-400 flex-shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="企業名で検索..."
+                      value={companySearch}
+                      onChange={e => setCompanySearch(e.target.value)}
+                      className="flex-1 text-sm outline-none min-w-0"
+                    />
+                  </div>
                   {selectedIds.length > 0 && (
-                    <button onClick={() => setSelectedIds([])} className="text-xs text-slate-500 hover:text-slate-700 flex-shrink-0">すべて解除</button>
+                    <button onClick={() => setSelectedIds([])} className="text-xs text-slate-500 hover:text-slate-700 flex-shrink-0">解除</button>
                   )}
                 </div>
+
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs text-slate-400 mr-1">絞込:</span>
                   {["A", "B", "C", "D"].map(rank => (
@@ -877,9 +898,9 @@ export default function SalesAI() {
                   >
                     メールあり
                   </button>
-                  {(filterRanks.length > 0 || filterEcOnly || filterEmailOnly) && (
+                  {(filterRanks.length > 0 || filterEcOnly || filterEmailOnly || filterCategory) && (
                     <button
-                      onClick={() => { setFilterRanks([]); setFilterEcOnly(false); setFilterEmailOnly(false); }}
+                      onClick={() => { setFilterRanks([]); setFilterEcOnly(false); setFilterEmailOnly(false); setFilterCategory(""); }}
                       className="text-xs text-slate-400 hover:text-slate-600 ml-1"
                     >
                       リセット
@@ -895,9 +916,34 @@ export default function SalesAI() {
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-slate-400">
-                  {filteredCompanies.length}件表示 / 全{companies.length}件
-                </p>
+
+                {categoryOptions.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 flex-shrink-0">業種:</span>
+                    <select
+                      value={filterCategory}
+                      onChange={e => setFilterCategory(e.target.value)}
+                      className="text-xs border border-slate-200 rounded px-2 py-0.5 text-slate-600 flex-1 max-w-[200px]"
+                    >
+                      <option value="">すべて表示</option>
+                      {categoryOptions.sort().map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-slate-400">{filteredCompanies.length}件 / 全{companies.length}件</span>
+                  </div>
+                )}
+
+                {categoryOptions.length === 0 && (
+                  <p className="text-xs text-slate-400">
+                    {filteredCompanies.length}件表示 / 全{companies.length}件
+                    {companies.length === 0 && !showAllProjects && currentProject && (
+                      <span className="ml-2 text-amber-500">
+                        ※ このプロジェクトに企業がありません。「全プロジェクト表示中」に切り替えてください。
+                      </span>
+                    )}
+                  </p>
+                )}
               </div>
               <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
                 {filteredCompanies.length === 0 ? (
