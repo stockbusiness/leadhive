@@ -410,6 +410,12 @@ export default function SalesAI() {
   const [genError, setGenError] = useState("");
   const [genSuccess, setGenSuccess] = useState("");
 
+  const [autoBatching, setAutoBatching] = useState(false);
+  const [autoBatchDone, setAutoBatchDone] = useState(0);
+  const [autoBatchTotal, setAutoBatchTotal] = useState(0);
+  const [autoBatchBatch, setAutoBatchBatch] = useState(0);
+  const [autoBatchTotalBatches, setAutoBatchTotalBatches] = useState(0);
+
   const [messages, setMessages] = useState<SalesMessage[]>([]);
   const [msgFilter, setMsgFilter] = useState<string>("");
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -454,7 +460,7 @@ export default function SalesAI() {
   const loadCompanies = useCallback(async () => {
     if (!currentProject) return;
     try {
-      const res = await api.companies.list({ project_id: currentProject.id, per_page: 200, sort: "score_total", order: "desc" });
+      const res = await api.companies.list({ project_id: currentProject.id, per_page: 9999, sort: "score_total", order: "desc" });
       setCompanies((res.companies || []) as any);
     } catch {}
   }, [currentProject]);
@@ -597,6 +603,40 @@ export default function SalesAI() {
     }
   };
 
+  const handleAutoBatch = async () => {
+    const ids = filteredCompanies.map(c => c.id);
+    if (ids.length === 0) { setGenError("対象企業がありません"); return; }
+    const BATCH = 50;
+    const chunks: number[][] = [];
+    for (let i = 0; i < ids.length; i += BATCH) chunks.push(ids.slice(i, i + BATCH));
+
+    setAutoBatching(true);
+    setAutoBatchDone(0);
+    setAutoBatchTotal(ids.length);
+    setAutoBatchBatch(0);
+    setAutoBatchTotalBatches(chunks.length);
+    setGenError("");
+    setGenSuccess("");
+
+    let totalGenerated = 0;
+    for (let i = 0; i < chunks.length; i++) {
+      setAutoBatchBatch(i + 1);
+      try {
+        const res = await api.salesAi.generateBatch(chunks[i], templateType, currentProject?.id);
+        totalGenerated += res.total_generated || 0;
+        setAutoBatchDone((i + 1) * BATCH > ids.length ? ids.length : (i + 1) * BATCH);
+      } catch (e: any) {
+        setGenError(`バッチ${i + 1}でエラーが発生しました: ${e?.response?.data?.detail || e?.message || "不明なエラー"}`);
+        break;
+      }
+    }
+
+    setAutoBatching(false);
+    setGenSuccess(`全${totalGenerated}件の営業文を生成しました。「レビュー・送信」タブで確認できます。`);
+    setSelectedIds([]);
+    loadMessages();
+  };
+
   const handleSendConfirm = async (sendMethod: string, profileId?: number): Promise<{ send_result?: string; send_detail?: string }> => {
     if (!sendTarget) return {};
     const updated = await api.salesAi.sendMessage(sendTarget.id, sendMethod, undefined, profileId);
@@ -699,28 +739,64 @@ export default function SalesAI() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <p className="text-sm text-slate-600 mb-3">
-                <span className="font-semibold text-slate-800">{selectedIds.length}件</span> 選択中（最大50件）
-              </p>
+            <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
               {genSuccess && (
-                <div className="bg-green-50 border border-green-200 text-green-700 text-xs rounded-lg px-3 py-2 mb-3 flex items-start gap-2">
+                <div className="bg-green-50 border border-green-200 text-green-700 text-xs rounded-lg px-3 py-2 flex items-start gap-2">
                   <CheckCircle2 size={14} className="mt-0.5 flex-shrink-0" />
                   {genSuccess}
                 </div>
               )}
               {genError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2 mb-3">{genError}</div>
+                <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{genError}</div>
               )}
-              <button
-                onClick={handleGenerateBatch}
-                disabled={generating || selectedIds.length === 0}
-                className="w-full flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {generating ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                {generating ? "生成中..." : `${selectedIds.length}件を一括生成`}
-              </button>
-              <p className="text-xs text-slate-400 mt-2 text-center">生成には1件あたり数秒かかります</p>
+
+              {autoBatching && (
+                <div className="bg-violet-50 border border-violet-200 rounded-lg px-3 py-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs text-violet-700 font-medium">
+                    <span>自動バッチ生成中… バッチ {autoBatchBatch}/{autoBatchTotalBatches}</span>
+                    <span>{autoBatchDone}/{autoBatchTotal} 件完了</span>
+                  </div>
+                  <div className="w-full bg-violet-200 rounded-full h-2">
+                    <div
+                      className="bg-violet-600 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${autoBatchTotal > 0 ? Math.round((autoBatchDone / autoBatchTotal) * 100) : 0}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-violet-500">このまま画面を開いたままにしてください</p>
+                </div>
+              )}
+
+              <div className="border-b border-slate-100 pb-3">
+                <p className="text-xs text-slate-500 mb-2 font-medium">選択した企業に生成（最大50件）</p>
+                <p className="text-sm text-slate-600 mb-2">
+                  <span className="font-semibold text-slate-800">{selectedIds.length}件</span> 選択中
+                </p>
+                <button
+                  onClick={handleGenerateBatch}
+                  disabled={generating || autoBatching || selectedIds.length === 0}
+                  className="w-full flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {generating ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  {generating ? "生成中..." : `${selectedIds.length}件を一括生成`}
+                </button>
+              </div>
+
+              <div>
+                <p className="text-xs text-slate-500 mb-2 font-medium">絞込結果の全件に自動生成</p>
+                <p className="text-sm text-slate-600 mb-2">
+                  <span className="font-semibold text-slate-800">{filteredCompanies.length}件</span> 対象
+                  <span className="text-xs text-slate-400 ml-1">（50件ずつ自動処理）</span>
+                </p>
+                <button
+                  onClick={handleAutoBatch}
+                  disabled={generating || autoBatching || filteredCompanies.length === 0}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {autoBatching ? <RefreshCw size={14} className="animate-spin" /> : <Zap size={14} />}
+                  {autoBatching ? `バッチ ${autoBatchBatch}/${autoBatchTotalBatches} 処理中…` : `全${filteredCompanies.length}件を自動バッチ生成`}
+                </button>
+                <p className="text-xs text-slate-400 mt-2 text-center">50件ずつ順番に自動で処理します</p>
+              </div>
             </div>
           </div>
 
@@ -785,7 +861,7 @@ export default function SalesAI() {
                       disabled={filteredCompanies.length === 0}
                       className="text-xs px-2.5 py-0.5 rounded border border-violet-400 text-violet-600 hover:bg-violet-50 disabled:opacity-40 transition-colors"
                     >
-                      絞込結果を全選択（最大50件）
+                      先頭50件を選択
                     </button>
                   </div>
                 </div>
@@ -799,7 +875,7 @@ export default function SalesAI() {
                     {currentProject ? "企業データがありません" : "プロジェクトを選択してください"}
                   </div>
                 ) : (
-                  filteredCompanies.slice(0, 100).map(c => {
+                  filteredCompanies.map(c => {
                     const isSelected = selectedIds.includes(c.id);
                     return (
                       <div
