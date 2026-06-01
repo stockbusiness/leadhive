@@ -132,7 +132,11 @@ def send_email(
         return False, f"宛先拒否エラー: {e.recipients}"
     except smtplib.SMTPConnectError:
         return False, f"SMTPサーバーへの接続に失敗しました: {host}:{port}"
+    except UnicodeEncodeError:
+        return False, "SMTPの設定値に全角文字が含まれています。パスワード・ホスト・ユーザー名は半角英数字で入力してください。"
     except Exception as e:
+        if "ordinal not in range" in str(e) or "ascii" in str(e).lower():
+            return False, "SMTPの設定値に全角文字が含まれています。パスワード・ホスト・ユーザー名は半角英数字で入力してください。"
         return False, f"送信エラー: {str(e)}"
 
 

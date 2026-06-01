@@ -53,15 +53,36 @@ def get_settings(
     return {"settings": result}
 
 
+ASCII_REQUIRED_KEYS = {"smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_from_email"}
+
+
+def _has_non_ascii(value: str) -> bool:
+    try:
+        value.encode("ascii")
+        return False
+    except UnicodeEncodeError:
+        return True
+
+
 @router.put("")
 def update_settings(
     data: dict,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    from fastapi import HTTPException
     if "slack_webhook_url" in data and data["slack_webhook_url"]:
         from server.routes.plans import check_slack_allowed
         check_slack_allowed(current_user.org_id, db)
+
+    for key in ASCII_REQUIRED_KEYS:
+        val = data.get(key)
+        if val and _has_non_ascii(str(val)):
+            raise HTTPException(
+                status_code=400,
+                detail=f"「{key}」に全角文字が含まれています。パスワード・ホスト・メールアドレスは半角英数字で入力してください。"
+            )
+
     updated = []
     for key, value in data.items():
         if key not in SETTING_KEYS:
