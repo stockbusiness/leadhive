@@ -61,6 +61,8 @@ class ResetPasswordRequest(BaseModel):
 
 class ProfileUpdateRequest(BaseModel):
     display_name: str = None
+    title: str = None
+    phone: str = None
     email: str = None
     current_password: str = None
     new_password: str = None
@@ -83,6 +85,8 @@ def _user_response(user: User, org: Organization) -> dict:
         "org_id": user.org_id,
         "org_name": org.name if org else "",
         "display_name": user.display_name or "",
+        "title": user.title or "",
+        "phone": user.phone or "",
         "onboarding_completed": org.onboarding_completed if org else False,
         "is_system_admin": bool(user.is_system_admin),
         "is_founder": bool(user.is_founder),
@@ -419,6 +423,10 @@ def update_profile(
 ):
     if body.display_name is not None:
         current_user.display_name = body.display_name
+    if body.title is not None:
+        current_user.title = body.title or None
+    if body.phone is not None:
+        current_user.phone = body.phone or None
 
     if body.email and body.email != current_user.email:
         existing = db.query(User).filter(User.email == body.email, User.id != current_user.id).first()

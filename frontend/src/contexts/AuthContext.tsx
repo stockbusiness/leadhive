@@ -9,6 +9,8 @@ interface AuthUser {
   org_id: number;
   org_name: string;
   display_name: string;
+  title: string;
+  phone: string;
   onboarding_completed: boolean;
   is_system_admin: boolean;
   is_founder: boolean;

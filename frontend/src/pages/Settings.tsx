@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
-import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, DatabaseZap, ShieldCheck, Trash2, Download, LogOut, ExternalLink, AlertTriangle, QrCode, Zap } from "lucide-react";
+import { Settings as SettingsIcon, Save, CheckCircle, XCircle, Loader2, Clock, Timer, MessageSquare, Mail, Search, MapPin, Bell, Sparkles, Crown, PartyPopper, DatabaseZap, ShieldCheck, Trash2, Download, LogOut, ExternalLink, AlertTriangle, QrCode, Zap, UserCircle } from "lucide-react";
 import axios from "axios";
 import HelpTooltip from "../components/HelpTooltip";
 import HelpPanel from "../components/HelpPanel";
@@ -154,6 +154,100 @@ function PlanCurrentSection({ isAdmin }: { isAdmin: boolean }) {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function ProfileSection() {
+  const { user, updateUser } = useAuth();
+  const [displayName, setDisplayName] = useState(user?.display_name || "");
+  const [title, setTitle] = useState(user?.title || "");
+  const [phone, setPhone] = useState(user?.phone || "");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<MessageState | null>(null);
+
+  useEffect(() => {
+    setDisplayName(user?.display_name || "");
+    setTitle(user?.title || "");
+    setPhone(user?.phone || "");
+  }, [user]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const res = await api.auth.updateProfile({ display_name: displayName, title, phone });
+      if (res.access_token) {
+        localStorage.setItem("access_token", res.access_token);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${res.access_token}`;
+      }
+      updateUser({ display_name: res.user.display_name, title: res.user.title, phone: res.user.phone });
+      setMsg({ type: "success", text: "プロフィールを更新しました" });
+    } catch (e: any) {
+      setMsg({ type: "error", text: e?.response?.data?.detail || "更新に失敗しました" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-5">
+      <SectionHeader icon={<UserCircle size={20} className="text-slate-600" />} title="プロフィール（フォーム送信者情報）" />
+      <p className="text-sm text-slate-500">
+        フォーム自動送信時に使われる担当者情報です。メンバーごとに個別に設定できます。
+      </p>
+
+      {msg && <MessageBox msg={msg} />}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">担当者名 <span className="text-red-500">*</span></label>
+          <input
+            type="text"
+            value={displayName}
+            onChange={e => setDisplayName(e.target.value)}
+            placeholder="山田 太郎"
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-slate-400 mt-1">フォームの「お名前」欄に入力されます</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">役職</label>
+          <input
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="営業部 マネージャー"
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-slate-400 mt-1">フォームの「役職」欄に入力されます</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">電話番号</label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            placeholder="03-1234-5678"
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-slate-400 mt-1">フォームの「電話番号」欄に入力されます</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">メールアドレス（送信元）</label>
+          <div className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-slate-50 text-slate-500">
+            {user?.email}
+          </div>
+          <p className="text-xs text-slate-400 mt-1">変更は「セキュリティ」セクションで行えます。送信元メールはSMTP設定の送信元アドレスが使われます</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
+        <span className="font-medium">会社名：</span>{user?.org_name || "（未設定）"}
+        <span className="text-blue-400 text-xs ml-2">※ 会社名は組織共通の設定です</span>
+      </div>
+
+      <SaveButton saving={saving} onClick={handleSave} disabled={!displayName.trim()} />
     </div>
   );
 }
@@ -588,6 +682,8 @@ export default function Settings() {
       )}
 
       <PlanCurrentSection isAdmin={isOrgAdmin} />
+
+      <ProfileSection />
 
       {message && <MessageBox msg={message} />}
 

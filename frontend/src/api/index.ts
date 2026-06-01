@@ -450,8 +450,8 @@ export const api = {
     me: () =>
       axios.get("/api/auth/me").then(r => r.data),
 
-    updateProfile: (data: { display_name?: string; email?: string; current_password?: string; new_password?: string }) =>
-      axios.put<{ message: string; user: any }>("/api/auth/profile", data).then(r => r.data),
+    updateProfile: (data: { display_name?: string; title?: string; phone?: string; email?: string; current_password?: string; new_password?: string }) =>
+      axios.put<{ message: string; user: any; access_token?: string }>("/api/auth/profile", data).then(r => r.data),
 
     forgotPassword: (email: string) =>
       axios.post("/api/auth/forgot-password", { email }).then(r => r.data),

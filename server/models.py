@@ -55,6 +55,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), default="admin")
     display_name = Column(String(255), nullable=True)
+    title = Column(String(100), nullable=True)
+    phone = Column(String(50), nullable=True)
     last_login_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
     is_system_admin = Column(Boolean, default=False)

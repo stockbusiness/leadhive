@@ -425,8 +425,8 @@ def send_message(
         sender_name = current_user.display_name or current_user.email or ""
         sender_email = smtp_s.get("smtp_from_email") or current_user.email or ""
         sender_company = org.name if org else ""
-        sender_phone = org.phone if org else ""
-        sender_title = ""
+        sender_phone = current_user.phone or (org.phone if org else "") or ""
+        sender_title = current_user.title or ""
 
         form_result = send_form_auto(
             company_name=c.company_name if c else "",
