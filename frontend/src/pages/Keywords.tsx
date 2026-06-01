@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Search, BarChart2, List, TrendingUp, Zap, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Lightbulb, MapPin, ShoppingCart, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Search, BarChart2, List, TrendingUp, Zap, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Lightbulb, MapPin, ShoppingCart, CheckCircle2, Pencil, Check, X } from "lucide-react";
 import HelpTooltip from "../components/HelpTooltip";
 import HelpPanel from "../components/HelpPanel";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -255,6 +255,8 @@ export default function Keywords() {
   });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeSuggestIndustry, setActiveSuggestIndustry] = useState(0);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ keyword: "", category: "", region: "", exclude_keywords: "" });
   const [showEcTemplates, setShowEcTemplates] = useState(false);
   const [ecTemplates, setEcTemplates] = useState<EcKeywordTemplate[]>([]);
   const [selectedEcTemplate, setSelectedEcTemplate] = useState<string | null>(null);
@@ -288,6 +290,27 @@ export default function Keywords() {
 
   const handleDelete = (id: number) => {
     api.keywords.delete(id).then(() => fetchKeywords());
+  };
+
+  const handleEditStart = (kw: SearchKeyword) => {
+    setEditingId(kw.id);
+    setEditForm({
+      keyword: kw.keyword,
+      category: kw.category || "",
+      region: kw.region || "",
+      exclude_keywords: kw.exclude_keywords || "",
+    });
+  };
+
+  const handleEditSave = (id: number) => {
+    api.keywords.update(id, editForm).then(() => {
+      setEditingId(null);
+      fetchKeywords();
+    });
+  };
+
+  const handleEditCancel = () => {
+    setEditingId(null);
   };
 
   const addDefaultKeywords = () => {
@@ -590,22 +613,104 @@ export default function Keywords() {
                   </tr>
                 </thead>
                 <tbody>
-                  {keywords.map((kw) => (
-                    <tr key={kw.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-800">{kw.keyword}</td>
-                      <td className="px-4 py-3 text-slate-600">{kw.category || "-"}</td>
-                      <td className="px-4 py-3 text-slate-600">{kw.region || "-"}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{kw.exclude_keywords || "-"}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">
-                        {kw.created_at ? new Date(kw.created_at).toLocaleDateString("ja-JP") : "-"}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button onClick={() => handleDelete(kw.id)} className="text-red-400 hover:text-red-600 p-1">
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {keywords.map((kw) => {
+                    const isEditing = editingId === kw.id;
+                    return (
+                      <tr key={kw.id} className={`border-b border-slate-100 ${isEditing ? "bg-blue-50" : "hover:bg-slate-50"}`}>
+                        {isEditing ? (
+                          <>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={editForm.keyword}
+                                onChange={(e) => setEditForm({ ...editForm, keyword: e.target.value })}
+                                className="w-full border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <select
+                                value={editForm.category}
+                                onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                                className="w-full border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="">-</option>
+                                {CATEGORIES.map((c) => (
+                                  <option key={c} value={c}>{c}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={editForm.region}
+                                onChange={(e) => setEditForm({ ...editForm, region: e.target.value })}
+                                placeholder="地域"
+                                className="w-full border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={editForm.exclude_keywords}
+                                onChange={(e) => setEditForm({ ...editForm, exclude_keywords: e.target.value })}
+                                placeholder="除外"
+                                className="w-full border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="px-4 py-2 text-slate-500 text-xs">
+                              {kw.created_at ? new Date(kw.created_at).toLocaleDateString("ja-JP") : "-"}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => handleEditSave(kw.id)}
+                                  className="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-100"
+                                  title="保存"
+                                >
+                                  <Check size={16} />
+                                </button>
+                                <button
+                                  onClick={handleEditCancel}
+                                  className="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100"
+                                  title="キャンセル"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-4 py-3 font-medium text-slate-800">{kw.keyword}</td>
+                            <td className="px-4 py-3 text-slate-600">{kw.category || "-"}</td>
+                            <td className="px-4 py-3 text-slate-600">{kw.region || "-"}</td>
+                            <td className="px-4 py-3 text-slate-500 text-xs">{kw.exclude_keywords || "-"}</td>
+                            <td className="px-4 py-3 text-slate-500 text-xs">
+                              {kw.created_at ? new Date(kw.created_at).toLocaleDateString("ja-JP") : "-"}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => handleEditStart(kw)}
+                                  className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50"
+                                  title="編集"
+                                >
+                                  <Pencil size={15} />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(kw.id)}
+                                  className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50"
+                                  title="削除"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })}
                   {keywords.length === 0 && (
                     <tr>
                       <td colSpan={6}>

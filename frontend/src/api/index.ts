@@ -138,6 +138,9 @@ export const api = {
     create: (data: Partial<SearchKeyword>) =>
       axios.post("/api/keywords", data).then(r => r.data),
 
+    update: (id: number, data: Partial<SearchKeyword>) =>
+      axios.put(`/api/keywords/${id}`, data).then(r => r.data),
+
     delete: (id: number) =>
       axios.delete(`/api/keywords/${id}`).then(r => r.data),
 
