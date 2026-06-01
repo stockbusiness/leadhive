@@ -463,6 +463,12 @@ export default function SalesAI() {
   const [bulkSendResult, setBulkSendResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
   const [bulkSendConfirm, setBulkSendConfirm] = useState(false);
 
+  const [bulkFormSending, setBulkFormSending] = useState(false);
+  const [bulkFormResult, setBulkFormResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const [bulkFormConfirm, setBulkFormConfirm] = useState(false);
+  const [bulkFormProfileId, setBulkFormProfileId] = useState<number | undefined>(undefined);
+  const [bulkFormProfiles, setBulkFormProfiles] = useState<FormSenderProfile[]>([]);
+
   const [selectedMsgIds, setSelectedMsgIds] = useState<number[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [scheduleSaveMsg, setScheduleSaveMsg] = useState("");
@@ -472,6 +478,11 @@ export default function SalesAI() {
     api.templates.list().then(r => {
       const emailTpls = (r.templates || []).filter((t: any) => t.is_email_template);
       setCustomTemplates(emailTpls);
+    }).catch(() => {});
+    api.formProfiles.list().then(d => {
+      setBulkFormProfiles(d.profiles || []);
+      const def = (d.profiles || []).find((p: FormSenderProfile) => p.is_default);
+      if (def) setBulkFormProfileId(def.id);
     }).catch(() => {});
   }, []);
 
@@ -672,6 +683,21 @@ export default function SalesAI() {
       setGenError(e?.response?.data?.detail || "一括送信に失敗しました");
     } finally {
       setBulkSending(false);
+    }
+  };
+
+  const handleBulkFormSend = async () => {
+    setBulkFormSending(true);
+    setBulkFormResult(null);
+    setBulkFormConfirm(false);
+    try {
+      const res = await api.salesAi.bulkSendForm(bulkFormProfileId);
+      setBulkFormResult(res);
+      loadMessages();
+    } catch (e: any) {
+      setGenError(e?.response?.data?.detail || "フォーム一括送信に失敗しました");
+    } finally {
+      setBulkFormSending(false);
     }
   };
 
@@ -1095,7 +1121,52 @@ export default function SalesAI() {
               </div>
             )}
 
-            <button onClick={loadMessages} className={`${!messages.some(m => m.status === "reviewed") && !bulkSendResult ? "ml-auto" : ""} text-slate-500 hover:text-slate-700`}>
+            {messages.some(m => m.status === "reviewed") && !bulkFormResult && (
+              bulkFormConfirm ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {bulkFormProfiles.length > 0 && (
+                    <select
+                      value={bulkFormProfileId ?? ""}
+                      onChange={e => setBulkFormProfileId(e.target.value ? Number(e.target.value) : undefined)}
+                      className="text-xs border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white max-w-[160px]"
+                    >
+                      <option value="">プロフィール未選択</option>
+                      {bulkFormProfiles.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}{p.display_name ? ` — ${p.display_name}` : ""}</option>
+                      ))}
+                    </select>
+                  )}
+                  <span className="text-xs text-slate-600">レビュー済み{messages.filter(m => m.status === "reviewed").length}件をフォーム送信しますか？</span>
+                  <button
+                    onClick={handleBulkFormSend}
+                    disabled={bulkFormSending}
+                    className="flex items-center gap-1.5 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {bulkFormSending ? <RefreshCw size={12} className="animate-spin" /> : <Globe size={12} />}
+                    {bulkFormSending ? "送信中..." : "確認して送信"}
+                  </button>
+                  <button onClick={() => setBulkFormConfirm(false)} className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg">キャンセル</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setBulkFormConfirm(true)}
+                  className="flex items-center gap-1.5 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Globe size={12} /> フォーム一括送信
+                </button>
+              )
+            )}
+
+            {bulkFormResult && (
+              <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
+                <CheckCircle2 size={14} className="text-blue-600" />
+                <span className="text-xs text-blue-700 font-medium">{bulkFormResult.sent}件をフォーム送信しました</span>
+                {bulkFormResult.failed > 0 && <span className="text-xs text-red-600">（{bulkFormResult.failed}件失敗）</span>}
+                <button onClick={() => setBulkFormResult(null)} className="text-slate-400 hover:text-slate-600"><X size={12} /></button>
+              </div>
+            )}
+
+            <button onClick={loadMessages} className={`${!messages.some(m => m.status === "reviewed") && !bulkSendResult && !bulkFormResult ? "ml-auto" : ""} text-slate-500 hover:text-slate-700`}>
               <RefreshCw size={16} className={loadingMessages ? "animate-spin" : ""} />
             </button>
           </div>

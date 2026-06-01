@@ -704,6 +704,9 @@ export const api = {
     bulkSend: (sendMethod: string = "manual", profileId?: number, messageIds?: number[]) =>
       axios.post("/api/sales-ai/messages/bulk-send", { send_method: sendMethod, profile_id: profileId, message_ids: messageIds }).then(r => r.data),
 
+    bulkSendForm: (profileId?: number, messageIds?: number[]) =>
+      axios.post("/api/sales-ai/messages/bulk-send-form", { send_method: "form", profile_id: profileId, message_ids: messageIds }).then(r => r.data),
+
     listMessages: (status?: string) =>
       axios.get("/api/sales-ai/messages", { params: status ? { status } : {} }).then(r => r.data),
 

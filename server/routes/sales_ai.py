@@ -613,6 +613,143 @@ def bulk_send_messages(
     return {"sent": sent_count, "failed": failed_count, "total": len(msgs)}
 
 
+@router.post("/messages/bulk-send-form")
+def bulk_send_form_messages(
+    req: BulkSendRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """レビュー済みメッセージをフォーム自動送信で一括送信する。"""
+    from server.services.form_sender import send_form_auto
+    from server.services.ai_analyzer import get_openai_key
+    from server.models import Organization, FormSenderProfile as FormSenderProfileModel
+
+    openai_key = get_openai_key(db, current_user.org_id)
+    if not openai_key:
+        raise HTTPException(
+            status_code=400,
+            detail="OpenAI APIキーが設定されていません。設定画面でAPIキーを設定してください。"
+        )
+
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+    smtp_s = {}
+    try:
+        from server.services.mailer import get_smtp_settings
+        smtp_s = get_smtp_settings(db, current_user.org_id)
+    except Exception:
+        pass
+
+    if req.profile_id:
+        prof = db.query(FormSenderProfileModel).filter(
+            FormSenderProfileModel.id == req.profile_id,
+            FormSenderProfileModel.org_id == current_user.org_id,
+        ).first()
+    else:
+        prof = None
+
+    if prof:
+        sender_name = prof.display_name or current_user.display_name or current_user.email or ""
+        sender_email = prof.email or smtp_s.get("smtp_from_email") or current_user.email or ""
+        sender_company = prof.company_name or (org.name if org else "")
+        sender_phone = prof.phone or ""
+        sender_title = prof.title or ""
+        sender_department = prof.department or ""
+        sender_website_url = prof.website_url or ""
+        sender_postal_code = prof.postal_code or ""
+        sender_subject = prof.subject or ""
+        sender_prefecture = prof.prefecture or ""
+        sender_address = prof.address or ""
+    else:
+        sender_name = current_user.display_name or current_user.email or ""
+        sender_email = smtp_s.get("smtp_from_email") or current_user.email or ""
+        sender_company = org.name if org else ""
+        sender_phone = current_user.phone or (org.phone if org else "") or ""
+        sender_title = current_user.title or ""
+        sender_department = ""
+        sender_website_url = ""
+        sender_postal_code = ""
+        sender_subject = ""
+        sender_prefecture = ""
+        sender_address = ""
+
+    owned_pids = [p.id for p in _owned_projects(current_user, db)]
+    q = (
+        db.query(SalesMessage)
+        .join(Company, SalesMessage.company_id == Company.id)
+        .filter(
+            SalesMessage.status == "reviewed",
+            Company.project_id.in_(owned_pids),
+        )
+    )
+    if req.message_ids:
+        q = q.filter(SalesMessage.id.in_(req.message_ids))
+
+    msgs = q.all()
+    early_statuses = {"未確認", "対象候補", "アプローチ前"}
+    sent_count = 0
+    failed_count = 0
+
+    for msg in msgs:
+        try:
+            c = db.query(Company).filter(Company.id == msg.company_id).first()
+            form_result = send_form_auto(
+                company_name=c.company_name if c else "",
+                website_url=c.website_url or "" if c else "",
+                contact_url=c.contact_url or "" if c else "",
+                message_body=msg.body or "",
+                sender_name=sender_name,
+                sender_email=sender_email,
+                sender_company=sender_company,
+                sender_phone=sender_phone,
+                sender_title=sender_title,
+                openai_key=openai_key,
+                sender_department=sender_department,
+                sender_website_url=sender_website_url,
+                sender_postal_code=sender_postal_code,
+                sender_prefecture=sender_prefecture,
+                sender_address=sender_address,
+                subject=sender_subject,
+            )
+            success = form_result["success"]
+            note = form_result["message"]
+            form_url = form_result.get("form_url", "")
+            if form_url:
+                note += f" / URL: {form_url}"
+
+            msg.status = "sent" if success else "failed"
+            msg.sent_at = datetime.utcnow()
+            msg.sent_by = current_user.id
+
+            if success and c and (c.status in early_statuses or c.status is None):
+                c.status = "フォーム送信済"
+
+            db.add(AuditLog(
+                company_id=msg.company_id,
+                send_method="form",
+                sent_by_user_id=current_user.id,
+                message_id=msg.id,
+                ai_prompt_id=msg.ai_prompt_id,
+                result="sent" if success else "failed",
+                note=note,
+            ))
+
+            if success:
+                sent_count += 1
+            else:
+                failed_count += 1
+        except Exception as e:
+            logger.warning(f"bulk_send_form: error on message {msg.id}: {e}")
+            failed_count += 1
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"DB更新に失敗しました: {str(e)}")
+
+    return {"sent": sent_count, "failed": failed_count, "total": len(msgs)}
+
+
 @router.delete("/messages/{message_id}")
 def delete_message(
     message_id: int,
