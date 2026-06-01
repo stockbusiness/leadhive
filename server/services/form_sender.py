@@ -143,6 +143,10 @@ _MAPPING_PROMPT = """あなたはWebフォームの入力アシスタントで�
 - 送信者会社名: {sender_company}
 - 送信者電話番号: {sender_phone}
 - 送信者役職: {sender_title}
+- 送信者部署名: {sender_department}
+- 送信者会社URL: {sender_website_url}
+- 送信者都道府県: {sender_prefecture}
+- 送信者住所: {sender_address}
 
 ## 宛先企業名: {company_name}
 
@@ -170,6 +174,10 @@ def map_fields_with_ai(
     company_name: str,
     message_body: str,
     openai_key: str,
+    sender_department: str = "",
+    sender_website_url: str = "",
+    sender_prefecture: str = "",
+    sender_address: str = "",
 ) -> dict[str, str]:
     """GPT-4o-miniでフォームフィールドと送信データをマッピングする。"""
     if not openai_key:
@@ -185,6 +193,10 @@ def map_fields_with_ai(
         sender_company=sender_company or "",
         sender_phone=sender_phone or "",
         sender_title=sender_title or "",
+        sender_department=sender_department or "",
+        sender_website_url=sender_website_url or "",
+        sender_prefecture=sender_prefecture or "",
+        sender_address=sender_address or "",
         company_name=company_name or "",
         message_body=message_body or "",
     )
@@ -248,6 +260,10 @@ def send_form_auto(
     sender_phone: str,
     sender_title: str,
     openai_key: str,
+    sender_department: str = "",
+    sender_website_url: str = "",
+    sender_prefecture: str = "",
+    sender_address: str = "",
 ) -> dict:
     """
     フォーム自動送信のメインエントリポイント。
@@ -304,6 +320,10 @@ def send_form_auto(
             company_name=company_name,
             message_body=message_body,
             openai_key=openai_key,
+            sender_department=sender_department,
+            sender_website_url=sender_website_url,
+            sender_prefecture=sender_prefecture,
+            sender_address=sender_address,
         )
     except Exception as e:
         return {

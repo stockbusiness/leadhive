@@ -7,8 +7,12 @@ interface FormProfile {
   name: string;
   display_name: string;
   title: string;
+  department: string;
   phone: string;
   email: string;
+  website_url: string;
+  prefecture: string;
+  address: string;
   is_default: boolean;
   created_at: string | null;
 }
@@ -17,8 +21,12 @@ interface ProfileFormValues {
   name: string;
   display_name: string;
   title: string;
+  department: string;
   phone: string;
   email: string;
+  website_url: string;
+  prefecture: string;
+  address: string;
   is_default: boolean;
 }
 
@@ -26,8 +34,12 @@ const emptyForm = (): ProfileFormValues => ({
   name: "",
   display_name: "",
   title: "",
+  department: "",
   phone: "",
   email: "",
+  website_url: "",
+  prefecture: "",
+  address: "",
   is_default: false,
 });
 
@@ -41,22 +53,34 @@ interface ProfileFormProps {
   error: string;
 }
 
+const PREFECTURES = [
+  "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
+  "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
+  "新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県",
+  "静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県",
+  "奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県",
+  "徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県",
+  "熊本県","大分県","宮崎県","鹿児島県","沖縄県",
+];
+
 function ProfileForm({ form, setForm, onSave, onCancel, saveLabel, saving, error }: ProfileFormProps) {
   return (
     <div className="space-y-4 p-5 bg-slate-50 border border-slate-200 rounded-xl">
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+
+      <div>
+        <label className="block text-xs font-semibold text-slate-600 mb-1">プロフィール名（識別用） <span className="text-red-500">*</span></label>
+        <input
+          type="text"
+          value={form.name}
+          onChange={e => setForm({ ...form, name: e.target.value })}
+          placeholder="例: 田中（ECチーム）、山田（代表）"
+          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <p className="text-xs text-slate-400 mt-0.5">送信時の選択画面に表示される名前です</p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-xs font-semibold text-slate-600 mb-1">プロフィール名（識別用） <span className="text-red-500">*</span></label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={e => setForm({ ...form, name: e.target.value })}
-            placeholder="例: 田中（ECチーム）、山田（代表）"
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <p className="text-xs text-slate-400 mt-0.5">送信時の選択画面に表示される名前です</p>
-        </div>
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">担当者名</label>
           <input
@@ -64,6 +88,16 @@ function ProfileForm({ form, setForm, onSave, onCancel, saveLabel, saving, error
             value={form.display_name}
             onChange={e => setForm({ ...form, display_name: e.target.value })}
             placeholder="山田 太郎"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">部署名</label>
+          <input
+            type="text"
+            value={form.department}
+            onChange={e => setForm({ ...form, department: e.target.value })}
+            placeholder="営業部"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -97,7 +131,39 @@ function ProfileForm({ form, setForm, onSave, onCancel, saveLabel, saving, error
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">自社URL</label>
+          <input
+            type="url"
+            value={form.website_url}
+            onChange={e => setForm({ ...form, website_url: e.target.value })}
+            placeholder="https://example.com"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">都道府県</label>
+          <select
+            value={form.prefecture}
+            onChange={e => setForm({ ...form, prefecture: e.target.value })}
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="">選択してください</option>
+            {PREFECTURES.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">住所（都道府県以降）</label>
+          <input
+            type="text"
+            value={form.address}
+            onChange={e => setForm({ ...form, address: e.target.value })}
+            placeholder="千代田区丸の内1-1-1"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
+
       <div className="flex items-center gap-2">
         <input
           type="checkbox"
@@ -148,7 +214,12 @@ export default function FormProfiles() {
 
   const startEdit = (p: FormProfile) => {
     setEditingId(p.id);
-    setEditForm({ name: p.name, display_name: p.display_name, title: p.title, phone: p.phone, email: p.email, is_default: p.is_default });
+    setEditForm({
+      name: p.name, display_name: p.display_name, title: p.title,
+      department: p.department, phone: p.phone, email: p.email,
+      website_url: p.website_url, prefecture: p.prefecture, address: p.address,
+      is_default: p.is_default,
+    });
     setError("");
   };
 
@@ -224,7 +295,7 @@ export default function FormProfiles() {
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 space-y-1">
         <p className="font-semibold flex items-center gap-1.5"><Globe size={14} />使い方</p>
         <p>営業AI → 送信確認ダイアログ → フォーム送信モードで「送信者プロフィール」を選択して使います。</p>
-        <p className="text-blue-500">担当者ごとに作成しておくと、送信時に切り替えられます。</p>
+        <p className="text-blue-500">担当者ごとに作成しておくと、送信時に切り替えられます。ここで設定した情報が、相手先のお問い合わせフォームの各入力欄にAIが自動で入力します。</p>
       </div>
 
       {loading ? (
@@ -263,29 +334,29 @@ export default function FormProfiles() {
                         </span>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1 text-sm">
                       {p.display_name && (
-                        <div>
-                          <span className="text-xs text-slate-400">担当者名</span>
-                          <p className="text-slate-700 font-medium">{p.display_name}</p>
-                        </div>
+                        <div><span className="text-xs text-slate-400">担当者名</span><p className="text-slate-700 font-medium">{p.display_name}</p></div>
+                      )}
+                      {p.department && (
+                        <div><span className="text-xs text-slate-400">部署</span><p className="text-slate-700">{p.department}</p></div>
                       )}
                       {p.title && (
-                        <div>
-                          <span className="text-xs text-slate-400">役職</span>
-                          <p className="text-slate-700">{p.title}</p>
-                        </div>
+                        <div><span className="text-xs text-slate-400">役職</span><p className="text-slate-700">{p.title}</p></div>
                       )}
                       {p.phone && (
-                        <div>
-                          <span className="text-xs text-slate-400">電話</span>
-                          <p className="text-slate-700">{p.phone}</p>
-                        </div>
+                        <div><span className="text-xs text-slate-400">電話</span><p className="text-slate-700">{p.phone}</p></div>
                       )}
                       {p.email && (
-                        <div>
-                          <span className="text-xs text-slate-400">メール</span>
-                          <p className="text-slate-700 truncate">{p.email}</p>
+                        <div><span className="text-xs text-slate-400">メール</span><p className="text-slate-700 truncate">{p.email}</p></div>
+                      )}
+                      {p.website_url && (
+                        <div><span className="text-xs text-slate-400">自社URL</span><p className="text-slate-700 truncate">{p.website_url}</p></div>
+                      )}
+                      {(p.prefecture || p.address) && (
+                        <div className="col-span-2 md:col-span-3">
+                          <span className="text-xs text-slate-400">住所</span>
+                          <p className="text-slate-700">{[p.prefecture, p.address].filter(Boolean).join(" ")}</p>
                         </div>
                       )}
                     </div>

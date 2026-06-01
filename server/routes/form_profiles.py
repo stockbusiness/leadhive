@@ -16,8 +16,12 @@ def _serialize(p: FormSenderProfile) -> dict:
         "name": p.name,
         "display_name": p.display_name or "",
         "title": p.title or "",
+        "department": p.department or "",
         "phone": p.phone or "",
         "email": p.email or "",
+        "website_url": p.website_url or "",
+        "prefecture": p.prefecture or "",
+        "address": p.address or "",
         "is_default": bool(p.is_default),
         "created_at": p.created_at.isoformat() if p.created_at else None,
     }
@@ -27,8 +31,12 @@ class ProfileBody(BaseModel):
     name: str
     display_name: Optional[str] = ""
     title: Optional[str] = ""
+    department: Optional[str] = ""
     phone: Optional[str] = ""
     email: Optional[str] = ""
+    website_url: Optional[str] = ""
+    prefecture: Optional[str] = ""
+    address: Optional[str] = ""
     is_default: Optional[bool] = False
 
 
@@ -63,8 +71,12 @@ def create_profile(
         name=name,
         display_name=body.display_name or None,
         title=body.title or None,
+        department=body.department or None,
         phone=body.phone or None,
         email=body.email or None,
+        website_url=body.website_url or None,
+        prefecture=body.prefecture or None,
+        address=body.address or None,
         is_default=bool(body.is_default),
     )
     db.add(profile)
@@ -100,8 +112,12 @@ def update_profile(
     profile.name = name
     profile.display_name = body.display_name or None
     profile.title = body.title or None
+    profile.department = body.department or None
     profile.phone = body.phone or None
     profile.email = body.email or None
+    profile.website_url = body.website_url or None
+    profile.prefecture = body.prefecture or None
+    profile.address = body.address or None
     profile.is_default = bool(body.is_default)
     db.commit()
     db.refresh(profile)

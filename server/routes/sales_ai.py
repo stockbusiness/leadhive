@@ -438,12 +438,20 @@ def send_message(
             sender_company = org.name if org else ""
             sender_phone = prof.phone or ""
             sender_title = prof.title or ""
+            sender_department = prof.department or ""
+            sender_website_url = prof.website_url or ""
+            sender_prefecture = prof.prefecture or ""
+            sender_address = prof.address or ""
         else:
             sender_name = current_user.display_name or current_user.email or ""
             sender_email = smtp_s.get("smtp_from_email") or current_user.email or ""
             sender_company = org.name if org else ""
             sender_phone = current_user.phone or (org.phone if org else "") or ""
             sender_title = current_user.title or ""
+            sender_department = ""
+            sender_website_url = ""
+            sender_prefecture = ""
+            sender_address = ""
 
         form_result = send_form_auto(
             company_name=c.company_name if c else "",
@@ -456,6 +464,10 @@ def send_message(
             sender_phone=sender_phone or "",
             sender_title=sender_title,
             openai_key=openai_key,
+            sender_department=sender_department,
+            sender_website_url=sender_website_url,
+            sender_prefecture=sender_prefecture,
+            sender_address=sender_address,
         )
 
         actually_sent = form_result["success"]

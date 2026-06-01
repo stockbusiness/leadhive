@@ -80,8 +80,12 @@ class FormSenderProfile(Base):
     name = Column(String(100), nullable=False)
     display_name = Column(String(255), nullable=True)
     title = Column(String(100), nullable=True)
+    department = Column(String(100), nullable=True)
     phone = Column(String(50), nullable=True)
     email = Column(String(255), nullable=True)
+    website_url = Column(String(500), nullable=True)
+    prefecture = Column(String(50), nullable=True)
+    address = Column(String(500), nullable=True)
     is_default = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
 
