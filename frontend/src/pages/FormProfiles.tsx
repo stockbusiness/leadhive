@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Pencil, Star, X, Check, UserCircle, Globe, Save } from "lucide-react";
+import { Plus, Trash2, Pencil, Star, X, Save, UserCircle, Globe } from "lucide-react";
 import { api } from "../api";
 
 interface FormProfile {
@@ -13,7 +13,16 @@ interface FormProfile {
   created_at: string | null;
 }
 
-const emptyForm = () => ({
+interface ProfileFormValues {
+  name: string;
+  display_name: string;
+  title: string;
+  phone: string;
+  email: string;
+  is_default: boolean;
+}
+
+const emptyForm = (): ProfileFormValues => ({
   name: "",
   display_name: "",
   title: "",
@@ -22,19 +31,117 @@ const emptyForm = () => ({
   is_default: false,
 });
 
+interface ProfileFormProps {
+  form: ProfileFormValues;
+  setForm: (f: ProfileFormValues) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saveLabel: string;
+  saving: boolean;
+  error: string;
+}
+
+function ProfileForm({ form, setForm, onSave, onCancel, saveLabel, saving, error }: ProfileFormProps) {
+  return (
+    <div className="space-y-4 p-5 bg-slate-50 border border-slate-200 rounded-xl">
+      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:col-span-2">
+          <label className="block text-xs font-semibold text-slate-600 mb-1">プロフィール名（識別用） <span className="text-red-500">*</span></label>
+          <input
+            type="text"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })}
+            placeholder="例: 田中（ECチーム）、山田（代表）"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-slate-400 mt-0.5">送信時の選択画面に表示される名前です</p>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">担当者名</label>
+          <input
+            type="text"
+            value={form.display_name}
+            onChange={e => setForm({ ...form, display_name: e.target.value })}
+            placeholder="山田 太郎"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">役職</label>
+          <input
+            type="text"
+            value={form.title}
+            onChange={e => setForm({ ...form, title: e.target.value })}
+            placeholder="営業部 マネージャー"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">電話番号</label>
+          <input
+            type="tel"
+            value={form.phone}
+            onChange={e => setForm({ ...form, phone: e.target.value })}
+            placeholder="03-1234-5678"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">メールアドレス（送信元）</label>
+          <input
+            type="email"
+            value={form.email}
+            onChange={e => setForm({ ...form, email: e.target.value })}
+            placeholder="sales@example.com（空白ならSMTP設定を使用）"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="is_default"
+          checked={form.is_default}
+          onChange={e => setForm({ ...form, is_default: e.target.checked })}
+          className="w-4 h-4 rounded border-slate-300 text-blue-600"
+        />
+        <label htmlFor="is_default" className="text-sm text-slate-700">デフォルトとして設定（送信時に自動選択）</label>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={onSave}
+          disabled={saving}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+        >
+          {saving ? "保存中..." : <><Save size={14} />{saveLabel}</>}
+        </button>
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm border border-slate-300 text-slate-600 hover:bg-slate-50"
+        >
+          <X size={14} />キャンセル
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function FormProfiles() {
   const [profiles, setProfiles] = useState<FormProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState(emptyForm());
+  const [editForm, setEditForm] = useState<ProfileFormValues>(emptyForm());
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState(emptyForm());
+  const [createForm, setCreateForm] = useState<ProfileFormValues>(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const load = () => {
     setLoading(true);
-    api.formProfiles.list().then(d => { setProfiles(d.profiles); setLoading(false); }).catch(() => setLoading(false));
+    api.formProfiles.list()
+      .then(d => { setProfiles(d.profiles); setLoading(false); })
+      .catch(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -83,77 +190,6 @@ export default function FormProfiles() {
     load();
   };
 
-  const ProfileForm = ({ form, setForm, onSave, onCancel, saveLabel }: {
-    form: typeof createForm;
-    setForm: (f: typeof createForm) => void;
-    onSave: () => void;
-    onCancel: () => void;
-    saveLabel: string;
-  }) => (
-    <div className="space-y-4 p-5 bg-slate-50 border border-slate-200 rounded-xl">
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-xs font-semibold text-slate-600 mb-1">プロフィール名（識別用） <span className="text-red-500">*</span></label>
-          <input
-            type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-            placeholder="例: 田中（ECチーム）、山田（代表）"
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <p className="text-xs text-slate-400 mt-0.5">送信時の選択画面に表示される名前です</p>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">担当者名</label>
-          <input
-            type="text" value={form.display_name} onChange={e => setForm({ ...form, display_name: e.target.value })}
-            placeholder="山田 太郎"
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">役職</label>
-          <input
-            type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-            placeholder="営業部 マネージャー"
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">電話番号</label>
-          <input
-            type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-            placeholder="03-1234-5678"
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">メールアドレス（送信元）</label>
-          <input
-            type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-            placeholder="sales@example.com（空白ならSMTP設定を使用）"
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox" id="is_default" checked={form.is_default}
-          onChange={e => setForm({ ...form, is_default: e.target.checked })}
-          className="w-4 h-4 rounded border-slate-300 text-blue-600"
-        />
-        <label htmlFor="is_default" className="text-sm text-slate-700">デフォルトとして設定（送信時に自動選択）</label>
-      </div>
-      <div className="flex gap-2">
-        <button onClick={onSave} disabled={saving} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
-          {saving ? "保存中..." : <><Save size={14} />{saveLabel}</>}
-        </button>
-        <button onClick={onCancel} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm border border-slate-300 text-slate-600 hover:bg-slate-50">
-          <X size={14} />キャンセル
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <div className="p-6 space-y-6 max-w-3xl">
       <div className="flex items-center justify-between gap-3">
@@ -175,9 +211,13 @@ export default function FormProfiles() {
 
       {showCreate && (
         <ProfileForm
-          form={createForm} setForm={setCreateForm}
-          onSave={handleCreate} onCancel={() => { setShowCreate(false); setError(""); }}
+          form={createForm}
+          setForm={setCreateForm}
+          onSave={handleCreate}
+          onCancel={() => { setShowCreate(false); setError(""); }}
           saveLabel="追加"
+          saving={saving}
+          error={error}
         />
       )}
 
@@ -202,9 +242,13 @@ export default function FormProfiles() {
               {editingId === p.id ? (
                 <div className="p-5">
                   <ProfileForm
-                    form={editForm} setForm={setEditForm}
-                    onSave={() => handleUpdate(p.id)} onCancel={cancelEdit}
+                    form={editForm}
+                    setForm={setEditForm}
+                    onSave={() => handleUpdate(p.id)}
+                    onCancel={cancelEdit}
                     saveLabel="保存"
+                    saving={saving}
+                    error={error}
                   />
                 </div>
               ) : (
