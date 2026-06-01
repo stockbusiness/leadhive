@@ -273,7 +273,7 @@ function SendConfirmModal({ message, onClose, onConfirm }: {
             <div className="flex gap-2">
               {[
                 { key: "email", label: "メール送信", icon: Mail },
-                { key: "form", label: "フォーム (手動)", icon: Globe },
+                { key: "form", label: "フォーム (自動)", icon: Globe },
                 { key: "manual", label: "その他 (手動記録)", icon: Check },
               ].map(({ key, label, icon: Icon }) => (
                 <button
@@ -287,6 +287,18 @@ function SendConfirmModal({ message, onClose, onConfirm }: {
               ))}
             </div>
           </div>
+          {sendMethod === "form" && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700 space-y-1">
+              <p className="font-semibold">フォーム自動送信について</p>
+              <p>・AIがコンタクトフォームの項目を自動判別して入力・送信します</p>
+              <p>・送信者名/メール/会社名はアカウント設定から自動取得されます</p>
+              {preview?.contact_url
+                ? <p className="text-green-700">・コンタクトURLあり — フォームを検出できる可能性が高いです</p>
+                : <p className="text-amber-700">・コンタクトURLが未登録のため、トップページから自動探索します</p>
+              }
+              <p className="text-slate-500">※ reCAPTCHA / JavaScript必須フォームは非対応です</p>
+            </div>
+          )}
           <p className="text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             送信記録は監査ログに自動保存されます。特定電子メール法を遵守し、受信者の同意を確認してから送信してください。
           </p>
@@ -299,7 +311,11 @@ function SendConfirmModal({ message, onClose, onConfirm }: {
             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
           >
             {sending ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-            {sendMethod === "email" && preview?.can_send_email ? "メール送信する" : "送信済みとして記録"}
+            {sendMethod === "email" && preview?.can_send_email
+              ? "メール送信する"
+              : sendMethod === "form"
+              ? "フォーム自動送信する"
+              : "送信済みとして記録"}
           </button>
         </div>
       </div>

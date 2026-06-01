@@ -400,10 +400,63 @@ def send_message(
             logger.warning(f"SalesAI email send failed to {email}: {detail}")
         else:
             send_note = f"送信先: {email}" + (f" / {req.note}" if req.note else "")
+
+    elif req.send_method == "form":
+        from server.services.form_sender import send_form_auto
+        from server.services.ai_analyzer import get_openai_key
+        from server.models import Organization
+
+        openai_key = get_openai_key(db, current_user.org_id)
+        if not openai_key:
+            raise HTTPException(
+                status_code=400,
+                detail="OpenAI APIキーが設定されていません。設定画面でAPIキーを設定してください。"
+            )
+
+        org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+
+        smtp_s = {}
+        try:
+            from server.services.mailer import get_smtp_settings
+            smtp_s = get_smtp_settings(db, current_user.org_id)
+        except Exception:
+            pass
+
+        sender_name = current_user.display_name or current_user.email or ""
+        sender_email = smtp_s.get("smtp_from_email") or current_user.email or ""
+        sender_company = org.name if org else ""
+        sender_phone = org.phone if org else ""
+        sender_title = ""
+
+        form_result = send_form_auto(
+            company_name=c.company_name if c else "",
+            website_url=c.website_url or "" if c else "",
+            contact_url=c.contact_url or "" if c else "",
+            message_body=msg.body or "",
+            sender_name=sender_name,
+            sender_email=sender_email,
+            sender_company=sender_company,
+            sender_phone=sender_phone or "",
+            sender_title=sender_title,
+            openai_key=openai_key,
+        )
+
+        actually_sent = form_result["success"]
+        send_result = "sent" if actually_sent else "failed"
+        form_url = form_result.get("form_url", "")
+        send_note = form_result["message"]
+        if form_url:
+            send_note += f" / URL: {form_url}"
+        if req.note:
+            send_note += f" / {req.note}"
+
+        if not actually_sent:
+            logger.warning(f"Form auto-send failed for company {msg.company_id}: {form_result['message']}")
+
     else:
         actually_sent = True
 
-    final_status = "sent" if (req.send_method != "email" or actually_sent) else "failed"
+    final_status = "sent" if (req.send_method not in ("email", "form") or actually_sent) else "failed"
     msg.status = final_status
     msg.sent_at = datetime.utcnow()
     msg.sent_by = current_user.id
