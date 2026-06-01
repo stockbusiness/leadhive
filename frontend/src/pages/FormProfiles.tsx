@@ -12,6 +12,7 @@ interface FormProfile {
   phone: string;
   email: string;
   website_url: string;
+  postal_code: string;
   prefecture: string;
   address: string;
   is_default: boolean;
@@ -27,6 +28,7 @@ interface ProfileFormValues {
   phone: string;
   email: string;
   website_url: string;
+  postal_code: string;
   prefecture: string;
   address: string;
   is_default: boolean;
@@ -41,6 +43,7 @@ const emptyForm = (): ProfileFormValues => ({
   phone: "",
   email: "",
   website_url: "",
+  postal_code: "",
   prefecture: "",
   address: "",
   is_default: false,
@@ -156,6 +159,16 @@ function ProfileForm({ form, setForm, onSave, onCancel, saveLabel, saving, error
           />
         </div>
         <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">郵便番号</label>
+          <input
+            type="text"
+            value={form.postal_code}
+            onChange={e => setForm({ ...form, postal_code: e.target.value })}
+            placeholder="123-4567"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">都道府県</label>
           <select
             value={form.prefecture}
@@ -231,7 +244,7 @@ export default function FormProfiles() {
     setEditForm({
       name: p.name, company_name: p.company_name, display_name: p.display_name,
       title: p.title, department: p.department, phone: p.phone, email: p.email,
-      website_url: p.website_url, prefecture: p.prefecture, address: p.address,
+      website_url: p.website_url, postal_code: p.postal_code, prefecture: p.prefecture, address: p.address,
       is_default: p.is_default,
     });
     setError("");
@@ -370,10 +383,10 @@ export default function FormProfiles() {
                       {p.website_url && (
                         <div><span className="text-xs text-slate-400">自社URL</span><p className="text-slate-700 truncate">{p.website_url}</p></div>
                       )}
-                      {(p.prefecture || p.address) && (
+                      {(p.postal_code || p.prefecture || p.address) && (
                         <div className="col-span-2 md:col-span-3">
                           <span className="text-xs text-slate-400">住所</span>
-                          <p className="text-slate-700">{[p.prefecture, p.address].filter(Boolean).join(" ")}</p>
+                          <p className="text-slate-700">{[p.postal_code, p.prefecture, p.address].filter(Boolean).join(" ")}</p>
                         </div>
                       )}
                     </div>

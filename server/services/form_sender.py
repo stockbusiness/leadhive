@@ -145,6 +145,7 @@ _MAPPING_PROMPT = """あなたはWebフォームの入力アシスタントで�
 - 送信者役職: {sender_title}
 - 送信者部署名: {sender_department}
 - 送信者会社URL: {sender_website_url}
+- 送信者郵便番号: {sender_postal_code}
 - 送信者都道府県: {sender_prefecture}
 - 送信者住所: {sender_address}
 
@@ -176,6 +177,7 @@ def map_fields_with_ai(
     openai_key: str,
     sender_department: str = "",
     sender_website_url: str = "",
+    sender_postal_code: str = "",
     sender_prefecture: str = "",
     sender_address: str = "",
 ) -> dict[str, str]:
@@ -195,6 +197,7 @@ def map_fields_with_ai(
         sender_title=sender_title or "",
         sender_department=sender_department or "",
         sender_website_url=sender_website_url or "",
+        sender_postal_code=sender_postal_code or "",
         sender_prefecture=sender_prefecture or "",
         sender_address=sender_address or "",
         company_name=company_name or "",
@@ -262,6 +265,7 @@ def send_form_auto(
     openai_key: str,
     sender_department: str = "",
     sender_website_url: str = "",
+    sender_postal_code: str = "",
     sender_prefecture: str = "",
     sender_address: str = "",
 ) -> dict:
@@ -322,6 +326,7 @@ def send_form_auto(
             openai_key=openai_key,
             sender_department=sender_department,
             sender_website_url=sender_website_url,
+            sender_postal_code=sender_postal_code,
             sender_prefecture=sender_prefecture,
             sender_address=sender_address,
         )

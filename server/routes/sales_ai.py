@@ -440,6 +440,7 @@ def send_message(
             sender_title = prof.title or ""
             sender_department = prof.department or ""
             sender_website_url = prof.website_url or ""
+            sender_postal_code = prof.postal_code or ""
             sender_prefecture = prof.prefecture or ""
             sender_address = prof.address or ""
         else:
@@ -450,6 +451,7 @@ def send_message(
             sender_title = current_user.title or ""
             sender_department = ""
             sender_website_url = ""
+            sender_postal_code = ""
             sender_prefecture = ""
             sender_address = ""
 
@@ -466,6 +468,7 @@ def send_message(
             openai_key=openai_key,
             sender_department=sender_department,
             sender_website_url=sender_website_url,
+            sender_postal_code=sender_postal_code,
             sender_prefecture=sender_prefecture,
             sender_address=sender_address,
         )

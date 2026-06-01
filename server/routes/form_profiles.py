@@ -21,6 +21,7 @@ def _serialize(p: FormSenderProfile) -> dict:
         "phone": p.phone or "",
         "email": p.email or "",
         "website_url": p.website_url or "",
+        "postal_code": p.postal_code or "",
         "prefecture": p.prefecture or "",
         "address": p.address or "",
         "is_default": bool(p.is_default),
@@ -37,6 +38,7 @@ class ProfileBody(BaseModel):
     phone: Optional[str] = ""
     email: Optional[str] = ""
     website_url: Optional[str] = ""
+    postal_code: Optional[str] = ""
     prefecture: Optional[str] = ""
     address: Optional[str] = ""
     is_default: Optional[bool] = False
@@ -78,6 +80,7 @@ def create_profile(
         phone=body.phone or None,
         email=body.email or None,
         website_url=body.website_url or None,
+        postal_code=body.postal_code or None,
         prefecture=body.prefecture or None,
         address=body.address or None,
         is_default=bool(body.is_default),
@@ -120,6 +123,7 @@ def update_profile(
     profile.phone = body.phone or None
     profile.email = body.email or None
     profile.website_url = body.website_url or None
+    profile.postal_code = body.postal_code or None
     profile.prefecture = body.prefecture or None
     profile.address = body.address or None
     profile.is_default = bool(body.is_default)
