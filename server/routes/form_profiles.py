@@ -15,6 +15,7 @@ def _serialize(p: FormSenderProfile) -> dict:
         "id": p.id,
         "name": p.name,
         "company_name": p.company_name or "",
+        "subject": p.subject or "",
         "display_name": p.display_name or "",
         "title": p.title or "",
         "department": p.department or "",
@@ -32,6 +33,7 @@ def _serialize(p: FormSenderProfile) -> dict:
 class ProfileBody(BaseModel):
     name: str
     company_name: Optional[str] = ""
+    subject: Optional[str] = ""
     display_name: Optional[str] = ""
     title: Optional[str] = ""
     department: Optional[str] = ""
@@ -74,6 +76,7 @@ def create_profile(
         org_id=current_user.org_id,
         name=name,
         company_name=body.company_name or None,
+        subject=body.subject or None,
         display_name=body.display_name or None,
         title=body.title or None,
         department=body.department or None,
@@ -117,6 +120,7 @@ def update_profile(
 
     profile.name = name
     profile.company_name = body.company_name or None
+    profile.subject = body.subject or None
     profile.display_name = body.display_name or None
     profile.title = body.title or None
     profile.department = body.department or None

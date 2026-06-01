@@ -154,10 +154,14 @@ _MAPPING_PROMPT = """あなたはWebフォームの入力アシスタントで�
 ## 送信するメッセージ本文:
 {message_body}
 
+## 件名（指定がある場合はこの通りに入力すること）:
+{subject}
+
 ## 指示:
 - type="hidden" のフィールドは元のvalueをそのまま返してください
 - type="select" のフィールドは options の中から最も適切なものを選んでください（お問い合わせ種別は「その他」「一般」「ご相談」等を選ぶ）
 - メッセージ/お問い合わせ内容フィールドには message_body をそのまま入れてください
+- 件名フィールドがある場合、subject が空でなければ必ずそれを使用し、空なら message_body から要約して入力してください
 - 該当しないフィールドは空文字""にしてください
 - チェックボックス系は "1" または "" で返してください
 - 返答は必ずJSON: {{"フィールドname": "値", ...}} の形式のみ
@@ -180,6 +184,7 @@ def map_fields_with_ai(
     sender_postal_code: str = "",
     sender_prefecture: str = "",
     sender_address: str = "",
+    subject: str = "",
 ) -> dict[str, str]:
     """GPT-4o-miniでフォームフィールドと送信データをマッピングする。"""
     if not openai_key:
@@ -202,6 +207,7 @@ def map_fields_with_ai(
         sender_address=sender_address or "",
         company_name=company_name or "",
         message_body=message_body or "",
+        subject=subject or "",
     )
 
     from openai import OpenAI
@@ -268,6 +274,7 @@ def send_form_auto(
     sender_postal_code: str = "",
     sender_prefecture: str = "",
     sender_address: str = "",
+    subject: str = "",
 ) -> dict:
     """
     フォーム自動送信のメインエントリポイント。
@@ -329,6 +336,7 @@ def send_form_auto(
             sender_postal_code=sender_postal_code,
             sender_prefecture=sender_prefecture,
             sender_address=sender_address,
+            subject=subject,
         )
     except Exception as e:
         return {

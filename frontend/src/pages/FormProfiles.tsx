@@ -6,6 +6,7 @@ interface FormProfile {
   id: number;
   name: string;
   company_name: string;
+  subject: string;
   display_name: string;
   title: string;
   department: string;
@@ -22,6 +23,7 @@ interface FormProfile {
 interface ProfileFormValues {
   name: string;
   company_name: string;
+  subject: string;
   display_name: string;
   title: string;
   department: string;
@@ -37,6 +39,7 @@ interface ProfileFormValues {
 const emptyForm = (): ProfileFormValues => ({
   name: "",
   company_name: "",
+  subject: "",
   display_name: "",
   title: "",
   department: "",
@@ -97,6 +100,17 @@ function ProfileForm({ form, setForm, onSave, onCancel, saveLabel, saving, error
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <p className="text-xs text-slate-400 mt-0.5">ブランド名・屋号など組織名と異なる場合に入力してください</p>
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-xs font-semibold text-slate-600 mb-1">件名（固定）</label>
+          <input
+            type="text"
+            value={form.subject}
+            onChange={e => setForm({ ...form, subject: e.target.value })}
+            placeholder="例: ご提案のご連絡（空白の場合はAIが本文から自動生成）"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-slate-400 mt-0.5">入力するとフォームの件名欄に必ずこのテキストが入ります</p>
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">担当者名</label>
@@ -242,7 +256,7 @@ export default function FormProfiles() {
   const startEdit = (p: FormProfile) => {
     setEditingId(p.id);
     setEditForm({
-      name: p.name, company_name: p.company_name, display_name: p.display_name,
+      name: p.name, company_name: p.company_name, subject: p.subject, display_name: p.display_name,
       title: p.title, department: p.department, phone: p.phone, email: p.email,
       website_url: p.website_url, postal_code: p.postal_code, prefecture: p.prefecture, address: p.address,
       is_default: p.is_default,
@@ -364,6 +378,9 @@ export default function FormProfiles() {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1 text-sm">
                       {p.company_name && (
                         <div><span className="text-xs text-slate-400">会社名</span><p className="text-slate-700 font-medium">{p.company_name}</p></div>
+                      )}
+                      {p.subject && (
+                        <div className="col-span-2 md:col-span-3"><span className="text-xs text-slate-400">件名（固定）</span><p className="text-slate-700">{p.subject}</p></div>
                       )}
                       {p.display_name && (
                         <div><span className="text-xs text-slate-400">担当者名</span><p className="text-slate-700 font-medium">{p.display_name}</p></div>

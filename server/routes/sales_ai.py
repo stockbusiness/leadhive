@@ -441,6 +441,7 @@ def send_message(
             sender_department = prof.department or ""
             sender_website_url = prof.website_url or ""
             sender_postal_code = prof.postal_code or ""
+            sender_subject = prof.subject or ""
             sender_prefecture = prof.prefecture or ""
             sender_address = prof.address or ""
         else:
@@ -452,6 +453,7 @@ def send_message(
             sender_department = ""
             sender_website_url = ""
             sender_postal_code = ""
+            sender_subject = ""
             sender_prefecture = ""
             sender_address = ""
 
@@ -471,6 +473,7 @@ def send_message(
             sender_postal_code=sender_postal_code,
             sender_prefecture=sender_prefecture,
             sender_address=sender_address,
+            subject=sender_subject,
         )
 
         actually_sent = form_result["success"]
