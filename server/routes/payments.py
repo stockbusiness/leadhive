@@ -1189,6 +1189,9 @@ def test_smtp(
         except UnicodeEncodeError:
             return Header(text, "utf-8").encode()
 
+    import io, logging as _logging
+    debug_lines: list[str] = []
+
     try:
         port = int(port_str)
         msg = MIMEMultipart()
@@ -1197,21 +1200,50 @@ def test_smtp(
         msg["Subject"] = _enc("LeadHive SMTP テスト")
         msg.attach(MIMEText("LeadHive からのSMTPテストメールです。正常に受信できました。", "plain", "utf-8"))
 
+        refused = {}
         if port == 465:
-            with smtplib.SMTP_SSL(host, port, timeout=10) as server:
+            with smtplib.SMTP_SSL(host, port, timeout=15) as server:
+                server.set_debuglevel(0)
+                code, resp = server.ehlo()
+                debug_lines.append(f"EHLO: {code} {resp.decode(errors='replace')}")
                 server.login(user, password)
-                server.sendmail(from_email, test_to, msg.as_bytes())
+                debug_lines.append("LOGIN: 成功")
+                refused = server.sendmail(from_email, [test_to], msg.as_bytes())
         else:
-            with smtplib.SMTP(host, port, timeout=10) as server:
-                server.ehlo()
+            with smtplib.SMTP(host, port, timeout=15) as server:
+                code, resp = server.ehlo()
+                debug_lines.append(f"EHLO: {code} {resp.decode(errors='replace')}")
                 server.starttls()
+                code, resp = server.ehlo()
+                debug_lines.append(f"EHLO(TLS): {code} {resp.decode(errors='replace')}")
                 server.login(user, password)
-                server.sendmail(from_email, test_to, msg.as_bytes())
-        return {"success": True, "message": f"{test_to} にテストメールを送信しました"}
+                debug_lines.append("LOGIN: 成功")
+                refused = server.sendmail(from_email, [test_to], msg.as_bytes())
+
+        if refused:
+            debug_lines.append(f"拒否された宛先: {refused}")
+            return {
+                "success": False,
+                "message": f"SMTPサーバーが宛先を拒否しました: {refused}",
+                "debug": debug_lines,
+            }
+
+        debug_lines.append(f"SENDMAIL: {test_to} へ送信受付完了")
+        return {
+            "success": True,
+            "message": f"{test_to} にテストメールを送信しました",
+            "debug": debug_lines,
+        }
     except UnicodeEncodeError:
         raise HTTPException(status_code=400, detail="SMTP設定値に全角文字が含まれています。パスワード・ホスト名は半角で入力してください。")
+    except smtplib.SMTPAuthenticationError as e:
+        raise HTTPException(status_code=400, detail=f"SMTP認証エラー: ユーザー名またはパスワードを確認してください ({e.smtp_code} {e.smtp_error.decode(errors='replace')})")
+    except smtplib.SMTPConnectError as e:
+        raise HTTPException(status_code=400, detail=f"SMTPサーバーへの接続に失敗しました ({host}:{port}): {e}")
+    except smtplib.SMTPRecipientsRefused as e:
+        raise HTTPException(status_code=400, detail=f"宛先が拒否されました: {e.recipients}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)} | debug: {debug_lines}")
 
 
 # ──────────────────────────────────────────────────────────────

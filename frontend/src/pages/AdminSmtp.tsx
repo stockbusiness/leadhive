@@ -57,6 +57,7 @@ export default function AdminSmtp() {
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [smtpDebug, setSmtpDebug] = useState<string[]>([]);
 
   const [sg, setSg] = useState<SendgridSettings>({
     sendgrid_api_key: "", sendgrid_from_email: "", sendgrid_from_name: "LeadHive",
@@ -126,12 +127,14 @@ export default function AdminSmtp() {
 
   const test = async () => {
     setTesting(true);
-    setError(""); setSuccess("");
+    setError(""); setSuccess(""); setSmtpDebug([]);
     try {
       const r = await api.adminSmtp.test(testTo || undefined);
       setSuccess(r.message);
+      if (r.debug?.length) setSmtpDebug(r.debug);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || "テスト送信に失敗しました");
+      const detail = e?.response?.data?.detail || "テスト送信に失敗しました";
+      setError(detail);
     } finally {
       setTesting(false);
     }
@@ -269,6 +272,16 @@ export default function AdminSmtp() {
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-start gap-2"><AlertCircle size={16} className="mt-0.5 flex-shrink-0" />{error}</div>}
           {success && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 flex items-start gap-2"><CheckCircle size={16} className="mt-0.5 flex-shrink-0" />{success}</div>}
+          {smtpDebug.length > 0 && (
+            <div className="bg-slate-900 rounded-lg p-3 text-xs font-mono text-slate-300 space-y-1">
+              <p className="text-slate-500 text-xs mb-2">SMTP接続ログ：</p>
+              {smtpDebug.map((line, i) => (
+                <p key={i} className={line.startsWith("LOGIN") ? "text-green-400" : line.startsWith("SENDMAIL") ? "text-blue-400" : "text-slate-300"}>
+                  {line}
+                </p>
+              ))}
+            </div>
+          )}
 
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">プリセット</p>
