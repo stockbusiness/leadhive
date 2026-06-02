@@ -18,6 +18,21 @@ def _owned_projects(current_user: User, db: Session):
     return [p.id for p in db.query(Project.id).filter(Project.org_id == current_user.org_id).all()]
 
 
+def _expand_variables(text: str, company: Company) -> str:
+    """{{会社名}} 等の変数を企業情報で置換する。"""
+    if not text:
+        return text
+    replacements = {
+        "{{会社名}}": company.company_name or "",
+        "{{担当者名}}": company.contact_name or "",
+        "{{担当者役職}}": company.contact_title or "",
+        "{{都道府県}}": company.prefecture or "",
+    }
+    for var, val in replacements.items():
+        text = text.replace(var, val)
+    return text
+
+
 def _msg_to_dict(m: SalesMessage, company_name: str = None) -> dict:
     return {
         "id": m.id,
@@ -318,6 +333,7 @@ def generate_batch(
         "total_requested": len(req.company_ids),
         "total_generated": len(results),
         "total_skipped": skipped,
+        "generated_ids": [r["id"] for r in results],
     }
 
 
@@ -440,6 +456,10 @@ def send_message(
     send_note = req.note or ""
     actually_sent = False
 
+    # ── 変数展開（{{会社名}} 等） ──────────────────────────────────────────
+    send_subject = _expand_variables(msg.subject or "", c) if c else (msg.subject or "")
+    send_body = _expand_variables(msg.body or "", c) if c else (msg.body or "")
+
     if req.send_method == "email" and email:
         from server.routes.plans import check_smtp_allowed
         check_smtp_allowed(current_user.org_id, db)
@@ -456,7 +476,7 @@ def send_message(
         from server.services.unsubscribe_token import build_unsubscribe_url
         unsub_url = build_unsubscribe_url(email)
 
-        body_text = msg.body or ""
+        body_text = send_body
         if unsub_url:
             body_text_footer = f"\n\n---\n配信停止はこちら: {unsub_url}"
         else:
@@ -506,7 +526,7 @@ def send_message(
 
         success, detail = send_email(
             to=email,
-            subject=msg.subject or "",
+            subject=send_subject,
             html_body=body_html,
             text_body=body_text + body_text_footer,
             smtp_settings=smtp,
@@ -579,7 +599,7 @@ def send_message(
             company_name=c.company_name if c else "",
             website_url=c.website_url or "" if c else "",
             contact_url=c.contact_url or "" if c else "",
-            message_body=msg.body or "",
+            message_body=send_body,
             sender_name=sender_name,
             sender_email=sender_email,
             sender_company=sender_company,
@@ -591,7 +611,7 @@ def send_message(
             sender_postal_code=sender_postal_code,
             sender_prefecture=sender_prefecture,
             sender_address=sender_address,
-            subject=sender_subject,
+            subject=sender_subject or send_subject,
         )
 
         actually_sent = form_result["success"]
@@ -796,11 +816,13 @@ def bulk_send_form_messages(
                 skipped_count += 1
                 continue
 
+            expanded_body = _expand_variables(msg.body or "", c) if c else (msg.body or "")
+            expanded_subject = _expand_variables(msg.subject or "", c) if c else (msg.subject or "")
             form_result = send_form_auto(
                 company_name=c.company_name if c else "",
                 website_url=c.website_url or "" if c else "",
                 contact_url=c.contact_url or "" if c else "",
-                message_body=msg.body or "",
+                message_body=expanded_body,
                 sender_name=sender_name,
                 sender_email=sender_email,
                 sender_company=sender_company,
@@ -812,7 +834,7 @@ def bulk_send_form_messages(
                 sender_postal_code=sender_postal_code,
                 sender_prefecture=sender_prefecture,
                 sender_address=sender_address,
-                subject=sender_subject,
+                subject=sender_subject or expanded_subject,
             )
             success = form_result["success"]
             note = form_result["message"]

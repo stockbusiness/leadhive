@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bot, Sparkles, Send, Edit3, Trash2, Check, X, AlertTriangle,
   ChevronDown, ChevronUp, RefreshCw, Eye, Ban, Info, Search,
   MessageSquare, CheckCircle2, Filter, Mail, Globe, Settings, XCircle,
-  BarChart2, TrendingUp, FileText, AlertCircle, Clock, Calendar, Play, Zap
+  BarChart2, TrendingUp, FileText, AlertCircle, Clock, Calendar, Play, Zap,
+  ListChecks, Variable, PlusCircle
 } from "lucide-react";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
@@ -74,6 +75,24 @@ const RANK_COLORS: Record<string, string> = {
   D: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
+const VARIABLES = [
+  { label: "{{会社名}}", value: "{{会社名}}", hint: "企業の会社名" },
+  { label: "{{担当者名}}", value: "{{担当者名}}", hint: "企業の担当者名" },
+  { label: "{{担当者役職}}", value: "{{担当者役職}}", hint: "担当者の役職" },
+  { label: "{{都道府県}}", value: "{{都道府県}}", hint: "企業の所在都道府県" },
+];
+
+function insertAtCursor(el: HTMLTextAreaElement | HTMLInputElement, text: string): string {
+  const start = el.selectionStart ?? el.value.length;
+  const end = el.selectionEnd ?? el.value.length;
+  const newVal = el.value.slice(0, start) + text + el.value.slice(end);
+  setTimeout(() => {
+    el.selectionStart = el.selectionEnd = start + text.length;
+    el.focus();
+  }, 0);
+  return newVal;
+}
+
 function EditModal({ message, onClose, onSave }: {
   message: SalesMessage;
   onClose: () => void;
@@ -83,6 +102,9 @@ function EditModal({ message, onClose, onSave }: {
   const [body, setBody] = useState(message.body);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [openingNote, setOpeningNote] = useState("");
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const subjectRef = useRef<HTMLInputElement>(null);
 
   const handleSave = async () => {
     setSaving(true);
@@ -98,6 +120,20 @@ function EditModal({ message, onClose, onSave }: {
     }
   };
 
+  const insertVar = (v: string, target: "body" | "subject") => {
+    if (target === "body" && bodyRef.current) {
+      setBody(insertAtCursor(bodyRef.current, v));
+    } else if (target === "subject" && subjectRef.current) {
+      setSubject(insertAtCursor(subjectRef.current, v));
+    }
+  };
+
+  const applyOpeningNote = () => {
+    if (!openingNote.trim()) return;
+    setBody(prev => openingNote.trim() + "\n\n" + prev);
+    setOpeningNote("");
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -110,18 +146,79 @@ function EditModal({ message, onClose, onSave }: {
         </div>
         <div className="p-5 space-y-4 overflow-y-auto flex-1">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
+
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+            <p className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+              <Variable size={12} />
+              変数を挿入（クリックでカーソル位置に挿入）
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {VARIABLES.map(v => (
+                <button
+                  key={v.value}
+                  onClick={() => insertVar(v.value, "body")}
+                  title={`本文に挿入: ${v.hint}`}
+                  className="text-xs px-2 py-1 bg-violet-100 text-violet-700 rounded border border-violet-200 hover:bg-violet-200 font-mono transition-colors"
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400">※ 送信時に企業ごとの実際の値に自動で置き換わります</p>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">件名</label>
+            <div className="flex gap-2 mb-1.5">
+              {VARIABLES.slice(0, 2).map(v => (
+                <button
+                  key={v.value}
+                  onClick={() => insertVar(v.value, "subject")}
+                  title={`件名に挿入: ${v.hint}`}
+                  className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200 hover:bg-slate-200 font-mono transition-colors"
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
             <input
+              ref={subjectRef}
               type="text"
               value={subject}
               onChange={e => setSubject(e.target.value)}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+            <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+              <PlusCircle size={12} />
+              冒頭に一言を追加（本文の先頭に挿入）
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={openingNote}
+                onChange={e => setOpeningNote(e.target.value)}
+                placeholder="例: 先日〇〇の件でお問い合わせいただいた件に関連して…"
+                className="flex-1 border border-blue-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); applyOpeningNote(); } }}
+              />
+              <button
+                onClick={applyOpeningNote}
+                disabled={!openingNote.trim()}
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
+              >
+                <PlusCircle size={13} />
+                挿入
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">本文</label>
             <textarea
+              ref={bodyRef}
               value={body}
               onChange={e => setBody(e.target.value)}
               rows={14}
@@ -138,7 +235,7 @@ function EditModal({ message, onClose, onSave }: {
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
           >
             {saving ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
-            保存する
+            保存する（レビュー済みに変更）
           </button>
         </div>
       </div>
@@ -376,6 +473,206 @@ function SendConfirmModal({ message, onClose, onConfirm }: {
   );
 }
 
+function BulkReviewModal({ messages, onClose, onSaved, formProfiles }: {
+  messages: SalesMessage[];
+  onClose: () => void;
+  onSaved: (updated: SalesMessage[]) => void;
+  formProfiles: FormSenderProfile[];
+}) {
+  const [rows, setRows] = useState<SalesMessage[]>(messages.map(m => ({ ...m })));
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState<number | null>(null);
+  const [profileId, setProfileId] = useState<number | undefined>(
+    formProfiles.find(p => p.is_default)?.id
+  );
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<{ sent: number; failed: number; skipped: number; total: number } | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  const updateRow = (id: number, field: "subject" | "body", val: string) => {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
+  };
+
+  const saveRow = async (id: number) => {
+    const row = rows.find(r => r.id === id);
+    if (!row) return;
+    setSaving(id);
+    try {
+      const res = await api.salesAi.updateMessage(id, { subject: row.subject, body: row.body });
+      setRows(prev => prev.map(r => r.id === id ? { ...r, ...res } : r));
+      setEditingId(null);
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || "保存に失敗しました");
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleBulkFormSend = async () => {
+    setSending(true);
+    setSendError(null);
+    try {
+      const res = await api.salesAi.bulkSendForm(profileId, rows.map(r => r.id));
+      setSendResult(res);
+      onSaved(rows);
+    } catch (e: any) {
+      setSendError(e?.response?.data?.detail || "一括送信に失敗しました");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (sendResult) {
+    return (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+            <CheckCircle2 size={32} className="text-green-600" />
+          </div>
+          <h3 className="text-lg font-bold text-green-700">一括フォーム送信完了</h3>
+          <div className="text-sm text-slate-600 space-y-1">
+            <p>送信成功: <span className="font-bold text-green-700">{sendResult.sent}件</span></p>
+            {sendResult.skipped > 0 && <p>スキップ（URL無効）: {sendResult.skipped}件</p>}
+            {sendResult.failed > 0 && <p className="text-red-600">失敗: {sendResult.failed}件</p>}
+          </div>
+          <button onClick={onClose} className="w-full py-2.5 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700">閉じる</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-slate-200">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <ListChecks size={20} className="text-blue-600" />
+              一括レビュー＆フォーム送信
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">{rows.length}件 — 各行をクリックして件名・本文を編集できます</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          <table className="w-full text-sm border-collapse">
+            <thead className="bg-slate-50 sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 w-36">企業名</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">件名</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">本文（冒頭）</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 w-24">操作</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map(row => (
+                <tr key={row.id} className={`transition-colors ${editingId === row.id ? "bg-blue-50" : "hover:bg-slate-50"}`}>
+                  <td className="px-4 py-3">
+                    <p className="text-xs font-medium text-slate-800 truncate max-w-[128px]">{row.company_name || `ID:${row.company_id}`}</p>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[row.status]}`}>{STATUS_LABELS[row.status]}</span>
+                  </td>
+                  <td className="px-4 py-2">
+                    {editingId === row.id ? (
+                      <input
+                        type="text"
+                        value={row.subject}
+                        onChange={e => updateRow(row.id, "subject", e.target.value)}
+                        className="w-full border border-blue-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    ) : (
+                      <p className="text-xs text-slate-700 truncate max-w-[220px]">{row.subject}</p>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    {editingId === row.id ? (
+                      <textarea
+                        value={row.body}
+                        onChange={e => updateRow(row.id, "body", e.target.value)}
+                        rows={4}
+                        className="w-full border border-blue-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none font-mono"
+                      />
+                    ) : (
+                      <p className="text-xs text-slate-500 line-clamp-2">{row.body}</p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {editingId === row.id ? (
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => saveRow(row.id)}
+                          disabled={saving === row.id}
+                          className="flex items-center gap-1 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {saving === row.id ? <RefreshCw size={11} className="animate-spin" /> : <Check size={11} />}
+                          保存
+                        </button>
+                        <button
+                          onClick={() => { setRows(prev => prev.map(r => r.id === row.id ? { ...messages.find(m => m.id === row.id)! } : r)); setEditingId(null); }}
+                          className="text-xs text-slate-500 border border-slate-200 px-2 py-1 rounded hover:bg-slate-50"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setEditingId(row.id)}
+                        className="flex items-center gap-1 text-xs border border-slate-300 text-slate-600 px-2 py-1 rounded hover:bg-slate-100"
+                      >
+                        <Edit3 size={11} />
+                        編集
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="p-4 border-t border-slate-200 space-y-3">
+          {sendError && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+              <AlertCircle size={13} /> {sendError}
+            </div>
+          )}
+          <div className="flex items-center gap-3 flex-wrap">
+            {formProfiles.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-600 font-medium flex-shrink-0">送信者プロフィール:</label>
+                <select
+                  value={profileId ?? ""}
+                  onChange={e => setProfileId(e.target.value ? Number(e.target.value) : undefined)}
+                  className="text-xs border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">プロフィール未選択</option>
+                  {formProfiles.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}{p.display_name ? ` — ${p.display_name}` : ""}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="ml-auto flex items-center gap-3">
+              <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">キャンセル</button>
+              <button
+                onClick={handleBulkFormSend}
+                disabled={sending || editingId !== null}
+                className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {sending ? <RefreshCw size={14} className="animate-spin" /> : <Globe size={14} />}
+                {sending ? "送信中..." : `${rows.length}件をフォーム一括送信`}
+              </button>
+            </div>
+          </div>
+          {editingId !== null && (
+            <p className="text-xs text-amber-600 flex items-center gap-1"><AlertTriangle size={12} />編集中の行を先に保存または取消してください</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface StatsData {
   status_counts: Record<string, number>;
   template_counts: Record<string, number>;
@@ -477,6 +774,8 @@ export default function SalesAI() {
   const [selectedMsgIds, setSelectedMsgIds] = useState<number[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [scheduleSaveMsg, setScheduleSaveMsg] = useState("");
+  const [openingMemo, setOpeningMemo] = useState("");
+  const [showBulkReview, setShowBulkReview] = useState(false);
 
   useEffect(() => {
     api.salesAi.checkApiKey().then(r => setHasApiKey(r.has_api_key)).catch(() => setHasApiKey(false));
@@ -626,6 +925,25 @@ export default function SalesAI() {
     setFilterRanks(prev => prev.includes(rank) ? prev.filter(r => r !== rank) : [...prev, rank]);
   };
 
+  const applyOpeningMemoToMessages = async (generatedIds: number[]) => {
+    if (!openingMemo.trim() || generatedIds.length === 0) return;
+    const memo = openingMemo.trim();
+    await Promise.allSettled(
+      generatedIds.map(async (id) => {
+        try {
+          const msgs = await api.salesAi.listMessages();
+          const msg = (msgs.messages || []).find((m: any) => m.id === id);
+          if (msg) {
+            await api.salesAi.updateMessage(id, {
+              subject: msg.subject,
+              body: memo + "\n\n" + msg.body,
+            });
+          }
+        } catch {}
+      })
+    );
+  };
+
   const handleGenerateBatch = async () => {
     if (selectedIds.length === 0) { setGenError("企業を1件以上選択してください"); return; }
     setGenerating(true);
@@ -634,7 +952,12 @@ export default function SalesAI() {
     try {
       const res = await api.salesAi.generateBatch(selectedIds, templateType, currentProject?.id, customTemplateId ?? undefined, skipExisting, analyzeSite);
       const skippedMsg = res.total_skipped > 0 ? `（${res.total_skipped}件はスキップ）` : "";
-      setGenSuccess(`${res.total_generated}件の営業文を生成しました${skippedMsg}。「レビュー・送信」タブで確認できます。`);
+      if (openingMemo.trim() && res.generated_ids?.length > 0) {
+        await applyOpeningMemoToMessages(res.generated_ids);
+        setGenSuccess(`${res.total_generated}件の営業文を生成し、冒頭一言を追加しました${skippedMsg}。「レビュー・送信」タブで確認できます。`);
+      } else {
+        setGenSuccess(`${res.total_generated}件の営業文を生成しました${skippedMsg}。「レビュー・送信」タブで確認できます。`);
+      }
       if (res.errors?.length > 0) {
         setGenError(`${res.errors.length}件は生成できませんでした: ${res.errors[0]?.error}`);
       }
@@ -891,7 +1214,21 @@ export default function SalesAI() {
                 </div>
               )}
 
-              <div className="border-b border-slate-100 pb-3 space-y-2">
+              <div className="border-b border-slate-100 pb-3 space-y-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                  <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+                    <PlusCircle size={12} />
+                    冒頭一言メモ（全企業の本文冒頭に追加）
+                  </p>
+                  <textarea
+                    value={openingMemo}
+                    onChange={e => setOpeningMemo(e.target.value)}
+                    rows={2}
+                    placeholder="例: 先日〇〇の展示会でお名刺をいただきました…（空白の場合は追加しません）"
+                    className="w-full border border-blue-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white resize-none"
+                  />
+                  <p className="text-xs text-slate-400">生成後、全企業のメッセージ本文の先頭にこのテキストを自動で挿入します</p>
+                </div>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -1134,6 +1471,15 @@ export default function SalesAI() {
                 </button>
               ))}
             </div>
+
+            {messages.some(m => m.status !== "sent" && m.status !== "failed") && (
+              <button
+                onClick={() => setShowBulkReview(true)}
+                className="flex items-center gap-1.5 text-xs bg-blue-700 text-white px-3 py-1.5 rounded-lg hover:bg-blue-800 transition-colors"
+              >
+                <ListChecks size={12} /> 一括レビュー＆フォーム送信
+              </button>
+            )}
 
             {messages.some(m => m.status === "reviewed") && !bulkSendResult && (
               bulkSendConfirm ? (
@@ -1453,6 +1799,15 @@ export default function SalesAI() {
             setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
             setEditTarget(null);
           }}
+        />
+      )}
+
+      {showBulkReview && (
+        <BulkReviewModal
+          messages={messages.filter(m => m.status !== "sent" && m.status !== "failed")}
+          formProfiles={bulkFormProfiles}
+          onClose={() => setShowBulkReview(false)}
+          onSaved={() => { setShowBulkReview(false); loadMessages(); }}
         />
       )}
       {activeTab === "stats" && (
