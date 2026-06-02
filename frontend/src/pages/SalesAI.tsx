@@ -410,6 +410,7 @@ export default function SalesAI() {
   const [templateType, setTemplateType] = useState<TemplateType>("shopify");
   const [customTemplateId, setCustomTemplateId] = useState<number | null>(null);
   const [customTemplates, setCustomTemplates] = useState<{ id: number; title: string; content: string }[]>([]);
+  const [analyzeSite, setAnalyzeSite] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState("");
   const [genSuccess, setGenSuccess] = useState("");
@@ -631,7 +632,7 @@ export default function SalesAI() {
     setGenError("");
     setGenSuccess("");
     try {
-      const res = await api.salesAi.generateBatch(selectedIds, templateType, currentProject?.id, customTemplateId ?? undefined, skipExisting);
+      const res = await api.salesAi.generateBatch(selectedIds, templateType, currentProject?.id, customTemplateId ?? undefined, skipExisting, analyzeSite);
       const skippedMsg = res.total_skipped > 0 ? `（${res.total_skipped}件はスキップ）` : "";
       setGenSuccess(`${res.total_generated}件の営業文を生成しました${skippedMsg}。「レビュー・送信」タブで確認できます。`);
       if (res.errors?.length > 0) {
@@ -666,7 +667,7 @@ export default function SalesAI() {
     for (let i = 0; i < chunks.length; i++) {
       setAutoBatchBatch(i + 1);
       try {
-        const res = await api.salesAi.generateBatch(chunks[i], templateType, currentProject?.id, customTemplateId ?? undefined, skipExisting);
+        const res = await api.salesAi.generateBatch(chunks[i], templateType, currentProject?.id, customTemplateId ?? undefined, skipExisting, analyzeSite);
         totalGenerated += res.total_generated || 0;
         setAutoBatchDone((i + 1) * BATCH > ids.length ? ids.length : (i + 1) * BATCH);
       } catch (e: any) {
@@ -900,6 +901,24 @@ export default function SalesAI() {
                   />
                   <span className="text-xs text-slate-600">生成済みの企業はスキップ</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none group">
+                  <input
+                    type="checkbox"
+                    checked={analyzeSite}
+                    onChange={e => setAnalyzeSite(e.target.checked)}
+                    disabled={!!customTemplateId}
+                    className="w-3.5 h-3.5 accent-violet-600"
+                  />
+                  <span className={`text-xs ${customTemplateId ? "text-slate-400" : "text-slate-600"}`}>
+                    企業サイトをAI分析してメールをカスタマイズ
+                  </span>
+                  {analyzeSite && !customTemplateId && (
+                    <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-medium">推奨</span>
+                  )}
+                </label>
+                {analyzeSite && !customTemplateId && (
+                  <p className="text-xs text-slate-400 pl-5">サイト内容（見出し・事業概要等）を取得しClaudeへ渡します。1件あたり数秒追加されます。</p>
+                )}
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-slate-500 font-medium">選択した企業に生成</p>
                   <div className="flex items-center gap-1 ml-auto">

@@ -85,6 +85,7 @@ class GenerateRequest(BaseModel):
     template_type: str
     project_id: Optional[int] = None
     custom_template_id: Optional[int] = None
+    analyze_site: bool = True
 
 
 class GenerateBatchRequest(BaseModel):
@@ -93,6 +94,7 @@ class GenerateBatchRequest(BaseModel):
     project_id: Optional[int] = None
     custom_template_id: Optional[int] = None
     skip_existing: bool = False
+    analyze_site: bool = True
 
 
 class BulkSendRequest(BaseModel):
@@ -125,7 +127,7 @@ def generate_single(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from server.services.ai_writer import generate_sales_message
+    from server.services.ai_writer import generate_sales_message, scrape_site_summary
 
     company_dict = _get_company_dict(req.company_id, db)
     if not company_dict:
@@ -139,8 +141,17 @@ def generate_single(
     if _is_opted_out(company_dict.get("email", ""), domain, db):
         raise HTTPException(status_code=400, detail="この企業/メールアドレスは配信停止リストに登録されています")
 
+    # サイト分析（失敗してもDB情報で生成続行）
+    site_summary = ""
+    if req.analyze_site:
+        url = company_dict.get("website_url") or company_dict.get("domain") or ""
+        if url and not url.startswith("http"):
+            url = "https://" + url
+        if url:
+            site_summary = scrape_site_summary(url)
+
     try:
-        result = generate_sales_message(company_dict, req.template_type)
+        result = generate_sales_message(company_dict, req.template_type, site_summary=site_summary)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
@@ -161,7 +172,9 @@ def generate_single(
     db.commit()
     db.refresh(msg)
 
-    return _msg_to_dict(msg, company_dict.get("company_name"))
+    resp = _msg_to_dict(msg, company_dict.get("company_name"))
+    resp["site_analyzed"] = result.get("site_analyzed", False)
+    return resp
 
 
 @router.post("/generate-batch")
@@ -235,6 +248,23 @@ def generate_batch(
             continue
         eligible.append((company_id, _company_obj_to_dict(c)))
 
+    # ── Phase 2.5: サイト分析を並列スクレイピング ────────────────────────
+    site_summaries: dict[int, str] = {}
+    if req.analyze_site and not custom_tpl:
+        from server.services.ai_writer import scrape_site_summary as _scrape
+
+        def _do_scrape(item: tuple[int, dict]) -> tuple[int, str]:
+            cid, cdict = item
+            url = cdict.get("website_url") or cdict.get("domain") or ""
+            if url and not url.startswith("http"):
+                url = "https://" + url
+            return (cid, _scrape(url) if url else "")
+
+        # スクレイピングはI/O待ちが多いので多めに並列実行
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as scrape_executor:
+            for cid, summary in scrape_executor.map(_do_scrape, eligible):
+                site_summaries[cid] = summary
+
     # ── Phase 3: Claude API呼び出しを並列実行 ────────────────────────────
     effective_type = f"custom:{custom_tpl.id}" if custom_tpl else req.template_type
 
@@ -244,7 +274,11 @@ def generate_batch(
             if custom_tpl:
                 result = generate_from_custom_template(cdict, custom_tpl.content, custom_tpl.title)
             else:
-                result = generate_sales_message(cdict, req.template_type, api_key=api_key)
+                result = generate_sales_message(
+                    cdict, req.template_type,
+                    api_key=api_key,
+                    site_summary=site_summaries.get(cid, ""),
+                )
             return (cid, cdict, result, None)
         except RuntimeError as e:
             return (cid, cdict, None, str(e))

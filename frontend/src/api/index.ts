@@ -700,11 +700,11 @@ export const api = {
   },
 
   salesAi: {
-    generate: (companyId: number, templateType: string, projectId?: number, customTemplateId?: number) =>
-      axios.post("/api/sales-ai/generate", { company_id: companyId, template_type: templateType, project_id: projectId, custom_template_id: customTemplateId }).then(r => r.data),
+    generate: (companyId: number, templateType: string, projectId?: number, customTemplateId?: number, analyzeSite?: boolean) =>
+      axios.post("/api/sales-ai/generate", { company_id: companyId, template_type: templateType, project_id: projectId, custom_template_id: customTemplateId, analyze_site: analyzeSite ?? true }).then(r => r.data),
 
-    generateBatch: (companyIds: number[], templateType: string, projectId?: number, customTemplateId?: number, skipExisting?: boolean) =>
-      axios.post("/api/sales-ai/generate-batch", { company_ids: companyIds, template_type: templateType, project_id: projectId, custom_template_id: customTemplateId, skip_existing: skipExisting ?? false }).then(r => r.data),
+    generateBatch: (companyIds: number[], templateType: string, projectId?: number, customTemplateId?: number, skipExisting?: boolean, analyzeSite?: boolean) =>
+      axios.post("/api/sales-ai/generate-batch", { company_ids: companyIds, template_type: templateType, project_id: projectId, custom_template_id: customTemplateId, skip_existing: skipExisting ?? false, analyze_site: analyzeSite ?? true }).then(r => r.data),
 
     bulkSend: (sendMethod: string = "manual", profileId?: number, messageIds?: number[]) =>
       axios.post("/api/sales-ai/messages/bulk-send", { send_method: sendMethod, profile_id: profileId, message_ids: messageIds }).then(r => r.data),
