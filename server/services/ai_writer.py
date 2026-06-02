@@ -143,7 +143,26 @@ def generate_from_custom_template(company: dict, template_content: str, template
     }
 
 
-def generate_sales_message(company: dict, template_type: str) -> dict:
+def _resolve_anthropic_key(provided_key: str = "") -> str:
+    """APIキーを解決する。環境変数→DB→エラーの順で試みる。"""
+    key = provided_key or os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        try:
+            from server.database import SessionLocal
+            from server.models import SystemSettings
+            db = SessionLocal()
+            try:
+                row = db.query(SystemSettings).filter(SystemSettings.key == "anthropic_api_key").first()
+                if row and row.value:
+                    key = row.value
+            finally:
+                db.close()
+        except Exception:
+            pass
+    return key
+
+
+def generate_sales_message(company: dict, template_type: str, api_key: str = "") -> dict:
     import anthropic
 
     if template_type not in TEMPLATE_PROMPTS:
@@ -155,21 +174,7 @@ def generate_sales_message(company: dict, template_type: str) -> dict:
 
     ai_prompt_id = str(uuid.uuid4())
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-
-    if not api_key:
-        try:
-            from server.database import SessionLocal
-            from server.models import SystemSettings
-            db = SessionLocal()
-            try:
-                row = db.query(SystemSettings).filter(SystemSettings.key == "anthropic_api_key").first()
-                if row and row.value:
-                    api_key = row.value
-            finally:
-                db.close()
-        except Exception:
-            pass
+    api_key = _resolve_anthropic_key(api_key)
 
     if not api_key:
         raise RuntimeError("Anthropic APIキーが設定されていません。システム管理画面でAPIキーを登録してください。")

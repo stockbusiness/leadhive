@@ -36,24 +36,30 @@ def _msg_to_dict(m: SalesMessage, company_name: str = None) -> dict:
     }
 
 
+def _company_obj_to_dict(c: Company) -> dict:
+    return {
+        "id": c.id,
+        "company_name": c.company_name,
+        "prefecture": c.prefecture,
+        "city": c.city,
+        "category_main": c.category_main,
+        "cms_type": c.cms_type,
+        "ec_score": c.ec_score,
+        "ec_flag": c.ec_flag,
+        "shopify_flag": c.shopify_flag,
+        "sns_count": c.sns_count,
+        "score_total": c.score_total,
+        "score_rank": c.score_rank,
+        "email": c.email,
+        "domain": c.domain,
+        "website_url": c.website_url,
+    }
+
+
 def _get_company_dict(company_id: int, db: Session) -> dict:
     c = db.query(Company).filter(Company.id == company_id).first()
     if c:
-        return {
-            "id": c.id,
-            "company_name": c.company_name,
-            "prefecture": c.prefecture,
-            "city": c.city,
-            "category_main": c.category_main,
-            "cms_type": c.cms_type,
-            "ec_score": c.ec_score,
-            "ec_flag": c.ec_flag,
-            "shopify_flag": c.shopify_flag,
-            "sns_count": c.sns_count,
-            "score_total": c.score_total,
-            "score_rank": c.score_rank,
-            "email": c.email,
-        }
+        return _company_obj_to_dict(c)
     return {}
 
 
@@ -159,11 +165,14 @@ def generate_batch(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from server.services.ai_writer import generate_sales_message, generate_from_custom_template
+    import os
+    import concurrent.futures
+    from server.services.ai_writer import generate_sales_message, generate_from_custom_template, _resolve_anthropic_key
 
     if len(req.company_ids) > 50:
         raise HTTPException(status_code=400, detail="一括生成は最大50件です")
 
+    # ── Phase 1: バッチDBフェッチ（N+1排除） ──────────────────────────────
     custom_tpl = None
     if req.custom_template_id:
         from server.models import MemoTemplate
@@ -174,47 +183,80 @@ def generate_batch(
         if not custom_tpl:
             raise HTTPException(status_code=404, detail="カスタムテンプレートが見つかりません")
 
-    results = []
-    errors = []
+    # 全企業を1回のクエリで取得
+    company_rows = db.query(Company).filter(Company.id.in_(req.company_ids)).all()
+    companies_map: dict[int, Company] = {c.id: c for c in company_rows}
+
+    # 生成済みチェックを1回のクエリで
+    existing_company_ids: set[int] = set()
+    if req.skip_existing:
+        existing_rows = db.query(SalesMessage.company_id).filter(
+            SalesMessage.org_id == current_user.org_id,
+            SalesMessage.company_id.in_(req.company_ids),
+            SalesMessage.status != "failed",
+        ).all()
+        existing_company_ids = {r[0] for r in existing_rows}
+
+    # 配信停止リストを1回のクエリで
+    all_emails = [c.email for c in company_rows if c.email]
+    all_domains = [c.domain for c in company_rows if c.domain]
+    opted_out_emails: set[str] = set()
+    opted_out_domains: set[str] = set()
+    if all_emails:
+        opted_out_emails = {r[0] for r in db.query(OptOutList.email).filter(OptOutList.email.in_(all_emails)).all()}
+    if all_domains:
+        opted_out_domains = {r[0] for r in db.query(OptOutList.domain).filter(OptOutList.domain.in_(all_domains)).all()}
+
+    # APIキーを1回だけ解決（スレッド内で毎回DBアクセスしない）
+    api_key = _resolve_anthropic_key()
+
+    # ── Phase 2: フィルタリング ────────────────────────────────────────────
+    errors: list[dict] = []
     skipped = 0
+    eligible: list[tuple[int, dict]] = []  # (company_id, company_dict)
 
     for company_id in req.company_ids:
-        if req.skip_existing:
-            existing = db.query(SalesMessage).filter(
-                SalesMessage.org_id == current_user.org_id,
-                SalesMessage.company_id == company_id,
-                SalesMessage.status != "failed",
-            ).first()
-            if existing:
-                skipped += 1
-                continue
-
-        company_dict = _get_company_dict(company_id, db)
-        if not company_dict:
+        if company_id in existing_company_ids:
+            skipped += 1
+            continue
+        c = companies_map.get(company_id)
+        if not c:
             errors.append({"company_id": company_id, "error": "企業が見つかりません"})
             continue
-
-        c = db.query(Company).filter(Company.id == company_id).first()
-        domain = c.domain or "" if c else ""
-
-        if _is_opted_out(company_dict.get("email", ""), domain, db):
+        email = c.email or ""
+        domain = c.domain or ""
+        if email in opted_out_emails or domain in opted_out_domains:
             errors.append({"company_id": company_id, "error": "配信停止リストに登録済み"})
             continue
+        eligible.append((company_id, _company_obj_to_dict(c)))
 
+    # ── Phase 3: Claude API呼び出しを並列実行 ────────────────────────────
+    effective_type = f"custom:{custom_tpl.id}" if custom_tpl else req.template_type
+
+    def _generate_one(args: tuple[int, dict]) -> tuple[int, dict, dict | None, str | None]:
+        cid, cdict = args
         try:
             if custom_tpl:
-                result = generate_from_custom_template(company_dict, custom_tpl.content, custom_tpl.title)
+                result = generate_from_custom_template(cdict, custom_tpl.content, custom_tpl.title)
             else:
-                result = generate_sales_message(company_dict, req.template_type)
+                result = generate_sales_message(cdict, req.template_type, api_key=api_key)
+            return (cid, cdict, result, None)
         except RuntimeError as e:
-            errors.append({"company_id": company_id, "error": str(e)})
-            continue
+            return (cid, cdict, None, str(e))
         except Exception as e:
-            logger.error(f"batch generate error for company {company_id}: {e}")
-            errors.append({"company_id": company_id, "error": f"AI生成エラー: {str(e)}"})
-            continue
+            logger.error(f"batch generate error for company {cid}: {e}")
+            return (cid, cdict, None, f"AI生成エラー: {str(e)}")
 
-        effective_type = f"custom:{custom_tpl.id}" if custom_tpl else req.template_type
+    MAX_WORKERS = 5  # Anthropic レート制限に配慮
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        gen_results = list(executor.map(_generate_one, eligible))
+
+    # ── Phase 4: バッチDBライト ───────────────────────────────────────────
+    results: list[dict] = []
+    for company_id, company_dict, result, error in gen_results:
+        if error:
+            errors.append({"company_id": company_id, "error": error})
+            continue
         msg = SalesMessage(
             org_id=current_user.org_id,
             company_id=company_id,
