@@ -13,6 +13,11 @@ router = APIRouter(prefix="/api/sales-ai", tags=["sales-ai"])
 logger = logging.getLogger(__name__)
 
 
+def _owned_projects(current_user: User, db: Session):
+    """自org配下のプロジェクトIDリストを返す。"""
+    return [p.id for p in db.query(Project.id).filter(Project.org_id == current_user.org_id).all()]
+
+
 def _msg_to_dict(m: SalesMessage, company_name: str = None) -> dict:
     return {
         "id": m.id,

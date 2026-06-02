@@ -466,6 +466,7 @@ export default function SalesAI() {
 
   const [bulkFormSending, setBulkFormSending] = useState(false);
   const [bulkFormResult, setBulkFormResult] = useState<{ sent: number; failed: number; skipped: number; total: number } | null>(null);
+  const [bulkFormError, setBulkFormError] = useState<string | null>(null);
   const [bulkFormConfirm, setBulkFormConfirm] = useState(false);
   const [bulkFormProfileId, setBulkFormProfileId] = useState<number | undefined>(undefined);
   const [bulkFormProfiles, setBulkFormProfiles] = useState<FormSenderProfile[]>([]);
@@ -694,6 +695,7 @@ export default function SalesAI() {
   const handleBulkFormSend = async () => {
     setBulkFormSending(true);
     setBulkFormResult(null);
+    setBulkFormError(null);
     // confirmUIは送信完了まで表示し続ける（setBulkFormConfirm(false)はここでは呼ばない）
     try {
       const res = await api.salesAi.bulkSendForm(bulkFormProfileId);
@@ -701,7 +703,8 @@ export default function SalesAI() {
       setBulkFormConfirm(false);
       loadMessages();
     } catch (e: any) {
-      setGenError(e?.response?.data?.detail || "フォーム一括送信に失敗しました");
+      const msg = e?.response?.data?.detail || "フォーム一括送信に失敗しました（サーバーエラー）";
+      setBulkFormError(msg);
       setBulkFormConfirm(false);
     } finally {
       setBulkFormSending(false);
@@ -1204,6 +1207,14 @@ export default function SalesAI() {
                   )}
                 </div>
                 <button onClick={() => setBulkFormResult(null)} className="ml-auto text-slate-400 hover:text-slate-600 flex-shrink-0"><X size={14} /></button>
+              </div>
+            )}
+
+            {bulkFormError && (
+              <div className="flex items-center gap-3 bg-red-50 border-2 border-red-400 rounded-lg px-4 py-2.5 shadow-sm">
+                <AlertCircle size={18} className="text-red-600 flex-shrink-0" />
+                <span className="text-sm text-red-800 font-semibold flex-1">{bulkFormError}</span>
+                <button onClick={() => setBulkFormError(null)} className="text-slate-400 hover:text-slate-600 flex-shrink-0"><X size={14} /></button>
               </div>
             )}
 
