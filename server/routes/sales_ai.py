@@ -665,7 +665,7 @@ def bulk_send_messages(
     db: Session = Depends(get_db),
 ):
     """レビュー済みメッセージを一括送信（手動記録）する。"""
-    owned_pids = [p.id for p in _owned_projects(current_user, db)]
+    owned_pids = _owned_projects(current_user, db)
 
     q = (
         db.query(SalesMessage)
@@ -775,7 +775,7 @@ def bulk_send_form_messages(
         sender_prefecture = ""
         sender_address = ""
 
-    owned_pids = [p.id for p in _owned_projects(current_user, db)]
+    owned_pids = _owned_projects(current_user, db)
     q = (
         db.query(SalesMessage)
         .join(Company, SalesMessage.company_id == Company.id)
