@@ -476,7 +476,7 @@ function SendConfirmModal({ message, onClose, onConfirm }: {
 function BulkReviewModal({ messages, onClose, onSaved, formProfiles }: {
   messages: SalesMessage[];
   onClose: () => void;
-  onSaved: (updated: SalesMessage[]) => void;
+  onSaved: () => void;
   formProfiles: FormSenderProfile[];
 }) {
   const [rows, setRows] = useState<SalesMessage[]>(messages.map(m => ({ ...m })));
@@ -514,7 +514,7 @@ function BulkReviewModal({ messages, onClose, onSaved, formProfiles }: {
     try {
       const res = await api.salesAi.bulkSendForm(profileId, rows.map(r => r.id));
       setSendResult(res);
-      onSaved(rows);
+      onSaved();
     } catch (e: any) {
       setSendError(e?.response?.data?.detail || "一括送信に失敗しました");
     } finally {
@@ -928,20 +928,26 @@ export default function SalesAI() {
   const applyOpeningMemoToMessages = async (generatedIds: number[]) => {
     if (!openingMemo.trim() || generatedIds.length === 0) return;
     const memo = openingMemo.trim();
-    await Promise.allSettled(
-      generatedIds.map(async (id) => {
-        try {
-          const msgs = await api.salesAi.listMessages();
-          const msg = (msgs.messages || []).find((m: any) => m.id === id);
-          if (msg) {
-            await api.salesAi.updateMessage(id, {
-              subject: msg.subject,
-              body: memo + "\n\n" + msg.body,
-            });
-          }
-        } catch {}
-      })
-    );
+    try {
+      const allMsgs = await api.salesAi.listMessages();
+      const msgMap: Record<number, any> = {};
+      for (const m of (allMsgs.messages || [])) {
+        msgMap[m.id] = m;
+      }
+      await Promise.allSettled(
+        generatedIds.map(async (id) => {
+          try {
+            const msg = msgMap[id];
+            if (msg) {
+              await api.salesAi.updateMessage(id, {
+                subject: msg.subject,
+                body: memo + "\n\n" + msg.body,
+              });
+            }
+          } catch {}
+        })
+      );
+    } catch {}
   };
 
   const handleGenerateBatch = async () => {
