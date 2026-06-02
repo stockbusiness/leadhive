@@ -242,6 +242,12 @@ def run_db_migrations():
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_audit_logs_company_id ON audit_logs (company_id)"))
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_audit_logs_sent_at ON audit_logs (sent_at DESC)"))
 
+        # companies テーブルのインデックス強化（SalesAI高速化）
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_companies_score_total ON companies (score_total DESC)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_companies_org_id ON companies (org_id)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_companies_project_score ON companies (project_id, score_total DESC)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_companies_score_rank ON companies (score_rank)"))
+
         # companies.org_id の修復: project_id が設定済みの企業に org_id を自動設定
         conn.execute(sa.text("""
             UPDATE companies SET org_id = projects.org_id

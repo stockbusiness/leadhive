@@ -588,6 +588,64 @@ def get_company_ids(
     }
 
 
+@router.get("/for-sales-ai")
+def get_companies_for_sales_ai(
+    project_id: Optional[int] = None,
+    show_all: Optional[bool] = False,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """SalesAI ターゲット選択用スリムエンドポイント。必要9フィールドのみ返し、N+1クエリを排除。"""
+    owned_ids = _owned_projects(current_user, db)
+    query = db.query(
+        Company.id,
+        Company.company_name,
+        Company.score_total,
+        Company.score_rank,
+        Company.ec_flag,
+        Company.cms_type,
+        Company.prefecture,
+        Company.category_main,
+        Company.email,
+    )
+    if project_id and not show_all:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
+        query = query.filter(Company.project_id == project_id)
+    elif show_all:
+        query = query.filter(
+            or_(
+                Company.project_id.in_(owned_ids),
+                Company.org_id == current_user.org_id,
+            )
+        )
+    else:
+        query = query.filter(
+            or_(
+                Company.project_id.in_(owned_ids),
+                Company.org_id == current_user.org_id,
+            )
+        )
+
+    rows = query.order_by(desc(Company.score_total)).all()
+    companies = [
+        {
+            "id": r[0],
+            "company_name": r[1],
+            "score_total": r[2] or 0,
+            "score_rank": r[3] or "D",
+            "ec_flag": bool(r[4]),
+            "cms_type": r[5],
+            "prefecture": r[6],
+            "category_main": r[7],
+            "email": r[8],
+        }
+        for r in rows
+    ]
+    categories = sorted(set(c["category_main"] for c in companies if c["category_main"]))
+    return {"companies": companies, "total": len(companies), "categories": categories}
+
+
 @router.get("/{company_id}")
 def get_company(
     company_id: int,

@@ -19,6 +19,11 @@ axios.interceptors.response.use(
 
 export const api = {
   companies: {
+    forSalesAi: (params: { project_id?: number; show_all?: boolean }) =>
+      axios.get<{ companies: any[]; total: number; categories: string[] }>(
+        "/api/companies/for-sales-ai", { params }
+      ).then(r => r.data),
+
     list: (params: Record<string, string | number | boolean | undefined>) =>
       axios.get<{ total: number; page: number; per_page: number; companies: Company[] }>(
         "/api/companies", { params }

@@ -489,9 +489,13 @@ export default function SalesAI() {
 
   const loadCompanies = useCallback(async () => {
     try {
-      const params: any = { per_page: 9999, sort: "score_total", order: "desc" };
-      if (!showAllProjects && currentProject) params.project_id = currentProject.id;
-      const res = await api.companies.list(params);
+      const params: { project_id?: number; show_all?: boolean } = {};
+      if (showAllProjects) {
+        params.show_all = true;
+      } else if (currentProject) {
+        params.project_id = currentProject.id;
+      }
+      const res = await api.companies.forSalesAi(params);
       setCompanies((res.companies || []) as any);
     } catch {}
   }, [currentProject, showAllProjects]);
