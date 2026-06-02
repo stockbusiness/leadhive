@@ -677,7 +677,7 @@ def bulk_send_form_messages(
         db.query(SalesMessage)
         .join(Company, SalesMessage.company_id == Company.id)
         .filter(
-            SalesMessage.status == "reviewed",
+            SalesMessage.status.in_(["draft", "reviewed"]),
             Company.project_id.in_(owned_pids),
         )
     )

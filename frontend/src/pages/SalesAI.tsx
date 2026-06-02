@@ -1121,7 +1121,7 @@ export default function SalesAI() {
               </div>
             )}
 
-            {messages.some(m => m.status === "reviewed") && !bulkFormResult && (
+            {messages.some(m => m.status !== "sent" && m.status !== "failed") && !bulkFormResult && (
               bulkFormConfirm ? (
                 <div className="flex flex-wrap items-center gap-2">
                   {bulkFormProfiles.length > 0 && (
@@ -1136,7 +1136,7 @@ export default function SalesAI() {
                       ))}
                     </select>
                   )}
-                  <span className="text-xs text-slate-600">レビュー済み{messages.filter(m => m.status === "reviewed").length}件をフォーム送信しますか？</span>
+                  <span className="text-xs text-slate-600">{messages.filter(m => m.status !== "sent" && m.status !== "failed").length}件をフォーム送信しますか？</span>
                   <button
                     onClick={handleBulkFormSend}
                     disabled={bulkFormSending}
