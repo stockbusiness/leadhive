@@ -118,6 +118,14 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
     if "future-shop.jp" in html_lower or "futureshop" in html_lower:
         return "futureshop"
 
+    if (
+        "ecbeing.co.jp" in html_lower
+        or "ecbeing.net" in html_lower
+        or "ec-being" in html_lower
+        or response_headers.get("x-powered-by", "").lower() == "ecbeing"
+    ):
+        return "ecbeing"
+
     if "shop-pro.jp" in html_lower or "karakami" in html_lower or "color-me-shop" in html_lower:
         return "カラーミー"
 
@@ -154,6 +162,13 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
         or "store.yahoo.co.jp" in html_lower
     ):
         return "Yahoo!ショッピング"
+
+    if (
+        "item.rakuten.co.jp/" in html_lower
+        or "store.shopping.rakuten.co.jp" in html_lower
+        or "rms.rakuten.co.jp" in html_lower
+    ):
+        return "楽天市場"
 
     if "aishipr.com" in html_lower or "aiship.jp" in html_lower:
         return "aishipR"
@@ -241,6 +256,7 @@ EC_PLATFORM_LABELS = {
     "BASE": "BASE",
     "MakeShop": "MakeShop",
     "futureshop": "futureshop",
+    "ecbeing": "ecbeing",
     "カラーミー": "カラーミー",
     "EC-CUBE": "EC-CUBE",
     "STORES": "STORES",
@@ -248,6 +264,7 @@ EC_PLATFORM_LABELS = {
     "NEXT ENGINE": "NEXT ENGINE",
     "カート365": "カート365",
     "Yahoo!ショッピング": "Yahoo!ショッピング",
+    "楽天市場": "楽天市場",
     "aishipR": "aishipR",
     "ショップサーブ": "ショップサーブ",
     "BigCommerce": "BigCommerce",

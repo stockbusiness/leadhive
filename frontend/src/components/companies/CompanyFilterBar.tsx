@@ -25,6 +25,8 @@ const CMS_COLORS: Record<string, string> = {
   STORES: "bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200",
   MakeShop: "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200",
   futureshop: "bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-200",
+  ecbeing: "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200",
+  "楽天市場": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
   "カラーミー": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
   "EC-CUBE": "bg-cyan-100 text-cyan-800 border-cyan-300 hover:bg-cyan-200",
   "ロリポップEC": "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300 hover:bg-fuchsia-200",
@@ -214,6 +216,7 @@ export default function CompanyFilterBar({
             <option value="STORES">STORES</option>
             <option value="MakeShop">MakeShop</option>
             <option value="futureshop">futureshop</option>
+            <option value="ecbeing">ecbeing</option>
             <option value="カラーミー">カラーミー</option>
             <option value="EC-CUBE">EC-CUBE</option>
             <option value="ロリポップEC">ロリポップEC</option>

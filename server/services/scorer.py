@@ -5,6 +5,7 @@ DEFAULT_SCORING_RULES = {
     "base_flag": 15,
     "makeshop_flag": 15,
     "futureshop_flag": 15,
+    "ecbeing_flag": 15,
     "stores_flag": 15,
     "woocommerce_flag": 15,
     "yahoo_shopping_flag": 10,
@@ -41,7 +42,7 @@ def calculate_score(company_data: dict, custom_rules: dict = None, db=None) -> t
         score += rules["ec_flag"]
 
     for flag in [
-        "shopify_flag", "base_flag", "makeshop_flag", "futureshop_flag", "stores_flag",
+        "shopify_flag", "base_flag", "makeshop_flag", "futureshop_flag", "ecbeing_flag", "stores_flag",
         "woocommerce_flag", "yahoo_shopping_flag", "lolipop_flag",
         "rakuten_flag", "production_flag", "consulting_flag", "operation_flag",
     ]:
