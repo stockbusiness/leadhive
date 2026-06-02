@@ -694,13 +694,15 @@ export default function SalesAI() {
   const handleBulkFormSend = async () => {
     setBulkFormSending(true);
     setBulkFormResult(null);
-    setBulkFormConfirm(false);
+    // confirmUIは送信完了まで表示し続ける（setBulkFormConfirm(false)はここでは呼ばない）
     try {
       const res = await api.salesAi.bulkSendForm(bulkFormProfileId);
       setBulkFormResult(res);
+      setBulkFormConfirm(false);
       loadMessages();
     } catch (e: any) {
       setGenError(e?.response?.data?.detail || "フォーム一括送信に失敗しました");
+      setBulkFormConfirm(false);
     } finally {
       setBulkFormSending(false);
     }
@@ -1142,8 +1144,8 @@ export default function SalesAI() {
 
             {messages.some(m => m.status !== "sent" && m.status !== "failed") && !bulkFormResult && (
               bulkFormConfirm ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  {bulkFormProfiles.length > 0 && (
+                <div className={`flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border ${bulkFormSending ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"}`}>
+                  {!bulkFormSending && bulkFormProfiles.length > 0 && (
                     <select
                       value={bulkFormProfileId ?? ""}
                       onChange={e => setBulkFormProfileId(e.target.value ? Number(e.target.value) : undefined)}
@@ -1155,7 +1157,14 @@ export default function SalesAI() {
                       ))}
                     </select>
                   )}
-                  <span className="text-xs text-slate-600">{messages.filter(m => m.status !== "sent" && m.status !== "failed").length}件をフォーム送信しますか？</span>
+                  {bulkFormSending ? (
+                    <span className="text-xs text-blue-700 font-medium flex items-center gap-1.5">
+                      <RefreshCw size={12} className="animate-spin" />
+                      フォーム送信処理中です。しばらくお待ちください…
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-600">{messages.filter(m => m.status !== "sent" && m.status !== "failed").length}件をフォーム送信しますか？</span>
+                  )}
                   <button
                     onClick={handleBulkFormSend}
                     disabled={bulkFormSending}
@@ -1164,7 +1173,9 @@ export default function SalesAI() {
                     {bulkFormSending ? <RefreshCw size={12} className="animate-spin" /> : <Globe size={12} />}
                     {bulkFormSending ? "送信中..." : "確認して送信"}
                   </button>
-                  <button onClick={() => setBulkFormConfirm(false)} className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg">キャンセル</button>
+                  {!bulkFormSending && (
+                    <button onClick={() => setBulkFormConfirm(false)} className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg">キャンセル</button>
+                  )}
                 </div>
               ) : (
                 <button
@@ -1177,12 +1188,22 @@ export default function SalesAI() {
             )}
 
             {bulkFormResult && (
-              <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
-                <CheckCircle2 size={14} className="text-blue-600" />
-                <span className="text-xs text-blue-700 font-medium">{bulkFormResult.sent}件をフォーム送信しました</span>
-                {bulkFormResult.skipped > 0 && <span className="text-xs text-amber-600">（{bulkFormResult.skipped}件スキップ：無効URL/エラーページ）</span>}
-                {bulkFormResult.failed > 0 && <span className="text-xs text-red-600">（{bulkFormResult.failed}件失敗）</span>}
-                <button onClick={() => setBulkFormResult(null)} className="text-slate-400 hover:text-slate-600"><X size={12} /></button>
+              <div className="flex items-center gap-3 bg-emerald-50 border-2 border-emerald-400 rounded-lg px-4 py-2.5 shadow-sm">
+                <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-sm text-emerald-800 font-semibold">{bulkFormResult.sent}件のフォーム送信が完了しました</span>
+                  {bulkFormResult.skipped > 0 && (
+                    <span className="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                      {bulkFormResult.skipped}件スキップ（無効URL/エラーページ）
+                    </span>
+                  )}
+                  {bulkFormResult.failed > 0 && (
+                    <span className="text-xs text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
+                      {bulkFormResult.failed}件失敗
+                    </span>
+                  )}
+                </div>
+                <button onClick={() => setBulkFormResult(null)} className="ml-auto text-slate-400 hover:text-slate-600 flex-shrink-0"><X size={14} /></button>
               </div>
             )}
 
