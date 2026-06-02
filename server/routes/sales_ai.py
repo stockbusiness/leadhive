@@ -293,20 +293,22 @@ def list_messages(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = db.query(SalesMessage).filter(SalesMessage.org_id == current_user.org_id)
+    _LIMIT = 500
+    q = (
+        db.query(SalesMessage, Company.company_name)
+        .outerjoin(Company, SalesMessage.company_id == Company.id)
+        .filter(SalesMessage.org_id == current_user.org_id)
+    )
     if status:
         q = q.filter(SalesMessage.status == status)
-    messages = q.order_by(SalesMessage.created_at.desc()).all()
 
-    company_names: dict[int, str] = {}
-    for m in messages:
-        if m.company_id not in company_names:
-            c = db.query(Company).filter(Company.id == m.company_id).first()
-            if c:
-                company_names[m.company_id] = c.company_name or ""
+    total = q.count()
+    rows = q.order_by(SalesMessage.created_at.desc()).limit(_LIMIT).all()
 
     return {
-        "messages": [_msg_to_dict(m, company_names.get(m.company_id)) for m in messages]
+        "messages": [_msg_to_dict(m, cname) for m, cname in rows],
+        "total": total,
+        "limited": total > _LIMIT,
     }
 
 

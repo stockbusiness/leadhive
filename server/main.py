@@ -225,6 +225,8 @@ def run_db_migrations():
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_sales_messages_org_id ON sales_messages (org_id)"))
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_sales_messages_company_id ON sales_messages (company_id)"))
         conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_sales_messages_status ON sales_messages (status)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_sales_messages_org_created ON sales_messages (org_id, created_at DESC)"))
+        conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_sales_messages_org_status ON sales_messages (org_id, status, created_at DESC)"))
 
         conn.execute(sa.text("""
             CREATE TABLE IF NOT EXISTS audit_logs (

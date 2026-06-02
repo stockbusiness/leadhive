@@ -421,6 +421,8 @@ export default function SalesAI() {
   const [autoBatchTotalBatches, setAutoBatchTotalBatches] = useState(0);
 
   const [messages, setMessages] = useState<SalesMessage[]>([]);
+  const [messagesTotal, setMessagesTotal] = useState<number>(0);
+  const [messagesLimited, setMessagesLimited] = useState<boolean>(false);
   const [msgFilter, setMsgFilter] = useState<string>("");
   const [loadingMessages, setLoadingMessages] = useState(false);
 
@@ -506,6 +508,8 @@ export default function SalesAI() {
     try {
       const res = await api.salesAi.listMessages(msgFilter || undefined);
       setMessages(res.messages || []);
+      setMessagesTotal(res.total ?? (res.messages?.length ?? 0));
+      setMessagesLimited(res.limited ?? false);
     } catch {} finally {
       setLoadingMessages(false);
     }
@@ -1222,6 +1226,13 @@ export default function SalesAI() {
               <RefreshCw size={16} className={loadingMessages ? "animate-spin" : ""} />
             </button>
           </div>
+
+          {messagesLimited && !loadingMessages && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-xs text-amber-700">
+              <AlertCircle size={13} className="flex-shrink-0" />
+              最新500件を表示中（全{messagesTotal.toLocaleString()}件）。古いメッセージはCSVエクスポートまたはステータスフィルターでご確認ください。
+            </div>
+          )}
 
           {loadingMessages ? (
             <div className="flex items-center justify-center py-12">
