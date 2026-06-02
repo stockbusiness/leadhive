@@ -464,7 +464,7 @@ export default function SalesAI() {
   const [bulkSendConfirm, setBulkSendConfirm] = useState(false);
 
   const [bulkFormSending, setBulkFormSending] = useState(false);
-  const [bulkFormResult, setBulkFormResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const [bulkFormResult, setBulkFormResult] = useState<{ sent: number; failed: number; skipped: number; total: number } | null>(null);
   const [bulkFormConfirm, setBulkFormConfirm] = useState(false);
   const [bulkFormProfileId, setBulkFormProfileId] = useState<number | undefined>(undefined);
   const [bulkFormProfiles, setBulkFormProfiles] = useState<FormSenderProfile[]>([]);
@@ -1161,6 +1161,7 @@ export default function SalesAI() {
               <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
                 <CheckCircle2 size={14} className="text-blue-600" />
                 <span className="text-xs text-blue-700 font-medium">{bulkFormResult.sent}件をフォーム送信しました</span>
+                {bulkFormResult.skipped > 0 && <span className="text-xs text-amber-600">（{bulkFormResult.skipped}件スキップ：無効URL/エラーページ）</span>}
                 {bulkFormResult.failed > 0 && <span className="text-xs text-red-600">（{bulkFormResult.failed}件失敗）</span>}
                 <button onClick={() => setBulkFormResult(null)} className="text-slate-400 hover:text-slate-600"><X size={12} /></button>
               </div>

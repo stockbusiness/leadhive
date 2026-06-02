@@ -688,10 +688,31 @@ def bulk_send_form_messages(
     early_statuses = {"未確認", "対象候補", "アプローチ前"}
     sent_count = 0
     failed_count = 0
+    skipped_count = 0
+
+    INVALID_NAME_PATTERNS = {
+        "403 forbidden", "404 not found", "not found", "403", "404",
+        "ログイン", "login", "sign in", "signin", "access denied",
+        "unauthorized", "forbidden", "error", "ページが見つかりません",
+        "アクセスが拒否されました",
+    }
 
     for msg in msgs:
         try:
             c = db.query(Company).filter(Company.id == msg.company_id).first()
+
+            # URLが全くない場合はスキップ
+            has_url = c and (c.website_url or c.contact_url)
+            if not has_url:
+                skipped_count += 1
+                continue
+
+            # 会社名がHTTPエラーやログインページを示す場合はスキップ
+            cname = (c.company_name or "").strip().lower()
+            if cname in INVALID_NAME_PATTERNS or not cname:
+                skipped_count += 1
+                continue
+
             form_result = send_form_auto(
                 company_name=c.company_name if c else "",
                 website_url=c.website_url or "" if c else "",
@@ -747,7 +768,7 @@ def bulk_send_form_messages(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"DB更新に失敗しました: {str(e)}")
 
-    return {"sent": sent_count, "failed": failed_count, "total": len(msgs)}
+    return {"sent": sent_count, "failed": failed_count, "skipped": skipped_count, "total": len(msgs)}
 
 
 @router.delete("/messages/{message_id}")
