@@ -459,6 +459,7 @@ export default function SalesAI() {
   const [scheduleRunning, setScheduleRunning] = useState(false);
 
   const [skipExisting, setSkipExisting] = useState(false);
+  const [bulkSelectCount, setBulkSelectCount] = useState(50);
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkSendResult, setBulkSendResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
   const [bulkSendConfirm, setBulkSendConfirm] = useState(false);
@@ -607,7 +608,7 @@ export default function SalesAI() {
   };
 
   const selectAllFiltered = () => {
-    const ids = filteredCompanies.slice(0, 50).map(c => c.id);
+    const ids = filteredCompanies.slice(0, bulkSelectCount).map(c => c.id);
     setSelectedIds(ids);
   };
 
@@ -640,7 +641,7 @@ export default function SalesAI() {
   const handleAutoBatch = async () => {
     const ids = filteredCompanies.map(c => c.id);
     if (ids.length === 0) { setGenError("対象企業がありません"); return; }
-    const BATCH = 50;
+    const BATCH = Math.min(Math.max(1, bulkSelectCount), 50);
     const chunks: number[][] = [];
     for (let i = 0; i < ids.length; i += BATCH) chunks.push(ids.slice(i, i + BATCH));
 
@@ -886,7 +887,21 @@ export default function SalesAI() {
                   />
                   <span className="text-xs text-slate-600">生成済みの企業はスキップ</span>
                 </label>
-                <p className="text-xs text-slate-500 font-medium">選択した企業に生成（最大50件）</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-slate-500 font-medium">選択した企業に生成</p>
+                  <div className="flex items-center gap-1 ml-auto">
+                    <span className="text-xs text-slate-400">件数:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={bulkSelectCount}
+                      onChange={e => setBulkSelectCount(Math.min(50, Math.max(1, Number(e.target.value) || 1)))}
+                      className="w-14 text-xs border border-slate-300 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-violet-400"
+                    />
+                    <span className="text-xs text-slate-400">件</span>
+                  </div>
+                </div>
                 <p className="text-sm text-slate-600">
                   <span className="font-semibold text-slate-800">{selectedIds.length}件</span> 選択中
                 </p>
@@ -904,7 +919,7 @@ export default function SalesAI() {
                 <p className="text-xs text-slate-500 mb-2 font-medium">絞込結果の全件に自動生成</p>
                 <p className="text-sm text-slate-600 mb-2">
                   <span className="font-semibold text-slate-800">{filteredCompanies.length}件</span> 対象
-                  <span className="text-xs text-slate-400 ml-1">（50件ずつ自動処理）</span>
+                  <span className="text-xs text-slate-400 ml-1">（{bulkSelectCount}件ずつ自動処理）</span>
                 </p>
                 <button
                   onClick={handleAutoBatch}
@@ -914,7 +929,7 @@ export default function SalesAI() {
                   {autoBatching ? <RefreshCw size={14} className="animate-spin" /> : <Zap size={14} />}
                   {autoBatching ? `バッチ ${autoBatchBatch}/${autoBatchTotalBatches} 処理中…` : `全${filteredCompanies.length}件を自動バッチ生成`}
                 </button>
-                <p className="text-xs text-slate-400 mt-2 text-center">50件ずつ順番に自動で処理します</p>
+                <p className="text-xs text-slate-400 mt-2 text-center">{bulkSelectCount}件ずつ順番に自動で処理します</p>
               </div>
             </div>
           </div>
@@ -993,7 +1008,7 @@ export default function SalesAI() {
                       disabled={filteredCompanies.length === 0}
                       className="text-xs px-2.5 py-0.5 rounded border border-violet-400 text-violet-600 hover:bg-violet-50 disabled:opacity-40 transition-colors"
                     >
-                      先頭50件を選択
+                      先頭{bulkSelectCount}件を選択
                     </button>
                   </div>
                 </div>
