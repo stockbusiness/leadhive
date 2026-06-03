@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock, Mail, LayoutDashboard, Filter } from "lucide-react";
+import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock, Mail, LayoutDashboard, Filter, Search } from "lucide-react";
 import { api } from "../api";
 import { Pagination } from "../components/common";
 import { CompanyFilterBar, CompanyTable, CompanyEditModal } from "../components/companies";
@@ -66,6 +66,8 @@ export default function Companies() {
   const [showEmailCampaignModal, setShowEmailCampaignModal] = useState(false);
   const [selectingAll, setSelectingAll] = useState(false);
   const [allSelectedMode, setAllSelectedMode] = useState(false);
+  const [scanningForms, setScanningForms] = useState(false);
+  const [scanFormMsg, setScanFormMsg] = useState<string | null>(null);
 
   useEffect(() => {
     api.plans.current().then((d) => setCsvPlan(d.plan ?? null)).catch(() => setCsvPlan(null));
@@ -228,6 +230,23 @@ export default function Companies() {
       alert("全件選択に失敗しました");
     } finally {
       setSelectingAll(false);
+    }
+  };
+
+  const handleBulkScanForms = async () => {
+    if (selectedIds.size === 0) return;
+    setScanningForms(true);
+    setScanFormMsg(null);
+    try {
+      const result = await api.companies.bulkScanForms(Array.from(selectedIds));
+      setScanFormMsg(`スキャン完了: ${result.scanned}件中 ${result.found}件でフォームURL検出`);
+      fetchCompanies();
+      setTimeout(() => setScanFormMsg(null), 6000);
+    } catch {
+      setScanFormMsg("スキャンに失敗しました");
+      setTimeout(() => setScanFormMsg(null), 4000);
+    } finally {
+      setScanningForms(false);
     }
   };
 
@@ -479,6 +498,15 @@ export default function Companies() {
                 <span className="hidden sm:inline">プロジェクト移動</span>
               </button>
               <button
+                onClick={handleBulkScanForms}
+                disabled={scanningForms}
+                className="flex items-center gap-1.5 bg-cyan-600 text-white px-3 py-1.5 rounded text-sm hover:bg-cyan-700 transition-colors font-medium disabled:opacity-50"
+                title="選択企業のサイトをスキャンしてお問い合わせフォームURLを事前検出・保存します"
+              >
+                <Search size={14} className={scanningForms ? "animate-spin" : ""} />
+                <span className="hidden sm:inline">{scanningForms ? "スキャン中..." : "フォームURL検出"}</span>
+              </button>
+              <button
                 onClick={() => setShowEmailCampaignModal(true)}
                 className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 transition-colors font-medium"
               >
@@ -493,6 +521,13 @@ export default function Companies() {
               </button>
             </div>
           </div>
+          {scanFormMsg && (
+            <div className="flex items-center gap-2 bg-cyan-50 border border-cyan-200 rounded-lg px-4 py-2 mt-2">
+              <Search size={14} className="text-cyan-600 flex-shrink-0" />
+              <span className="text-sm text-cyan-800 font-medium">{scanFormMsg}</span>
+              <button onClick={() => setScanFormMsg(null)} className="ml-auto text-cyan-400 hover:text-cyan-600"><X size={13} /></button>
+            </div>
+          )}
         </div>
       )}
 

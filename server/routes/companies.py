@@ -646,6 +646,55 @@ def get_companies_for_sales_ai(
     return {"companies": companies, "total": len(companies), "categories": categories}
 
 
+@router.post("/bulk-scan-forms")
+def bulk_scan_forms(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """選択した企業のお問い合わせフォームURLを一括スキャンしてDBに保存する。"""
+    import requests as _req
+    from server.services.form_sender import _find_contact_url
+    company_ids = data.get("company_ids", [])
+    if not company_ids:
+        return {"scanned": 0, "found": 0, "not_found": 0}
+
+    owned_ids = _owned_projects(current_user, db)
+    companies = db.query(Company).filter(
+        Company.id.in_(company_ids),
+        Company.project_id.in_(owned_ids),
+    ).all()
+
+    found_count = 0
+    not_found_count = 0
+    session = _req.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    })
+
+    for company in companies:
+        if not company.website_url:
+            not_found_count += 1
+            continue
+        try:
+            url = _find_contact_url(company.website_url, "", session)
+            if url:
+                company.contact_url = url
+                found_count += 1
+            else:
+                not_found_count += 1
+        except Exception:
+            not_found_count += 1
+
+    db.commit()
+    return {
+        "scanned": len(companies),
+        "found": found_count,
+        "not_found": not_found_count,
+    }
+
+
 @router.get("/{company_id}")
 def get_company(
     company_id: int,
@@ -1292,6 +1341,42 @@ def rescrape_company(
     db.commit()
     db.refresh(company)
     return {"company": company_to_dict(company, db)}
+
+
+@router.post("/{company_id}/scan-form")
+def scan_company_form(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """単体企業のお問い合わせフォームURLをスキャンしてDBに保存する。"""
+    import requests as _req
+    from server.services.form_sender import _find_contact_url
+    owned_ids = _owned_projects(current_user, db)
+    company = db.query(Company).filter(
+        Company.id == company_id, Company.project_id.in_(owned_ids)
+    ).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="企業が見つかりません")
+    if not company.website_url:
+        return {"success": False, "message": "WebサイトURLが未設定です", "contact_url": None}
+
+    session = _req.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    })
+    try:
+        url = _find_contact_url(company.website_url, "", session)
+        if url:
+            company.contact_url = url
+            db.commit()
+            db.refresh(company)
+            return {"success": True, "message": f"フォームURLを検出しました", "contact_url": url}
+        else:
+            return {"success": False, "message": "フォームURLが見つかりませんでした", "contact_url": None}
+    except Exception as e:
+        return {"success": False, "message": f"スキャンエラー: {str(e)[:60]}", "contact_url": None}
 
 
 @router.post("/{company_id}/ai-analyze")

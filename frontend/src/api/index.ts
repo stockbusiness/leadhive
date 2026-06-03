@@ -80,6 +80,12 @@ export const api = {
     rescrape: (id: number) =>
       axios.post<{ company: Company }>(`/api/companies/${id}/rescrape`).then(r => r.data),
 
+    scanForm: (id: number) =>
+      axios.post<{ success: boolean; message: string; contact_url: string | null }>(`/api/companies/${id}/scan-form`).then(r => r.data),
+
+    bulkScanForms: (companyIds: number[]) =>
+      axios.post<{ scanned: number; found: number; not_found: number }>("/api/companies/bulk-scan-forms", { company_ids: companyIds }).then(r => r.data),
+
     getTags: (id: number) =>
       axios.get<{ tags: { id: number; tag_name: string; created_at: string }[] }>(`/api/companies/${id}/tags`).then(r => r.data),
 
