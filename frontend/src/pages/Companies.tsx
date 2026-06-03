@@ -600,18 +600,49 @@ export default function Companies() {
               </button>
             </div>
           </div>
-          {(scanFormMsg || scanJobProgress) && (
-            <div className="flex items-center gap-2 bg-cyan-50 border border-cyan-200 rounded-lg px-4 py-2 mt-2">
-              <Search size={14} className={`text-cyan-600 flex-shrink-0 ${scanningForms ? "animate-spin" : ""}`} />
-              <span className="text-sm text-cyan-800 font-medium">
-                {scanningForms && scanJobProgress
-                  ? `スキャン中: ${scanJobProgress.done}/${scanJobProgress.total}件${scanJobProgress.total_eligible > scanJobProgress.total ? `（対象合計: ${scanJobProgress.total_eligible}件）` : ""} 検出済み: ${scanJobProgress.found}件`
-                  : scanningForms
-                  ? "スキャン準備中..."
-                  : scanFormMsg}
-              </span>
-              {!scanningForms && (
-                <button onClick={() => { setScanFormMsg(null); setScanJobProgress(null); }} className="ml-auto text-cyan-400 hover:text-cyan-600"><X size={13} /></button>
+          {(scanFormMsg || scanJobProgress || scanningForms) && (
+            <div className="bg-cyan-50 border border-cyan-200 rounded-lg px-4 py-2.5 mt-2">
+              {scanningForms && scanJobProgress ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <Search size={14} className="text-cyan-600 animate-spin flex-shrink-0" />
+                      <span className="font-semibold text-cyan-800">フォームURLスキャン中...</span>
+                    </div>
+                    <button onClick={() => { setScanFormMsg(null); setScanJobProgress(null); }} className="text-cyan-400 hover:text-cyan-600"><X size={13} /></button>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm flex-wrap">
+                    <span className="text-cyan-900 font-medium">
+                      進捗: <span className="text-cyan-700 font-bold">{scanJobProgress.done}</span> / <span className="font-bold">{scanJobProgress.total}</span>件
+                    </span>
+                    <span className="text-green-700 font-medium">
+                      検出: <span className="font-bold text-green-600">{scanJobProgress.found}</span>件
+                    </span>
+                    {(scanJobProgress.total_eligible ?? 0) > scanJobProgress.total && (
+                      <span className="text-slate-500">
+                        今回の残り: <span className="font-bold">{scanJobProgress.total - scanJobProgress.done}</span>件 ／ 全体残り: <span className="font-bold">{(scanJobProgress.total_eligible ?? 0) - scanJobProgress.done}</span>件
+                      </span>
+                    )}
+                  </div>
+                  {scanJobProgress.total > 0 && (
+                    <div className="w-full bg-cyan-200 rounded-full h-1.5 mt-1">
+                      <div
+                        className="bg-cyan-600 h-1.5 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.round((scanJobProgress.done / scanJobProgress.total) * 100)}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : scanningForms ? (
+                <div className="flex items-center gap-2 text-sm text-cyan-800">
+                  <Search size={14} className="animate-spin text-cyan-600" />
+                  <span className="font-medium">スキャン準備中...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-cyan-800 font-medium flex-1">{scanFormMsg}</span>
+                  <button onClick={() => { setScanFormMsg(null); setScanJobProgress(null); }} className="text-cyan-400 hover:text-cyan-600 flex-shrink-0"><X size={13} /></button>
+                </div>
               )}
             </div>
           )}
