@@ -1,5 +1,12 @@
 import { useNavigate } from "react-router-dom";
-import { ExternalLink, MessageSquare, Pencil, Trash2, RotateCw, CalendarClock } from "lucide-react";
+import { ExternalLink, MessageSquare, Pencil, Trash2, RotateCw, CalendarClock, Phone } from "lucide-react";
+
+/** 電話番号を Zoom Phone URLに変換 (日本番号: 0X → +81X) */
+function toZoomPhoneUrl(phone: string): string {
+  const digits = phone.replace(/[^\d]/g, "");
+  const e164 = digits.startsWith("0") ? "+81" + digits.slice(1) : "+" + digits;
+  return `zoomus://phone?action=dial&phoneNumber=${encodeURIComponent(e164)}`;
+}
 import { STATUSES } from "../../constants";
 import { ScoreBadge, FlagBadge } from "../common";
 import type { Company } from "../../types";
@@ -302,7 +309,20 @@ export default function CompanyTable({
                   </td>
                   <td className="px-3 py-2 text-slate-600 text-xs">
                     {c.prefecture}{c.city}
-                    {c.phone && <div className="text-slate-400">{c.phone}</div>}
+                    {c.phone && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-slate-400">{c.phone}</span>
+                        <a
+                          href={toZoomPhoneUrl(c.phone)}
+                          title="Zoom Phoneで発信"
+                          onClick={e => e.stopPropagation()}
+                          className="flex items-center gap-0.5 text-[10px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded hover:bg-blue-100 transition-colors flex-shrink-0"
+                        >
+                          <Phone size={10} />
+                          Zoom
+                        </a>
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     {c.contact_url ? (
