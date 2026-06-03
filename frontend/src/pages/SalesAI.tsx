@@ -1314,143 +1314,165 @@ export default function SalesAI() {
                 </div>
               )}
 
-              <div className="border-b border-slate-100 pb-3 space-y-3">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                  <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
-                    <PlusCircle size={12} />
-                    冒頭一言メモ（全企業の本文冒頭に追加）
+              {/* ── 共通オプション ─────────────────────────── */}
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2.5">
+                <p className="text-xs font-semibold text-slate-600">生成オプション（全モード共通）</p>
+                <div className="bg-white border border-blue-200 rounded-lg p-2.5 space-y-1.5">
+                  <p className="text-xs font-medium text-blue-700 flex items-center gap-1">
+                    <PlusCircle size={11} /> 冒頭一言メモ
                   </p>
                   <textarea
                     value={openingMemo}
                     onChange={e => setOpeningMemo(e.target.value)}
                     rows={2}
-                    placeholder="例: 先日〇〇の展示会でお名刺をいただきました…（空白の場合は追加しません）"
-                    className="w-full border border-blue-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white resize-none"
+                    placeholder="例: 先日〇〇の展示会でお名刺をいただきました…（空欄なら追加しません）"
+                    className="w-full border border-blue-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white resize-none"
                   />
-                  <p className="text-xs text-slate-400">生成後、全企業のメッセージ本文の先頭にこのテキストを自動で挿入します</p>
                 </div>
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={skipExisting}
-                    onChange={e => setSkipExisting(e.target.checked)}
-                    className="w-3.5 h-3.5 accent-violet-600"
-                  />
-                  <span className="text-xs text-slate-600">生成済みの企業はスキップ</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none group">
-                  <input
-                    type="checkbox"
-                    checked={analyzeSite}
-                    onChange={e => setAnalyzeSite(e.target.checked)}
-                    disabled={!!customTemplateId}
-                    className="w-3.5 h-3.5 accent-violet-600"
-                  />
-                  <span className={`text-xs ${customTemplateId ? "text-slate-400" : "text-slate-600"}`}>
-                    企業サイトをAI分析してメールをカスタマイズ
-                  </span>
-                  {analyzeSite && !customTemplateId && (
-                    <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-medium">推奨</span>
-                  )}
-                </label>
-                {analyzeSite && !customTemplateId && (
-                  <p className="text-xs text-slate-400 pl-5">サイト内容（見出し・事業概要等）を取得しClaudeへ渡します。1件あたり数秒追加されます。</p>
-                )}
+                <div className="flex flex-wrap gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input type="checkbox" checked={skipExisting} onChange={e => setSkipExisting(e.target.checked)} className="w-3.5 h-3.5 accent-violet-600" />
+                    <span className="text-xs text-slate-600">生成済みはスキップ</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input type="checkbox" checked={analyzeSite} onChange={e => setAnalyzeSite(e.target.checked)} disabled={!!customTemplateId} className="w-3.5 h-3.5 accent-violet-600" />
+                    <span className={`text-xs ${customTemplateId ? "text-slate-400" : "text-slate-600"}`}>サイトAI分析</span>
+                    {analyzeSite && !customTemplateId && <span className="text-[10px] bg-violet-100 text-violet-700 px-1 py-0.5 rounded-full font-medium">推奨</span>}
+                  </label>
+                </div>
                 <div className="flex items-center gap-2">
-                  <p className="text-xs text-slate-500 font-medium">選択した企業に生成</p>
-                  <div className="flex items-center gap-1 ml-auto">
-                    <span className="text-xs text-slate-400">件数:</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={bulkSelectCount}
-                      onChange={e => setBulkSelectCount(Math.min(50, Math.max(1, Number(e.target.value) || 1)))}
-                      className="w-14 text-xs border border-slate-300 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-violet-400"
-                    />
-                    <span className="text-xs text-slate-400">件</span>
-                  </div>
+                  <span className="text-xs text-slate-500">バッチサイズ</span>
+                  <input
+                    type="number" min={1} max={50} value={bulkSelectCount}
+                    onChange={e => setBulkSelectCount(Math.min(50, Math.max(1, Number(e.target.value) || 1)))}
+                    className="w-14 text-xs border border-slate-300 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-violet-400"
+                  />
+                  <span className="text-xs text-slate-400">件ずつ処理</span>
                 </div>
-                <p className="text-sm text-slate-600">
-                  <span className="font-semibold text-slate-800">{selectedIds.length}件</span> 選択中
-                </p>
-                <button
-                  onClick={handleGenerateBatch}
-                  disabled={generating || autoBatching || selectedIds.length === 0}
-                  className="w-full flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {generating ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                  {generating ? "生成中..." : `${selectedIds.length}件を一括生成`}
-                </button>
               </div>
 
-              <div className="space-y-3">
-                <p className="text-xs text-slate-500 font-medium">絞込結果の全件に自動生成</p>
-                <p className="text-sm text-slate-600">
-                  <span className="font-semibold text-slate-800">{filteredCompanies.length}件</span> 対象
-                  <span className="text-xs text-slate-400 ml-1">（{bulkSelectCount}件ずつ自動処理）</span>
-                </p>
-                <button
-                  onClick={handleAutoBatch}
-                  disabled={generating || autoBatching || filteredCompanies.length === 0}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {autoBatching && !fullAutoPhase ? <RefreshCw size={14} className="animate-spin" /> : <Zap size={14} />}
-                  {autoBatching && !fullAutoPhase ? `バッチ ${autoBatchBatch}/${autoBatchTotalBatches} 処理中…` : `全${filteredCompanies.length}件を自動バッチ生成`}
-                </button>
-                <p className="text-xs text-slate-400 text-center">{bulkSelectCount}件ずつ順番に自動で処理します</p>
+              {/* ── モード選択カード ───────────────────────── */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">送信モードを選ぶ</p>
 
-                <div className="border-t border-slate-100 pt-3 space-y-2">
-                  <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                    <span className="inline-block bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded">NEW</span>
-                    全自動モード（生成→フォーム送信）
-                  </p>
-                  {bulkFormProfiles.length > 0 && (
-                    <select
-                      value={bulkFormProfileId ?? ""}
-                      onChange={e => setBulkFormProfileId(e.target.value ? Number(e.target.value) : undefined)}
-                      disabled={autoBatching}
-                      className="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white disabled:opacity-50"
-                    >
-                      <option value="">送信者プロフィール未選択</option>
-                      {bulkFormProfiles.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}{p.display_name ? ` — ${p.display_name}` : ""}</option>
-                      ))}
-                    </select>
-                  )}
-
-                  {fullAutoConfirm ? (
-                    <div className="bg-orange-50 border border-orange-300 rounded-lg p-3 space-y-2">
-                      <p className="text-xs text-orange-800 font-semibold">⚠️ 確認してください</p>
-                      <p className="text-xs text-orange-700">
-                        <strong>{filteredCompanies.length}件</strong>のメールを生成して、確認なしで<strong>フォーム送信まで自動実行</strong>します。よろしいですか？
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleFullAutoSend}
-                          className="flex-1 text-xs bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-700 font-medium transition-colors"
-                        >
-                          実行する
-                        </button>
-                        <button
-                          onClick={() => setFullAutoConfirm(false)}
-                          className="flex-1 text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
-                        >
-                          キャンセル
-                        </button>
-                      </div>
+                {/* MODE A: 手動選択生成 */}
+                <div className="border-2 border-violet-200 rounded-xl overflow-hidden">
+                  <div className="bg-violet-600 px-3 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-white">
+                      <Sparkles size={13} />
+                      <span className="text-xs font-bold">モードA　手動選択生成</span>
                     </div>
-                  ) : (
+                    <span className="text-[10px] bg-violet-400 text-white px-1.5 py-0.5 rounded-full font-medium">{selectedIds.length}件選択中</span>
+                  </div>
+                  <div className="bg-white px-3 py-2.5 space-y-2">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">① 企業を手動選択</span>
+                      <span className="text-slate-300 text-xs">→</span>
+                      <span className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">② AI生成</span>
+                      <span className="text-slate-300 text-xs">→</span>
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">③ 手動レビュー</span>
+                      <span className="text-slate-300 text-xs">→</span>
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">④ 手動送信</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">💡 特定企業を選んで丁寧に対応したい時</p>
                     <button
-                      onClick={() => setFullAutoConfirm(true)}
-                      disabled={generating || autoBatching || filteredCompanies.length === 0}
-                      className="w-full flex items-center justify-center gap-2 bg-orange-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      onClick={handleGenerateBatch}
+                      disabled={generating || autoBatching || selectedIds.length === 0}
+                      className="w-full flex items-center justify-center gap-2 bg-violet-600 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      <Zap size={14} />
-                      全{filteredCompanies.length}件を全自動生成＆フォーム送信
+                      {generating ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                      {generating ? "生成中..." : selectedIds.length === 0 ? "右リストで企業を選択してください" : `選択した${selectedIds.length}件を生成`}
                     </button>
-                  )}
-                  <p className="text-xs text-slate-400 text-center">生成後に確認なしで即フォーム送信します</p>
+                  </div>
+                </div>
+
+                {/* MODE B: 全件バッチ生成 */}
+                <div className="border-2 border-emerald-200 rounded-xl overflow-hidden">
+                  <div className="bg-emerald-600 px-3 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-white">
+                      <Zap size={13} />
+                      <span className="text-xs font-bold">モードB　全件バッチ生成</span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-400 text-white px-1.5 py-0.5 rounded-full font-medium">{filteredCompanies.length}件対象</span>
+                  </div>
+                  <div className="bg-white px-3 py-2.5 space-y-2">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">① 自動生成（全件）</span>
+                      <span className="text-slate-300 text-xs">→</span>
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">② 手動レビュー</span>
+                      <span className="text-slate-300 text-xs">→</span>
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">③ 手動送信</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">💡 まとめて生成して内容を確認してから送りたい時</p>
+                    <button
+                      onClick={handleAutoBatch}
+                      disabled={generating || autoBatching || filteredCompanies.length === 0}
+                      className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {autoBatching && !fullAutoPhase ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} />}
+                      {autoBatching && !fullAutoPhase
+                        ? `バッチ ${autoBatchBatch}/${autoBatchTotalBatches} 処理中…`
+                        : `全${filteredCompanies.length}件を自動バッチ生成`}
+                    </button>
+                  </div>
+                </div>
+
+                {/* MODE C: 全自動モード */}
+                <div className="border-2 border-orange-300 rounded-xl overflow-hidden">
+                  <div className="bg-orange-500 px-3 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-white">
+                      <Zap size={13} />
+                      <span className="text-xs font-bold">モードC　全自動生成＆送信</span>
+                    </div>
+                    <span className="text-[10px] bg-orange-300 text-white px-1.5 py-0.5 rounded-full font-bold">NEW</span>
+                  </div>
+                  <div className="bg-white px-3 py-2.5 space-y-2">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">① 自動生成（全件）</span>
+                      <span className="text-slate-300 text-xs">→</span>
+                      <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">② 自動フォーム送信</span>
+                      <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium ml-1">確認なし</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">💡 大量リストをそのまま即送信したい時</p>
+                    {bulkFormProfiles.length > 0 && (
+                      <select
+                        value={bulkFormProfileId ?? ""}
+                        onChange={e => setBulkFormProfileId(e.target.value ? Number(e.target.value) : undefined)}
+                        disabled={autoBatching}
+                        className="w-full text-xs border border-orange-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white disabled:opacity-50"
+                      >
+                        <option value="">送信者プロフィール未選択</option>
+                        {bulkFormProfiles.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}{p.display_name ? ` — ${p.display_name}` : ""}</option>
+                        ))}
+                      </select>
+                    )}
+                    {fullAutoConfirm ? (
+                      <div className="bg-orange-50 border border-orange-300 rounded-lg p-2.5 space-y-2">
+                        <p className="text-xs text-orange-800 font-semibold">⚠️ 実行前確認</p>
+                        <p className="text-xs text-orange-700">
+                          <strong>{filteredCompanies.length}件</strong>を生成して、確認なしで<strong>フォーム送信まで自動実行</strong>します。よろしいですか？
+                        </p>
+                        <div className="flex gap-2">
+                          <button onClick={handleFullAutoSend} className="flex-1 text-xs bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-700 font-semibold transition-colors">
+                            実行する
+                          </button>
+                          <button onClick={() => setFullAutoConfirm(false)} className="flex-1 text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+                            キャンセル
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setFullAutoConfirm(true)}
+                        disabled={generating || autoBatching || filteredCompanies.length === 0}
+                        className="w-full flex items-center justify-center gap-2 bg-orange-500 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Zap size={12} />
+                        全{filteredCompanies.length}件を全自動生成＆フォーム送信
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
