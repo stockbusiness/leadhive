@@ -69,7 +69,7 @@ export default function Companies() {
   const [scanningForms, setScanningForms] = useState(false);
   const [scanFormMsg, setScanFormMsg] = useState<string | null>(null);
   const [scanJobId, setScanJobId] = useState<string | null>(null);
-  const [scanJobProgress, setScanJobProgress] = useState<{ done: number; total: number; found: number } | null>(null);
+  const [scanJobProgress, setScanJobProgress] = useState<{ done: number; total: number; total_eligible: number; found: number } | null>(null);
 
   useEffect(() => {
     api.plans.current().then((d) => setCsvPlan(d.plan ?? null)).catch(() => setCsvPlan(null));
@@ -123,14 +123,17 @@ export default function Companies() {
     const interval = setInterval(async () => {
       try {
         const job = await api.companies.getFormScanJob(scanJobId);
-        setScanJobProgress({ done: job.done, total: job.total, found: job.found });
+        setScanJobProgress({ done: job.done, total: job.total, total_eligible: job.total_eligible, found: job.found });
         if (job.status === "done" || job.status === "error") {
           clearInterval(interval);
           setScanJobId(null);
           setScanningForms(false);
           if (job.status === "done") {
+            const remaining = (job.total_eligible || 0) - job.total;
             if (job.total === 0) {
               setScanFormMsg("スキャン対象なし（全企業にフォームURLが登録済みです）");
+            } else if (remaining > 0) {
+              setScanFormMsg(`✅ ${job.total}件スキャン完了・${job.found}件検出。残り${remaining}件あります → 再度「フォームURL検出」を押すと続きをスキャンします`);
             } else {
               setScanFormMsg(`✅ スキャン完了: ${job.total}件中 ${job.found}件でフォームURL検出`);
             }
@@ -584,7 +587,7 @@ export default function Companies() {
               <Search size={14} className={`text-cyan-600 flex-shrink-0 ${scanningForms ? "animate-spin" : ""}`} />
               <span className="text-sm text-cyan-800 font-medium">
                 {scanningForms && scanJobProgress
-                  ? `スキャン中: ${scanJobProgress.done}/${scanJobProgress.total}件 （検出済み: ${scanJobProgress.found}件）`
+                  ? `スキャン中: ${scanJobProgress.done}/${scanJobProgress.total}件${scanJobProgress.total_eligible > scanJobProgress.total ? `（対象合計: ${scanJobProgress.total_eligible}件）` : ""} 検出済み: ${scanJobProgress.found}件`
                   : scanningForms
                   ? "スキャン準備中..."
                   : scanFormMsg}

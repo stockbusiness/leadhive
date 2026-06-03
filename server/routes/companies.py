@@ -61,12 +61,14 @@ def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filt
         if skip_existing:
             query = query.filter(or_(Company.contact_url.is_(None), Company.contact_url == ""))
 
-        companies = query.limit(500).all()
+        BATCH_SIZE = 500
+        total_eligible = query.count()
+        companies = query.limit(BATCH_SIZE).all()
         total = len(companies)
-        _update_scan_job(job_id, total=total)
+        _update_scan_job(job_id, total=total, total_eligible=total_eligible)
 
         if total == 0:
-            _update_scan_job(job_id, status="done")
+            _update_scan_job(job_id, status="done", total_eligible=total_eligible)
             return
 
         session = _req.Session()
@@ -828,6 +830,7 @@ def start_form_scan_job(
             "status": "running",
             "done": 0,
             "total": 0,
+            "total_eligible": 0,
             "found": 0,
             "org_id": current_user.org_id,
             "error": None,

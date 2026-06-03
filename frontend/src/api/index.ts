@@ -93,7 +93,7 @@ export const api = {
       axios.post<{ job_id: string }>("/api/companies/scan-forms/start", params).then(r => r.data),
 
     getFormScanJob: (jobId: string) =>
-      axios.get<{ job_id: string; status: string; done: number; total: number; found: number; error?: string | null }>(`/api/companies/scan-forms/${jobId}`).then(r => r.data),
+      axios.get<{ job_id: string; status: string; done: number; total: number; total_eligible: number; found: number; error?: string | null }>(`/api/companies/scan-forms/${jobId}`).then(r => r.data),
 
     getTags: (id: number) =>
       axios.get<{ tags: { id: number; tag_name: string; created_at: string }[] }>(`/api/companies/${id}/tags`).then(r => r.data),
