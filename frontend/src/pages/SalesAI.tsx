@@ -983,7 +983,10 @@ export default function SalesAI() {
     );
   };
 
+  const SENT_STATUSES = new Set(["フォーム送信済", "メール送信済", "商談中", "成約", "NG"]);
   const filteredCompanies = companies.filter(c => {
+    // 送信済み・商談中・成約・NGは常に除外
+    if (SENT_STATUSES.has(c.status)) return false;
     if (companySearch && !(c.company_name || "").toLowerCase().includes(companySearch.toLowerCase())) return false;
     if (filterRanks.length > 0 && !filterRanks.includes(c.score_rank)) return false;
     if (filterEcOnly && !c.ec_flag) return false;
@@ -992,6 +995,8 @@ export default function SalesAI() {
     if (filterCategory && c.category_main !== filterCategory) return false;
     return true;
   });
+  // Mode C用: フォームURL登録済み＆未送信の企業のみ
+  const filteredCompaniesWithForm = filteredCompanies.filter(c => !!c.contact_url);
 
   const categoryOptions = Array.from(new Set(companies.map(c => c.category_main).filter(Boolean))) as string[];
 
@@ -1578,7 +1583,10 @@ export default function SalesAI() {
                       <Zap size={13} />
                       <span className="text-xs font-bold">モードC　全自動生成＆送信</span>
                     </div>
-                    <span className="text-[10px] bg-orange-300 text-white px-1.5 py-0.5 rounded-full font-bold">NEW</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] bg-orange-400 text-white px-1.5 py-0.5 rounded-full font-medium">{filteredCompaniesWithForm.length}件対象</span>
+                      <span className="text-[10px] bg-orange-300 text-white px-1.5 py-0.5 rounded-full font-bold">NEW</span>
+                    </div>
                   </div>
                   <div className="bg-white px-3 py-2.5 space-y-2">
                     <div className="flex items-center gap-1 flex-wrap">
@@ -1605,7 +1613,7 @@ export default function SalesAI() {
                       <div className="bg-orange-50 border border-orange-300 rounded-lg p-2.5 space-y-2">
                         <p className="text-xs text-orange-800 font-semibold">⚠️ 実行前確認</p>
                         <p className="text-xs text-orange-700">
-                          <strong>{filteredCompanies.length}件</strong>を生成して、確認なしで<strong>フォーム送信まで自動実行</strong>します。
+                          <strong>{filteredCompaniesWithForm.length}件</strong>（フォームURL登録済み・未送信）を生成して、確認なしで<strong>フォーム送信まで自動実行</strong>します。
                         </p>
                         <div className="grid grid-cols-2 gap-1.5">
                           <button onClick={handleFullAutoSend} className="text-xs bg-orange-600 text-white px-2 py-1.5 rounded-lg hover:bg-orange-700 font-semibold transition-colors">
@@ -1622,11 +1630,11 @@ export default function SalesAI() {
                     ) : (
                       <button
                         onClick={() => setFullAutoConfirm(true)}
-                        disabled={generating || autoBatching || bgJobStatus?.status === "running" || filteredCompanies.length === 0}
+                        disabled={generating || autoBatching || bgJobStatus?.status === "running" || filteredCompaniesWithForm.length === 0}
                         className="w-full flex items-center justify-center gap-2 bg-orange-500 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <Zap size={12} />
-                        全{filteredCompanies.length}件を全自動生成＆フォーム送信
+                        全{filteredCompaniesWithForm.length}件を全自動生成＆フォーム送信
                       </button>
                     )}
                   </div>

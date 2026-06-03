@@ -47,9 +47,11 @@ def get_dashboard(
         Company.score_rank.in_(["A", "B"])
     )).scalar() or 0
 
+    _sent_statuses = ["フォーム送信済", "メール送信済", "商談中", "成約", "NG"]
     with_contact = scoped(db.query(func.count(Company.id)).filter(
         Company.contact_url.isnot(None),
         Company.contact_url != "",
+        ~Company.status.in_(_sent_statuses),
     )).scalar() or 0
 
     by_category = dict(
