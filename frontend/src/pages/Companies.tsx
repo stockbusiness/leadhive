@@ -75,38 +75,6 @@ export default function Companies() {
     api.plans.current().then((d) => setCsvPlan(d.plan ?? null)).catch(() => setCsvPlan(null));
   }, []);
 
-  useEffect(() => {
-    if (!scanJobId) return;
-    const interval = setInterval(async () => {
-      try {
-        const job = await api.companies.getFormScanJob(scanJobId);
-        setScanJobProgress({ done: job.done, total: job.total, found: job.found });
-        if (job.status === "done" || job.status === "error") {
-          clearInterval(interval);
-          setScanJobId(null);
-          setScanningForms(false);
-          if (job.status === "done") {
-            if (job.total === 0) {
-              setScanFormMsg("スキャン対象なし（全企業にフォームURLが登録済みです）");
-            } else {
-              setScanFormMsg(`✅ スキャン完了: ${job.total}件中 ${job.found}件でフォームURL検出`);
-            }
-            fetchCompanies();
-          } else {
-            setScanFormMsg(`❌ スキャンエラー: ${job.error || "不明"}`);
-          }
-          setScanJobProgress(null);
-          setTimeout(() => setScanFormMsg(null), 8000);
-        }
-      } catch {
-        clearInterval(interval);
-        setScanJobId(null);
-        setScanningForms(false);
-      }
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [scanJobId, fetchCompanies]);
-
   const handleFilterChange = useCallback((newFilters: typeof filters) => {
     setFilters(newFilters);
     setPage(1);
@@ -149,6 +117,38 @@ export default function Companies() {
     setSelectedIds(new Set());
     setAllSelectedMode(false);
   }, [page, filters]);
+
+  useEffect(() => {
+    if (!scanJobId) return;
+    const interval = setInterval(async () => {
+      try {
+        const job = await api.companies.getFormScanJob(scanJobId);
+        setScanJobProgress({ done: job.done, total: job.total, found: job.found });
+        if (job.status === "done" || job.status === "error") {
+          clearInterval(interval);
+          setScanJobId(null);
+          setScanningForms(false);
+          if (job.status === "done") {
+            if (job.total === 0) {
+              setScanFormMsg("スキャン対象なし（全企業にフォームURLが登録済みです）");
+            } else {
+              setScanFormMsg(`✅ スキャン完了: ${job.total}件中 ${job.found}件でフォームURL検出`);
+            }
+            fetchCompanies();
+          } else {
+            setScanFormMsg(`❌ スキャンエラー: ${job.error || "不明"}`);
+          }
+          setScanJobProgress(null);
+          setTimeout(() => setScanFormMsg(null), 8000);
+        }
+      } catch {
+        clearInterval(interval);
+        setScanJobId(null);
+        setScanningForms(false);
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [scanJobId, fetchCompanies]);
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
@@ -475,20 +475,22 @@ export default function Companies() {
         </div>
       )}
 
-      {(filters.cms_type || filters.ec_only === "true") && (
+      {(filters.cms_type || filters.ec_only === "true" || filters.ec_scale) && (
         <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3">
           <Filter size={16} className="text-indigo-500 flex-shrink-0" />
           <span className="text-sm text-indigo-800 font-medium">
             {filters.ec_only === "true"
-              ? "🛍️ ECサイト企業でフィルター中"
-              : `🔍 CMS/プラットフォーム「${filters.cms_type}」でフィルター中`}
+              ? `🛍️ ECサイト企業でフィルター中${filters.ec_scale ? `（${filters.ec_scale === "large" ? "大規模" : filters.ec_scale === "medium" ? "中規模" : "小規模"}）` : ""}`
+              : filters.cms_type
+              ? `🔍 CMS/プラットフォーム「${filters.cms_type}」でフィルター中`
+              : `📦 EC規模「${filters.ec_scale === "large" ? "大規模" : filters.ec_scale === "medium" ? "中規模" : "小規模"}」でフィルター中`}
           </span>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => handleFilterChange({ ...filters, cms_type: "", ec_only: "", ec_scale: "" })}
             className="flex items-center gap-1.5 ml-auto text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
           >
-            <LayoutDashboard size={14} />
-            ダッシュボードに戻る
+            <X size={14} />
+            ECフィルターを解除
           </button>
         </div>
       )}
