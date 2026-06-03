@@ -757,6 +757,9 @@ export const api = {
     getActiveJobs: () =>
       axios.get("/api/sales-ai/jobs/active").then(r => r.data),
 
+    cancelJob: (jobId: string) =>
+      axios.post(`/api/sales-ai/jobs/${jobId}/cancel`).then(r => r.data),
+
     resetFailed: (projectId?: number) =>
       axios.post(`/api/sales-ai/messages/reset-failed${projectId ? `?project_id=${projectId}` : ""}`).then(r => r.data),
 

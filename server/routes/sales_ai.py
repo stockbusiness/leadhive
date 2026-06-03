@@ -17,12 +17,17 @@ logger = logging.getLogger(__name__)
 # ── バックグラウンドジョブストア ──────────────────────────────────────────────
 _JOBS: Dict[str, Dict[str, Any]] = {}
 _JOBS_LOCK = threading.Lock()
+_CANCELLED: set = set()  # キャンセルリクエスト済みジョブID
 
 
 def _update_job(job_id: str, **kwargs):
     with _JOBS_LOCK:
         if job_id in _JOBS:
             _JOBS[job_id].update(kwargs)
+
+
+def _is_cancelled(job_id: str) -> bool:
+    return job_id in _CANCELLED
 
 
 def _owned_projects(current_user: User, db: Session):
@@ -274,7 +279,7 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
             total_generated += batch_gen
             _update_job(job_id, done=min((i + 1) * BATCH, len(company_ids)), generated=total_generated)
 
-        if req.auto_send_form and all_generated_ids:
+        if req.auto_send_form and all_generated_ids and not _is_cancelled(job_id):
             _update_job(job_id, phase="sending")
             from server.services.form_sender import send_form_auto
             from server.services.ai_analyzer import get_openai_key
@@ -319,24 +324,31 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
             early = {"未確認", "対象候補", "アプローチ前"}
             already_sent_statuses = {"フォーム送信済", "メール送信済", "商談中", "成約", "NG"}
 
-            for msg in msgs:
-                co = cos_map.get(msg.company_id) or db.query(Company).filter(Company.id == msg.company_id).first()
-                # 既に送信済み・商談中・成約・NGはスキップ（重複送信防止）
-                if co and co.status in already_sent_statuses:
-                    skipped_c += 1
-                    _update_job(job_id, skipped=skipped_c)
-                    continue
-                if not co or not co.website_url:
-                    failed_c += 1
-                    _update_job(job_id, failed=failed_c)
-                    continue
-                body = _expand_variables(msg.body or "", co)
-                subject = _expand_variables(msg.subject or ssubject or "", co)
+            # ── 並列送信（最大3スレッド、1社あたり最大60秒） ──────────────
+            FORM_WORKERS = 3
+            FORM_PER_COMPANY_TIMEOUT = 60  # 秒
+
+            def _send_one(msg_id: int):
+                """1社分のフォーム送信タスク。(msg_id, success, note) を返す。"""
+                if _is_cancelled(job_id):
+                    return (msg_id, None, "cancelled")
+                # 各スレッド独自のDB接続を使う
+                _db = SessionLocal()
                 try:
+                    _msg = _db.query(SalesMessage).filter(SalesMessage.id == msg_id).first()
+                    if not _msg:
+                        return (msg_id, False, "msg_not_found")
+                    _co = cos_map.get(_msg.company_id) or _db.query(Company).filter(Company.id == _msg.company_id).first()
+                    if _co and _co.status in already_sent_statuses:
+                        return (msg_id, "skip", "already_sent")
+                    if not _co or not _co.website_url:
+                        return (msg_id, False, "no_url")
+                    body = _expand_variables(_msg.body or "", _co)
+                    subject = _expand_variables(_msg.subject or ssubject or "", _co)
                     r = send_form_auto(
-                        company_name=co.company_name or "",
-                        website_url=co.website_url or "",
-                        contact_url=co.contact_url or "",
+                        company_name=_co.company_name or "",
+                        website_url=_co.website_url or "",
+                        contact_url=_co.contact_url or "",
                         message_body=body,
                         sender_name=sname,
                         sender_email=semail,
@@ -351,24 +363,68 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                         sender_address=saddress,
                         subject=subject,
                     )
-                    if r.get("success"):
-                        msg.status = "sent"
-                        msg.sent_at = datetime.utcnow()
-                        if co.status in early:
-                            co.status = "フォーム送信済"
-                        sent_c += 1
-                    else:
-                        msg.status = "failed"
-                        logger.warning(f"BG form send failed co={co.id}: {r.get('message')}")
-                        failed_c += 1
+                    return (msg_id, r.get("success", False), r.get("message", ""))
                 except Exception as ex:
-                    logger.exception(f"BG form send exception co={co.id}: {ex}")
-                    msg.status = "failed"
-                    failed_c += 1
-                db.commit()
-                _update_job(job_id, sent=sent_c, failed=failed_c)
+                    logger.exception(f"BG form send exception msg={msg_id}: {ex}")
+                    return (msg_id, False, str(ex))
+                finally:
+                    _db.close()
 
-        _update_job(job_id, status="done", phase="done")
+            msg_id_map = {m.id: m for m in msgs}
+            futures_map = {}
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=FORM_WORKERS) as ex:
+                for msg in msgs:
+                    if _is_cancelled(job_id):
+                        break
+                    fut = ex.submit(_send_one, msg.id)
+                    futures_map[fut] = msg.id
+
+                for fut in concurrent.futures.as_completed(futures_map, timeout=None):
+                    if _is_cancelled(job_id):
+                        break
+                    try:
+                        msg_id, success, note = fut.result(timeout=FORM_PER_COMPANY_TIMEOUT)
+                    except concurrent.futures.TimeoutError:
+                        failed_c += 1
+                        _update_job(job_id, failed=failed_c)
+                        continue
+                    except Exception as ex:
+                        failed_c += 1
+                        _update_job(job_id, failed=failed_c)
+                        continue
+
+                    if success == "skip":
+                        skipped_c += 1
+                        _update_job(job_id, skipped=skipped_c)
+                        continue
+                    if success is None:  # cancelled
+                        break
+
+                    msg_obj = msg_id_map.get(msg_id)
+                    if msg_obj:
+                        if success:
+                            msg_obj.status = "sent"
+                            msg_obj.sent_at = datetime.utcnow()
+                            sent_c += 1
+                        else:
+                            msg_obj.status = "failed"
+                            logger.warning(f"BG form send failed msg={msg_id}: {note}")
+                            failed_c += 1
+                        co = cos_map.get(msg_obj.company_id)
+                        if success and co and co.status in early:
+                            co.status = "フォーム送信済"
+                        try:
+                            db.commit()
+                        except Exception:
+                            db.rollback()
+                    _update_job(job_id, sent=sent_c, failed=failed_c)
+
+        if _is_cancelled(job_id):
+            _update_job(job_id, status="cancelled", phase="cancelled")
+            _CANCELLED.discard(job_id)
+        else:
+            _update_job(job_id, status="done", phase="done")
     except Exception as e:
         logger.error(f"BG job {job_id} error: {e}")
         _update_job(job_id, status="error", error=str(e))
@@ -410,6 +466,22 @@ def get_active_jobs(current_user: User = Depends(get_current_user)):
         active = [j.copy() for j in _JOBS.values()
                   if j["org_id"] == current_user.org_id and j["status"] == "running"]
     return {"jobs": active}
+
+
+@router.post("/jobs/{job_id}/cancel")
+def cancel_bg_job(job_id: str, current_user: User = Depends(get_current_user)):
+    """実行中のバックグラウンドジョブをキャンセルする。"""
+    with _JOBS_LOCK:
+        job = _JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="ジョブが見つかりません")
+    if job["org_id"] != current_user.org_id:
+        raise HTTPException(status_code=403, detail="アクセス権限がありません")
+    if job["status"] != "running":
+        raise HTTPException(status_code=400, detail="実行中のジョブではありません")
+    _CANCELLED.add(job_id)
+    _update_job(job_id, status="cancelling")
+    return {"cancelled": True, "job_id": job_id}
 
 
 @router.get("/jobs/{job_id}")

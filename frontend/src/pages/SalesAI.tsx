@@ -800,7 +800,7 @@ export default function SalesAI() {
       try {
         const s = await api.salesAi.getJobStatus(jobId);
         setBgJobStatus(s);
-        if (s.status === "done" || s.status === "error") {
+        if (s.status === "done" || s.status === "error" || s.status === "cancelled") {
           clearInterval(bgPollRef.current!);
           bgPollRef.current = null;
           loadMessages();
@@ -810,6 +810,16 @@ export default function SalesAI() {
         bgPollRef.current = null;
       }
     }, 3000);
+  };
+
+  const handleCancelBgJob = async () => {
+    if (!bgJobId) return;
+    try {
+      await api.salesAi.cancelJob(bgJobId);
+      setBgJobStatus((prev: any) => prev ? { ...prev, status: "cancelling" } : prev);
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || "キャンセルに失敗しました");
+    }
   };
 
   useEffect(() => {
@@ -1402,6 +1412,8 @@ export default function SalesAI() {
                 <div className={`rounded-lg px-3 py-3 space-y-2 border-2 ${
                   bgJobStatus.status === "done" ? "bg-emerald-50 border-emerald-400" :
                   bgJobStatus.status === "error" ? "bg-red-50 border-red-400" :
+                  bgJobStatus.status === "cancelled" ? "bg-slate-50 border-slate-400" :
+                  bgJobStatus.status === "cancelling" ? "bg-orange-50 border-orange-400" :
                   "bg-sky-50 border-sky-400"
                 }`}>
                   <div className="flex items-center justify-between gap-2">
@@ -1410,14 +1422,26 @@ export default function SalesAI() {
                         <CheckCircle2 size={13} className="text-emerald-600" />
                       ) : bgJobStatus.status === "error" ? (
                         <span className="text-red-600">⚠️</span>
+                      ) : bgJobStatus.status === "cancelled" ? (
+                        <span className="text-slate-500">✕</span>
                       ) : (
                         <RefreshCw size={13} className="animate-spin text-sky-600" />
                       )}
-                      <span className={bgJobStatus.status === "done" ? "text-emerald-700" : bgJobStatus.status === "error" ? "text-red-700" : "text-sky-700"}>
+                      <span className={
+                        bgJobStatus.status === "done" ? "text-emerald-700" :
+                        bgJobStatus.status === "error" ? "text-red-700" :
+                        bgJobStatus.status === "cancelled" ? "text-slate-600" :
+                        bgJobStatus.status === "cancelling" ? "text-orange-600" :
+                        "text-sky-700"
+                      }>
                         {bgJobStatus.status === "done"
                           ? "バックグラウンド処理が完了しました"
                           : bgJobStatus.status === "error"
                           ? "エラーが発生しました"
+                          : bgJobStatus.status === "cancelled"
+                          ? "キャンセルされました"
+                          : bgJobStatus.status === "cancelling"
+                          ? "キャンセル中… 現在の処理が完了次第停止します"
                           : bgJobStatus.phase === "sending"
                           ? "【フェーズ2】バックグラウンドでフォーム送信中…"
                           : `【フェーズ1】バックグラウンドで生成中… バッチ ${bgJobStatus.batch}/${bgJobStatus.total_batches}`}
@@ -1434,6 +1458,11 @@ export default function SalesAI() {
                       <p className="text-xs text-sky-600">{bgJobStatus.done}/{bgJobStatus.total} 件生成完了</p>
                     </>
                   )}
+                  {bgJobStatus.status === "running" && bgJobStatus.phase === "sending" && (
+                    <p className="text-xs text-sky-600">
+                      送信成功: {bgJobStatus.sent ?? 0}件 ／ 失敗: {bgJobStatus.failed ?? 0}件 ／ スキップ: {bgJobStatus.skipped ?? 0}件
+                    </p>
+                  )}
                   {bgJobStatus.status === "done" && (
                     <p className="text-xs text-emerald-600">
                       生成: {bgJobStatus.generated}件
@@ -1443,11 +1472,19 @@ export default function SalesAI() {
                   {bgJobStatus.status === "error" && bgJobStatus.error && (
                     <p className="text-xs text-red-600">{bgJobStatus.error}</p>
                   )}
-                  {bgJobStatus.status !== "running" && (
+                  {(bgJobStatus.status === "done" || bgJobStatus.status === "error" || bgJobStatus.status === "cancelled") && (
                     <button onClick={() => { setBgJobId(null); setBgJobStatus(null); }} className="text-xs text-slate-500 underline">閉じる</button>
                   )}
                   {bgJobStatus.status === "running" && (
-                    <p className="text-xs text-sky-400">画面を閉じても処理は続きます。再度開くと進捗が表示されます。</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-sky-400">画面を閉じても処理は続きます。再度開くと進捗が表示されます。</p>
+                      <button
+                        onClick={handleCancelBgJob}
+                        className="text-xs text-red-500 border border-red-300 rounded px-2 py-0.5 hover:bg-red-50 transition-colors flex-shrink-0"
+                      >
+                        中断する
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
