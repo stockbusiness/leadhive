@@ -895,7 +895,6 @@ export default function SalesAI() {
       const s = await api.settings.get();
       const ok = s?.settings?.openai_api_key;
       setOpenaiKeySet(ok?.is_set || false);
-      if (ok?.is_set && ok?.value) setOpenaiKeyInput(ok.value);
     } catch {}
   }, []);
 
@@ -904,8 +903,9 @@ export default function SalesAI() {
     setOpenaiKeySaving(true);
     setOpenaiKeyMsg(null);
     try {
-      await api.settings.saveSettings({ openai_api_key: openaiKeyInput });
+      await api.settings.update({ openai_api_key: openaiKeyInput });
       setOpenaiKeySet(true);
+      setOpenaiKeyInput("");
       setOpenaiKeyMsg("✅ 保存しました");
     } catch {
       setOpenaiKeyMsg("❌ 保存に失敗しました");
