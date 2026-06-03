@@ -15,6 +15,7 @@ from server.routes import companies, keywords, dashboard, scraper, settings, rej
 from server.routes import auth, users, plans, payments, onboarding, public
 from server.routes import admin_auto_master, segments, sales_ai, notifications
 from server.routes import form_profiles
+from server.routes import tele_apo
 from server.routes import security
 from server.routes import contact
 from server.routes import support
@@ -572,6 +573,7 @@ app.include_router(inbound_webhooks.router)
 app.include_router(lumiqbrain.router)
 app.include_router(email_campaigns.router)
 app.include_router(form_profiles.router)
+app.include_router(tele_apo.router)
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 

@@ -44,6 +44,7 @@ import {
   Zap,
   ShoppingCart,
   ShoppingBag,
+  Phone,
 } from "lucide-react";
 import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -120,6 +121,7 @@ const AdminScoringRules = lazy(() => import("./pages/AdminScoringRules"));
 const PartnerLP = lazy(() => import("./pages/PartnerLP"));
 const ECDiscovery = lazy(() => import("./pages/ECDiscovery"));
 const FormProfiles = lazy(() => import("./pages/FormProfiles"));
+const TeleApo = lazy(() => import("./pages/TeleApo"));
 
 function PageLoader() {
   return (
@@ -317,6 +319,7 @@ function AppContent() {
             <SidebarLink to="/sales-ai" icon={<Bot size={18} />} label="営業AI" onClick={closeSidebar} />
             <SidebarLink to="/pipeline" icon={<GanttChartSquare size={18} />} label="パイプライン" onClick={closeSidebar} />
             <SidebarLink to="/email-campaigns" icon={<Mail size={18} />} label="一括メール送信" onClick={closeSidebar} />
+            <SidebarLink to="/tele-apo" icon={<Phone size={18} />} label="テレアポ" onClick={closeSidebar} />
           </div>
 
           <NavSeparator label="収集" />
@@ -536,6 +539,7 @@ function AppContent() {
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/webhooks" element={<Webhooks />} />
               <Route path="/form-profiles" element={<FormProfiles />} />
+              <Route path="/tele-apo" element={<TeleApo />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

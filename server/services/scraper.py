@@ -282,6 +282,56 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
     if "oscommerce" in html_lower:
         return "osCommerce"
 
+    if (
+        "canaly.jp" in html_lower
+        or "canaly-" in html_lower
+        or '"canaly"' in html_lower
+    ):
+        return "Canaly"
+
+    if (
+        "cross-mall.jp" in html_lower
+        or "crossmall.jp" in html_lower
+        or "cross_mall" in html_lower
+    ):
+        return "Cross Mall"
+
+    if (
+        "smaregi.jp" in html_lower
+        or "smaregi-" in html_lower
+        or "smaregi_ec" in html_lower
+    ):
+        return "Smaregi"
+
+    if (
+        "raku2ec.com" in html_lower
+        or "raku2ec" in html_lower
+        or "rakurakuec" in html_lower
+    ):
+        return "楽楽EC"
+
+    if (
+        "hamee.co.jp" in html_lower
+        or "netemall.jp" in html_lower
+        or "hamee-" in html_lower
+    ):
+        return "Hamee"
+
+    if (
+        "shop.tiktok.com" in html_lower
+        or "tiktokshop" in html_lower
+        or "tiktok.com/shop" in html_lower
+    ):
+        return "TikTokショップ"
+
+    if (
+        "shopify.com/api/storefront" in html_lower
+        or "storefront.shopify.com" in html_lower
+        or "shopify-hydrogen" in html_lower
+        or '"@shopify/hydrogen"' in html_lower
+    ):
+        return "Shopify"
+
     return ""
 
 
@@ -318,6 +368,12 @@ EC_PLATFORM_LABELS = {
     "Wix": "Wix",
     "Squarespace": "Squarespace",
     "Jimdo": "Jimdo",
+    "Canaly": "Canaly",
+    "Cross Mall": "Cross Mall",
+    "Smaregi": "Smaregi",
+    "楽楽EC": "楽楽EC",
+    "Hamee": "Hamee",
+    "TikTokショップ": "TikTokショップ",
 }
 
 

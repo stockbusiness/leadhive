@@ -795,6 +795,21 @@ export const api = {
       axios.post("/api/sales-ai/auto-generate/run-now").then(r => r.data),
   },
 
+  teleApo: {
+    companies: (params?: { project_id?: number; score_rank?: string; status?: string; search?: string; limit?: number; offset?: number }) =>
+      axios.get("/api/tele-apo/companies", { params }).then(r => r.data),
+    stats: () =>
+      axios.get("/api/tele-apo/stats").then(r => r.data),
+    createLog: (data: { company_id: number; result: string; note?: string }) =>
+      axios.post("/api/tele-apo/logs", data).then(r => r.data),
+    logs: (company_id?: number) =>
+      axios.get("/api/tele-apo/logs", { params: { company_id } }).then(r => r.data),
+    deleteLog: (id: number) =>
+      axios.delete(`/api/tele-apo/logs/${id}`).then(r => r.data),
+    generateScript: (company_id: number) =>
+      axios.post("/api/tele-apo/script", { company_id }).then(r => r.data),
+  },
+
   notifications: {
     followUps: () =>
       axios.get<{

@@ -677,6 +677,19 @@ class EmailCampaign(Base):
     auto_status_on_click = Column(String(50), nullable=True)
 
 
+class CallLog(Base):
+    __tablename__ = "call_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    called_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    called_at = Column(DateTime, server_default=func.now())
+    result = Column(String(50), nullable=False)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class EmailLog(Base):
     __tablename__ = "email_logs"
 

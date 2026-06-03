@@ -429,6 +429,45 @@ def get_ec_keyword_templates(
                 {"keyword": "教育コンテンツ D2C 通販 販売", "category": "EC運営", "region": ""},
             ],
         },
+        {
+            "id": "tiktok_shop",
+            "label": "TikTokショップ・SNSコマース出店者",
+            "icon": "🎵",
+            "description": "TikTok Shop・Instagram Shopping等ソーシャルコマース出店企業向け",
+            "keywords": [
+                {"keyword": "TikTok Shop 出店 ブランド 自社EC", "category": "EC運営", "region": ""},
+                {"keyword": "TikTokショップ 運営会社 通販", "category": "EC運営", "region": ""},
+                {"keyword": "SNS ライブコマース 通販 自社ブランド", "category": "EC運営", "region": ""},
+                {"keyword": "Instagram ショッピング 出店 ブランド 自社", "category": "EC運営", "region": ""},
+                {"keyword": "ソーシャルコマース 通販 EC 自社サイト", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "cross_mall",
+            "label": "モール一元管理・受注管理EC",
+            "icon": "🔗",
+            "description": "複数モール一元管理・受注管理システム利用のEC事業者向け",
+            "keywords": [
+                {"keyword": "クロスモール 利用 EC 通販 運営", "category": "EC運営", "region": ""},
+                {"keyword": "モール 一元管理 EC 運営会社", "category": "EC運営", "region": ""},
+                {"keyword": "受注管理 EC 複数モール 通販", "category": "EC運営", "region": ""},
+                {"keyword": "楽天 Yahoo Amazon 一元管理 EC 自社", "category": "EC運営", "region": ""},
+                {"keyword": "OMS 受注管理 通販 EC 運営", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "smaregi_pos",
+            "label": "スマレジ・POS連携ECオーナー",
+            "icon": "🏪",
+            "description": "スマレジ等POS+EC連携で実店舗・オンライン同時運営の事業者向け",
+            "keywords": [
+                {"keyword": "スマレジ EC 連携 実店舗 通販", "category": "EC運営", "region": ""},
+                {"keyword": "POS EC 連携 在庫管理 通販 自社", "category": "EC運営", "region": ""},
+                {"keyword": "実店舗 EC 一元管理 在庫 通販", "category": "EC運営", "region": ""},
+                {"keyword": "オムニチャネル POS EC 運営 自社", "category": "EC運営", "region": ""},
+                {"keyword": "レジ EC 連携 通販 運営会社", "category": "EC運営", "region": ""},
+            ],
+        },
     ]
     return {"templates": templates}
 

@@ -11,6 +11,8 @@ DEFAULT_SCORING_RULES = {
     "yahoo_shopping_flag": 10,
     "lolipop_flag": 10,
     "rakuten_flag": 10,
+    "instagram_shop": 8,
+    "tiktok_shop": 8,
     "production_flag": 15,
     "consulting_flag": 15,
     "operation_flag": 15,
@@ -96,6 +98,10 @@ def calculate_score(company_data: dict, custom_rules: dict = None, db=None) -> t
     if not company_data.get("contact_url") and "no_contact_penalty" in rules:
         score += rules["no_contact_penalty"]
 
+    for flag in ("instagram_shop", "tiktok_shop"):
+        if company_data.get(flag) and flag in rules:
+            score += rules[flag]
+
     ec_related = any([
         company_data.get("shopify_flag"),
         company_data.get("ec_flag"),
@@ -104,6 +110,8 @@ def calculate_score(company_data: dict, custom_rules: dict = None, db=None) -> t
         company_data.get("woocommerce_flag"),
         company_data.get("yahoo_shopping_flag"),
         company_data.get("lolipop_flag"),
+        company_data.get("instagram_shop"),
+        company_data.get("tiktok_shop"),
         company_data.get("consulting_flag"),
         company_data.get("operation_flag"),
         company_data.get("production_flag"),
