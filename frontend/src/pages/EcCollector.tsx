@@ -10,6 +10,8 @@ import type { EcKeywordTemplate } from "../types";
 const EC_PLATFORMS = [
   "Shopify", "BASE", "STORES", "MakeShop", "futureshop",
   "カラーミー", "EC-CUBE", "WooCommerce", "Yahoo!ショッピング", "楽天",
+  "ecbeing", "aishipR", "ショップサーブ", "ロリポップEC", "Welcart",
+  "メルカリShops", "WACA",
 ];
 
 const REGIONS = ["", "東京", "大阪", "愛知", "神奈川", "埼玉", "福岡", "北海道", "宮城", "広島"];

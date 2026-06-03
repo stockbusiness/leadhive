@@ -148,6 +148,31 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
         return "ロリポップEC"
 
     if (
+        "welcart.com" in html_lower
+        or "welcart-plugin" in html_lower
+        or 'class="wc2_' in html_lower
+        or "welcart_" in html_lower
+    ):
+        return "Welcart"
+
+    if (
+        "waca.ne.jp" in html_lower
+        or "waca.com/shop" in html_lower
+        or 'waca-ec"' in html_lower
+    ):
+        return "WACA"
+
+    if (
+        "mercari-shops.com" in html_lower
+        or "mercari.com/shops/" in html_lower
+        or "shops.mercari.com" in html_lower
+    ):
+        return "メルカリShops"
+
+    if "whoo.jp" in html_lower or "whoo-beauty" in html_lower:
+        return "Whoo"
+
+    if (
         "next-engine.org" in html_lower
         or "next-engine.com" in html_lower
     ):
@@ -266,6 +291,10 @@ EC_PLATFORM_LABELS = {
     "Yahoo!ショッピング": "Yahoo!ショッピング",
     "楽天市場": "楽天市場",
     "aishipR": "aishipR",
+    "Welcart": "Welcart",
+    "WACA": "WACA",
+    "メルカリShops": "メルカリShops",
+    "Whoo": "Whoo",
     "ショップサーブ": "ショップサーブ",
     "BigCommerce": "BigCommerce",
     "Magento": "Magento",

@@ -364,6 +364,71 @@ def get_ec_keyword_templates(
                 {"keyword": "IoT スマートホーム 通販 EC", "category": "EC運営", "region": ""},
             ],
         },
+        {
+            "id": "healthcare",
+            "label": "ヘルスケア・医療・介護EC",
+            "icon": "🏥",
+            "description": "健康器具・医療用品・介護用品のEC向け",
+            "keywords": [
+                {"keyword": "ヘルスケア 通販 自社EC", "category": "EC運営", "region": ""},
+                {"keyword": "医療用品 ネットショップ 運営", "category": "EC運営", "region": ""},
+                {"keyword": "介護用品 通販 D2C ブランド", "category": "EC運営", "region": ""},
+                {"keyword": "健康器具 サプリ 通販 定期便", "category": "EC運営", "region": ""},
+                {"keyword": "ウェルネス グッズ 通販 自社EC", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "kids_baby",
+            "label": "キッズ・ベビー・マタニティEC",
+            "icon": "👶",
+            "description": "子供用品・ベビー・マタニティのEC向け",
+            "keywords": [
+                {"keyword": "ベビー用品 通販 自社EC 会社", "category": "EC運営", "region": ""},
+                {"keyword": "キッズファッション 通販 D2C", "category": "EC運営", "region": ""},
+                {"keyword": "おもちゃ 知育 ネットショップ 運営", "category": "EC運営", "region": ""},
+                {"keyword": "マタニティ 出産準備 通販 自社", "category": "EC運営", "region": ""},
+                {"keyword": "子供服 自社ブランド EC 通販", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "jewelry",
+            "label": "ジュエリー・アクセサリーEC",
+            "icon": "💎",
+            "description": "宝飾・ジュエリー・アクセサリーのEC向け",
+            "keywords": [
+                {"keyword": "ジュエリー 通販 自社EC 会社", "category": "EC運営", "region": ""},
+                {"keyword": "アクセサリー D2C ブランド 通販", "category": "EC運営", "region": ""},
+                {"keyword": "指輪 ネックレス ネットショップ 運営", "category": "EC運営", "region": ""},
+                {"keyword": "ブライダル ジュエリー EC 通販", "category": "EC運営", "region": ""},
+                {"keyword": "天然石 パワーストーン 通販 自社", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "wine_sake",
+            "label": "酒・ワイン・飲料EC",
+            "icon": "🍷",
+            "description": "ワイン・日本酒・クラフトビールのEC向け",
+            "keywords": [
+                {"keyword": "ワイン 通販 自社EC 輸入", "category": "EC運営", "region": ""},
+                {"keyword": "日本酒 地酒 ネットショップ 蔵元", "category": "EC運営", "region": ""},
+                {"keyword": "クラフトビール 通販 EC 醸造所", "category": "EC運営", "region": ""},
+                {"keyword": "ウイスキー 洋酒 通販 自社EC", "category": "EC運営", "region": ""},
+                {"keyword": "お酒 定期便 サブスク EC 会社", "category": "EC運営", "region": ""},
+            ],
+        },
+        {
+            "id": "books_digital",
+            "label": "書籍・デジタルコンテンツEC",
+            "icon": "📚",
+            "description": "書籍・教材・デジタルコンテンツ販売のEC向け",
+            "keywords": [
+                {"keyword": "書籍 通販 自社EC 出版社", "category": "EC運営", "region": ""},
+                {"keyword": "デジタルコンテンツ 販売 EC 会社", "category": "EC運営", "region": ""},
+                {"keyword": "オンライン教材 販売 ネットショップ", "category": "EC運営", "region": ""},
+                {"keyword": "電子書籍 自社販売 EC プラットフォーム", "category": "EC運営", "region": ""},
+                {"keyword": "教育コンテンツ D2C 通販 販売", "category": "EC運営", "region": ""},
+            ],
+        },
     ]
     return {"templates": templates}
 

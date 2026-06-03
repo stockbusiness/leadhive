@@ -129,6 +129,28 @@ def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_lin
         offer_schema = soup.find(attrs={"itemtype": re.compile(r"schema.org/Offer", re.I)})
         if offer_schema:
             score += 8
+        for ld_tag in soup.find_all("script", type="application/ld+json"):
+            try:
+                import json as _json
+                ld_text = ld_tag.string or ""
+                ld_data = _json.loads(ld_text)
+                ld_list = ld_data if isinstance(ld_data, list) else [ld_data]
+                for ld in ld_list:
+                    ld_type = str(ld.get("@type", "")).lower()
+                    if ld_type in ("product", "productgroup", "offer"):
+                        score += 18
+                        break
+                    if ld_type in ("itemlist", "breadcrumblist"):
+                        items = ld.get("itemListElement", [])
+                        num_items = ld.get("numberOfItems", len(items))
+                        try:
+                            if int(num_items) >= 10:
+                                score += 8
+                        except (ValueError, TypeError):
+                            pass
+                        break
+            except Exception:
+                pass
 
     if any(kw in text for kw in EC_PAYMENT_BADGE_KEYWORDS):
         score += 8
@@ -172,13 +194,39 @@ def calculate_ec_scale(soup: BeautifulSoup, html_source: str, ec_score: int) -> 
     woo_signals = EC_WOOCOMMERCE_SIGNALS.search(html_lower)
     has_payment_badge = any(kw in html_lower for kw in EC_PAYMENT_BADGE_KEYWORDS)
 
-    if ec_score >= 70 and (product_link_count >= 20 or (checkout_detected and review_count >= 10)):
+    ld_product_count = 0
+    try:
+        import json as _json
+        for ld_tag in soup.find_all("script", type="application/ld+json"):
+            ld_text = ld_tag.string or ""
+            ld_data = _json.loads(ld_text)
+            ld_list = ld_data if isinstance(ld_data, list) else [ld_data]
+            for ld in ld_list:
+                ld_type = str(ld.get("@type", "")).lower()
+                if ld_type == "itemlist":
+                    num = ld.get("numberOfItems") or len(ld.get("itemListElement", []))
+                    try:
+                        ld_product_count = max(ld_product_count, int(num))
+                    except (ValueError, TypeError):
+                        pass
+                elif ld_type == "product":
+                    ld_product_count = max(ld_product_count, 1)
+    except Exception:
+        pass
+
+    effective_product_count = max(product_link_count, ld_product_count)
+
+    if ec_score >= 70 and (effective_product_count >= 20 or (checkout_detected and review_count >= 10)):
         return "large"
-    if ec_score >= 60 and (product_link_count >= 10 or (woo_signals and checkout_detected)):
+    if ec_score >= 60 and (effective_product_count >= 10 or (woo_signals and checkout_detected)):
         return "large"
-    if ec_score >= 50 and (product_link_count >= 5 or review_count >= 5 or has_payment_badge):
+    if ec_score >= 50 and (effective_product_count >= 5 or review_count >= 5 or has_payment_badge):
         return "medium"
-    if ec_score >= 30 or product_link_count >= 1:
+    if ld_product_count >= 50:
+        return "large"
+    if ld_product_count >= 10:
+        return "medium"
+    if ec_score >= 30 or effective_product_count >= 1:
         return "small"
     return ""
 

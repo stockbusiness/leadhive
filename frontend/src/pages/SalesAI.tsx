@@ -764,6 +764,10 @@ export default function SalesAI() {
   const [scheduleTemplateType, setScheduleTemplateType] = useState<TemplateType>("shopify");
   const [scheduleProjectId, setScheduleProjectId] = useState<number | null>(null);
   const [scheduleLastRunAt, setScheduleLastRunAt] = useState<string | null>(null);
+  const [openaiKeyInput, setOpenaiKeyInput] = useState("");
+  const [openaiKeySet, setOpenaiKeySet] = useState(false);
+  const [openaiKeySaving, setOpenaiKeySaving] = useState(false);
+  const [openaiKeyMsg, setOpenaiKeyMsg] = useState<string | null>(null);
   const [scheduleLastRunCount, setScheduleLastRunCount] = useState(0);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleRunning, setScheduleRunning] = useState(false);
@@ -887,7 +891,28 @@ export default function SalesAI() {
       setScheduleLastRunCount(res.last_run_count);
       setScheduleProjects(res.projects || []);
     } catch {}
+    try {
+      const s = await api.settings.get();
+      const ok = s?.settings?.openai_api_key;
+      setOpenaiKeySet(ok?.is_set || false);
+      if (ok?.is_set && ok?.value) setOpenaiKeyInput(ok.value);
+    } catch {}
   }, []);
+
+  const handleSaveOpenaiKey = async () => {
+    if (!openaiKeyInput || openaiKeyInput.includes("*")) return;
+    setOpenaiKeySaving(true);
+    setOpenaiKeyMsg(null);
+    try {
+      await api.settings.saveSettings({ openai_api_key: openaiKeyInput });
+      setOpenaiKeySet(true);
+      setOpenaiKeyMsg("✅ 保存しました");
+    } catch {
+      setOpenaiKeyMsg("❌ 保存に失敗しました");
+    } finally {
+      setOpenaiKeySaving(false);
+    }
+  };
 
   useEffect(() => { loadCompanies(); }, [loadCompanies]);
   useEffect(() => { if (activeTab === "messages") loadMessages(); }, [activeTab, loadMessages]);
@@ -2482,6 +2507,41 @@ export default function SalesAI() {
               </div>
             </div>
           )}
+
+          {/* OpenAI APIキー設定 */}
+          <div className="bg-white rounded-xl border border-violet-200 p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-violet-600" />
+            <h3 className="font-semibold text-slate-800 text-sm">OpenAI APIキー設定</h3>
+            {openaiKeySet && (
+              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">設定済み</span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500">
+            設定するとフォーム送信時のフィールドマッピング精度が上がります（なくても送信可能です）。
+            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline ml-1">APIキー取得 →</a>
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={openaiKeyInput}
+              onChange={e => setOpenaiKeyInput(e.target.value)}
+              placeholder="sk-..."
+              className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+            />
+            <button
+              onClick={handleSaveOpenaiKey}
+              disabled={openaiKeySaving || !openaiKeyInput || openaiKeyInput.includes("*")}
+              className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+            >
+              {openaiKeySaving ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />}
+              保存
+            </button>
+          </div>
+          {openaiKeyMsg && (
+            <p className="text-xs font-medium text-slate-700">{openaiKeyMsg}</p>
+          )}
+          </div>
         </div>
       )}
 
