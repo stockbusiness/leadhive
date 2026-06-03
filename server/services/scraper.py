@@ -144,7 +144,12 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
     if "jimdo.com" in html_lower or "jimdofree.com" in html_lower:
         return "Jimdo"
 
-    if "lolipop.jp" in html_lower or "lolipop-ec" in html_lower:
+    if (
+        "lolipop.jp" in html_lower
+        or "lolipop-ec" in html_lower
+        or "ls-portal.jp" in html_lower
+        or "lolipop-ec.jp" in html_lower
+    ):
         return "ロリポップEC"
 
     if (
@@ -154,6 +159,9 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
         or "welcart_" in html_lower
     ):
         return "Welcart"
+
+    if "tempostar.jp" in html_lower or "tempostar-" in html_lower:
+        return "TEMPOSTAR"
 
     if (
         "waca.ne.jp" in html_lower
@@ -185,6 +193,8 @@ def detect_cms(soup: BeautifulSoup, html_source: str, response_headers: dict) ->
         "shopping.geocities.jp" in html_lower
         or "store.shopping.yahoo.co.jp" in html_lower
         or "store.yahoo.co.jp" in html_lower
+        or "paypaymall.yahoo.co.jp" in html_lower
+        or "business.yahoo.co.jp/shopping" in html_lower
     ):
         return "Yahoo!ショッピング"
 

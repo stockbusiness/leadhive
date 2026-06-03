@@ -38,13 +38,19 @@ DEFAULT_FLAG_KEYWORDS = {
     "amazon_flag": ["amazon", "アマゾン"],
     "rakuten_flag": ["楽天", "rakuten"],
     "base_flag": ["ベイス", "base.shop", "pay.base.com", "base-ec.jp", "base-ec"],
-    "makeshop_flag": ["makeshop", "メイクショップ"],
+    "makeshop_flag": ["makeshop", "メイクショップ", "gmo makeshop", "gmomeイクショップ"],
     "futureshop_flag": ["futureshop", "フューチャーショップ", "future-shop"],
     "ecbeing_flag": ["ecbeing", "ec-being", "ecbeing.co.jp"],
     "stores_flag": ["stores.jp", "stores.store"],
-    "woocommerce_flag": ["woocommerce", "ウーコマース", "woo commerce"],
-    "yahoo_shopping_flag": ["yahoo!ショッピング", "yahoo shopping", "ストア.yahoo", "store.yahoo.co.jp"],
-    "lolipop_flag": ["ロリポップec", "lolipop-ec", "lolipop.jp"],
+    "woocommerce_flag": ["woocommerce", "ウーコマース", "woo commerce", "wc-ajax", "wc_add_to_cart"],
+    "yahoo_shopping_flag": ["yahoo!ショッピング", "yahoo shopping", "ストア.yahoo", "store.yahoo.co.jp", "store.shopping.yahoo"],
+    "lolipop_flag": ["ロリポップec", "lolipop-ec", "lolipop.jp", "ls-portal.jp"],
+    "welcart_flag": ["welcart", "welcart.com", "ウェルカート", 'class="wc2_'],
+    "eccube_flag": ["ec-cube", "eccube", "ec2-cube", "ec-cube.net"],
+    "colorfulme_flag": ["color-me-shop", "shop-pro.jp", "karakami"],
+    "aishipr_flag": ["aiship.jp", "aishipr.com", "aishipr"],
+    "tempostar_flag": ["tempostar.jp", "tempostar"],
+    "mercari_shops_flag": ["mercari-shops.com", "shops.mercari.com", "mercari.com/shops"],
     "consulting_flag": ["コンサル", "支援", "戦略"],
     "operation_flag": ["運営代行", "運用代行"],
     "production_flag": ["制作", "構築", "開発"],
@@ -56,14 +62,33 @@ EC_URL_PATTERNS = re.compile(
 )
 EC_CART_KEYWORDS = ["カートに入れる", "購入する", "買い物かご", "ショッピングカート", "add to cart", "buy now", "注文する", "カートへ", "今すぐ購入"]
 EC_PRICE_KEYWORDS = ["¥", "円", "税込", "税別", "税抜", "価格", "値段", "定価", "割引", "OFF", "送料無料"]
-EC_TOKUSHO_PATTERNS = re.compile(r"/(?:tokusho|law|legal|tokuteishohotorihikiho|特定商取引|tokutei)", re.IGNORECASE)
-EC_TOKUSHO_CONTENT_KEYWORDS = ["特定商取引法", "販売事業者", "販売責任者", "通信販売", "返品特約", "返品・交換"]
+EC_TOKUSHO_PATTERNS = re.compile(
+    r"/(?:tokusho|law|legal|tokuteishohotorihikiho|特定商取引|tokutei|trade.?law|trading.?law|specified.?commercial|act|disclosure)",
+    re.IGNORECASE,
+)
+EC_TOKUSHO_CONTENT_KEYWORDS = ["特定商取引法", "販売事業者", "販売責任者", "通信販売", "返品特約", "返品・交換",
+                                "販売価格", "送料について", "支払い時期", "引渡し時期"]
 EC_PAYMENT_KEYWORDS = ["決済方法", "お支払い方法", "支払方法", "クレジットカード", "代引き", "送料", "お届け", "配送方法", "配送料"]
 EC_PAYMENT_BADGE_KEYWORDS = ["paypay", "line pay", "linepay", "au pay", "メルペイ", "d払い", "楽天pay", "amazon pay", "paidy", "bnpl"]
 EC_STOCK_KEYWORDS = ["在庫あり", "在庫確認", "お届け日数", "在庫", "入荷待ち", "残り", "SOLD OUT", "完売"]
 EC_REVIEW_KEYWORDS = ["レビュー", "口コミ", "評価", "★", "件のレビュー", "購入者レビュー"]
-EC_ROBOTS_CART_PATTERN = re.compile(r"Disallow:\s*/(?:cart|checkout|order|purchase|wishlist|account/order)", re.IGNORECASE)
-EC_ROBOTS_EC_PATTERN = re.compile(r"Disallow:\s*/(?:wp-json/wc|wc-api|ecapi)", re.IGNORECASE)
+EC_ROBOTS_CART_PATTERN = re.compile(
+    r"Disallow:\s*/(?:cart|checkout|order|purchase|wishlist|account/order|basket|bag|mypage/order|ls-portal)",
+    re.IGNORECASE,
+)
+EC_ROBOTS_EC_PATTERN = re.compile(
+    r"Disallow:\s*/(?:wp-json/wc|wc-api|ecapi|ec-cube|shop-pro|makeshop|futureshop|tempostar)",
+    re.IGNORECASE,
+)
+EC_AVAILABILITY_META_PATTERN = re.compile(
+    r'<meta[^>]+(?:property|name)="(?:og:availability|product:availability|availability)"[^>]+content="(?:in.?stock|instock|available|在庫あり)"',
+    re.IGNORECASE,
+)
+EC_PRICE_META_PATTERN = re.compile(
+    r'<meta[^>]+(?:property|name)="(?:product:price:amount|og:price:amount|twitter:label1|price)"[^>]+content="[\d.,¥￥]+',
+    re.IGNORECASE,
+)
+EC_LOLIPOP_CART_PATTERN = re.compile(r"ls-portal\.jp|lolipop-ec\.jp|cart\.lolipop", re.IGNORECASE)
 EC_SCALE_PRODUCT_PATTERN = re.compile(r"/(?:products?|items?|goods)/", re.IGNORECASE)
 EC_CHECKOUT_URL_PATTERN = re.compile(r"/(?:checkout|cart|basket|payment|order/confirm)", re.IGNORECASE)
 EC_WOOCOMMERCE_SIGNALS = re.compile(r"wp-json/wc/|wc-ajax=|woocommerce-cart|wc_add_to_cart|add-to-cart=\d", re.IGNORECASE)
@@ -170,6 +195,24 @@ def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_lin
     if EC_WOOCOMMERCE_SIGNALS.search(html_lower):
         score += 15
 
+    if html_source:
+        if EC_AVAILABILITY_META_PATTERN.search(html_source):
+            score += 10
+        if EC_PRICE_META_PATTERN.search(html_source):
+            score += 10
+        if EC_LOLIPOP_CART_PATTERN.search(html_lower):
+            score += 15
+
+    if soup:
+        twitter_label = soup.find("meta", attrs={"name": "twitter:label1"})
+        if twitter_label and "price" in (twitter_label.get("content", "") or "").lower():
+            score += 8
+        twitter_data = soup.find("meta", attrs={"name": "twitter:data1"})
+        if twitter_data:
+            val = (twitter_data.get("content", "") or "").strip()
+            if val and any(c.isdigit() for c in val):
+                score += 5
+
     return min(score, 100)
 
 
@@ -194,6 +237,24 @@ def calculate_ec_scale(soup: BeautifulSoup, html_source: str, ec_score: int) -> 
     woo_signals = EC_WOOCOMMERCE_SIGNALS.search(html_lower)
     has_payment_badge = any(kw in html_lower for kw in EC_PAYMENT_BADGE_KEYWORDS)
 
+    payment_method_count = sum(1 for kw in EC_PAYMENT_BADGE_KEYWORDS if kw in html_lower)
+
+    item_count_match = re.search(
+        r"(\d[\d,]+)\s*(?:件|点|商品|アイテム|items?|products?|SKU)",
+        html_lower,
+    )
+    explicit_item_count = 0
+    if item_count_match:
+        try:
+            explicit_item_count = int(item_count_match.group(1).replace(",", ""))
+        except ValueError:
+            explicit_item_count = 0
+
+    category_nav_links = [h for h in link_hrefs if re.search(
+        r"/(?:category|categories|genre|collection|dept|type|brand)/", h, re.IGNORECASE
+    )]
+    estimated_from_nav = len(category_nav_links) * 8
+
     ld_product_count = 0
     try:
         import json as _json
@@ -214,17 +275,23 @@ def calculate_ec_scale(soup: BeautifulSoup, html_source: str, ec_score: int) -> 
     except Exception:
         pass
 
-    effective_product_count = max(product_link_count, ld_product_count)
+    effective_product_count = max(product_link_count, ld_product_count, estimated_from_nav)
+    if explicit_item_count > effective_product_count:
+        effective_product_count = explicit_item_count
 
+    if ld_product_count >= 50 or explicit_item_count >= 50:
+        return "large"
     if ec_score >= 70 and (effective_product_count >= 20 or (checkout_detected and review_count >= 10)):
         return "large"
     if ec_score >= 60 and (effective_product_count >= 10 or (woo_signals and checkout_detected)):
         return "large"
+    if ec_score >= 60 and payment_method_count >= 3 and checkout_detected:
+        return "large"
+    if ld_product_count >= 10 or explicit_item_count >= 10:
+        return "medium"
     if ec_score >= 50 and (effective_product_count >= 5 or review_count >= 5 or has_payment_badge):
         return "medium"
-    if ld_product_count >= 50:
-        return "large"
-    if ld_product_count >= 10:
+    if ec_score >= 40 and payment_method_count >= 2:
         return "medium"
     if ec_score >= 30 or effective_product_count >= 1:
         return "small"

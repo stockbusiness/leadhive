@@ -135,6 +135,7 @@ def list_companies(
     status: Optional[str] = None,
     score_rank: Optional[str] = None,
     has_contact: Optional[bool] = None,
+    has_phone: Optional[bool] = None,
     search: Optional[str] = None,
     tag: Optional[str] = None,
     assignee_id: Optional[int] = None,
@@ -175,6 +176,11 @@ def list_companies(
             query = query.filter(Company.contact_url.isnot(None), Company.contact_url != "")
         else:
             query = query.filter((Company.contact_url.is_(None)) | (Company.contact_url == ""))
+    if has_phone is not None:
+        if has_phone:
+            query = query.filter(Company.phone.isnot(None), Company.phone != "")
+        else:
+            query = query.filter((Company.phone.is_(None)) | (Company.phone == ""))
     if search:
         query = query.filter(
             Company.company_name.ilike(f"%{search}%")
@@ -194,7 +200,10 @@ def list_companies(
         if cms_type == "EC_PLATFORMS":
             ec_platforms = ["Shopify", "WooCommerce", "BASE", "MakeShop", "futureshop", "ecbeing",
                             "カラーミー", "EC-CUBE", "STORES", "ロリポップEC", "NEXT ENGINE",
-                            "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ"]
+                            "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ",
+                            "Welcart", "WACA", "メルカリShops", "BigCommerce", "Magento",
+                            "カラフルボックスEC", "メルカート", "TEMPOSTAR", "Shopline",
+                            "PrestaShop", "OpenCart", "Cafe24", "Square Online"]
             query = query.filter(Company.cms_type.in_(ec_platforms))
         else:
             query = query.filter(Company.cms_type == cms_type)
@@ -524,7 +533,10 @@ def export_companies_xlsx_v2(
         if cms_type == "EC_PLATFORMS":
             ec_platforms = ["Shopify", "WooCommerce", "BASE", "MakeShop", "futureshop", "ecbeing",
                             "カラーミー", "EC-CUBE", "STORES", "ロリポップEC", "NEXT ENGINE",
-                            "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ"]
+                            "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ",
+                            "Welcart", "WACA", "メルカリShops", "BigCommerce", "Magento",
+                            "カラフルボックスEC", "メルカート", "TEMPOSTAR", "Shopline",
+                            "PrestaShop", "OpenCart", "Cafe24", "Square Online"]
             query = query.filter(Company.cms_type.in_(ec_platforms))
         else:
             query = query.filter(Company.cms_type == cms_type)
@@ -592,6 +604,7 @@ def get_company_ids(
     status: Optional[str] = None,
     score_rank: Optional[str] = None,
     has_contact: Optional[bool] = None,
+    has_phone: Optional[bool] = None,
     search: Optional[str] = None,
     tag: Optional[str] = None,
     assignee_id: Optional[int] = None,
@@ -627,6 +640,11 @@ def get_company_ids(
             query = query.filter(Company.contact_url.isnot(None), Company.contact_url != "")
         else:
             query = query.filter((Company.contact_url.is_(None)) | (Company.contact_url == ""))
+    if has_phone is not None:
+        if has_phone:
+            query = query.filter(Company.phone.isnot(None), Company.phone != "")
+        else:
+            query = query.filter((Company.phone.is_(None)) | (Company.phone == ""))
     if search:
         query = query.filter(
             Company.company_name.ilike(f"%{search}%")
@@ -646,7 +664,10 @@ def get_company_ids(
         if cms_type == "EC_PLATFORMS":
             ec_platforms = ["Shopify", "WooCommerce", "BASE", "MakeShop", "futureshop", "ecbeing",
                             "カラーミー", "EC-CUBE", "STORES", "ロリポップEC", "NEXT ENGINE",
-                            "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ"]
+                            "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ",
+                            "Welcart", "WACA", "メルカリShops", "BigCommerce", "Magento",
+                            "カラフルボックスEC", "メルカート", "TEMPOSTAR", "Shopline",
+                            "PrestaShop", "OpenCart", "Cafe24", "Square Online"]
             query = query.filter(Company.cms_type.in_(ec_platforms))
         else:
             query = query.filter(Company.cms_type == cms_type)
@@ -1173,7 +1194,10 @@ def export_csv(
         if cms_type == "EC_PLATFORMS":
             ec_platforms = ["Shopify", "WooCommerce", "BASE", "MakeShop", "futureshop", "ecbeing",
                             "カラーミー", "EC-CUBE", "STORES", "ロリポップEC", "NEXT ENGINE",
-                            "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ"]
+                            "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ",
+                            "Welcart", "WACA", "メルカリShops", "BigCommerce", "Magento",
+                            "カラフルボックスEC", "メルカート", "TEMPOSTAR", "Shopline",
+                            "PrestaShop", "OpenCart", "Cafe24", "Square Online"]
             query = query.filter(Company.cms_type.in_(ec_platforms))
         else:
             query = query.filter(Company.cms_type == cms_type)

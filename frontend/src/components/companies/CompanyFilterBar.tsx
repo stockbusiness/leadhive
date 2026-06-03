@@ -44,10 +44,14 @@ const CMS_COLORS: Record<string, string> = {
   "Yahoo!ショッピング": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
   "NEXT ENGINE": "bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200",
   "独自EC": "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200",
-  "楽天市場": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
   "Amazon": "bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200",
   WordPress: "bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-200",
   Wix: "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
+  Welcart: "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200",
+  WACA: "bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200",
+  "メルカリShops": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
+  TEMPOSTAR: "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+  "Square Online": "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200",
 };
 
 const DEFAULT_BADGE_COLOR = "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200";
@@ -234,12 +238,17 @@ export default function CompanyFilterBar({
             <option value="カート365">カート365</option>
             <option value="カラフルボックスEC">カラフルボックスEC</option>
             <option value="メルカート">メルカート</option>
+            <option value="Welcart">Welcart</option>
+            <option value="WACA">WACA</option>
+            <option value="TEMPOSTAR">TEMPOSTAR</option>
+            <option value="Square Online">Square Online</option>
             <option value="独自EC">独自EC</option>
           </optgroup>
           <optgroup label="モール・マーケットプレイス">
             <option value="Yahoo!ショッピング">Yahoo!ショッピング</option>
             <option value="楽天市場">楽天市場</option>
             <option value="Amazon">Amazon</option>
+            <option value="メルカリShops">メルカリShops</option>
           </optgroup>
           <optgroup label="ECカート（海外系）">
             <option value="WooCommerce">WooCommerce</option>
