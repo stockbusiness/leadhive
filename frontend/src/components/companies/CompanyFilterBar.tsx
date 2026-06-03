@@ -66,6 +66,7 @@ export default function CompanyFilterBar({
   const [members, setMembers] = useState<{ id: number; email: string; display_name: string }[]>([]);
   const [cmsSummary, setCmsSummary] = useState<Record<string, number>>({});
   const [ecCount, setEcCount] = useState<number>(0);
+  const [formCount, setFormCount] = useState<number>(0);
 
   useEffect(() => {
     api.companies.getAllTags().then((data) => setAllTags(data.tags));
@@ -76,6 +77,7 @@ export default function CompanyFilterBar({
     api.dashboard.get(currentProject?.id).then((data) => {
       if (data.by_cms_type) setCmsSummary(data.by_cms_type);
       if (typeof data.ec_count === "number") setEcCount(data.ec_count);
+      if (typeof data.with_contact === "number") setFormCount(data.with_contact);
     }).catch(() => {});
   }, [currentProject?.id]);
 
@@ -154,11 +156,17 @@ export default function CompanyFilterBar({
         <select
           value={filters.has_contact}
           onChange={(e) => onFilterChange({ ...filters, has_contact: e.target.value })}
-          className={selectClass}
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+            filters.has_contact === "true"
+              ? "border-cyan-400 bg-cyan-50 text-cyan-700"
+              : filters.has_contact === "false"
+              ? "border-slate-400 bg-slate-50 text-slate-600"
+              : "border-slate-300"
+          }`}
         >
-          <option value="">問い合わせ</option>
-          <option value="true">あり</option>
-          <option value="false">なし</option>
+          <option value="">フォームURL</option>
+          <option value="true">📨 フォームURLあり</option>
+          <option value="false">フォームURLなし</option>
         </select>
         {members.length > 0 && (
           <select
@@ -273,8 +281,20 @@ export default function CompanyFilterBar({
         </select>
       </div>
 
-      {(sortedCmsEntries.length > 0 || ecCount > 0) && (
+      {(sortedCmsEntries.length > 0 || ecCount > 0 || formCount > 0) && (
         <div className="flex flex-wrap gap-1.5 pt-1 border-t border-slate-100">
+          {formCount > 0 && (
+            <button
+              onClick={() => onFilterChange({ ...filters, has_contact: filters.has_contact === "true" ? "" : "true" })}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                filters.has_contact === "true"
+                  ? "bg-cyan-500 text-white border-cyan-500"
+                  : "bg-cyan-50 text-cyan-700 border-cyan-300 hover:bg-cyan-100"
+              }`}
+            >
+              📨 フォームURLあり: <span className="font-bold">{formCount.toLocaleString()}社</span>
+            </button>
+          )}
           {ecCount > 0 && (
             <button
               onClick={() => onFilterChange({ ...filters, ec_only: filters.ec_only === "true" ? "" : "true", cms_type: "" })}

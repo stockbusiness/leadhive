@@ -419,10 +419,10 @@ export default function Companies() {
             onClick={handleScanAllForms}
             disabled={scanningForms}
             className="flex items-center gap-1.5 bg-cyan-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-cyan-700 transition-colors disabled:opacity-50"
-            title="選択不要：現在のフィルター条件の企業を全件巡回してフォームURLを検出・保存"
+            title="現在のフィルター条件の企業を全件巡回してフォームURLを検出・保存"
           >
             <Search size={15} className={scanningForms ? "animate-spin" : ""} />
-            <span className="hidden sm:inline">{scanningForms ? "スキャン中..." : "フォームURL検出"}</span>
+            <span>{scanningForms ? "検出中..." : "フォームURL検出"}</span>
           </button>
           <button
             onClick={handleDuplicateCheck}
