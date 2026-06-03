@@ -2116,7 +2116,6 @@ export default function SalesAI() {
                 {[
                   { label: "総メッセージ数", value: stats?.total_messages ?? 0, icon: <FileText size={18} />, color: "bg-slate-100 text-slate-600" },
                   { label: "送信済み", value: stats?.total_sent ?? 0, icon: <CheckCircle2 size={18} />, color: "bg-green-100 text-green-700" },
-                  { label: "送信失敗", value: stats?.total_failed ?? 0, icon: <AlertCircle size={18} />, color: "bg-red-100 text-red-700" },
                   { label: "配信停止数", value: stats?.opt_out_count ?? 0, icon: <Ban size={18} />, color: "bg-amber-100 text-amber-700" },
                 ].map(card => (
                   <div key={card.label} className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4">
@@ -2129,6 +2128,36 @@ export default function SalesAI() {
                     </div>
                   </div>
                 ))}
+                {/* 送信失敗カード（リセットボタン付き） */}
+                <div className="bg-white rounded-xl border border-red-200 p-5 flex flex-col gap-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100 text-red-700">
+                      <AlertCircle size={18} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-800">{stats?.total_failed ?? 0}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">送信失敗</p>
+                    </div>
+                  </div>
+                  {(stats?.total_failed ?? 0) > 0 && (
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`失敗した${stats?.total_failed}件を下書きに戻しますか？`)) return;
+                        try {
+                          const r = await api.salesAi.resetFailed(currentProject?.id);
+                          alert(`${r.reset_count}件を下書きにリセットしました`);
+                          loadStats();
+                          loadMessages();
+                        } catch {
+                          alert("リセットに失敗しました");
+                        }
+                      }}
+                      className="w-full text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                    >
+                      失敗→下書きにリセット
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

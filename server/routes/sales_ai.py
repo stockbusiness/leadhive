@@ -1249,6 +1249,26 @@ def list_opt_out(
     }
 
 
+@router.post("/messages/reset-failed")
+def reset_failed_messages(
+    project_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """失敗ステータスのメッセージを下書きに戻す。"""
+    org_id = current_user.org_id
+    q = db.query(SalesMessage).filter(
+        SalesMessage.org_id == org_id,
+        SalesMessage.status == "failed",
+    )
+    if project_id:
+        q = q.filter(SalesMessage.project_id == project_id)
+    count = q.count()
+    q.update({"status": "draft", "sent_at": None, "sent_by": None}, synchronize_session=False)
+    db.commit()
+    return {"reset_count": count}
+
+
 @router.get("/stats")
 def get_stats(
     current_user: User = Depends(get_current_user),

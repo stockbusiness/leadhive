@@ -739,6 +739,9 @@ export const api = {
     getActiveJobs: () =>
       axios.get("/api/sales-ai/jobs/active").then(r => r.data),
 
+    resetFailed: (projectId?: number) =>
+      axios.post(`/api/sales-ai/messages/reset-failed${projectId ? `?project_id=${projectId}` : ""}`).then(r => r.data),
+
     addOptOut: (data: { email?: string; domain?: string; company_id?: number; reason?: string }) =>
       axios.post("/api/sales-ai/opt-out", data).then(r => r.data),
 
