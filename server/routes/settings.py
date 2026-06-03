@@ -202,6 +202,32 @@ def test_connection(
         return {"success": False, "message": f"接続エラー: {str(e)}"}
 
 
+@router.post("/openai-test")
+def test_openai(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from server.services.ai_analyzer import get_openai_key
+    from server.services.encryption import decrypt_value
+    api_key = data.get("api_key", "").strip()
+    if not api_key:
+        api_key = decrypt_value(get_openai_key(db, current_user.org_id))
+    if not api_key:
+        return {"success": False, "message": "OpenAI APIキーが設定されていません"}
+    try:
+        import openai as _openai
+        client = _openai.OpenAI(api_key=api_key)
+        client.models.list()
+        return {"success": True, "message": "OpenAI API 接続成功！キーは有効です。"}
+    except _openai.AuthenticationError:
+        return {"success": False, "message": "認証エラー: APIキーが無効です"}
+    except _openai.RateLimitError:
+        return {"success": True, "message": "接続成功（レート制限中ですがキーは有効です）"}
+    except Exception as e:
+        return {"success": False, "message": f"接続エラー: {str(e)[:80]}"}
+
+
 @router.post("/sendgrid-test")
 def test_sendgrid(
     data: dict,

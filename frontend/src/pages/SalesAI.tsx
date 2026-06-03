@@ -768,6 +768,8 @@ export default function SalesAI() {
   const [openaiKeySet, setOpenaiKeySet] = useState(false);
   const [openaiKeySaving, setOpenaiKeySaving] = useState(false);
   const [openaiKeyMsg, setOpenaiKeyMsg] = useState<string | null>(null);
+  const [openaiKeyMsgType, setOpenaiKeyMsgType] = useState<"success" | "error">("success");
+  const [openaiTesting, setOpenaiTesting] = useState(false);
   const [scheduleLastRunCount, setScheduleLastRunCount] = useState(0);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleRunning, setScheduleRunning] = useState(false);
@@ -898,6 +900,21 @@ export default function SalesAI() {
     } catch {}
   }, []);
 
+  const handleTestOpenaiKey = async () => {
+    setOpenaiTesting(true);
+    setOpenaiKeyMsg(null);
+    try {
+      const res = await api.settings.openaiTest(openaiKeyInput || undefined);
+      setOpenaiKeyMsgType(res.success ? "success" : "error");
+      setOpenaiKeyMsg(res.success ? `✅ ${res.message}` : `❌ ${res.message}`);
+    } catch {
+      setOpenaiKeyMsgType("error");
+      setOpenaiKeyMsg("❌ テストに失敗しました");
+    } finally {
+      setOpenaiTesting(false);
+    }
+  };
+
   const handleSaveOpenaiKey = async () => {
     if (!openaiKeyInput || openaiKeyInput.includes("*")) return;
     setOpenaiKeySaving(true);
@@ -906,8 +923,10 @@ export default function SalesAI() {
       await api.settings.update({ openai_api_key: openaiKeyInput });
       setOpenaiKeySet(true);
       setOpenaiKeyInput("");
+      setOpenaiKeyMsgType("success");
       setOpenaiKeyMsg("✅ 保存しました");
     } catch {
+      setOpenaiKeyMsgType("error");
       setOpenaiKeyMsg("❌ 保存に失敗しました");
     } finally {
       setOpenaiKeySaving(false);
@@ -2525,10 +2544,18 @@ export default function SalesAI() {
             <input
               type="password"
               value={openaiKeyInput}
-              onChange={e => setOpenaiKeyInput(e.target.value)}
+              onChange={e => { setOpenaiKeyInput(e.target.value); setOpenaiKeyMsg(null); }}
               placeholder="sk-..."
               className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
             />
+            <button
+              onClick={handleTestOpenaiKey}
+              disabled={openaiTesting || openaiKeySaving}
+              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors flex items-center gap-1.5"
+            >
+              {openaiTesting ? <RefreshCw size={13} className="animate-spin" /> : <Zap size={13} />}
+              接続テスト
+            </button>
             <button
               onClick={handleSaveOpenaiKey}
               disabled={openaiKeySaving || !openaiKeyInput || openaiKeyInput.includes("*")}
@@ -2539,7 +2566,7 @@ export default function SalesAI() {
             </button>
           </div>
           {openaiKeyMsg && (
-            <p className="text-xs font-medium text-slate-700">{openaiKeyMsg}</p>
+            <p className={`text-xs font-medium ${openaiKeyMsgType === "success" ? "text-emerald-700" : "text-red-600"}`}>{openaiKeyMsg}</p>
           )}
           </div>
         </div>

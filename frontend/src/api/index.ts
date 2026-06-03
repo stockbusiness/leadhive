@@ -293,6 +293,9 @@ export const api = {
     test: () =>
       axios.post("/api/settings/test").then(r => r.data),
 
+    openaiTest: (apiKey?: string) =>
+      axios.post("/api/settings/openai-test", { api_key: apiKey ?? "" }).then(r => r.data),
+
     slackTest: () =>
       axios.post("/api/settings/slack-test").then(r => r.data),
 
