@@ -86,6 +86,9 @@ export const api = {
     bulkScanForms: (companyIds: number[]) =>
       axios.post<{ scanned: number; found: number; not_found: number }>("/api/companies/bulk-scan-forms", { company_ids: companyIds }).then(r => r.data),
 
+    scanAllForms: (params: { project_id?: number; category?: string; status?: string; score_rank?: string; ec_only?: boolean; skip_existing?: boolean }) =>
+      axios.post<{ scanned: number; found: number; not_found: number }>("/api/companies/bulk-scan-forms", { ...params, company_ids: [] }).then(r => r.data),
+
     getTags: (id: number) =>
       axios.get<{ tags: { id: number; tag_name: string; created_at: string }[] }>(`/api/companies/${id}/tags`).then(r => r.data),
 

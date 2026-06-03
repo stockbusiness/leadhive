@@ -250,6 +250,33 @@ export default function Companies() {
     }
   };
 
+  const handleScanAllForms = async () => {
+    if (!confirm(`現在のフィルター条件で全件のフォームURLをスキャンします。\nフォームURLが未登録の企業を対象にします（最大500件）。\n\n実行しますか？`)) return;
+    setScanningForms(true);
+    setScanFormMsg("スキャン中... しばらくお待ちください");
+    try {
+      const params: Parameters<typeof api.companies.scanAllForms>[0] = { skip_existing: true };
+      if (currentProject?.id) params.project_id = currentProject.id;
+      if (filters.category) params.category = filters.category;
+      if (filters.status) params.status = filters.status;
+      if (filters.score_rank) params.score_rank = filters.score_rank;
+      if (filters.ec_only === "true") params.ec_only = true;
+      const result = await api.companies.scanAllForms(params);
+      if (result.scanned === 0) {
+        setScanFormMsg("スキャン対象なし（全企業にフォームURLが登録済みです）");
+      } else {
+        setScanFormMsg(`スキャン完了: ${result.scanned}件中 ${result.found}件でフォームURL検出`);
+      }
+      fetchCompanies();
+      setTimeout(() => setScanFormMsg(null), 8000);
+    } catch {
+      setScanFormMsg("スキャンに失敗しました");
+      setTimeout(() => setScanFormMsg(null), 4000);
+    } finally {
+      setScanningForms(false);
+    }
+  };
+
   const handleBulkStatusChange = () => {
     if (!bulkStatus || selectedIds.size === 0) return;
     setBulkLoading(true);
@@ -365,6 +392,15 @@ export default function Companies() {
               <span className="hidden sm:inline">カンバン</span>
             </button>
           </div>
+          <button
+            onClick={handleScanAllForms}
+            disabled={scanningForms}
+            className="flex items-center gap-1.5 bg-cyan-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-cyan-700 transition-colors disabled:opacity-50"
+            title="選択不要：現在のフィルター条件の企業を全件巡回してフォームURLを検出・保存"
+          >
+            <Search size={15} className={scanningForms ? "animate-spin" : ""} />
+            <span className="hidden sm:inline">{scanningForms ? "スキャン中..." : "フォームURL検出"}</span>
+          </button>
           <button
             onClick={handleDuplicateCheck}
             disabled={duplicateLoading}

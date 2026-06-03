@@ -652,18 +652,44 @@ def bulk_scan_forms(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """選択した企業のお問い合わせフォームURLを一括スキャンしてDBに保存する。"""
+    """選択した企業、またはフィルター条件に一致する全企業のフォームURLをスキャンしてDBに保存する。"""
     import requests as _req
     from server.services.form_sender import _find_contact_url
     company_ids = data.get("company_ids", [])
-    if not company_ids:
-        return {"scanned": 0, "found": 0, "not_found": 0}
+    project_id = data.get("project_id")
+    skip_existing = data.get("skip_existing", True)
 
     owned_ids = _owned_projects(current_user, db)
-    companies = db.query(Company).filter(
-        Company.id.in_(company_ids),
-        Company.project_id.in_(owned_ids),
-    ).all()
+
+    if company_ids:
+        query = db.query(Company).filter(
+            Company.id.in_(company_ids),
+            Company.project_id.in_(owned_ids),
+        )
+    else:
+        query = db.query(Company).filter(
+            Company.project_id.in_(owned_ids),
+            Company.website_url.isnot(None),
+            Company.website_url != "",
+        )
+        if project_id and project_id in owned_ids:
+            query = query.filter(Company.project_id == project_id)
+        # フィルター条件
+        if data.get("category"):
+            query = query.filter(Company.category_main == data["category"])
+        if data.get("status"):
+            query = query.filter(Company.status == data["status"])
+        if data.get("score_rank"):
+            query = query.filter(Company.score_rank == data["score_rank"])
+        if data.get("ec_only"):
+            query = query.filter(Company.ec_flag == True)
+
+    if skip_existing:
+        query = query.filter(
+            or_(Company.contact_url.is_(None), Company.contact_url == "")
+        )
+
+    companies = query.limit(500).all()
 
     found_count = 0
     not_found_count = 0
