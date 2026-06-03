@@ -1,1 +1,4 @@
 - [SalesAI bulk-send pattern](salesai-bulksend.md) — bulk-send joins SalesMessage+Company via project ownership; always insert fixed POST paths before dynamic {id} paths in FastAPI
+- [テレアポ機能実装](tele-apo-feature.md) — CallLog モデル・6エンドポイント・AIスクリプト・Zoom Phone統合の全実装記録
+- [Zoom Phone統合パターン](zoom-phone-pattern.md) — zoomus://URIスキーム、日本番号E.164変換、実装済みファイル一覧
+- [ECサイトオーナー向け強化](ec-owner-features.md) — ec_collector.py・7プラットフォーム追加・スコアリング強化の実装記録
