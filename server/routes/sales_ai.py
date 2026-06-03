@@ -329,11 +329,22 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                 subject = _expand_variables(msg.subject or ssubject or "", co)
                 try:
                     r = send_form_auto(
-                        url=co.website_url, sender_name=sname, sender_email=semail,
-                        sender_company=scompany, sender_phone=sphone, message=body,
-                        subject=subject, openai_key=openai_key, sender_title=stitle,
-                        sender_department=sdept, sender_website_url=swebsite,
-                        sender_postal_code=spostal, sender_prefecture=spref, sender_address=saddress,
+                        company_name=co.company_name or "",
+                        website_url=co.website_url or "",
+                        contact_url=co.contact_url or "",
+                        message_body=body,
+                        sender_name=sname,
+                        sender_email=semail,
+                        sender_company=scompany,
+                        sender_phone=sphone,
+                        sender_title=stitle,
+                        openai_key=openai_key,
+                        sender_department=sdept,
+                        sender_website_url=swebsite,
+                        sender_postal_code=spostal,
+                        sender_prefecture=spref,
+                        sender_address=saddress,
+                        subject=subject,
                     )
                     if r.get("success"):
                         msg.status = "sent"
@@ -343,8 +354,10 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                         sent_c += 1
                     else:
                         msg.status = "failed"
+                        logger.warning(f"BG form send failed co={co.id}: {r.get('message')}")
                         failed_c += 1
-                except Exception:
+                except Exception as ex:
+                    logger.exception(f"BG form send exception co={co.id}: {ex}")
                     msg.status = "failed"
                     failed_c += 1
                 db.commit()
