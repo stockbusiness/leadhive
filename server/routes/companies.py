@@ -2,16 +2,98 @@ import io
 import csv
 import re
 import logging
+import threading
+import uuid
 from collections import defaultdict
+from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, Query, Response, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc, or_
-from typing import Optional, List
 from datetime import date, timedelta
-from server.database import get_db
+from server.database import get_db, SessionLocal
 from server.models import Company, StatusHistory, MemoTemplate, ActivityLog, CompanyTag, User, Organization, Plan, EmailSendLog
+
+# ── フォームスキャンジョブストア ────────────────────────────────────────────
+_FORM_SCAN_JOBS: Dict[str, Dict[str, Any]] = {}
+_FORM_SCAN_LOCK = threading.Lock()
+
+
+def _update_scan_job(job_id: str, **kwargs):
+    with _FORM_SCAN_LOCK:
+        if job_id in _FORM_SCAN_JOBS:
+            _FORM_SCAN_JOBS[job_id].update(kwargs)
+
+
+def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filters: dict, skip_existing: bool):
+    """バックグラウンドスレッドでフォームURLをスキャンしてDBに保存する。"""
+    import requests as _req
+    from server.services.form_sender import _find_contact_url
+    from server.models import Project as _Project
+
+    db = SessionLocal()
+    try:
+        owned_ids = [p.id for p in db.query(_Project.id).filter(_Project.org_id == org_id).all()]
+
+        if company_ids:
+            query = db.query(Company).filter(
+                Company.id.in_(company_ids),
+                Company.project_id.in_(owned_ids),
+            )
+        else:
+            query = db.query(Company).filter(
+                Company.project_id.in_(owned_ids),
+                Company.website_url.isnot(None),
+                Company.website_url != "",
+            )
+            if project_id and project_id in owned_ids:
+                query = query.filter(Company.project_id == project_id)
+            if filters.get("category"):
+                query = query.filter(Company.category_main == filters["category"])
+            if filters.get("status"):
+                query = query.filter(Company.status == filters["status"])
+            if filters.get("score_rank"):
+                query = query.filter(Company.score_rank == filters["score_rank"])
+            if filters.get("ec_only"):
+                query = query.filter(Company.ec_flag == True)
+
+        if skip_existing:
+            query = query.filter(or_(Company.contact_url.is_(None), Company.contact_url == ""))
+
+        companies = query.limit(500).all()
+        total = len(companies)
+        _update_scan_job(job_id, total=total)
+
+        if total == 0:
+            _update_scan_job(job_id, status="done")
+            return
+
+        session = _req.Session()
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+            "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+        })
+
+        found = 0
+        for i, company in enumerate(companies):
+            try:
+                url = _find_contact_url(company.website_url, "", session)
+                if url:
+                    company.contact_url = url
+                    found += 1
+            except Exception:
+                pass
+            _update_scan_job(job_id, done=i + 1, found=found)
+            if (i + 1) % 20 == 0:
+                db.commit()
+
+        db.commit()
+        _update_scan_job(job_id, status="done", done=total, found=found)
+    except Exception as e:
+        _update_scan_job(job_id, status="error", error=str(e)[:120])
+    finally:
+        db.close()
 from server.services.scorer import calculate_score, calculate_digital_maturity
 from datetime import datetime as _dt
 from server.services.scraper import scrape_company_info
@@ -721,6 +803,57 @@ def bulk_scan_forms(
         "found": found_count,
         "not_found": not_found_count,
     }
+
+
+@router.post("/scan-forms/start")
+def start_form_scan_job(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+):
+    """フォームURLスキャンをバックグラウンドで開始し job_id を即返す。"""
+    from datetime import datetime as _dt2
+    job_id = str(uuid.uuid4())[:8]
+    company_ids = data.get("company_ids") or []
+    project_id = data.get("project_id")
+    skip_existing = data.get("skip_existing", True)
+    filters = {
+        "category": data.get("category"),
+        "status": data.get("status"),
+        "score_rank": data.get("score_rank"),
+        "ec_only": data.get("ec_only"),
+    }
+    with _FORM_SCAN_LOCK:
+        _FORM_SCAN_JOBS[job_id] = {
+            "job_id": job_id,
+            "status": "running",
+            "done": 0,
+            "total": 0,
+            "found": 0,
+            "org_id": current_user.org_id,
+            "error": None,
+            "started_at": _dt2.utcnow().isoformat(),
+        }
+    t = threading.Thread(
+        target=_run_form_scan,
+        args=(job_id, current_user.org_id, company_ids, project_id, filters, skip_existing),
+        daemon=True,
+    )
+    t.start()
+    return {"job_id": job_id}
+
+
+@router.get("/scan-forms/{job_id}")
+def get_form_scan_job(job_id: str, current_user: User = Depends(get_current_user)):
+    """フォームスキャンジョブの進捗を返す。"""
+    with _FORM_SCAN_LOCK:
+        job = _FORM_SCAN_JOBS.get(job_id)
+        if job:
+            job = job.copy()
+    if not job:
+        raise HTTPException(status_code=404, detail="ジョブが見つかりません")
+    if job["org_id"] != current_user.org_id:
+        raise HTTPException(status_code=403, detail="アクセス権限がありません")
+    return job
 
 
 @router.get("/{company_id}")

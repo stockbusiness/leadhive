@@ -68,10 +68,44 @@ export default function Companies() {
   const [allSelectedMode, setAllSelectedMode] = useState(false);
   const [scanningForms, setScanningForms] = useState(false);
   const [scanFormMsg, setScanFormMsg] = useState<string | null>(null);
+  const [scanJobId, setScanJobId] = useState<string | null>(null);
+  const [scanJobProgress, setScanJobProgress] = useState<{ done: number; total: number; found: number } | null>(null);
 
   useEffect(() => {
     api.plans.current().then((d) => setCsvPlan(d.plan ?? null)).catch(() => setCsvPlan(null));
   }, []);
+
+  useEffect(() => {
+    if (!scanJobId) return;
+    const interval = setInterval(async () => {
+      try {
+        const job = await api.companies.getFormScanJob(scanJobId);
+        setScanJobProgress({ done: job.done, total: job.total, found: job.found });
+        if (job.status === "done" || job.status === "error") {
+          clearInterval(interval);
+          setScanJobId(null);
+          setScanningForms(false);
+          if (job.status === "done") {
+            if (job.total === 0) {
+              setScanFormMsg("スキャン対象なし（全企業にフォームURLが登録済みです）");
+            } else {
+              setScanFormMsg(`✅ スキャン完了: ${job.total}件中 ${job.found}件でフォームURL検出`);
+            }
+            fetchCompanies();
+          } else {
+            setScanFormMsg(`❌ スキャンエラー: ${job.error || "不明"}`);
+          }
+          setScanJobProgress(null);
+          setTimeout(() => setScanFormMsg(null), 8000);
+        }
+      } catch {
+        clearInterval(interval);
+        setScanJobId(null);
+        setScanningForms(false);
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [scanJobId, fetchCompanies]);
 
   const handleFilterChange = useCallback((newFilters: typeof filters) => {
     setFilters(newFilters);
@@ -233,48 +267,34 @@ export default function Companies() {
     }
   };
 
-  const handleBulkScanForms = async () => {
-    if (selectedIds.size === 0) return;
+  const _startScanJob = async (params: Parameters<typeof api.companies.startFormScan>[0]) => {
     setScanningForms(true);
-    setScanFormMsg(null);
+    setScanFormMsg("スキャン準備中...");
+    setScanJobProgress(null);
     try {
-      const result = await api.companies.bulkScanForms(Array.from(selectedIds));
-      setScanFormMsg(`スキャン完了: ${result.scanned}件中 ${result.found}件でフォームURL検出`);
-      fetchCompanies();
-      setTimeout(() => setScanFormMsg(null), 6000);
+      const res = await api.companies.startFormScan(params);
+      setScanJobId(res.job_id);
     } catch {
-      setScanFormMsg("スキャンに失敗しました");
-      setTimeout(() => setScanFormMsg(null), 4000);
-    } finally {
       setScanningForms(false);
+      setScanFormMsg("❌ スキャン開始に失敗しました");
+      setTimeout(() => setScanFormMsg(null), 4000);
     }
   };
 
-  const handleScanAllForms = async () => {
-    if (!confirm(`現在のフィルター条件で全件のフォームURLをスキャンします。\nフォームURLが未登録の企業を対象にします（最大500件）。\n\n実行しますか？`)) return;
-    setScanningForms(true);
-    setScanFormMsg("スキャン中... しばらくお待ちください");
-    try {
-      const params: Parameters<typeof api.companies.scanAllForms>[0] = { skip_existing: true };
-      if (currentProject?.id) params.project_id = currentProject.id;
-      if (filters.category) params.category = filters.category;
-      if (filters.status) params.status = filters.status;
-      if (filters.score_rank) params.score_rank = filters.score_rank;
-      if (filters.ec_only === "true") params.ec_only = true;
-      const result = await api.companies.scanAllForms(params);
-      if (result.scanned === 0) {
-        setScanFormMsg("スキャン対象なし（全企業にフォームURLが登録済みです）");
-      } else {
-        setScanFormMsg(`スキャン完了: ${result.scanned}件中 ${result.found}件でフォームURL検出`);
-      }
-      fetchCompanies();
-      setTimeout(() => setScanFormMsg(null), 8000);
-    } catch {
-      setScanFormMsg("スキャンに失敗しました");
-      setTimeout(() => setScanFormMsg(null), 4000);
-    } finally {
-      setScanningForms(false);
-    }
+  const handleBulkScanForms = () => {
+    if (selectedIds.size === 0) return;
+    _startScanJob({ company_ids: Array.from(selectedIds) });
+  };
+
+  const handleScanAllForms = () => {
+    if (!confirm(`現在のフィルター条件の企業（フォームURLが未登録）を全件バックグラウンドでスキャンします（最大500件）。\n\n実行しますか？`)) return;
+    const params: Parameters<typeof api.companies.startFormScan>[0] = { skip_existing: true };
+    if (currentProject?.id) params.project_id = currentProject.id;
+    if (filters.category) params.category = filters.category;
+    if (filters.status) params.status = filters.status;
+    if (filters.score_rank) params.score_rank = filters.score_rank;
+    if (filters.ec_only === "true") params.ec_only = true;
+    _startScanJob(params);
   };
 
   const handleBulkStatusChange = () => {
@@ -557,11 +577,19 @@ export default function Companies() {
               </button>
             </div>
           </div>
-          {scanFormMsg && (
+          {(scanFormMsg || scanJobProgress) && (
             <div className="flex items-center gap-2 bg-cyan-50 border border-cyan-200 rounded-lg px-4 py-2 mt-2">
-              <Search size={14} className="text-cyan-600 flex-shrink-0" />
-              <span className="text-sm text-cyan-800 font-medium">{scanFormMsg}</span>
-              <button onClick={() => setScanFormMsg(null)} className="ml-auto text-cyan-400 hover:text-cyan-600"><X size={13} /></button>
+              <Search size={14} className={`text-cyan-600 flex-shrink-0 ${scanningForms ? "animate-spin" : ""}`} />
+              <span className="text-sm text-cyan-800 font-medium">
+                {scanningForms && scanJobProgress
+                  ? `スキャン中: ${scanJobProgress.done}/${scanJobProgress.total}件 （検出済み: ${scanJobProgress.found}件）`
+                  : scanningForms
+                  ? "スキャン準備中..."
+                  : scanFormMsg}
+              </span>
+              {!scanningForms && (
+                <button onClick={() => { setScanFormMsg(null); setScanJobProgress(null); }} className="ml-auto text-cyan-400 hover:text-cyan-600"><X size={13} /></button>
+              )}
             </div>
           )}
         </div>
