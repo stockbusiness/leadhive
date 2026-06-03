@@ -315,10 +315,17 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
             msgs = db.query(SalesMessage).filter(SalesMessage.id.in_(all_generated_ids)).all()
             sent_c = 0
             failed_c = 0
+            skipped_c = 0
             early = {"未確認", "対象候補", "アプローチ前"}
+            already_sent_statuses = {"フォーム送信済", "メール送信済", "商談中", "成約", "NG"}
 
             for msg in msgs:
                 co = cos_map.get(msg.company_id) or db.query(Company).filter(Company.id == msg.company_id).first()
+                # 既に送信済み・商談中・成約・NGはスキップ（重複送信防止）
+                if co and co.status in already_sent_statuses:
+                    skipped_c += 1
+                    _update_job(job_id, skipped=skipped_c)
+                    continue
                 if not co or not co.website_url:
                     failed_c += 1
                     _update_job(job_id, failed=failed_c)
@@ -1074,9 +1081,16 @@ def bulk_send_form_messages(
         "アクセスが拒否されました",
     }
 
+    ALREADY_SENT_STATUSES = {"フォーム送信済", "メール送信済", "商談中", "成約", "NG"}
+
     for msg in msgs:
         try:
             c = db.query(Company).filter(Company.id == msg.company_id).first()
+
+            # 既に送信済み・商談中・成約・NGの企業はスキップ（重複送信防止）
+            if c and c.status in ALREADY_SENT_STATUSES:
+                skipped_count += 1
+                continue
 
             # URLが全くない場合はスキップ
             has_url = c and (c.website_url or c.contact_url)
