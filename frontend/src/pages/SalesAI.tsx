@@ -718,6 +718,12 @@ export default function SalesAI() {
   const [autoBatchBatch, setAutoBatchBatch] = useState(0);
   const [autoBatchTotalBatches, setAutoBatchTotalBatches] = useState(0);
 
+  const [fullAutoConfirm, setFullAutoConfirm] = useState(false);
+  const [fullAutoPhase, setFullAutoPhase] = useState<"generating" | "sending" | "done" | null>(null);
+  const [fullAutoProgress, setFullAutoProgress] = useState({ done: 0, total: 0, batch: 0, totalBatches: 0 });
+  const [fullAutoResult, setFullAutoResult] = useState<{ generated: number; sent: number; failed: number } | null>(null);
+  const [fullAutoError, setFullAutoError] = useState<string | null>(null);
+
   const [messages, setMessages] = useState<SalesMessage[]>([]);
   const [messagesTotal, setMessagesTotal] = useState<number>(0);
   const [messagesLimited, setMessagesLimited] = useState<boolean>(false);
@@ -1011,6 +1017,53 @@ export default function SalesAI() {
     loadMessages();
   };
 
+  const handleFullAutoSend = async () => {
+    const ids = filteredCompanies.map(c => c.id);
+    if (ids.length === 0) { setGenError("対象企業がありません"); return; }
+    const BATCH = Math.min(Math.max(1, bulkSelectCount), 50);
+    const chunks: number[][] = [];
+    for (let i = 0; i < ids.length; i += BATCH) chunks.push(ids.slice(i, i + BATCH));
+
+    setFullAutoConfirm(false);
+    setFullAutoPhase("generating");
+    setFullAutoProgress({ done: 0, total: ids.length, batch: 0, totalBatches: chunks.length });
+    setFullAutoResult(null);
+    setFullAutoError(null);
+    setAutoBatching(true);
+
+    let totalGenerated = 0;
+    const allGeneratedIds: number[] = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+      setFullAutoProgress(p => ({ ...p, batch: i + 1, done: Math.min((i + 1) * BATCH, ids.length) }));
+      try {
+        const res = await api.salesAi.generateBatch(chunks[i], templateType, currentProject?.id, customTemplateId ?? undefined, skipExisting, analyzeSite);
+        totalGenerated += res.total_generated || 0;
+        if (res.generated_ids) allGeneratedIds.push(...res.generated_ids);
+      } catch (e: any) {
+        setFullAutoError(`生成バッチ${i + 1}でエラー: ${e?.response?.data?.detail || e?.message || "不明なエラー"}`);
+        setAutoBatching(false);
+        setFullAutoPhase(null);
+        return;
+      }
+    }
+
+    setFullAutoPhase("sending");
+    try {
+      const sendIds = allGeneratedIds.length > 0 ? allGeneratedIds : undefined;
+      const res = await api.salesAi.bulkSendForm(bulkFormProfileId, sendIds);
+      setFullAutoResult({ generated: totalGenerated, sent: res.sent || 0, failed: res.failed || 0 });
+      setFullAutoPhase("done");
+      loadMessages();
+    } catch (e: any) {
+      setFullAutoError(`フォーム送信エラー: ${e?.response?.data?.detail || e?.message || "不明なエラー"}`);
+      setFullAutoPhase(null);
+    } finally {
+      setAutoBatching(false);
+      setSelectedIds([]);
+    }
+  };
+
   const handleBulkSend = async () => {
     setBulkSending(true);
     setBulkSendResult(null);
@@ -1204,7 +1257,7 @@ export default function SalesAI() {
                 <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{genError}</div>
               )}
 
-              {autoBatching && (
+              {autoBatching && !fullAutoPhase && (
                 <div className="bg-violet-50 border border-violet-200 rounded-lg px-3 py-3 space-y-2">
                   <div className="flex items-center justify-between text-xs text-violet-700 font-medium">
                     <span>自動バッチ生成中… バッチ {autoBatchBatch}/{autoBatchTotalBatches}</span>
@@ -1217,6 +1270,47 @@ export default function SalesAI() {
                     />
                   </div>
                   <p className="text-xs text-violet-500">このまま画面を開いたままにしてください</p>
+                </div>
+              )}
+
+              {fullAutoPhase && fullAutoPhase !== "done" && (
+                <div className="bg-orange-50 border border-orange-300 rounded-lg px-3 py-3 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-orange-700 font-semibold">
+                    <RefreshCw size={12} className="animate-spin" />
+                    {fullAutoPhase === "generating"
+                      ? `【フェーズ1】生成中… バッチ ${fullAutoProgress.batch}/${fullAutoProgress.totalBatches}`
+                      : "【フェーズ2】フォーム送信中… しばらくお待ちください"}
+                  </div>
+                  {fullAutoPhase === "generating" && (
+                    <>
+                      <div className="w-full bg-orange-200 rounded-full h-2">
+                        <div
+                          className="bg-orange-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${fullAutoProgress.total > 0 ? Math.round((fullAutoProgress.done / fullAutoProgress.total) * 100) : 0}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-orange-500">{fullAutoProgress.done}/{fullAutoProgress.total} 件生成完了</p>
+                    </>
+                  )}
+                  {fullAutoPhase === "sending" && (
+                    <p className="text-xs text-orange-500">生成した文章をフォームへ自動送信しています…</p>
+                  )}
+                  <p className="text-xs text-orange-400">画面を閉じずにお待ちください</p>
+                </div>
+              )}
+
+              {fullAutoResult && fullAutoPhase === "done" && (
+                <div className="bg-emerald-50 border border-emerald-300 rounded-lg px-3 py-3 space-y-1">
+                  <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5"><CheckCircle2 size={13} /> 全自動送信が完了しました</p>
+                  <p className="text-xs text-emerald-600">生成: {fullAutoResult.generated}件 ／ 送信成功: {fullAutoResult.sent}件 ／ 失敗: {fullAutoResult.failed}件</p>
+                  <button onClick={() => { setFullAutoResult(null); setFullAutoPhase(null); }} className="text-xs text-emerald-500 underline mt-1">閉じる</button>
+                </div>
+              )}
+
+              {fullAutoError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+                  {fullAutoError}
+                  <button onClick={() => setFullAutoError(null)} className="ml-2 underline text-red-500">閉じる</button>
                 </div>
               )}
 
@@ -1290,9 +1384,9 @@ export default function SalesAI() {
                 </button>
               </div>
 
-              <div>
-                <p className="text-xs text-slate-500 mb-2 font-medium">絞込結果の全件に自動生成</p>
-                <p className="text-sm text-slate-600 mb-2">
+              <div className="space-y-3">
+                <p className="text-xs text-slate-500 font-medium">絞込結果の全件に自動生成</p>
+                <p className="text-sm text-slate-600">
                   <span className="font-semibold text-slate-800">{filteredCompanies.length}件</span> 対象
                   <span className="text-xs text-slate-400 ml-1">（{bulkSelectCount}件ずつ自動処理）</span>
                 </p>
@@ -1301,10 +1395,63 @@ export default function SalesAI() {
                   disabled={generating || autoBatching || filteredCompanies.length === 0}
                   className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {autoBatching ? <RefreshCw size={14} className="animate-spin" /> : <Zap size={14} />}
-                  {autoBatching ? `バッチ ${autoBatchBatch}/${autoBatchTotalBatches} 処理中…` : `全${filteredCompanies.length}件を自動バッチ生成`}
+                  {autoBatching && !fullAutoPhase ? <RefreshCw size={14} className="animate-spin" /> : <Zap size={14} />}
+                  {autoBatching && !fullAutoPhase ? `バッチ ${autoBatchBatch}/${autoBatchTotalBatches} 処理中…` : `全${filteredCompanies.length}件を自動バッチ生成`}
                 </button>
-                <p className="text-xs text-slate-400 mt-2 text-center">{bulkSelectCount}件ずつ順番に自動で処理します</p>
+                <p className="text-xs text-slate-400 text-center">{bulkSelectCount}件ずつ順番に自動で処理します</p>
+
+                <div className="border-t border-slate-100 pt-3 space-y-2">
+                  <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                    <span className="inline-block bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded">NEW</span>
+                    全自動モード（生成→フォーム送信）
+                  </p>
+                  {bulkFormProfiles.length > 0 && (
+                    <select
+                      value={bulkFormProfileId ?? ""}
+                      onChange={e => setBulkFormProfileId(e.target.value ? Number(e.target.value) : undefined)}
+                      disabled={autoBatching}
+                      className="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white disabled:opacity-50"
+                    >
+                      <option value="">送信者プロフィール未選択</option>
+                      {bulkFormProfiles.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}{p.display_name ? ` — ${p.display_name}` : ""}</option>
+                      ))}
+                    </select>
+                  )}
+
+                  {fullAutoConfirm ? (
+                    <div className="bg-orange-50 border border-orange-300 rounded-lg p-3 space-y-2">
+                      <p className="text-xs text-orange-800 font-semibold">⚠️ 確認してください</p>
+                      <p className="text-xs text-orange-700">
+                        <strong>{filteredCompanies.length}件</strong>のメールを生成して、確認なしで<strong>フォーム送信まで自動実行</strong>します。よろしいですか？
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleFullAutoSend}
+                          className="flex-1 text-xs bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-700 font-medium transition-colors"
+                        >
+                          実行する
+                        </button>
+                        <button
+                          onClick={() => setFullAutoConfirm(false)}
+                          className="flex-1 text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                        >
+                          キャンセル
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setFullAutoConfirm(true)}
+                      disabled={generating || autoBatching || filteredCompanies.length === 0}
+                      className="w-full flex items-center justify-center gap-2 bg-orange-500 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Zap size={14} />
+                      全{filteredCompanies.length}件を全自動生成＆フォーム送信
+                    </button>
+                  )}
+                  <p className="text-xs text-slate-400 text-center">生成後に確認なしで即フォーム送信します</p>
+                </div>
               </div>
             </div>
           </div>
