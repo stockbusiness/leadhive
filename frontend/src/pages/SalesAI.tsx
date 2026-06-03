@@ -747,6 +747,7 @@ export default function SalesAI() {
   const [filterRanks, setFilterRanks] = useState<string[]>([]);
   const [filterEcOnly, setFilterEcOnly] = useState(false);
   const [filterEmailOnly, setFilterEmailOnly] = useState(false);
+  const [filterFormOnly, setFilterFormOnly] = useState(false);
   const [filterCategory, setFilterCategory] = useState("");
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
@@ -987,6 +988,7 @@ export default function SalesAI() {
     if (filterRanks.length > 0 && !filterRanks.includes(c.score_rank)) return false;
     if (filterEcOnly && !c.ec_flag) return false;
     if (filterEmailOnly && !c.email) return false;
+    if (filterFormOnly && !c.contact_url) return false;
     if (filterCategory && c.category_main !== filterCategory) return false;
     return true;
   });
@@ -1693,9 +1695,17 @@ export default function SalesAI() {
                   >
                     メールあり
                   </button>
-                  {(filterRanks.length > 0 || filterEcOnly || filterEmailOnly || filterCategory) && (
+                  <button
+                    onClick={() => setFilterFormOnly(v => !v)}
+                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                      filterFormOnly ? "bg-cyan-600 text-white border-cyan-600" : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    フォームURLあり
+                  </button>
+                  {(filterRanks.length > 0 || filterEcOnly || filterEmailOnly || filterFormOnly || filterCategory) && (
                     <button
-                      onClick={() => { setFilterRanks([]); setFilterEcOnly(false); setFilterEmailOnly(false); setFilterCategory(""); }}
+                      onClick={() => { setFilterRanks([]); setFilterEcOnly(false); setFilterEmailOnly(false); setFilterFormOnly(false); setFilterCategory(""); }}
                       className="text-xs text-slate-400 hover:text-slate-600 ml-1"
                     >
                       リセット
