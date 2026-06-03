@@ -724,6 +724,10 @@ export default function SalesAI() {
   const [fullAutoResult, setFullAutoResult] = useState<{ generated: number; sent: number; failed: number } | null>(null);
   const [fullAutoError, setFullAutoError] = useState<string | null>(null);
 
+  const [bgJobId, setBgJobId] = useState<string | null>(null);
+  const [bgJobStatus, setBgJobStatus] = useState<any | null>(null);
+  const bgPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const [messages, setMessages] = useState<SalesMessage[]>([]);
   const [messagesTotal, setMessagesTotal] = useState<number>(0);
   const [messagesLimited, setMessagesLimited] = useState<boolean>(false);
@@ -783,6 +787,24 @@ export default function SalesAI() {
   const [openingMemo, setOpeningMemo] = useState("");
   const [showBulkReview, setShowBulkReview] = useState(false);
 
+  const startBgPolling = (jobId: string) => {
+    if (bgPollRef.current) clearInterval(bgPollRef.current);
+    bgPollRef.current = setInterval(async () => {
+      try {
+        const s = await api.salesAi.getJobStatus(jobId);
+        setBgJobStatus(s);
+        if (s.status === "done" || s.status === "error") {
+          clearInterval(bgPollRef.current!);
+          bgPollRef.current = null;
+          loadMessages();
+        }
+      } catch {
+        clearInterval(bgPollRef.current!);
+        bgPollRef.current = null;
+      }
+    }, 3000);
+  };
+
   useEffect(() => {
     api.salesAi.checkApiKey().then(r => setHasApiKey(r.has_api_key)).catch(() => setHasApiKey(false));
     api.templates.list().then(r => {
@@ -793,6 +815,15 @@ export default function SalesAI() {
       setBulkFormProfiles(d.profiles || []);
       const def = (d.profiles || []).find((p: FormSenderProfile) => p.is_default);
       if (def) setBulkFormProfileId(def.id);
+    }).catch(() => {});
+    api.salesAi.getActiveJobs().then(d => {
+      const jobs = d.jobs || [];
+      if (jobs.length > 0) {
+        const job = jobs[0];
+        setBgJobId(job.job_id);
+        setBgJobStatus(job);
+        startBgPolling(job.job_id);
+      }
     }).catch(() => {});
   }, []);
 
@@ -1015,6 +1046,23 @@ export default function SalesAI() {
     setGenSuccess(`全${totalGenerated}件の営業文を生成しました。「レビュー・送信」タブで確認できます。`);
     setSelectedIds([]);
     loadMessages();
+  };
+
+  const handleStartBgJob = async (autoSendForm: boolean) => {
+    const ids = filteredCompanies.map(c => c.id);
+    if (ids.length === 0) { setGenError("対象企業がありません"); return; }
+    try {
+      const res = await api.salesAi.startBgJob(
+        ids, templateType, currentProject?.id, customTemplateId ?? undefined,
+        skipExisting, analyzeSite, autoSendForm, autoSendForm ? bulkFormProfileId : undefined,
+      );
+      setBgJobId(res.job_id);
+      setBgJobStatus({ job_id: res.job_id, status: "running", phase: "generating", done: 0, total: ids.length, batch: 0, total_batches: 0, generated: 0, sent: 0, failed: 0, auto_send_form: autoSendForm });
+      setFullAutoConfirm(false);
+      startBgPolling(res.job_id);
+    } catch (e: any) {
+      setGenError(e?.response?.data?.detail || "ジョブ開始に失敗しました");
+    }
   };
 
   const handleFullAutoSend = async () => {
@@ -1299,6 +1347,60 @@ export default function SalesAI() {
                 </div>
               )}
 
+              {bgJobStatus && (
+                <div className={`rounded-lg px-3 py-3 space-y-2 border-2 ${
+                  bgJobStatus.status === "done" ? "bg-emerald-50 border-emerald-400" :
+                  bgJobStatus.status === "error" ? "bg-red-50 border-red-400" :
+                  "bg-sky-50 border-sky-400"
+                }`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs font-semibold">
+                      {bgJobStatus.status === "done" ? (
+                        <CheckCircle2 size={13} className="text-emerald-600" />
+                      ) : bgJobStatus.status === "error" ? (
+                        <span className="text-red-600">⚠️</span>
+                      ) : (
+                        <RefreshCw size={13} className="animate-spin text-sky-600" />
+                      )}
+                      <span className={bgJobStatus.status === "done" ? "text-emerald-700" : bgJobStatus.status === "error" ? "text-red-700" : "text-sky-700"}>
+                        {bgJobStatus.status === "done"
+                          ? "バックグラウンド処理が完了しました"
+                          : bgJobStatus.status === "error"
+                          ? "エラーが発生しました"
+                          : bgJobStatus.phase === "sending"
+                          ? "【フェーズ2】バックグラウンドでフォーム送信中…"
+                          : `【フェーズ1】バックグラウンドで生成中… バッチ ${bgJobStatus.batch}/${bgJobStatus.total_batches}`}
+                      </span>
+                    </div>
+                    <span className="text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full font-mono flex-shrink-0">ID: {bgJobStatus.job_id}</span>
+                  </div>
+                  {bgJobStatus.status === "running" && bgJobStatus.phase === "generating" && (
+                    <>
+                      <div className="w-full bg-sky-200 rounded-full h-2">
+                        <div className="bg-sky-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${bgJobStatus.total > 0 ? Math.round((bgJobStatus.done / bgJobStatus.total) * 100) : 0}%` }} />
+                      </div>
+                      <p className="text-xs text-sky-600">{bgJobStatus.done}/{bgJobStatus.total} 件生成完了</p>
+                    </>
+                  )}
+                  {bgJobStatus.status === "done" && (
+                    <p className="text-xs text-emerald-600">
+                      生成: {bgJobStatus.generated}件
+                      {bgJobStatus.auto_send_form && <> ／ 送信成功: {bgJobStatus.sent}件 ／ 失敗: {bgJobStatus.failed}件</>}
+                    </p>
+                  )}
+                  {bgJobStatus.status === "error" && bgJobStatus.error && (
+                    <p className="text-xs text-red-600">{bgJobStatus.error}</p>
+                  )}
+                  {bgJobStatus.status !== "running" && (
+                    <button onClick={() => { setBgJobId(null); setBgJobStatus(null); }} className="text-xs text-slate-500 underline">閉じる</button>
+                  )}
+                  {bgJobStatus.status === "running" && (
+                    <p className="text-xs text-sky-400">画面を閉じても処理は続きます。再度開くと進捗が表示されます。</p>
+                  )}
+                </div>
+              )}
+
               {fullAutoResult && fullAutoPhase === "done" && (
                 <div className="bg-emerald-50 border border-emerald-300 rounded-lg px-3 py-3 space-y-1">
                   <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5"><CheckCircle2 size={13} /> 全自動送信が完了しました</p>
@@ -1406,13 +1508,19 @@ export default function SalesAI() {
                     <p className="text-[10px] text-slate-400">💡 まとめて生成して内容を確認してから送りたい時</p>
                     <button
                       onClick={handleAutoBatch}
-                      disabled={generating || autoBatching || filteredCompanies.length === 0}
+                      disabled={generating || autoBatching || !!bgJobStatus?.status?.match(/running/) || filteredCompanies.length === 0}
                       className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       {autoBatching && !fullAutoPhase ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} />}
-                      {autoBatching && !fullAutoPhase
-                        ? `バッチ ${autoBatchBatch}/${autoBatchTotalBatches} 処理中…`
-                        : `全${filteredCompanies.length}件を自動バッチ生成`}
+                      {autoBatching && !fullAutoPhase ? `バッチ ${autoBatchBatch}/${autoBatchTotalBatches} 処理中…` : `全${filteredCompanies.length}件を生成（画面を開いたまま）`}
+                    </button>
+                    <button
+                      onClick={() => handleStartBgJob(false)}
+                      disabled={generating || autoBatching || bgJobStatus?.status === "running" || filteredCompanies.length === 0}
+                      className="w-full flex items-center justify-center gap-2 border-2 border-emerald-500 text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <RefreshCw size={12} />
+                      バックグラウンドで生成（画面を閉じてもOK）
                     </button>
                   </div>
                 </div>
@@ -1438,7 +1546,7 @@ export default function SalesAI() {
                       <select
                         value={bulkFormProfileId ?? ""}
                         onChange={e => setBulkFormProfileId(e.target.value ? Number(e.target.value) : undefined)}
-                        disabled={autoBatching}
+                        disabled={autoBatching || bgJobStatus?.status === "running"}
                         className="w-full text-xs border border-orange-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white disabled:opacity-50"
                       >
                         <option value="">送信者プロフィール未選択</option>
@@ -1451,13 +1559,16 @@ export default function SalesAI() {
                       <div className="bg-orange-50 border border-orange-300 rounded-lg p-2.5 space-y-2">
                         <p className="text-xs text-orange-800 font-semibold">⚠️ 実行前確認</p>
                         <p className="text-xs text-orange-700">
-                          <strong>{filteredCompanies.length}件</strong>を生成して、確認なしで<strong>フォーム送信まで自動実行</strong>します。よろしいですか？
+                          <strong>{filteredCompanies.length}件</strong>を生成して、確認なしで<strong>フォーム送信まで自動実行</strong>します。
                         </p>
-                        <div className="flex gap-2">
-                          <button onClick={handleFullAutoSend} className="flex-1 text-xs bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-700 font-semibold transition-colors">
-                            実行する
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button onClick={handleFullAutoSend} className="text-xs bg-orange-600 text-white px-2 py-1.5 rounded-lg hover:bg-orange-700 font-semibold transition-colors">
+                            画面を開いたまま実行
                           </button>
-                          <button onClick={() => setFullAutoConfirm(false)} className="flex-1 text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+                          <button onClick={() => handleStartBgJob(true)} className="text-xs bg-orange-800 text-white px-2 py-1.5 rounded-lg hover:bg-orange-900 font-semibold transition-colors flex items-center justify-center gap-1">
+                            <RefreshCw size={10} /> バックグラウンド実行
+                          </button>
+                          <button onClick={() => setFullAutoConfirm(false)} className="col-span-2 text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
                             キャンセル
                           </button>
                         </div>
@@ -1465,7 +1576,7 @@ export default function SalesAI() {
                     ) : (
                       <button
                         onClick={() => setFullAutoConfirm(true)}
-                        disabled={generating || autoBatching || filteredCompanies.length === 0}
+                        disabled={generating || autoBatching || bgJobStatus?.status === "running" || filteredCompanies.length === 0}
                         className="w-full flex items-center justify-center gap-2 bg-orange-500 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <Zap size={12} />

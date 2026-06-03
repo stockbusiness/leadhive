@@ -730,6 +730,15 @@ export const api = {
     bulkDeleteMessages: (messageIds: number[]) =>
       axios.post("/api/sales-ai/messages/bulk-delete", { message_ids: messageIds }).then(r => r.data),
 
+    startBgJob: (companyIds: number[], templateType: string, projectId?: number, customTemplateId?: number, skipExisting?: boolean, analyzeSite?: boolean, autoSendForm?: boolean, profileId?: number) =>
+      axios.post("/api/sales-ai/jobs/start", { company_ids: companyIds, template_type: templateType, project_id: projectId, custom_template_id: customTemplateId, skip_existing: skipExisting ?? true, analyze_site: analyzeSite ?? false, auto_send_form: autoSendForm ?? false, profile_id: profileId }).then(r => r.data),
+
+    getJobStatus: (jobId: string) =>
+      axios.get(`/api/sales-ai/jobs/${jobId}`).then(r => r.data),
+
+    getActiveJobs: () =>
+      axios.get("/api/sales-ai/jobs/active").then(r => r.data),
+
     addOptOut: (data: { email?: string; domain?: string; company_id?: number; reason?: string }) =>
       axios.post("/api/sales-ai/opt-out", data).then(r => r.data),
 

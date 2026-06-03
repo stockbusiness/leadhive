@@ -1,16 +1,28 @@
 import logging
+import threading
+import uuid
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
-from server.database import get_db
+from server.database import get_db, SessionLocal
 from server.models import SalesMessage, AuditLog, OptOutList, Company, CompanyMaster, User, AppSetting, Project
 from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/sales-ai", tags=["sales-ai"])
 logger = logging.getLogger(__name__)
+
+# ── バックグラウンドジョブストア ──────────────────────────────────────────────
+_JOBS: Dict[str, Dict[str, Any]] = {}
+_JOBS_LOCK = threading.Lock()
+
+
+def _update_job(job_id: str, **kwargs):
+    with _JOBS_LOCK:
+        if job_id in _JOBS:
+            _JOBS[job_id].update(kwargs)
 
 
 def _owned_projects(current_user: User, db: Session):
@@ -118,6 +130,17 @@ class BulkSendRequest(BaseModel):
     message_ids: Optional[list[int]] = None
 
 
+class BgJobRequest(BaseModel):
+    company_ids: List[int]
+    template_type: str = "shopify"
+    project_id: Optional[int] = None
+    custom_template_id: Optional[int] = None
+    skip_existing: bool = True
+    analyze_site: bool = False
+    auto_send_form: bool = False
+    profile_id: Optional[int] = None
+
+
 class UpdateMessageRequest(BaseModel):
     subject: Optional[str] = None
     body: Optional[str] = None
@@ -134,6 +157,254 @@ class OptOutRequest(BaseModel):
     domain: Optional[str] = None
     company_id: Optional[int] = None
     reason: Optional[str] = None
+
+
+def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
+    """バックグラウンドスレッドで生成→オプションでフォーム送信を実行する。"""
+    import concurrent.futures
+    from server.services.ai_writer import generate_sales_message, generate_from_custom_template, _resolve_anthropic_key
+
+    BATCH = 50
+    company_ids = req.company_ids
+    chunks = [company_ids[i:i+BATCH] for i in range(0, len(company_ids), BATCH)]
+    _update_job(job_id, total_batches=len(chunks))
+
+    db = SessionLocal()
+    try:
+        api_key = _resolve_anthropic_key()
+
+        custom_tpl = None
+        if req.custom_template_id:
+            from server.models import MemoTemplate
+            custom_tpl = db.query(MemoTemplate).filter(
+                MemoTemplate.id == req.custom_template_id,
+                MemoTemplate.org_id == org_id,
+            ).first()
+
+        all_cos = db.query(Company).filter(Company.id.in_(company_ids)).all()
+        cos_map = {c.id: c for c in all_cos}
+
+        opted_emails: set = set()
+        opted_domains: set = set()
+        emails = [c.email for c in all_cos if c.email]
+        domains = [c.domain for c in all_cos if c.domain]
+        if emails:
+            opted_emails = {r[0] for r in db.query(OptOutList.email).filter(OptOutList.email.in_(emails)).all()}
+        if domains:
+            opted_domains = {r[0] for r in db.query(OptOutList.domain).filter(OptOutList.domain.in_(domains)).all()}
+
+        existing_ids: set = set()
+        if req.skip_existing:
+            rows = db.query(SalesMessage.company_id).filter(
+                SalesMessage.org_id == org_id,
+                SalesMessage.company_id.in_(company_ids),
+                SalesMessage.status != "failed",
+            ).all()
+            existing_ids = {r[0] for r in rows}
+
+        effective_type = f"custom:{custom_tpl.id}" if custom_tpl else req.template_type
+        all_generated_ids: List[int] = []
+        total_generated = 0
+
+        for i, chunk in enumerate(chunks):
+            _update_job(job_id, batch=i + 1)
+
+            eligible = []
+            for cid in chunk:
+                if cid in existing_ids:
+                    continue
+                c = cos_map.get(cid)
+                if not c:
+                    continue
+                if (c.email and c.email in opted_emails) or (c.domain and c.domain in opted_domains):
+                    continue
+                eligible.append((cid, _company_obj_to_dict(c)))
+
+            if not eligible:
+                _update_job(job_id, done=min((i + 1) * BATCH, len(company_ids)))
+                continue
+
+            site_summaries: dict = {}
+            if req.analyze_site and not custom_tpl:
+                from server.services.ai_writer import scrape_site_summary as _scrape
+                def _do_scrape(item):
+                    cid, cdict = item
+                    url = cdict.get("website_url") or cdict.get("domain") or ""
+                    if url and not url.startswith("http"):
+                        url = "https://" + url
+                    return (cid, _scrape(url) if url else "")
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+                    for cid, s in ex.map(_do_scrape, eligible):
+                        site_summaries[cid] = s
+
+            def _gen_one(args):
+                cid, cdict = args
+                try:
+                    if custom_tpl:
+                        result = generate_from_custom_template(cdict, custom_tpl.content, custom_tpl.title)
+                    else:
+                        result = generate_sales_message(cdict, req.template_type, api_key=api_key, site_summary=site_summaries.get(cid, ""))
+                    return (cid, result, None)
+                except Exception as e:
+                    return (cid, None, str(e))
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
+                gen_results = list(ex.map(_gen_one, eligible))
+
+            batch_gen = 0
+            for cid, result, error in gen_results:
+                if error or not result:
+                    continue
+                msg = SalesMessage(
+                    org_id=org_id,
+                    company_id=cid,
+                    project_id=req.project_id,
+                    template_type=effective_type,
+                    subject=result["subject"],
+                    body=result["body"],
+                    ai_prompt_id=result.get("ai_prompt_id"),
+                    status="draft",
+                )
+                db.add(msg)
+                db.flush()
+                all_generated_ids.append(msg.id)
+                batch_gen += 1
+
+            db.commit()
+            total_generated += batch_gen
+            _update_job(job_id, done=min((i + 1) * BATCH, len(company_ids)), generated=total_generated)
+
+        if req.auto_send_form and all_generated_ids:
+            _update_job(job_id, phase="sending")
+            from server.services.form_sender import send_form_auto
+            from server.services.ai_analyzer import get_openai_key
+            from server.models import Organization, FormSenderProfile as FProf
+
+            openai_key = get_openai_key(db, org_id)
+            if not openai_key:
+                _update_job(job_id, status="done", phase="done", error="OpenAI APIキー未設定のためフォーム送信をスキップしました")
+                return
+
+            org = db.query(Organization).filter(Organization.id == org_id).first()
+            smtp_s = {}
+            try:
+                from server.services.mailer import get_smtp_settings
+                smtp_s = get_smtp_settings(db, org_id)
+            except Exception:
+                pass
+
+            prof = db.query(FProf).filter(FProf.id == req.profile_id, FProf.org_id == org_id).first() if req.profile_id else None
+
+            if prof:
+                sname = prof.display_name or ""
+                semail = prof.email or smtp_s.get("smtp_from_email") or ""
+                scompany = prof.company_name or (org.name if org else "")
+                sphone = prof.phone or ""
+                stitle = prof.title or ""
+                sdept = prof.department or ""
+                swebsite = prof.website_url or ""
+                spostal = prof.postal_code or ""
+                ssubject = prof.subject or ""
+                spref = prof.prefecture or ""
+                saddress = prof.address or ""
+            else:
+                sname = smtp_s.get("smtp_from_name") or ""
+                semail = smtp_s.get("smtp_from_email") or ""
+                scompany = org.name if org else ""
+                sphone = org.phone if org else ""
+                stitle = swebsite = sdept = spostal = ssubject = spref = saddress = ""
+
+            msgs = db.query(SalesMessage).filter(SalesMessage.id.in_(all_generated_ids)).all()
+            sent_c = 0
+            failed_c = 0
+            early = {"未確認", "対象候補", "アプローチ前"}
+
+            for msg in msgs:
+                co = cos_map.get(msg.company_id) or db.query(Company).filter(Company.id == msg.company_id).first()
+                if not co or not co.website_url:
+                    failed_c += 1
+                    _update_job(job_id, failed=failed_c)
+                    continue
+                body = _expand_variables(msg.body or "", co)
+                subject = _expand_variables(msg.subject or ssubject or "", co)
+                try:
+                    r = send_form_auto(
+                        url=co.website_url, sender_name=sname, sender_email=semail,
+                        sender_company=scompany, sender_phone=sphone, message=body,
+                        subject=subject, openai_key=openai_key, sender_title=stitle,
+                        sender_department=sdept, sender_website_url=swebsite,
+                        sender_postal_code=spostal, sender_prefecture=spref, sender_address=saddress,
+                    )
+                    if r.get("success"):
+                        msg.status = "sent"
+                        msg.sent_at = datetime.utcnow()
+                        if co.status in early:
+                            co.status = "フォーム送信済"
+                        sent_c += 1
+                    else:
+                        msg.status = "failed"
+                        failed_c += 1
+                except Exception:
+                    msg.status = "failed"
+                    failed_c += 1
+                db.commit()
+                _update_job(job_id, sent=sent_c, failed=failed_c)
+
+        _update_job(job_id, status="done", phase="done")
+    except Exception as e:
+        logger.error(f"BG job {job_id} error: {e}")
+        _update_job(job_id, status="error", error=str(e))
+    finally:
+        db.close()
+
+
+# ── ジョブ管理エンドポイント（固定パスを動的パスより前に置く） ──────────────
+@router.post("/jobs/start")
+def start_bg_job(req: BgJobRequest, current_user: User = Depends(get_current_user)):
+    if len(req.company_ids) == 0:
+        raise HTTPException(status_code=400, detail="company_ids が空です")
+    job_id = str(uuid.uuid4())[:8]
+    with _JOBS_LOCK:
+        _JOBS[job_id] = {
+            "job_id": job_id,
+            "status": "running",
+            "phase": "generating",
+            "done": 0,
+            "total": len(req.company_ids),
+            "batch": 0,
+            "total_batches": 0,
+            "generated": 0,
+            "sent": 0,
+            "failed": 0,
+            "error": None,
+            "org_id": current_user.org_id,
+            "auto_send_form": req.auto_send_form,
+            "started_at": datetime.utcnow().isoformat(),
+        }
+    thread = threading.Thread(target=_run_bg_job, args=(job_id, req, current_user.org_id), daemon=True)
+    thread.start()
+    return {"job_id": job_id}
+
+
+@router.get("/jobs/active")
+def get_active_jobs(current_user: User = Depends(get_current_user)):
+    with _JOBS_LOCK:
+        active = [j.copy() for j in _JOBS.values()
+                  if j["org_id"] == current_user.org_id and j["status"] == "running"]
+    return {"jobs": active}
+
+
+@router.get("/jobs/{job_id}")
+def get_job_status(job_id: str, current_user: User = Depends(get_current_user)):
+    with _JOBS_LOCK:
+        job = _JOBS.get(job_id)
+        if job:
+            job = job.copy()
+    if not job:
+        raise HTTPException(status_code=404, detail="ジョブが見つかりません")
+    if job["org_id"] != current_user.org_id:
+        raise HTTPException(status_code=403, detail="アクセス権限がありません")
+    return job
 
 
 @router.post("/generate")
