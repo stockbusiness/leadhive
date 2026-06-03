@@ -280,10 +280,7 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
             from server.services.ai_analyzer import get_openai_key
             from server.models import Organization, FormSenderProfile as FProf
 
-            openai_key = get_openai_key(db, org_id)
-            if not openai_key:
-                _update_job(job_id, status="done", phase="done", error="OpenAI APIキー未設定のためフォーム送信をスキップしました")
-                return
+            openai_key = get_openai_key(db, org_id)  # なければルールベースにフォールバック
 
             org = db.query(Organization).filter(Organization.id == org_id).first()
             smtp_s = {}
@@ -829,12 +826,7 @@ def send_message(
         from server.services.ai_analyzer import get_openai_key
         from server.models import Organization
 
-        openai_key = get_openai_key(db, current_user.org_id)
-        if not openai_key:
-            raise HTTPException(
-                status_code=400,
-                detail="OpenAI APIキーが設定されていません。設定画面でAPIキーを設定してください。"
-            )
+        openai_key = get_openai_key(db, current_user.org_id)  # なければルールベースにフォールバック
 
         org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
 
@@ -1011,12 +1003,7 @@ def bulk_send_form_messages(
     from server.services.ai_analyzer import get_openai_key
     from server.models import Organization, FormSenderProfile as FormSenderProfileModel
 
-    openai_key = get_openai_key(db, current_user.org_id)
-    if not openai_key:
-        raise HTTPException(
-            status_code=400,
-            detail="OpenAI APIキーが設定されていません。設定画面でAPIキーを設定してください。"
-        )
+    openai_key = get_openai_key(db, current_user.org_id)  # なければルールベースにフォールバック
 
     org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
     smtp_s = {}

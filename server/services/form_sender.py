@@ -169,6 +169,120 @@ _MAPPING_PROMPT = """あなたはWebフォームの入力アシスタントで�
 JSON:"""
 
 
+def _map_fields_rule_based(
+    form: dict,
+    sender_name: str,
+    sender_email: str,
+    sender_company: str,
+    sender_phone: str,
+    sender_title: str,
+    company_name: str,
+    message_body: str,
+    sender_department: str = "",
+    sender_website_url: str = "",
+    sender_postal_code: str = "",
+    sender_prefecture: str = "",
+    sender_address: str = "",
+    subject: str = "",
+) -> dict[str, str]:
+    """ルールベースでフォームフィールドをマッピングする（OpenAI不要）。"""
+    result = {}
+
+    _NAME_KWS = ("name", "氏名", "お名前", "名前", "担当者", "your_name", "fullname", "full_name", "username")
+    _EMAIL_KWS = ("email", "mail", "メール", "e-mail", "メールアドレス")
+    _COMPANY_KWS = ("company", "corporation", "会社", "企業", "法人", "御社", "貴社", "companyname", "corp")
+    _PHONE_KWS = ("phone", "tel", "電話", "携帯", "fax", "mobile", "contact_number")
+    _TITLE_KWS = ("title", "役職", "position", "post")
+    _DEPT_KWS = ("department", "dept", "部署", "部門", "section")
+    _SUBJECT_KWS = ("subject", "件名", "題名", "title", "お問い合わせ件名", "inquiry_subject")
+    _MESSAGE_KWS = ("message", "content", "body", "お問い合わせ", "内容", "メッセージ", "details", "description",
+                    "inquiry", "comment", "text", "textarea", "お問合", "問合せ内容", "ご相談")
+    _POSTAL_KWS = ("postal", "zip", "郵便", "〒", "postcode")
+    _PREF_KWS = ("prefecture", "都道府県", "pref", "state", "province")
+    _ADDR_KWS = ("address", "住所", "addr")
+    _URL_KWS = ("url", "website", "site", "homepage", "hp", "web")
+
+    def _match(key_label: str, keywords: tuple) -> bool:
+        t = key_label.lower().replace("-", "").replace("_", "").replace(" ", "")
+        return any(k.replace("-", "").replace("_", "").replace(" ", "") in t for k in keywords)
+
+    used_message = False
+    used_subject = False
+
+    for field in form["fields"]:
+        name = field.get("name", "")
+        label = field.get("label", "")
+        ftype = field.get("type", "text")
+        combined = (name + " " + label).strip()
+
+        if ftype == "hidden":
+            result[name] = field.get("value", "")
+            continue
+
+        if ftype == "checkbox":
+            result[name] = ""
+            continue
+
+        if ftype == "select":
+            options = field.get("options", [])
+            # お問い合わせ種別はその他/一般を選ぶ
+            preferred = ["その他", "一般", "ご相談", "相談", "問い合わせ", "inquiry", "other", "general"]
+            chosen = ""
+            for pref in preferred:
+                for opt in options:
+                    if pref in str(opt).lower():
+                        chosen = str(opt)
+                        break
+                if chosen:
+                    break
+            if not chosen and options:
+                # 空でない最初のoption (indexが0は通常プレースホルダー)
+                non_empty = [o for o in options if o and o != "0"]
+                chosen = non_empty[-1] if non_empty else (options[0] if options else "")
+            result[name] = chosen
+            continue
+
+        # テキスト系フィールド
+        val = ""
+        if not used_message and (ftype == "textarea" or _match(combined, _MESSAGE_KWS)):
+            val = message_body or ""
+            used_message = True
+        elif not used_subject and _match(combined, _SUBJECT_KWS):
+            val = subject or (message_body[:30] if message_body else "")
+            used_subject = True
+        elif _match(combined, _EMAIL_KWS):
+            val = sender_email or ""
+        elif _match(combined, _COMPANY_KWS):
+            val = sender_company or ""
+        elif _match(combined, _PHONE_KWS):
+            val = sender_phone or ""
+        elif _match(combined, _DEPT_KWS):
+            val = sender_department or ""
+        elif _match(combined, _TITLE_KWS):
+            val = sender_title or ""
+        elif _match(combined, _NAME_KWS):
+            val = sender_name or ""
+        elif _match(combined, _POSTAL_KWS):
+            val = sender_postal_code or ""
+        elif _match(combined, _PREF_KWS):
+            val = sender_prefecture or ""
+        elif _match(combined, _ADDR_KWS):
+            val = sender_address or ""
+        elif _match(combined, _URL_KWS):
+            val = sender_website_url or ""
+
+        result[name] = val
+
+    # message/subjectが未割り当てなら最初のtextarea/textに入れる
+    if not used_message:
+        for field in form["fields"]:
+            if field.get("type") in ("textarea", "text") and field.get("name") in result and not result[field["name"]]:
+                result[field["name"]] = message_body or ""
+                break
+
+    return result
+
+
 def map_fields_with_ai(
     form: dict,
     sender_name: str,
@@ -178,7 +292,7 @@ def map_fields_with_ai(
     sender_title: str,
     company_name: str,
     message_body: str,
-    openai_key: str,
+    openai_key: str = "",
     sender_department: str = "",
     sender_website_url: str = "",
     sender_postal_code: str = "",
@@ -186,45 +300,63 @@ def map_fields_with_ai(
     sender_address: str = "",
     subject: str = "",
 ) -> dict[str, str]:
-    """GPT-4o-miniでフォームフィールドと送信データをマッピングする。"""
-    if not openai_key:
-        raise ValueError("OpenAI APIキーが設定されていません")
+    """フォームフィールドをマッピングする。OpenAIキーがあればAI、なければルールベース。"""
+    if openai_key:
+        try:
+            non_hidden = [f for f in form["fields"] if f["type"] != "hidden"]
+            hidden = {f["name"]: f.get("value", "") for f in form["fields"] if f["type"] == "hidden"}
 
-    non_hidden = [f for f in form["fields"] if f["type"] != "hidden"]
-    hidden = {f["name"]: f.get("value", "") for f in form["fields"] if f["type"] == "hidden"}
+            prompt = _MAPPING_PROMPT.format(
+                fields_json=json.dumps(non_hidden, ensure_ascii=False, indent=2),
+                sender_name=sender_name or "",
+                sender_email=sender_email or "",
+                sender_company=sender_company or "",
+                sender_phone=sender_phone or "",
+                sender_title=sender_title or "",
+                sender_department=sender_department or "",
+                sender_website_url=sender_website_url or "",
+                sender_postal_code=sender_postal_code or "",
+                sender_prefecture=sender_prefecture or "",
+                sender_address=sender_address or "",
+                company_name=company_name or "",
+                message_body=message_body or "",
+                subject=subject or "",
+            )
 
-    prompt = _MAPPING_PROMPT.format(
-        fields_json=json.dumps(non_hidden, ensure_ascii=False, indent=2),
-        sender_name=sender_name or "",
-        sender_email=sender_email or "",
-        sender_company=sender_company or "",
-        sender_phone=sender_phone or "",
-        sender_title=sender_title or "",
-        sender_department=sender_department or "",
-        sender_website_url=sender_website_url or "",
-        sender_postal_code=sender_postal_code or "",
-        sender_prefecture=sender_prefecture or "",
-        sender_address=sender_address or "",
-        company_name=company_name or "",
-        message_body=message_body or "",
-        subject=subject or "",
+            from openai import OpenAI
+            client = OpenAI(api_key=openai_key)
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=1000,
+                response_format={"type": "json_object"},
+            )
+            mapped = json.loads(resp.choices[0].message.content)
+            result = {}
+            result.update(hidden)
+            result.update({k: str(v) for k, v in mapped.items()})
+            return result
+        except Exception as e:
+            logger.warning(f"AI field mapping failed, falling back to rule-based: {e}")
+
+    # ルールベースフォールバック
+    return _map_fields_rule_based(
+        form=form,
+        sender_name=sender_name,
+        sender_email=sender_email,
+        sender_company=sender_company,
+        sender_phone=sender_phone,
+        sender_title=sender_title,
+        company_name=company_name,
+        message_body=message_body,
+        sender_department=sender_department,
+        sender_website_url=sender_website_url,
+        sender_postal_code=sender_postal_code,
+        sender_prefecture=sender_prefecture,
+        sender_address=sender_address,
+        subject=subject,
     )
-
-    from openai import OpenAI
-    client = OpenAI(api_key=openai_key)
-    resp = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1,
-        max_tokens=1000,
-        response_format={"type": "json_object"},
-    )
-    mapped = json.loads(resp.choices[0].message.content)
-
-    result = {}
-    result.update(hidden)
-    result.update({k: str(v) for k, v in mapped.items()})
-    return result
 
 
 def _find_contact_url(website_url: str, contact_url: str, session: requests.Session) -> Optional[str]:
