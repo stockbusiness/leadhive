@@ -278,9 +278,10 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
             _update_job(job_id, phase="sending")
             from server.services.form_sender import send_form_auto
             from server.services.ai_analyzer import get_openai_key
+            from server.services.encryption import decrypt_value
             from server.models import Organization, FormSenderProfile as FProf
 
-            openai_key = get_openai_key(db, org_id)  # なければルールベースにフォールバック
+            openai_key = decrypt_value(get_openai_key(db, org_id)) or ""  # なければルールベースにフォールバック
 
             org = db.query(Organization).filter(Organization.id == org_id).first()
             smtp_s = {}
@@ -824,9 +825,10 @@ def send_message(
     elif req.send_method == "form":
         from server.services.form_sender import send_form_auto
         from server.services.ai_analyzer import get_openai_key
+        from server.services.encryption import decrypt_value
         from server.models import Organization
 
-        openai_key = get_openai_key(db, current_user.org_id)  # なければルールベースにフォールバック
+        openai_key = decrypt_value(get_openai_key(db, current_user.org_id)) or ""  # なければルールベースにフォールバック
 
         org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
 
@@ -1001,9 +1003,10 @@ def bulk_send_form_messages(
     """レビュー済みメッセージをフォーム自動送信で一括送信する。"""
     from server.services.form_sender import send_form_auto
     from server.services.ai_analyzer import get_openai_key
+    from server.services.encryption import decrypt_value
     from server.models import Organization, FormSenderProfile as FormSenderProfileModel
 
-    openai_key = get_openai_key(db, current_user.org_id)  # なければルールベースにフォールバック
+    openai_key = decrypt_value(get_openai_key(db, current_user.org_id)) or ""  # なければルールベースにフォールバック
 
     org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
     smtp_s = {}
