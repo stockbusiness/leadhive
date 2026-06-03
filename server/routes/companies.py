@@ -34,7 +34,8 @@ def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filt
 
     db = SessionLocal()
     try:
-        owned_ids = [p.id for p in db.query(_Project.id).filter(_Project.org_id == org_id).all()]
+        owned_ids = [p[0] for p in db.query(_Project.id).filter(_Project.org_id == org_id).all()]
+        logger.info(f"[form_scan:{job_id}] org_id={org_id} owned_ids={owned_ids} company_ids={company_ids} project_id={project_id} skip_existing={skip_existing}")
 
         if company_ids:
             query = db.query(Company).filter(
@@ -58,6 +59,10 @@ def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filt
             if filters.get("ec_only"):
                 query = query.filter(Company.ec_flag == True)
 
+        # skip_existing前の件数をログ
+        pre_skip_count = query.count()
+        logger.info(f"[form_scan:{job_id}] skip_existing前: {pre_skip_count}件")
+
         if skip_existing:
             query = query.filter(or_(Company.contact_url.is_(None), Company.contact_url == ""))
 
@@ -65,10 +70,11 @@ def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filt
         total_eligible = query.count()
         companies = query.limit(BATCH_SIZE).all()
         total = len(companies)
-        _update_scan_job(job_id, total=total, total_eligible=total_eligible)
+        logger.info(f"[form_scan:{job_id}] total_eligible={total_eligible} total(batch)={total}")
+        _update_scan_job(job_id, total=total, total_eligible=total_eligible, pre_skip_count=pre_skip_count)
 
         if total == 0:
-            _update_scan_job(job_id, status="done", total_eligible=total_eligible)
+            _update_scan_job(job_id, status="done", total_eligible=total_eligible, pre_skip_count=pre_skip_count)
             return
 
         session = _req.Session()

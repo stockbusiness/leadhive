@@ -69,7 +69,7 @@ export default function Companies() {
   const [scanningForms, setScanningForms] = useState(false);
   const [scanFormMsg, setScanFormMsg] = useState<string | null>(null);
   const [scanJobId, setScanJobId] = useState<string | null>(null);
-  const [scanJobProgress, setScanJobProgress] = useState<{ done: number; total: number; total_eligible: number; found: number } | null>(null);
+  const [scanJobProgress, setScanJobProgress] = useState<{ done: number; total: number; total_eligible: number; found: number; pre_skip_count?: number } | null>(null);
 
   useEffect(() => {
     api.plans.current().then((d) => setCsvPlan(d.plan ?? null)).catch(() => setCsvPlan(null));
@@ -123,7 +123,7 @@ export default function Companies() {
     const interval = setInterval(async () => {
       try {
         const job = await api.companies.getFormScanJob(scanJobId);
-        setScanJobProgress({ done: job.done, total: job.total, total_eligible: job.total_eligible, found: job.found });
+        setScanJobProgress({ done: job.done, total: job.total, total_eligible: job.total_eligible, found: job.found, pre_skip_count: job.pre_skip_count });
         if (job.status === "done" || job.status === "error") {
           clearInterval(interval);
           setScanJobId(null);
@@ -131,7 +131,12 @@ export default function Companies() {
           if (job.status === "done") {
             const remaining = (job.total_eligible || 0) - job.total;
             if (job.total === 0) {
-              setScanFormMsg("スキャン対象なし（全企業にフォームURLが登録済みです）");
+              const preSkip = job.pre_skip_count ?? 0;
+              if (preSkip > 0) {
+                setScanFormMsg(`スキャン対象なし — ${preSkip}件の企業は既にフォームURLが登録済みのためスキップ。「再スキャン」ボタンで上書き再スキャンできます`);
+              } else {
+                setScanFormMsg("スキャン対象なし（現在のフィルター条件でウェブサイトURLのある企業が見つかりませんでした）");
+              }
             } else if (remaining > 0) {
               setScanFormMsg(`✅ ${job.total}件スキャン完了・${job.found}件検出。残り${remaining}件あります → 再度「フォームURL検出」を押すと続きをスキャンします`);
             } else {
@@ -289,9 +294,12 @@ export default function Companies() {
     _startScanJob({ company_ids: Array.from(selectedIds) });
   };
 
-  const handleScanAllForms = () => {
-    if (!confirm(`現在のフィルター条件の企業（フォームURLが未登録）を全件バックグラウンドでスキャンします（最大500件）。\n\n実行しますか？`)) return;
-    const params: Parameters<typeof api.companies.startFormScan>[0] = { skip_existing: true };
+  const handleScanAllForms = (skipExisting = true) => {
+    const msg = skipExisting
+      ? `現在のフィルター条件の企業（フォームURLが未登録）を全件バックグラウンドでスキャンします（最大500件）。\n\n実行しますか？`
+      : `現在のフィルター条件の企業を全件再スキャンします（登録済みのフォームURLも上書きします）。\n\n実行しますか？`;
+    if (!confirm(msg)) return;
+    const params: Parameters<typeof api.companies.startFormScan>[0] = { skip_existing: skipExisting };
     if (currentProject?.id) params.project_id = currentProject.id;
     if (filters.category) params.category = filters.category;
     if (filters.status) params.status = filters.status;
@@ -415,15 +423,25 @@ export default function Companies() {
               <span className="hidden sm:inline">カンバン</span>
             </button>
           </div>
-          <button
-            onClick={handleScanAllForms}
-            disabled={scanningForms}
-            className="flex items-center gap-1.5 bg-cyan-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-cyan-700 transition-colors disabled:opacity-50"
-            title="現在のフィルター条件の企業を全件巡回してフォームURLを検出・保存"
-          >
-            <Search size={15} className={scanningForms ? "animate-spin" : ""} />
-            <span>{scanningForms ? "検出中..." : "フォームURL検出"}</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleScanAllForms(true)}
+              disabled={scanningForms}
+              className="flex items-center gap-1.5 bg-cyan-600 text-white px-3 py-2 rounded-l-lg text-sm hover:bg-cyan-700 transition-colors disabled:opacity-50"
+              title="フォームURLが未登録の企業を全件スキャン"
+            >
+              <Search size={15} className={scanningForms ? "animate-spin" : ""} />
+              <span>{scanningForms ? "検出中..." : "フォームURL検出"}</span>
+            </button>
+            <button
+              onClick={() => handleScanAllForms(false)}
+              disabled={scanningForms}
+              className="flex items-center gap-1 bg-cyan-700 text-white px-2 py-2 rounded-r-lg text-sm hover:bg-cyan-800 transition-colors disabled:opacity-50 border-l border-cyan-500"
+              title="登録済みを含む全企業を再スキャン（上書き）"
+            >
+              <span className="text-xs">再</span>
+            </button>
+          </div>
           <button
             onClick={handleDuplicateCheck}
             disabled={duplicateLoading}
