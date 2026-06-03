@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Trash2,
   ExternalLink,
+  Video,
 } from "lucide-react";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
@@ -43,6 +44,12 @@ const RANK_COLOR: Record<string, string> = {
   C: "bg-yellow-500 text-white",
   D: "bg-slate-400 text-white",
 };
+
+function toZoomPhoneUrl(phone: string): string {
+  const digits = phone.replace(/[^\d]/g, "");
+  const e164 = digits.startsWith("0") ? "+81" + digits.slice(1) : "+" + digits;
+  return `zoomus://phone?action=dial&phoneNumber=${encodeURIComponent(e164)}`;
+}
 
 function ScriptRenderer({ text }: { text: string }) {
   const lines = text.split("\n");
@@ -347,16 +354,26 @@ export default function TeleApo() {
             <div className="flex-1 overflow-y-auto">
               {/* Phone number — big, clickable */}
               <div className="px-4 py-4 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
-                <a
-                  href={`tel:${selected.phone}`}
-                  className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-3 transition-colors"
-                >
-                  <PhoneCall size={22} />
-                  <div>
-                    <p className="text-xs opacity-80 mb-0.5">タップして電話</p>
-                    <p className="text-xl font-bold tracking-wider font-mono">{selected.phone}</p>
-                  </div>
-                </a>
+                <div className="flex gap-2">
+                  <a
+                    href={`tel:${selected.phone}`}
+                    className="flex-1 flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-3 transition-colors"
+                  >
+                    <PhoneCall size={20} />
+                    <div>
+                      <p className="text-xs opacity-80 mb-0.5">電話で発信</p>
+                      <p className="text-lg font-bold tracking-wider font-mono">{selected.phone}</p>
+                    </div>
+                  </a>
+                  <a
+                    href={toZoomPhoneUrl(selected.phone)}
+                    title="Zoom Phoneで発信"
+                    className="flex flex-col items-center justify-center gap-1 bg-[#2D8CFF] hover:bg-[#1a7ae0] text-white rounded-xl px-4 py-3 transition-colors flex-shrink-0"
+                  >
+                    <Video size={20} />
+                    <span className="text-xs font-bold leading-none">Zoom</span>
+                  </a>
+                </div>
                 <div className="flex gap-2 mt-2 flex-wrap text-xs">
                   {selected.category_main && <span className="text-slate-500">{selected.category_main}</span>}
                   {selected.status && <span className="text-slate-500">ステータス: {selected.status}</span>}
