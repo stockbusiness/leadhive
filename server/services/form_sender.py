@@ -93,6 +93,262 @@ def _fetch_with_playwright(url: str) -> tuple[str, str]:
         raise RuntimeError(f"Playwright取得失敗: {e}") from e
 
 
+# ── Playwright 完全送信（入力 → 確認ページ突破 → 完了確認） ───────────────
+
+_SUBMIT_SELECTORS = [
+    'input[type="submit"]',
+    'button[type="submit"]',
+    'button:has-text("送信する")',
+    'button:has-text("送信")',
+    'button:has-text("確認する")',
+    'button:has-text("確認")',
+    'button:has-text("次へ")',
+    'button:has-text("Next")',
+    'button:has-text("Submit")',
+    'button:has-text("Send")',
+    'input[value="送信"]',
+    'input[value="送信する"]',
+    'input[value="確認"]',
+    'input[value="確認する"]',
+]
+
+_CONFIRM_SELECTORS = [
+    'button:has-text("送信する")',
+    'button:has-text("送信")',
+    'input[value="送信"]',
+    'input[value="送信する"]',
+    'input[type="submit"]',
+    'button[type="submit"]',
+]
+
+_SUCCESS_KWS = [
+    "ありがとう", "送信しました", "受け付けました", "完了",
+    "thank you", "success", "submitted", "received", "confirmation",
+    "送信完了", "受付完了", "お問い合わせありがとう",
+]
+_ERROR_KWS = ["エラー", "error", "required", "invalid", "入力エラー",
+               "必須項目が入力されていません", "必須フィールド", "validation error"]
+
+
+async def _submit_form_playwright_full_async(
+    url: str,
+    form: dict,
+    mapped_values: dict,
+) -> dict:
+    """
+    Playwright でフォームページを開き、フィールド入力 → 送信 → 確認ページ突破 → 結果確認を行う。
+
+    Args:
+        url: フォームページURL（連絡先ページ）
+        form: _extract_forms() が返したフォーム情報（fields / action / method）
+        mapped_values: {field_name -> value} のマッピング
+
+    Returns:
+        {"success": bool, "message": str, "fields_mapped": int}
+    """
+    import random as _random
+    from playwright.async_api import async_playwright, TimeoutError as PWTimeout
+
+    chromium_path = _get_chromium_path()
+    if not chromium_path:
+        return {"success": False, "message": "Chromiumが見つかりません", "fields_mapped": 0}
+
+    fields_filled = 0
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            executable_path=chromium_path,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--single-process",
+                "--disable-blink-features=AutomationControlled",
+            ],
+            headless=True,
+        )
+        ctx = await browser.new_context(
+            user_agent=_HEADERS["User-Agent"],
+            viewport={"width": 1366, "height": 768},
+            locale="ja-JP",
+            timezone_id="Asia/Tokyo",
+            extra_http_headers={"Accept-Language": "ja,en-US;q=0.9,en;q=0.8"},
+        )
+        # webdriver 検出を無効化
+        await ctx.add_init_script(
+            "Object.defineProperty(navigator,'webdriver',{get:()=>undefined});"
+        )
+        page = await ctx.new_page()
+
+        try:
+            await page.goto(url, timeout=_PLAYWRIGHT_TIMEOUT, wait_until="networkidle")
+            try:
+                await page.wait_for_selector("form", timeout=8000)
+            except PWTimeout:
+                pass
+
+            # ページ読み込み後の人間らしい待機
+            await asyncio.sleep(_random.uniform(0.6, 1.5))
+
+            # ── フィールド入力 ──────────────────────────────────────────
+            for field in form.get("fields", []):
+                name = field.get("name", "")
+                ftype = field.get("type", "text")
+                value = mapped_values.get(name, "")
+
+                if ftype == "hidden" or not name:
+                    continue
+
+                try:
+                    if ftype == "select":
+                        if value:
+                            loc = page.locator(f'select[name="{name}"]').first
+                            if await loc.count() > 0:
+                                try:
+                                    await loc.select_option(value=value, timeout=3000)
+                                    fields_filled += 1
+                                except Exception:
+                                    try:
+                                        await loc.select_option(label=value, timeout=2000)
+                                        fields_filled += 1
+                                    except Exception:
+                                        pass
+
+                    elif ftype == "radio":
+                        if value:
+                            loc = page.locator(
+                                f'input[type=radio][name="{name}"][value="{value}"]'
+                            )
+                            if await loc.count() > 0:
+                                await loc.click(timeout=3000)
+                                fields_filled += 1
+
+                    elif ftype == "checkbox":
+                        if value:
+                            loc = page.locator(
+                                f'input[type=checkbox][name="{name}"]'
+                            ).first
+                            if await loc.count() > 0 and not await loc.is_checked():
+                                await loc.check(timeout=3000)
+                                fields_filled += 1
+
+                    else:
+                        if value:
+                            loc = page.locator(f'[name="{name}"]').first
+                            if await loc.count() > 0:
+                                await loc.scroll_into_view_if_needed(timeout=3000)
+                                await loc.click(timeout=3000)
+                                await asyncio.sleep(_random.uniform(0.05, 0.15))
+                                await loc.fill(value, timeout=3000)
+                                fields_filled += 1
+
+                    await asyncio.sleep(_random.uniform(0.1, 0.4))
+                except Exception as ex:
+                    logger.debug(f"フィールド入力スキップ [{name}]: {ex}")
+
+            # 送信前の人間らしい待機
+            await asyncio.sleep(_random.uniform(0.8, 2.0))
+
+            # ── 送信ボタンをクリック ────────────────────────────────────
+            submitted = False
+            for sel in _SUBMIT_SELECTORS:
+                loc = page.locator(sel).first
+                try:
+                    if await loc.count() > 0 and await loc.is_visible():
+                        await loc.scroll_into_view_if_needed(timeout=3000)
+                        await loc.click(timeout=5000)
+                        submitted = True
+                        break
+                except Exception:
+                    continue
+
+            if not submitted:
+                return {
+                    "success": False,
+                    "message": "送信ボタンが見つかりませんでした（Playwright）",
+                    "fields_mapped": fields_filled,
+                }
+
+            # 送信後の遷移待機
+            try:
+                await page.wait_for_load_state("networkidle", timeout=15000)
+            except PWTimeout:
+                await asyncio.sleep(3)
+
+            # ── 確認ページ検出・突破（入力→確認→送信の2ステップフォーム対応）──
+            page_text = (await page.text_content("body") or "").lower()
+            has_confirm_page = any(k in page_text for k in ("確認", "confirm", "内容を確認"))
+            has_success_already = any(k in page_text for k in _SUCCESS_KWS)
+
+            if has_confirm_page and not has_success_already:
+                await asyncio.sleep(_random.uniform(0.5, 1.2))
+                for sel in _CONFIRM_SELECTORS:
+                    loc = page.locator(sel).first
+                    try:
+                        if await loc.count() > 0 and await loc.is_visible():
+                            await loc.scroll_into_view_if_needed(timeout=3000)
+                            await loc.click(timeout=5000)
+                            try:
+                                await page.wait_for_load_state("networkidle", timeout=12000)
+                            except PWTimeout:
+                                await asyncio.sleep(3)
+                            break
+                    except Exception:
+                        continue
+
+            # ── 最終ページのテキストで成功/失敗を判定 ──────────────────
+            try:
+                final_text = (await page.text_content("body") or "").lower()
+            except Exception:
+                final_text = ""
+
+            has_success = any(k in final_text for k in _SUCCESS_KWS)
+            has_error = any(k in final_text for k in _ERROR_KWS)
+
+            if has_error and not has_success:
+                return {
+                    "success": False,
+                    "message": "フォームの入力エラー（Playwright送信・必須項目不足の可能性）",
+                    "fields_mapped": fields_filled,
+                }
+
+            return {
+                "success": True,
+                "message": f"Playwrightでフォーム送信完了（{fields_filled}項目入力）",
+                "fields_mapped": fields_filled,
+            }
+
+        except PWTimeout:
+            return {
+                "success": False,
+                "message": "Playwright送信タイムアウト",
+                "fields_mapped": fields_filled,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Playwright送信エラー: {e}",
+                "fields_mapped": fields_filled,
+            }
+        finally:
+            await browser.close()
+
+
+def _submit_form_playwright_full(url: str, form: dict, mapped_values: dict) -> dict:
+    """同期ラッパー: スレッド内から Playwright 完全送信を呼び出す。"""
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(
+                _submit_form_playwright_full_async(url, form, mapped_values)
+            )
+        finally:
+            loop.close()
+    except Exception as e:
+        return {"success": False, "message": f"Playwright送信エラー: {e}", "fields_mapped": 0}
+
+
 def _fetch_html(url: str, session: requests.Session) -> tuple[str, str]:
     """URLのHTMLを取得し (html, final_url) を返す。"""
     resp = session.get(url, headers=_HEADERS, timeout=_FETCH_TIMEOUT, allow_redirects=True)
@@ -691,6 +947,7 @@ def send_form_auto(
         }
 
     forms = _extract_forms(html, final_url)
+    use_playwright_submit = False  # JS フォームは Playwright で送信まで行うフラグ
 
     # フォームが見つからない場合 → Playwright でJS実行して再取得
     if not forms or _is_spa_page(html):
@@ -704,6 +961,7 @@ def send_form_auto(
                     html = pw_html
                     final_url = pw_final_url
                     forms = pw_forms
+                    use_playwright_submit = True  # 送信もPlaywrightで行う
                     logger.info(f"Playwright でフォーム {len(pw_forms)}件 発見: {resolved_url}")
                 else:
                     logger.info(f"Playwright でもフォーム未発見: {resolved_url}")
@@ -744,6 +1002,13 @@ def send_form_auto(
             "form_url": resolved_url,
             "fields_mapped": 0,
         }
+
+    # JS必須フォームは Playwright で実際にブラウザ操作して送信する
+    # （Cookie/CSRF/JSバリデーション/確認ページを正しく処理できる）
+    if use_playwright_submit:
+        logger.info(f"Playwright完全送信モード: {resolved_url}")
+        result = _submit_form_playwright_full(resolved_url, form, mapped)
+        return {**result, "form_url": resolved_url}
 
     fields_mapped = sum(1 for v in mapped.values() if v)
 

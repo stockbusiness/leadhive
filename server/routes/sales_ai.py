@@ -332,8 +332,11 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
 
             def _send_one(msg_id: int):
                 """1社分のフォーム送信タスク。(msg_id, success, note) を返す。"""
+                import random as _rnd, time as _time
                 if _is_cancelled(job_id):
                     return (msg_id, None, "cancelled")
+                # Bot検知回避: 1〜4秒のランダム遅延（人間らしい間隔）
+                _time.sleep(_rnd.uniform(1.0, 4.0))
                 # 各スレッド独自のDB接続を使う
                 _db = SessionLocal()
                 try:
