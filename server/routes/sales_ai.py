@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, case
+from sqlalchemy import func, case, text
 from sqlalchemy.orm import Session
 from server.database import get_db, SessionLocal
 from server.models import SalesMessage, AuditLog, OptOutList, Company, CompanyMaster, User, AppSetting, Project
@@ -317,7 +317,24 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                 sphone = org.phone if org else ""
                 stitle = swebsite = sdept = spostal = ssubject = spref = saddress = ""
 
-            msgs = db.query(SalesMessage).filter(SalesMessage.id.in_(all_generated_ids)).all()
+            # ── 起動時に stuck な "processing" メッセージをリセット ──
+            # 前回ジョブがクラッシュしたり強制終了された場合の残留 "processing" を解除
+            try:
+                db.execute(
+                    text(
+                        "UPDATE sales_messages SET status='failed' "
+                        "WHERE id = ANY(:ids) AND status='processing'"
+                    ),
+                    {"ids": all_generated_ids},
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+
+            msgs = db.query(SalesMessage).filter(
+                SalesMessage.id.in_(all_generated_ids),
+                SalesMessage.status.notin_(["sent"]),  # 送信済みは最初から除外
+            ).all()
             sent_c = 0
             failed_c = 0
             skipped_c = 0
@@ -339,14 +356,43 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                 # 各スレッド独自のDB接続を使う
                 _db = SessionLocal()
                 try:
+                    # ── ① アトミック「処理中」クレーム（DBレベル二重送信防止） ──
+                    # sent / processing 以外の場合のみ processing に更新する
+                    # rowcount == 0 なら他スレッド or 別リクエストが既に処理済み → スキップ
+                    claim = _db.execute(
+                        text(
+                            "UPDATE sales_messages SET status='processing' "
+                            "WHERE id=:id AND status NOT IN ('sent', 'processing')"
+                        ),
+                        {"id": msg_id},
+                    )
+                    _db.commit()
+                    if claim.rowcount == 0:
+                        return (msg_id, "skip", "already_sent_or_processing")
+
+                    # ── ② 最新のメッセージ・会社情報を取得 ──
                     _msg = _db.query(SalesMessage).filter(SalesMessage.id == msg_id).first()
                     if not _msg:
                         return (msg_id, False, "msg_not_found")
                     _co = _db.query(Company).filter(Company.id == _msg.company_id).first()
+
+                    # ── ③ 会社ステータスで除外（送信済み・商談中・成約・NG） ──
                     if _co and _co.status in already_sent_statuses:
-                        return (msg_id, "skip", "already_sent")
+                        _db.execute(
+                            text("UPDATE sales_messages SET status='failed' WHERE id=:id"),
+                            {"id": msg_id},
+                        )
+                        _db.commit()
+                        return (msg_id, "skip", "already_sent_company")
+
                     if not _co or not _co.website_url:
+                        _db.execute(
+                            text("UPDATE sales_messages SET status='failed' WHERE id=:id"),
+                            {"id": msg_id},
+                        )
+                        _db.commit()
                         return (msg_id, False, "no_url")
+
                     body = _expand_variables(_msg.body or "", _co)
                     subject = _expand_variables(_msg.subject or ssubject or "", _co)
                     r = send_form_auto(
@@ -367,8 +413,24 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                         sender_address=saddress,
                         subject=subject,
                     )
+                    # ── ④ 送信結果をDBに書き戻す（processing → sent / failed） ──
+                    final_status = "sent" if r.get("success") else "failed"
+                    _db.execute(
+                        text("UPDATE sales_messages SET status=:s WHERE id=:id"),
+                        {"s": final_status, "id": msg_id},
+                    )
+                    _db.commit()
                     return (msg_id, r.get("success", False), r.get("message", ""))
                 except Exception as ex:
+                    # 例外時は processing → failed に戻す（スタック防止）
+                    try:
+                        _db.execute(
+                            text("UPDATE sales_messages SET status='failed' WHERE id=:id AND status='processing'"),
+                            {"id": msg_id},
+                        )
+                        _db.commit()
+                    except Exception:
+                        pass
                     logger.exception(f"BG form send exception msg={msg_id}: {ex}")
                     return (msg_id, False, str(ex))
                 finally:
@@ -441,6 +503,17 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
 def start_bg_job(req: BgJobRequest, current_user: User = Depends(get_current_user)):
     if len(req.company_ids) == 0:
         raise HTTPException(status_code=400, detail="company_ids が空です")
+    # ── 同一 org で既に実行中のジョブがあれば 409 を返す（二重ジョブ防止） ──
+    with _JOBS_LOCK:
+        running = [
+            j for j in _JOBS.values()
+            if j.get("org_id") == current_user.org_id and j.get("status") == "running"
+        ]
+        if running:
+            raise HTTPException(
+                status_code=409,
+                detail=f"送信ジョブが実行中です（job_id: {running[0]['job_id']}）。完了またはキャンセルしてから再実行してください。",
+            )
     job_id = str(uuid.uuid4())[:8]
     with _JOBS_LOCK:
         _JOBS[job_id] = {
@@ -1132,12 +1205,24 @@ def bulk_send_form_messages(
         sender_prefecture = ""
         sender_address = ""
 
+    # ── 実行中バックグラウンドジョブがあれば競合を防ぐ（二重送信防止） ──
+    with _JOBS_LOCK:
+        running_jobs = [
+            j for j in _JOBS.values()
+            if j.get("org_id") == current_user.org_id and j.get("status") == "running"
+        ]
+    if running_jobs:
+        raise HTTPException(
+            status_code=409,
+            detail=f"バックグラウンド送信ジョブが実行中です（job_id: {running_jobs[0]['job_id']}）。完了後に再実行してください。",
+        )
+
     owned_pids = _owned_projects(current_user, db)
     q = (
         db.query(SalesMessage)
         .join(Company, SalesMessage.company_id == Company.id)
         .filter(
-            SalesMessage.status.in_(["draft", "reviewed"]),
+            SalesMessage.status.in_(["draft", "reviewed"]),  # sent/processing は除外
             Company.project_id.in_(owned_pids),
         )
     )
