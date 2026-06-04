@@ -469,6 +469,61 @@ export default function Companies() {
 
   return (
     <div className="p-3 md:p-6 space-y-3 md:space-y-4">
+      {/* ── スキャン状況 モバイル固定バナー ─────────────────────────────── */}
+      {(scanningForms || scanFormMsg || scanRemaining > 0) && (
+        <div className="fixed bottom-4 left-3 right-3 z-50 md:hidden">
+          <div className="bg-cyan-700 text-white rounded-xl shadow-2xl px-4 py-3">
+            {scanningForms ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Search size={14} className="animate-spin flex-shrink-0" />
+                  <span className="text-sm font-semibold flex-1">フォームURL スキャン中...</span>
+                </div>
+                {scanJobProgress && (
+                  <>
+                    <div className="flex items-center gap-4 text-xs flex-wrap">
+                      <span>進捗 <strong>{scanJobProgress.done}</strong> / {scanJobProgress.total}件</span>
+                      <span>検出 <strong className="text-cyan-200">{scanJobProgress.found}</strong>件</span>
+                      {(scanJobProgress.total_eligible ?? 0) > scanJobProgress.total && (
+                        <span className="text-cyan-300">全体残り {(scanJobProgress.total_eligible ?? 0) - scanJobProgress.done}件</span>
+                      )}
+                    </div>
+                    {scanJobProgress.total > 0 && (
+                      <div className="w-full bg-cyan-900 rounded-full h-1.5">
+                        <div
+                          className="bg-white h-1.5 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.round((scanJobProgress.done / scanJobProgress.total) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium flex-1">{scanFormMsg}</span>
+                  <button
+                    onClick={() => { setScanFormMsg(null); setScanRemaining(0); }}
+                    className="text-cyan-300 hover:text-white flex-shrink-0 p-1"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                {scanRemaining > 0 && (
+                  <button
+                    onClick={() => handleScanAllForms(true)}
+                    className="w-full flex items-center justify-center gap-1.5 bg-white text-cyan-700 font-semibold px-3 py-1.5 rounded-lg text-xs hover:bg-cyan-50 transition-colors"
+                  >
+                    <Search size={12} />
+                    次の500件をスキャン（残り{scanRemaining.toLocaleString()}件）
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <h2 className="text-xl md:text-2xl font-bold text-slate-800">候補企業一覧</h2>
         <div className="flex items-center flex-wrap gap-2">
