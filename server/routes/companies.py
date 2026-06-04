@@ -959,6 +959,243 @@ def get_form_scan_job(job_id: str, current_user: User = Depends(get_current_user
     return job
 
 
+@router.get("/score-feedback")
+def get_score_feedback(
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    受注・商談化した企業の特徴を分析し、スコアリング改善のためのフィードバックデータを返す。
+    ステータスが「商談中」「受注」「成約」「対象候補」などに変化した企業の
+    スコア・CMS・EC規模の分布を集計する。
+    """
+    from sqlalchemy import func as _func
+    owned_ids = _owned_projects(current_user, db)
+
+    POSITIVE_STATUSES = ["商談中", "受注", "成約", "提案中", "資料送付済"]
+    NEGATIVE_STATUSES = ["対象外", "NG", "不要", "断られた"]
+
+    q_base = db.query(Company)
+    if project_id:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403)
+        q_base = q_base.filter(Company.project_id == project_id)
+    else:
+        q_base = q_base.filter(Company.project_id.in_(owned_ids))
+
+    all_cos = q_base.all()
+    total = len(all_cos)
+    if total == 0:
+        return {"total": 0, "positive": None, "negative": None, "rank_conversion": {}, "insights": [],
+                "positive_count": 0, "negative_count": 0}
+
+    def _aggregate(cos):
+        if not cos:
+            return None
+        scores = [c.score_total for c in cos if c.score_total is not None]
+        ranks = {}
+        for c in cos:
+            r = c.score_rank or "不明"
+            ranks[r] = ranks.get(r, 0) + 1
+        cms = {}
+        for c in cos:
+            if c.cms_type:
+                cms[c.cms_type] = cms.get(c.cms_type, 0) + 1
+        ec_count = sum(1 for c in cos if c.ec_flag)
+        return {
+            "count": len(cos),
+            "avg_score": round(sum(scores) / len(scores), 1) if scores else 0,
+            "rank_dist": dict(sorted(ranks.items())),
+            "top_cms": dict(sorted(cms.items(), key=lambda x: -x[1])[:5]),
+            "ec_ratio": round(ec_count / len(cos) * 100, 1),
+        }
+
+    pos_cos = [c for c in all_cos if c.status in POSITIVE_STATUSES]
+    neg_cos = [c for c in all_cos if c.status in NEGATIVE_STATUSES]
+    pos_agg = _aggregate(pos_cos)
+    neg_agg = _aggregate(neg_cos)
+
+    insights = []
+    if pos_agg and neg_agg:
+        score_diff = pos_agg.get("avg_score", 0) - neg_agg.get("avg_score", 0)
+        if abs(score_diff) >= 5:
+            direction = "高い" if score_diff > 0 else "低い"
+            insights.append(f"受注企業の平均スコアは対象外企業より {abs(score_diff):.1f}点 {direction}傾向があります")
+
+    if pos_agg and pos_agg.get("ec_ratio", 0) > 50:
+        insights.append(f"受注企業の {pos_agg['ec_ratio']}% が EC サイトです — EC 企業を優先的にアプローチすると効果的です")
+
+    if pos_agg and pos_agg.get("top_cms"):
+        top_cms = list(pos_agg["top_cms"].keys())[0]
+        insights.append(f"受注実績が多い CMS/プラットフォーム: 「{top_cms}」")
+
+    rank_conversion = {}
+    for rank in ["A", "B", "C", "D"]:
+        rank_total = sum(1 for c in all_cos if c.score_rank == rank)
+        rank_pos = sum(1 for c in pos_cos if c.score_rank == rank)
+        if rank_total > 0:
+            rank_conversion[rank] = {
+                "total": rank_total,
+                "converted": rank_pos,
+                "rate": round(rank_pos / rank_total * 100, 1),
+            }
+
+    return {
+        "total": total,
+        "positive": pos_agg,
+        "negative": neg_agg,
+        "rank_conversion": rank_conversion,
+        "insights": insights,
+        "positive_statuses": POSITIVE_STATUSES,
+        "positive_count": len(pos_cos),
+        "negative_count": len(neg_cos),
+    }
+
+
+@router.get("/website-status-summary")
+def get_website_status_summary(
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """各website_statusの件数サマリーを返す。"""
+    from sqlalchemy import func as _func
+    owned_ids = _owned_projects(current_user, db)
+    q = db.query(Company.website_status, _func.count(Company.id))
+    if project_id:
+        q = q.filter(Company.project_id == project_id)
+    else:
+        q = q.filter(Company.project_id.in_(owned_ids))
+    q = q.filter(Company.website_status.isnot(None))
+    rows = q.group_by(Company.website_status).all()
+    return {"summary": {r[0]: r[1] for r in rows}}
+
+
+@router.get("/csv")
+def export_csv(
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    score_rank: Optional[str] = None,
+    has_contact: Optional[bool] = None,
+    project_id: Optional[int] = None,
+    cms_type: Optional[str] = None,
+    ec_only: Optional[bool] = None,
+    ec_scale: Optional[str] = None,
+    current_user: User = Depends(require_phase0_unlock),
+    db: Session = Depends(get_db),
+):
+    from fastapi import HTTPException as _HTTPException
+    from datetime import datetime as _dt
+
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+    csv_limit = None
+    if org and org.plan_id:
+        plan = db.query(Plan).filter(Plan.id == org.plan_id).first()
+        if plan:
+            raw = getattr(plan, "max_csv_export", None)
+            if raw is not None:
+                if raw == 0:
+                    raise _HTTPException(
+                        status_code=402,
+                        detail="CSVエクスポートはスターター以上のプランでご利用いただけます。"
+                    )
+                csv_limit = raw
+
+    query = db.query(Company)
+    owned_ids = _owned_projects(current_user, db)
+    if project_id:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403, detail="アクセス権限がありません")
+        query = query.filter(Company.project_id == project_id)
+    else:
+        query = query.filter(
+            or_(
+                Company.project_id.in_(owned_ids),
+                Company.org_id == current_user.org_id,
+            )
+        )
+    if category:
+        query = query.filter(Company.category_main == category)
+    if status:
+        query = query.filter(Company.status == status)
+    if score_rank:
+        query = query.filter(Company.score_rank == score_rank)
+    if has_contact:
+        query = query.filter(Company.contact_url.isnot(None), Company.contact_url != "")
+    if cms_type:
+        if cms_type == "EC_PLATFORMS":
+            ec_platforms = ["Shopify", "WooCommerce", "BASE", "MakeShop", "futureshop", "ecbeing",
+                            "カラーミー", "EC-CUBE", "STORES", "ロリポップEC", "NEXT ENGINE",
+                            "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ",
+                            "Welcart", "WACA", "メルカリShops", "BigCommerce", "Magento",
+                            "カラフルボックスEC", "メルカート", "TEMPOSTAR", "Shopline",
+                            "PrestaShop", "OpenCart", "Cafe24", "Square Online",
+                            "独自EC", "Amazon", "Whoo", "Appetizer", "Commerce21",
+                            "CS-Cart", "NopCommerce", "Volusion", "Imweb", "Big Cartel"]
+            query = query.filter(Company.cms_type.in_(ec_platforms))
+        else:
+            query = query.filter(Company.cms_type == cms_type)
+    if ec_only:
+        query = query.filter(Company.ec_flag == True)
+    if ec_scale:
+        if ec_scale == "large":
+            query = query.filter(Company.ec_score >= 70)
+        elif ec_scale == "medium":
+            query = query.filter(Company.ec_score >= 50, Company.ec_score < 70)
+        elif ec_scale == "small":
+            query = query.filter(Company.ec_score >= 30, Company.ec_score < 50)
+
+    query = query.order_by(desc(Company.score_total))
+    if csv_limit is not None:
+        query = query.limit(csv_limit)
+    companies = query.all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "会社名", "URL", "問い合わせURL", "所在地", "電話番号",
+        "メール", "カテゴリ", "CMS種別", "ECサイト", "Shopify対応",
+        "スコア", "ランク", "ステータス", "メモ",
+    ])
+
+    for c in companies:
+        location = f"{c.prefecture or ''}{c.city or ''}"
+        writer.writerow([
+            c.company_name or "",
+            c.website_url or "",
+            c.contact_url or "",
+            location,
+            c.phone or "",
+            c.email or "",
+            c.category_main or "",
+            c.cms_type or "",
+            "○" if c.ec_flag else "",
+            "○" if c.shopify_flag else "",
+            c.score_total,
+            c.score_rank or "",
+            c.status or "",
+            c.notes or "",
+        ])
+
+    csv_content = output.getvalue()
+    output.close()
+
+    today = _dt.utcnow().strftime("%Y%m%d")
+    headers = {
+        "Content-Disposition": f"attachment; filename=companies_export_{today}.csv",
+        "X-Export-Count": str(len(companies)),
+    }
+    if csv_limit is not None:
+        headers["X-Export-Limit"] = str(csv_limit)
+
+    return Response(
+        content=csv_content.encode("utf-8-sig"),
+        media_type="text/csv",
+        headers=headers,
+    )
+
+
 @router.get("/{company_id}")
 def get_company(
     company_id: int,
@@ -1208,130 +1445,6 @@ def create_activity(
             "created_at": activity.created_at.isoformat() if activity.created_at else None,
         }
     }
-
-
-@router.get("/csv")
-def export_csv(
-    category: Optional[str] = None,
-    status: Optional[str] = None,
-    score_rank: Optional[str] = None,
-    has_contact: Optional[bool] = None,
-    project_id: Optional[int] = None,
-    cms_type: Optional[str] = None,
-    ec_only: Optional[bool] = None,
-    ec_scale: Optional[str] = None,
-    current_user: User = Depends(require_phase0_unlock),
-    db: Session = Depends(get_db),
-):
-    from fastapi import HTTPException as _HTTPException
-    from datetime import datetime as _dt
-
-    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
-    csv_limit = None
-    if org and org.plan_id:
-        plan = db.query(Plan).filter(Plan.id == org.plan_id).first()
-        if plan:
-            raw = getattr(plan, "max_csv_export", None)
-            if raw is not None:
-                if raw == 0:
-                    raise _HTTPException(
-                        status_code=402,
-                        detail="CSVエクスポートはスターター以上のプランでご利用いただけます。"
-                    )
-                csv_limit = raw
-
-    query = db.query(Company)
-    owned_ids = _owned_projects(current_user, db)
-    if project_id:
-        if project_id not in owned_ids:
-            raise HTTPException(status_code=403, detail="アクセス権限がありません")
-        query = query.filter(Company.project_id == project_id)
-    else:
-        query = query.filter(
-            or_(
-                Company.project_id.in_(owned_ids),
-                Company.org_id == current_user.org_id,
-            )
-        )
-    if category:
-        query = query.filter(Company.category_main == category)
-    if status:
-        query = query.filter(Company.status == status)
-    if score_rank:
-        query = query.filter(Company.score_rank == score_rank)
-    if has_contact:
-        query = query.filter(Company.contact_url.isnot(None), Company.contact_url != "")
-    if cms_type:
-        if cms_type == "EC_PLATFORMS":
-            ec_platforms = ["Shopify", "WooCommerce", "BASE", "MakeShop", "futureshop", "ecbeing",
-                            "カラーミー", "EC-CUBE", "STORES", "ロリポップEC", "NEXT ENGINE",
-                            "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ",
-                            "Welcart", "WACA", "メルカリShops", "BigCommerce", "Magento",
-                            "カラフルボックスEC", "メルカート", "TEMPOSTAR", "Shopline",
-                            "PrestaShop", "OpenCart", "Cafe24", "Square Online",
-                            "独自EC", "Amazon", "Whoo", "Appetizer", "Commerce21",
-                            "CS-Cart", "NopCommerce", "Volusion", "Imweb", "Big Cartel"]
-            query = query.filter(Company.cms_type.in_(ec_platforms))
-        else:
-            query = query.filter(Company.cms_type == cms_type)
-    if ec_only:
-        query = query.filter(Company.ec_flag == True)
-    if ec_scale:
-        if ec_scale == "large":
-            query = query.filter(Company.ec_score >= 70)
-        elif ec_scale == "medium":
-            query = query.filter(Company.ec_score >= 50, Company.ec_score < 70)
-        elif ec_scale == "small":
-            query = query.filter(Company.ec_score >= 30, Company.ec_score < 50)
-
-    query = query.order_by(desc(Company.score_total))
-    if csv_limit is not None:
-        query = query.limit(csv_limit)
-    companies = query.all()
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "会社名", "URL", "問い合わせURL", "所在地", "電話番号",
-        "メール", "カテゴリ", "CMS種別", "ECサイト", "Shopify対応",
-        "スコア", "ランク", "ステータス", "メモ",
-    ])
-
-    for c in companies:
-        location = f"{c.prefecture or ''}{c.city or ''}"
-        writer.writerow([
-            c.company_name or "",
-            c.website_url or "",
-            c.contact_url or "",
-            location,
-            c.phone or "",
-            c.email or "",
-            c.category_main or "",
-            c.cms_type or "",
-            "○" if c.ec_flag else "",
-            "○" if c.shopify_flag else "",
-            c.score_total,
-            c.score_rank or "",
-            c.status or "",
-            c.notes or "",
-        ])
-
-    csv_content = output.getvalue()
-    output.close()
-
-    today = _dt.utcnow().strftime("%Y%m%d")
-    headers = {
-        "Content-Disposition": f"attachment; filename=companies_export_{today}.csv",
-        "X-Export-Count": str(len(companies)),
-    }
-    if csv_limit is not None:
-        headers["X-Export-Limit"] = str(csv_limit)
-
-    return Response(
-        content=csv_content.encode("utf-8-sig"),
-        media_type="text/csv",
-        headers=headers,
-    )
 
 
 @router.get("/csv/template")
@@ -2135,115 +2248,3 @@ def get_list_clean_job(
     return job
 
 
-@router.get("/website-status-summary")
-def get_website_status_summary(
-    project_id: Optional[int] = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """各website_statusの件数サマリーを返す。"""
-    from sqlalchemy import func as _func
-    owned_ids = _owned_projects(current_user, db)
-    q = db.query(Company.website_status, _func.count(Company.id))
-    if project_id:
-        q = q.filter(Company.project_id == project_id)
-    else:
-        q = q.filter(Company.project_id.in_(owned_ids))
-    q = q.filter(Company.website_status.isnot(None))
-    rows = q.group_by(Company.website_status).all()
-    return {"summary": {r[0]: r[1] for r in rows}}
-
-
-@router.get("/score-feedback")
-def get_score_feedback(
-    project_id: Optional[int] = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """
-    受注・商談化した企業の特徴を分析し、スコアリング改善のためのフィードバックデータを返す。
-    ステータスが「商談中」「受注」「成約」「対象候補」などに変化した企業の
-    スコア・CMS・EC規模の分布を集計する。
-    """
-    from sqlalchemy import func as _func
-    owned_ids = _owned_projects(current_user, db)
-
-    POSITIVE_STATUSES = ["商談中", "受注", "成約", "提案中", "資料送付済"]
-    NEGATIVE_STATUSES = ["対象外", "NG", "不要", "断られた"]
-
-    q_base = db.query(Company)
-    if project_id:
-        if project_id not in owned_ids:
-            raise HTTPException(status_code=403)
-        q_base = q_base.filter(Company.project_id == project_id)
-    else:
-        q_base = q_base.filter(Company.project_id.in_(owned_ids))
-
-    all_cos = q_base.all()
-    total = len(all_cos)
-    if total == 0:
-        return {"total": 0, "positive": {}, "negative": {}, "insights": []}
-
-    def _aggregate(cos):
-        if not cos:
-            return {}
-        scores = [c.score_total for c in cos if c.score_total is not None]
-        ranks = {}
-        for c in cos:
-            r = c.score_rank or "不明"
-            ranks[r] = ranks.get(r, 0) + 1
-        cms = {}
-        for c in cos:
-            if c.cms_type:
-                cms[c.cms_type] = cms.get(c.cms_type, 0) + 1
-        ec_count = sum(1 for c in cos if c.ec_flag)
-        return {
-            "count": len(cos),
-            "avg_score": round(sum(scores) / len(scores), 1) if scores else 0,
-            "rank_dist": dict(sorted(ranks.items())),
-            "top_cms": dict(sorted(cms.items(), key=lambda x: -x[1])[:5]),
-            "ec_ratio": round(ec_count / len(cos) * 100, 1),
-        }
-
-    pos_cos = [c for c in all_cos if c.status in POSITIVE_STATUSES]
-    neg_cos = [c for c in all_cos if c.status in NEGATIVE_STATUSES]
-    pos_agg = _aggregate(pos_cos)
-    neg_agg = _aggregate(neg_cos)
-
-    # インサイト生成
-    insights = []
-    if pos_agg and neg_agg:
-        score_diff = pos_agg.get("avg_score", 0) - neg_agg.get("avg_score", 0)
-        if abs(score_diff) >= 5:
-            direction = "高い" if score_diff > 0 else "低い"
-            insights.append(f"受注企業の平均スコアは対象外企業より {abs(score_diff):.1f}点 {direction}傾向があります")
-
-    if pos_agg and pos_agg.get("ec_ratio", 0) > 50:
-        insights.append(f"受注企業の {pos_agg['ec_ratio']}% が EC サイトです — EC 企業を優先的にアプローチすると効果的です")
-
-    if pos_agg and pos_agg.get("top_cms"):
-        top_cms = list(pos_agg["top_cms"].keys())[0]
-        insights.append(f"受注実績が多い CMS/プラットフォーム: 「{top_cms}」")
-
-    # スコアランク別の受注率
-    rank_conversion = {}
-    for rank in ["A", "B", "C", "D"]:
-        rank_total = sum(1 for c in all_cos if c.score_rank == rank)
-        rank_pos = sum(1 for c in pos_cos if c.score_rank == rank)
-        if rank_total > 0:
-            rank_conversion[rank] = {
-                "total": rank_total,
-                "converted": rank_pos,
-                "rate": round(rank_pos / rank_total * 100, 1),
-            }
-
-    return {
-        "total": total,
-        "positive": pos_agg,
-        "negative": neg_agg,
-        "rank_conversion": rank_conversion,
-        "insights": insights,
-        "positive_statuses": POSITIVE_STATUSES,
-        "positive_count": len(pos_cos),
-        "negative_count": len(neg_cos),
-    }
