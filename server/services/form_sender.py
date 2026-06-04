@@ -40,6 +40,41 @@ def _fetch_html(url: str, session: requests.Session) -> tuple[str, str]:
     return html, resp.url
 
 
+def _get_label_text(tag, form_soup) -> str:
+    """フィールドのラベルテキストを複数の方法で取得する。"""
+    # 1. <label for="id">
+    tag_id = tag.get("id", "")
+    if tag_id:
+        label_tag = form_soup.find("label", {"for": tag_id})
+        if label_tag:
+            return label_tag.get_text(strip=True)
+
+    # 2. aria-label / title / placeholder
+    for attr in ("aria-label", "title", "placeholder"):
+        val = tag.get(attr, "")
+        if val:
+            return val
+
+    # 3. 直近の <label> 祖先または兄弟
+    parent = tag.parent
+    for _ in range(4):
+        if parent is None:
+            break
+        label = parent.find("label")
+        if label:
+            return label.get_text(strip=True)
+        # <th> や <dt> が隣にある場合
+        prev = parent.find_previous_sibling(["th", "dt", "td"])
+        if prev:
+            txt = prev.get_text(strip=True)
+            if txt:
+                return txt
+        parent = parent.parent
+
+    # 4. name属性をそのまま返す
+    return tag.get("name", "")
+
+
 def _extract_forms(html: str, base_url: str) -> list[dict]:
     """HTMLから全フォームを抽出し、フィールドリストとaction URLを返す。"""
     soup = BeautifulSoup(html, "html.parser")
@@ -54,39 +89,69 @@ def _extract_forms(html: str, base_url: str) -> list[dict]:
 
         fields = []
         seen_names = set()
+
+        # ラジオボタンはグループで処理
+        radio_groups: dict[str, list] = {}
+        for tag in form.find_all("input", type="radio"):
+            name = tag.get("name", "")
+            if not name:
+                continue
+            radio_groups.setdefault(name, []).append({
+                "value": tag.get("value", ""),
+                "label": _get_label_text(tag, form),
+            })
+
         for tag in form.find_all(["input", "textarea", "select"]):
             name = tag.get("name") or tag.get("id") or ""
-            if not name or name in seen_names:
+            if not name:
                 continue
-            seen_names.add(name)
 
             ftype = tag.get("type", "text").lower() if tag.name == "input" else tag.name
             if ftype in ("submit", "button", "image", "reset", "file"):
                 continue
+
             if ftype == "hidden":
-                fields.append({
-                    "name": name,
-                    "type": "hidden",
-                    "value": tag.get("value", ""),
-                    "label": "",
-                })
+                if name not in seen_names:
+                    seen_names.add(name)
+                    fields.append({
+                        "name": name,
+                        "type": "hidden",
+                        "value": tag.get("value", ""),
+                        "label": "",
+                    })
                 continue
 
-            label_text = ""
-            label_tag = form.find("label", {"for": tag.get("id", "")})
-            if label_tag:
-                label_text = label_tag.get_text(strip=True)
-            if not label_text:
-                placeholder = tag.get("placeholder", "")
-                label_text = placeholder
+            if ftype == "radio":
+                if name not in seen_names:
+                    seen_names.add(name)
+                    options = [r["value"] for r in radio_groups.get(name, [])]
+                    combined_label = " ".join(r["label"] for r in radio_groups.get(name, []) if r["label"])
+                    fields.append({
+                        "name": name,
+                        "type": "radio",
+                        "label": combined_label or _get_label_text(tag, form),
+                        "options": options,
+                        "value": "",
+                    })
+                continue
+
+            if name in seen_names:
+                continue
+            seen_names.add(name)
+
+            label_text = _get_label_text(tag, form)
 
             if tag.name == "select":
-                options = [o.get("value", o.get_text(strip=True)) for o in tag.find_all("option")]
+                options = []
+                for o in tag.find_all("option"):
+                    v = o.get("value", "")
+                    t = o.get_text(strip=True)
+                    options.append(v if v else t)
                 fields.append({
                     "name": name,
                     "type": "select",
                     "label": label_text,
-                    "options": options[:20],
+                    "options": options[:30],
                     "value": "",
                 })
             else:
@@ -95,6 +160,7 @@ def _extract_forms(html: str, base_url: str) -> list[dict]:
                     "type": ftype,
                     "label": label_text,
                     "value": tag.get("value", ""),
+                    "required": tag.has_attr("required"),
                 })
 
         if fields:
@@ -116,7 +182,7 @@ def _choose_best_form(forms: list[dict]) -> Optional[dict]:
     def _score(form: dict) -> int:
         score = 0
         for f in form["fields"]:
-            n = (f["name"] + f.get("label", "")).lower()
+            n = (f["name"] + " " + f.get("label", "")).lower()
             if any(k in n for k in ("message", "content", "body", "お問い合わせ", "内容", "メッセージ")):
                 score += 10
             if any(k in n for k in ("name", "氏名", "お名前", "名前")):
@@ -132,41 +198,34 @@ def _choose_best_form(forms: list[dict]) -> Optional[dict]:
 
 _MAPPING_PROMPT = """あなたはWebフォームの入力アシスタントです。
 以下の企業へ送るお問い合わせフォームのフィールド一覧と、送信内容を渡します。
-各フィールドに最適な値を決定し、JSON形式で返してください。
+各フィールドに入力すべき値をJSON形式で返してください。
 
-## フィールド一覧（JSON配列）:
-{fields_json}
-
-## 送信者情報:
-- 送信者名: {sender_name}
+送信者情報:
+- 送信者氏名: {sender_name}
 - 送信者メールアドレス: {sender_email}
 - 送信者会社名: {sender_company}
 - 送信者電話番号: {sender_phone}
 - 送信者役職: {sender_title}
 - 送信者部署名: {sender_department}
-- 送信者会社URL: {sender_website_url}
 - 送信者郵便番号: {sender_postal_code}
 - 送信者都道府県: {sender_prefecture}
 - 送信者住所: {sender_address}
+- 送信者WebサイトURL: {sender_website_url}
+- 件名: {subject}
+- 本文: {message_body}
 
-## 宛先企業名: {company_name}
+フォームフィールド一覧:
+{fields_json}
 
-## 送信するメッセージ本文:
-{message_body}
-
-## 件名（指定がある場合はこの通りに入力すること）:
-{subject}
-
-## 指示:
-- type="hidden" のフィールドは元のvalueをそのまま返してください
+ルール:
+- hidden フィールドは元の value をそのまま使う
 - type="select" のフィールドは options の中から最も適切なものを選んでください（お問い合わせ種別は「その他」「一般」「ご相談」等を選ぶ）
-- メッセージ/お問い合わせ内容フィールドには message_body をそのまま入れてください
-- 件名フィールドがある場合、subject が空でなければ必ずそれを使用し、空なら message_body から要約して入力してください
-- 該当しないフィールドは空文字""にしてください
-- チェックボックス系は "1" または "" で返してください
-- 返答は必ずJSON: {{"フィールドname": "値", ...}} の形式のみ
-
-JSON:"""
+- type="radio" のフィールドは options の中から最も適切なものを選んでください（法人/個人の場合は法人を、お問い合わせ種別はその他を）
+- type="checkbox" で名前/ラベルに「同意」「プライバシー」「個人情報」「利用規約」「agree」「privacy」「terms」が含まれる場合は "1" を返す（必須同意フィールド）
+- type="checkbox" でそれ以外は "" を返す
+- 入力不要なフィールド（CAPTCHA、画像等）は "" を返す
+- 全フィールドのnameをキーとしたJSONのみ返してください（他のテキスト不要）
+"""
 
 
 def _map_fields_rule_based(
@@ -188,19 +247,32 @@ def _map_fields_rule_based(
     """ルールベースでフォームフィールドをマッピングする（OpenAI不要）。"""
     result = {}
 
-    _NAME_KWS = ("name", "氏名", "お名前", "名前", "担当者", "your_name", "fullname", "full_name", "username")
+    _NAME_KWS = ("name", "氏名", "お名前", "名前", "担当者", "your_name", "fullname", "full_name", "username", "yourname")
+    _LAST_NAME_KWS = ("last", "family", "sei", "姓", "苗字", "lastname", "surname")
+    _FIRST_NAME_KWS = ("first", "given", "mei", "名", "firstname", "givenname")
     _EMAIL_KWS = ("email", "mail", "メール", "e-mail", "メールアドレス")
-    _COMPANY_KWS = ("company", "corporation", "会社", "企業", "法人", "御社", "貴社", "companyname", "corp")
+    _COMPANY_KWS = ("company", "corporation", "会社", "企業", "法人", "御社", "貴社", "companyname", "corp", "organization", "organisation")
     _PHONE_KWS = ("phone", "tel", "電話", "携帯", "fax", "mobile", "contact_number")
     _TITLE_KWS = ("title", "役職", "position", "post")
     _DEPT_KWS = ("department", "dept", "部署", "部門", "section")
-    _SUBJECT_KWS = ("subject", "件名", "題名", "title", "お問い合わせ件名", "inquiry_subject")
+    _SUBJECT_KWS = ("subject", "件名", "題名", "お問い合わせ件名", "inquiry_subject", "inquirysubject")
     _MESSAGE_KWS = ("message", "content", "body", "お問い合わせ", "内容", "メッセージ", "details", "description",
-                    "inquiry", "comment", "text", "textarea", "お問合", "問合せ内容", "ご相談")
-    _POSTAL_KWS = ("postal", "zip", "郵便", "〒", "postcode")
+                    "inquiry", "comment", "text", "textarea", "お問合", "問合せ内容", "ご相談", "ご質問", "question")
+    _POSTAL_KWS = ("postal", "zip", "郵便", "〒", "postcode", "zipcode")
     _PREF_KWS = ("prefecture", "都道府県", "pref", "state", "province")
     _ADDR_KWS = ("address", "住所", "addr")
     _URL_KWS = ("url", "website", "site", "homepage", "hp", "web")
+    _AGREE_KWS = ("同意", "agree", "privacy", "プライバシー", "個人情報", "利用規約", "terms", "policy", "consent", "acceptance")
+    _CORPORATE_KWS = ("法人", "corporate", "company", "企業", "business")
+
+    # 姓名分割用
+    name_parts = sender_name.split() if sender_name else ["", ""]
+    last_name = name_parts[0] if name_parts else ""
+    first_name = name_parts[1] if len(name_parts) > 1 else ""
+
+    # 電話番号分割用（日本形式: xxx-xxxx-xxxx または xx-xxxx-xxxx）
+    phone_clean = re.sub(r"[^\d]", "", sender_phone or "")
+    phone_parts = (sender_phone or "").split("-") if "-" in (sender_phone or "") else []
 
     def _match(key_label: str, keywords: tuple) -> bool:
         t = key_label.lower().replace("-", "").replace("_", "").replace(" ", "")
@@ -208,6 +280,17 @@ def _map_fields_rule_based(
 
     used_message = False
     used_subject = False
+    # 電話番号パーツ追跡
+    tel_part_index = 0
+
+    # フィールド名でtel番号付きを検出（tel1, tel2, tel3 など）
+    tel_numbered = {}
+    for field in form["fields"]:
+        n = field.get("name", "").lower()
+        m = re.search(r"tel[_\-]?(\d)$|phone[_\-]?(\d)$|電話(\d)$", n)
+        if m:
+            idx = int(m.group(1) or m.group(2) or m.group(3)) - 1
+            tel_numbered[field["name"]] = idx
 
     for field in form["fields"]:
         name = field.get("name", "")
@@ -219,32 +302,89 @@ def _map_fields_rule_based(
             result[name] = field.get("value", "")
             continue
 
+        # ── チェックボックス ──
         if ftype == "checkbox":
-            result[name] = ""
+            if _match(combined, _AGREE_KWS):
+                # 同意系チェックボックスは自動チェック
+                val = field.get("value", "") or "1"
+                result[name] = val
+            else:
+                result[name] = ""
             continue
 
+        # ── ラジオボタン ──
+        if ftype == "radio":
+            options = field.get("options", [])
+            chosen = ""
+            # 法人/個人 → 法人を選ぶ
+            for opt in options:
+                if any(k in str(opt).lower() for k in _CORPORATE_KWS):
+                    chosen = str(opt)
+                    break
+            # お問い合わせ種別 → その他/一般/ご相談
+            if not chosen:
+                preferred = ["その他", "一般", "ご相談", "相談", "問い合わせ", "inquiry", "other", "general"]
+                for pref in preferred:
+                    for opt in options:
+                        if pref in str(opt).lower():
+                            chosen = str(opt)
+                            break
+                    if chosen:
+                        break
+            # それでもなければ最後の選択肢（最初はプレースホルダーが多い）
+            if not chosen and options:
+                non_empty = [o for o in options if o]
+                chosen = non_empty[-1] if non_empty else options[0]
+            result[name] = chosen
+            continue
+
+        # ── セレクトボックス ──
         if ftype == "select":
             options = field.get("options", [])
-            # お問い合わせ種別はその他/一般を選ぶ
-            preferred = ["その他", "一般", "ご相談", "相談", "問い合わせ", "inquiry", "other", "general"]
+            preferred_inquiry = ["その他", "一般", "ご相談", "相談", "問い合わせ", "inquiry", "other", "general"]
             chosen = ""
-            for pref in preferred:
+            # 法人/個人セレクト
+            if _match(combined, ("法人", "corporate", "種別", "type", "category", "業種")):
                 for opt in options:
-                    if pref in str(opt).lower():
+                    if any(k in str(opt).lower() for k in _CORPORATE_KWS):
                         chosen = str(opt)
                         break
-                if chosen:
-                    break
+            if not chosen:
+                for pref in preferred_inquiry:
+                    for opt in options:
+                        if pref in str(opt).lower():
+                            chosen = str(opt)
+                            break
+                    if chosen:
+                        break
             if not chosen and options:
-                # 空でない最初のoption (indexが0は通常プレースホルダー)
                 non_empty = [o for o in options if o and o != "0"]
                 chosen = non_empty[-1] if non_empty else (options[0] if options else "")
             result[name] = chosen
             continue
 
-        # テキスト系フィールド
+        # ── テキスト系フィールド ──
         val = ""
-        if not used_message and (ftype == "textarea" or _match(combined, _MESSAGE_KWS)):
+
+        # 電話番号の分割フィールド対応（tel1/tel2/tel3）
+        if name in tel_numbered:
+            idx = tel_numbered[name]
+            if phone_parts and idx < len(phone_parts):
+                val = phone_parts[idx]
+            elif phone_clean:
+                # ハイフンなし → 均等分割
+                chunk = len(phone_clean) // 3 or 1
+                parts = [phone_clean[:chunk], phone_clean[chunk:chunk*2], phone_clean[chunk*2:]]
+                val = parts[idx] if idx < len(parts) else ""
+            result[name] = val
+            continue
+
+        # 姓名分割対応
+        if _match(combined, _LAST_NAME_KWS) and not _match(combined, _FIRST_NAME_KWS):
+            val = last_name or sender_name
+        elif _match(combined, _FIRST_NAME_KWS) and not _match(combined, _LAST_NAME_KWS):
+            val = first_name or sender_name
+        elif not used_message and (ftype == "textarea" or _match(combined, _MESSAGE_KWS)):
             val = message_body or ""
             used_message = True
         elif not used_subject and _match(combined, _SUBJECT_KWS):
@@ -270,10 +410,13 @@ def _map_fields_rule_based(
             val = sender_address or ""
         elif _match(combined, _URL_KWS):
             val = sender_website_url or ""
+        elif ftype == "number":
+            # 従業員数などの数値フィールド → 空のまま or 1
+            val = ""
 
         result[name] = val
 
-    # message/subjectが未割り当てなら最初のtextarea/textに入れる
+    # message/subjectが未割り当てなら最初の空textarea/textに入れる
     if not used_message:
         for field in form["fields"]:
             if field.get("type") in ("textarea", "text") and field.get("name") in result and not result[field["name"]]:
@@ -292,7 +435,7 @@ def map_fields_with_ai(
     sender_title: str,
     company_name: str,
     message_body: str,
-    openai_key: str = "",
+    openai_key: str,
     sender_department: str = "",
     sender_website_url: str = "",
     sender_postal_code: str = "",
@@ -301,47 +444,7 @@ def map_fields_with_ai(
     subject: str = "",
 ) -> dict[str, str]:
     """フォームフィールドをマッピングする。OpenAIキーがあればAI、なければルールベース。"""
-    if openai_key:
-        try:
-            non_hidden = [f for f in form["fields"] if f["type"] != "hidden"]
-            hidden = {f["name"]: f.get("value", "") for f in form["fields"] if f["type"] == "hidden"}
-
-            prompt = _MAPPING_PROMPT.format(
-                fields_json=json.dumps(non_hidden, ensure_ascii=False, indent=2),
-                sender_name=sender_name or "",
-                sender_email=sender_email or "",
-                sender_company=sender_company or "",
-                sender_phone=sender_phone or "",
-                sender_title=sender_title or "",
-                sender_department=sender_department or "",
-                sender_website_url=sender_website_url or "",
-                sender_postal_code=sender_postal_code or "",
-                sender_prefecture=sender_prefecture or "",
-                sender_address=sender_address or "",
-                company_name=company_name or "",
-                message_body=message_body or "",
-                subject=subject or "",
-            )
-
-            from openai import OpenAI
-            client = OpenAI(api_key=openai_key)
-            resp = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=1000,
-                response_format={"type": "json_object"},
-            )
-            mapped = json.loads(resp.choices[0].message.content)
-            result = {}
-            result.update(hidden)
-            result.update({k: str(v) for k, v in mapped.items()})
-            return result
-        except Exception as e:
-            logger.warning(f"AI field mapping failed, falling back to rule-based: {e}")
-
-    # ルールベースフォールバック
-    return _map_fields_rule_based(
+    rule_result = _map_fields_rule_based(
         form=form,
         sender_name=sender_name,
         sender_email=sender_email,
@@ -357,6 +460,87 @@ def map_fields_with_ai(
         sender_address=sender_address,
         subject=subject,
     )
+
+    if not openai_key:
+        return rule_result
+
+    # OpenAI APIでAIマッピングを試みる（ルールベースのフォールバックあり）
+    try:
+        import openai
+        client = openai.OpenAI(api_key=openai_key)
+
+        fields_for_prompt = []
+        for f in form["fields"]:
+            if f["type"] == "hidden":
+                continue
+            entry = {"name": f["name"], "type": f["type"], "label": f.get("label", "")}
+            if f["type"] in ("select", "radio"):
+                entry["options"] = f.get("options", [])
+            fields_for_prompt.append(entry)
+
+        prompt = _MAPPING_PROMPT.format(
+            sender_name=sender_name,
+            sender_email=sender_email,
+            sender_company=sender_company,
+            sender_phone=sender_phone,
+            sender_title=sender_title,
+            sender_department=sender_department,
+            sender_postal_code=sender_postal_code,
+            sender_prefecture=sender_prefecture,
+            sender_address=sender_address,
+            sender_website_url=sender_website_url,
+            subject=subject,
+            message_body=message_body[:500],
+            fields_json=json.dumps(fields_for_prompt, ensure_ascii=False, indent=2),
+        )
+
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=1000,
+            response_format={"type": "json_object"},
+        )
+        ai_mapped = json.loads(resp.choices[0].message.content or "{}")
+
+        # AI結果とルール結果をマージ（hidden はルール結果を優先）
+        merged = dict(rule_result)
+        for k, v in ai_mapped.items():
+            if k in merged and rule_result.get(k) and not merged.get(k):
+                continue
+            merged[k] = str(v) if v is not None else ""
+        # hidden フィールドは常にルール結果
+        for f in form["fields"]:
+            if f["type"] == "hidden":
+                merged[f["name"]] = rule_result.get(f["name"], f.get("value", ""))
+
+        return merged
+
+    except Exception as e:
+        logger.warning(f"AIマッピング失敗、ルールベースにフォールバック: {e}")
+        return rule_result
+
+
+def _is_spa_page(html: str) -> bool:
+    """JavaScriptのみで動作するSPAページかどうかを判定する。"""
+    soup = BeautifulSoup(html, "html.parser")
+    # フォームが既に存在する場合は SPA ではない
+    if soup.find("form"):
+        return False
+    # SPA特有のルート要素を検出
+    spa_roots = [
+        {"id": "root"}, {"id": "app"}, {"id": "__next"},
+        {"id": "gatsby-focus-wrapper"}, {"data-reactroot": True},
+        {"id": "nuxt"}, {"id": "__nuxt"},
+    ]
+    for attrs in spa_roots:
+        if soup.find(True, attrs=attrs):
+            return True
+    # 本文テキストがほぼない（JSで描画されるシェルページ）
+    text = soup.get_text(strip=True)
+    if len(text) < 200:
+        return True
+    return False
 
 
 def _find_contact_url(website_url: str, contact_url: str, session: requests.Session) -> Optional[str]:
@@ -441,6 +625,15 @@ def send_form_auto(
             "fields_mapped": 0,
         }
 
+    # SPA判定: JSレンダリング必須のページは早期スキップ
+    if _is_spa_page(html):
+        return {
+            "success": False,
+            "message": "フォームが見つかりませんでした（JavaScript必須または非対応ページ）",
+            "form_url": resolved_url,
+            "fields_mapped": 0,
+        }
+
     forms = _extract_forms(html, final_url)
     if not forms:
         return {
@@ -516,10 +709,19 @@ def send_form_auto(
             "送信完了", "お問い合わせありがとう", "受付完了",
         ]
         error_keywords = [
-            "エラー", "必須", "入力してください", "error", "required", "invalid",
+            "エラー", "error", "required", "invalid",
+        ]
+        # 「必須」「入力してください」はフォームのラベルにも含まれるため
+        # エラーキーワードとして判定する場合は文脈を絞る
+        strict_error_keywords = [
+            "必須項目が入力されていません", "必須フィールド", "入力エラー",
+            "validation error", "required field",
         ]
         has_success = any(k in response_text for k in success_keywords)
-        has_error = any(k in response_text for k in error_keywords)
+        has_error = (
+            any(k in response_text for k in error_keywords) or
+            any(k in response_text for k in strict_error_keywords)
+        )
 
         if has_error and not has_success:
             return {
