@@ -791,6 +791,8 @@ export default function SalesAI() {
 
   const [selectedMsgIds, setSelectedMsgIds] = useState<number[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [clearingQueue, setClearingQueue] = useState(false);
+  const [clearQueueConfirm, setClearQueueConfirm] = useState(false);
   const [scheduleSaveMsg, setScheduleSaveMsg] = useState("");
   const [openingMemo, setOpeningMemo] = useState("");
   const [showBulkReview, setShowBulkReview] = useState(false);
@@ -1244,6 +1246,20 @@ export default function SalesAI() {
       setMessages(prev => prev.filter(m => m.id !== id));
     } catch (e: any) {
       alert(e?.response?.data?.detail || "削除に失敗しました");
+    }
+  };
+
+  const handleClearQueue = async () => {
+    setClearingQueue(true);
+    try {
+      const res = await api.salesAi.clearQueue();
+      setClearQueueConfirm(false);
+      loadMessages();
+      alert(res.message || `送信キューを削除しました`);
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || "削除に失敗しました");
+    } finally {
+      setClearingQueue(false);
     }
   };
 
@@ -1888,6 +1904,32 @@ export default function SalesAI() {
               >
                 <ListChecks size={12} /> 一括レビュー＆フォーム送信
               </button>
+            )}
+
+            {messages.some(m => m.status === "draft" || m.status === "reviewed") && (
+              clearQueueConfirm ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-red-700 font-medium">
+                    下書き・レビュー済み {messages.filter(m => m.status === "draft" || m.status === "reviewed").length}件を全削除しますか？
+                  </span>
+                  <button
+                    onClick={handleClearQueue}
+                    disabled={clearingQueue}
+                    className="flex items-center gap-1 text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  >
+                    {clearingQueue ? <RefreshCw size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                    削除する
+                  </button>
+                  <button onClick={() => setClearQueueConfirm(false)} className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg">キャンセル</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setClearQueueConfirm(true)}
+                  className="flex items-center gap-1.5 text-xs border border-red-300 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 size={12} /> 送信キューをクリア
+                </button>
+              )
             )}
 
             {messages.some(m => m.status === "reviewed") && !bulkSendResult && (

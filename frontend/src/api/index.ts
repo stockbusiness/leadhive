@@ -760,6 +760,9 @@ export const api = {
     cancelJob: (jobId: string) =>
       axios.post(`/api/sales-ai/jobs/${jobId}/cancel`).then(r => r.data),
 
+    clearQueue: () =>
+      axios.post("/api/sales-ai/messages/clear-queue").then(r => r.data),
+
     resetFailed: (projectId?: number) =>
       axios.post(`/api/sales-ai/messages/reset-failed${projectId ? `?project_id=${projectId}` : ""}`).then(r => r.data),
 

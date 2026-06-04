@@ -223,7 +223,22 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
         if domains:
             opted_domains = {r[0] for r in db.query(OptOutList.domain).filter(OptOutList.domain.in_(domains)).all()}
 
-        existing_ids: set = set()
+        # ── 送信済み会社を全プロジェクト横断でスキップ（重複送信防止） ──
+        always_skip_ids: set = set()
+        if company_ids:
+            sent_rows = db.query(SalesMessage.company_id).filter(
+                SalesMessage.org_id == org_id,
+                SalesMessage.company_id.in_(company_ids),
+                SalesMessage.status == "sent",
+            ).distinct().all()
+            always_skip_ids = {r[0] for r in sent_rows}
+
+        # ── パイプラインステータスが「送信済み・成約・NG」の会社もスキップ ──
+        _already_sent_pipeline = {"フォーム送信済", "メール送信済", "商談中", "成約", "NG"}
+        pipeline_skip_ids = {c.id for c in all_cos if c.status in _already_sent_pipeline}
+        always_skip_ids |= pipeline_skip_ids
+
+        existing_ids: set = set(always_skip_ids)
         if req.skip_existing:
             rows = db.query(SalesMessage.company_id).filter(
                 SalesMessage.org_id == org_id,
@@ -231,7 +246,7 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                 SalesMessage.project_id == req.project_id,
                 SalesMessage.status != "failed",
             ).all()
-            existing_ids = {r[0] for r in rows}
+            existing_ids |= {r[0] for r in rows}
 
         # 既存の下書き/確認済みを全件事前取得（upsert用）
         _bg_draft_rows = db.query(SalesMessage).filter(
@@ -1472,6 +1487,25 @@ def delete_message(
     db.delete(msg)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/messages/clear-queue")
+def clear_message_queue(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """送信キュー（draft/reviewed状態）のメッセージを全件削除する。"""
+    result = db.execute(
+        text("""
+            DELETE FROM sales_messages
+            WHERE org_id = :org_id
+              AND status IN ('draft', 'reviewed')
+        """),
+        {"org_id": current_user.org_id},
+    )
+    deleted = result.rowcount
+    db.commit()
+    return {"ok": True, "deleted": deleted, "message": f"送信キューから{deleted}件を削除しました"}
 
 
 @router.post("/messages/bulk-delete")
