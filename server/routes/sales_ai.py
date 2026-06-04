@@ -398,6 +398,20 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                         return (msg_id, False, "msg_not_found")
                     _co = _db.query(Company).filter(Company.id == _msg.company_id).first()
 
+                    # ── ②.5 同一企業の他メッセージが既にsent/processingか確認（並列重複送信防止） ──
+                    dup_count = _db.query(func.count(SalesMessage.id)).filter(
+                        SalesMessage.company_id == _msg.company_id,
+                        SalesMessage.id != msg_id,
+                        SalesMessage.status.in_(["sent", "processing"]),
+                    ).scalar() or 0
+                    if dup_count > 0:
+                        _db.execute(
+                            text("UPDATE sales_messages SET status='failed' WHERE id=:id"),
+                            {"id": msg_id},
+                        )
+                        _db.commit()
+                        return (msg_id, "skip", "company_already_sent_or_processing")
+
                     # ── ③ 会社ステータスで除外（送信済み・商談中・成約・NG） ──
                     if _co and _co.status in already_sent_statuses:
                         _db.execute(
@@ -1179,10 +1193,24 @@ def bulk_send_messages(
 
     sent_count = 0
     failed_count = 0
+    skipped_count = 0
+    sent_company_ids: set[int] = set()  # 同バッチ内で既に送信済みの企業ID
 
     for msg in msgs:
         try:
+            # 同バッチ内で既に送信した企業は重複送信しない
+            if msg.company_id in sent_company_ids:
+                skipped_count += 1
+                continue
+
             c = db.query(Company).filter(Company.id == msg.company_id).first()
+
+            # 既に送信済み・商談中・成約・NGの企業はスキップ
+            already_sent_statuses = {"フォーム送信済", "メール送信済", "商談中", "成約", "NG"}
+            if c and c.status in already_sent_statuses:
+                skipped_count += 1
+                continue
+
             msg.status = "sent"
             msg.sent_at = datetime.utcnow()
             msg.sent_by = current_user.id
@@ -1197,6 +1225,7 @@ def bulk_send_messages(
                 result="sent",
                 note=f"一括送信 ({send_method})",
             ))
+            sent_company_ids.add(msg.company_id)
             sent_count += 1
         except Exception as e:
             logger.warning(f"bulk_send: error on message {msg.id}: {e}")
@@ -1208,7 +1237,7 @@ def bulk_send_messages(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"DB更新に失敗しました: {str(e)}")
 
-    return {"sent": sent_count, "failed": failed_count, "total": len(msgs)}
+    return {"sent": sent_count, "failed": failed_count, "skipped": skipped_count, "total": len(msgs)}
 
 
 @router.post("/messages/bulk-send-form")
@@ -1295,6 +1324,7 @@ def bulk_send_form_messages(
     sent_count = 0
     failed_count = 0
     skipped_count = 0
+    sent_company_ids: set[int] = set()  # 同バッチ内で既に送信済みの企業ID
 
     INVALID_NAME_PATTERNS = {
         "403 forbidden", "404 not found", "not found", "403", "404",
@@ -1307,6 +1337,11 @@ def bulk_send_form_messages(
 
     for msg in msgs:
         try:
+            # 同バッチ内で既に送信した企業は重複送信しない（commitが遅延するため）
+            if msg.company_id in sent_company_ids:
+                skipped_count += 1
+                continue
+
             c = db.query(Company).filter(Company.id == msg.company_id).first()
 
             # 既に送信済み・商談中・成約・NGの企業はスキップ（重複送信防止）
@@ -1370,6 +1405,7 @@ def bulk_send_form_messages(
             ))
 
             if success:
+                sent_company_ids.add(msg.company_id)
                 sent_count += 1
             else:
                 failed_count += 1
