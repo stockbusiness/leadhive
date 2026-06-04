@@ -374,6 +374,20 @@ EC_PLATFORM_LABELS = {
     "楽楽EC": "楽楽EC",
     "Hamee": "Hamee",
     "TikTokショップ": "TikTokショップ",
+    "Amazon": "Amazon",
+    "独自EC": "独自EC",
+    "Appetizer": "Appetizer",
+    "Commerce21": "Commerce21",
+    "CS-Cart": "CS-Cart",
+    "nopCommerce": "nopCommerce",
+    "NopCommerce": "NopCommerce",
+    "Volusion": "Volusion",
+    "Imweb": "Imweb",
+    "Big Cartel": "Big Cartel",
+    "osCommerce": "osCommerce",
+    "TEMPOSTAR": "TEMPOSTAR",
+    "Square Online": "Square Online",
+    "Shopline": "Shopline",
 }
 
 

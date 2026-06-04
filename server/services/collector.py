@@ -599,7 +599,7 @@ def _process_search_results(
         results.append(None)
 
     if urls_to_scrape:
-        scraped_results = scrape_urls_parallel(urls_to_scrape, max_workers=5)
+        scraped_results = scrape_urls_parallel(urls_to_scrape, max_workers=8)
 
         for i, info in enumerate(scraped_results):
             url = urls_to_scrape[i]

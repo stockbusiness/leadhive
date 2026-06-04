@@ -324,10 +324,9 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
             early = {"未確認", "対象候補", "アプローチ前"}
             already_sent_statuses = {"フォーム送信済", "メール送信済", "商談中", "成約", "NG"}
 
-            # ── 並列送信（最大2スレッド、1社あたり最大120秒） ──────────────
-            # Playwright使用時はメモリ・CPUが増えるため並列数を2に抑える
-            # タイムアウトも静的HTTP(60s)→Playwright含む120sに拡張
-            FORM_WORKERS = 2
+            # ── 並列送信（最大5スレッド、1社あたり最大120秒） ──────────────
+            # サーバースペックアップにより並列数を5に引き上げ
+            FORM_WORKERS = 5
             FORM_PER_COMPANY_TIMEOUT = 120  # 秒
 
             def _send_one(msg_id: int):

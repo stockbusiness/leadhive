@@ -203,7 +203,9 @@ def list_companies(
                             "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ",
                             "Welcart", "WACA", "メルカリShops", "BigCommerce", "Magento",
                             "カラフルボックスEC", "メルカート", "TEMPOSTAR", "Shopline",
-                            "PrestaShop", "OpenCart", "Cafe24", "Square Online"]
+                            "PrestaShop", "OpenCart", "Cafe24", "Square Online",
+                            "独自EC", "Amazon", "Whoo", "Appetizer", "Commerce21",
+                            "CS-Cart", "NopCommerce", "Volusion", "Imweb", "Big Cartel"]
             query = query.filter(Company.cms_type.in_(ec_platforms))
         else:
             query = query.filter(Company.cms_type == cms_type)
@@ -536,7 +538,9 @@ def export_companies_xlsx_v2(
                             "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ",
                             "Welcart", "WACA", "メルカリShops", "BigCommerce", "Magento",
                             "カラフルボックスEC", "メルカート", "TEMPOSTAR", "Shopline",
-                            "PrestaShop", "OpenCart", "Cafe24", "Square Online"]
+                            "PrestaShop", "OpenCart", "Cafe24", "Square Online",
+                            "独自EC", "Amazon", "Whoo", "Appetizer", "Commerce21",
+                            "CS-Cart", "NopCommerce", "Volusion", "Imweb", "Big Cartel"]
             query = query.filter(Company.cms_type.in_(ec_platforms))
         else:
             query = query.filter(Company.cms_type == cms_type)
@@ -667,7 +671,9 @@ def get_company_ids(
                             "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ",
                             "Welcart", "WACA", "メルカリShops", "BigCommerce", "Magento",
                             "カラフルボックスEC", "メルカート", "TEMPOSTAR", "Shopline",
-                            "PrestaShop", "OpenCart", "Cafe24", "Square Online"]
+                            "PrestaShop", "OpenCart", "Cafe24", "Square Online",
+                            "独自EC", "Amazon", "Whoo", "Appetizer", "Commerce21",
+                            "CS-Cart", "NopCommerce", "Volusion", "Imweb", "Big Cartel"]
             query = query.filter(Company.cms_type.in_(ec_platforms))
         else:
             query = query.filter(Company.cms_type == cms_type)
@@ -1197,7 +1203,9 @@ def export_csv(
                             "カート365", "Yahoo!ショッピング", "楽天市場", "aishipR", "ショップサーブ",
                             "Welcart", "WACA", "メルカリShops", "BigCommerce", "Magento",
                             "カラフルボックスEC", "メルカート", "TEMPOSTAR", "Shopline",
-                            "PrestaShop", "OpenCart", "Cafe24", "Square Online"]
+                            "PrestaShop", "OpenCart", "Cafe24", "Square Online",
+                            "独自EC", "Amazon", "Whoo", "Appetizer", "Commerce21",
+                            "CS-Cart", "NopCommerce", "Volusion", "Imweb", "Big Cartel"]
             query = query.filter(Company.cms_type.in_(ec_platforms))
         else:
             query = query.filter(Company.cms_type == cms_type)

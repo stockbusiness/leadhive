@@ -69,8 +69,12 @@ EC_TOKUSHO_PATTERNS = re.compile(
 EC_TOKUSHO_CONTENT_KEYWORDS = ["特定商取引法", "販売事業者", "販売責任者", "通信販売", "返品特約", "返品・交換",
                                 "販売価格", "送料について", "支払い時期", "引渡し時期"]
 EC_PAYMENT_KEYWORDS = ["決済方法", "お支払い方法", "支払方法", "クレジットカード", "代引き", "送料", "お届け", "配送方法", "配送料"]
-EC_PAYMENT_BADGE_KEYWORDS = ["paypay", "line pay", "linepay", "au pay", "メルペイ", "d払い", "楽天pay", "amazon pay", "paidy", "bnpl"]
+EC_PAYMENT_BADGE_KEYWORDS = ["paypay", "line pay", "linepay", "au pay", "メルペイ", "d払い", "楽天pay", "amazon pay", "paidy", "bnpl",
+                             "stripe", "paypal", "ペイパル", "gmo payment", "ゼウス", "sbペイメント", "softbank payment",
+                             "コンビニ決済", "コンビニ払い", "atm払い", "翌月払い", "分割払い", "後払い"]
 EC_STOCK_KEYWORDS = ["在庫あり", "在庫確認", "お届け日数", "在庫", "入荷待ち", "残り", "SOLD OUT", "完売"]
+EC_STRIPE_SIGNALS = re.compile(r'js\.stripe\.com|stripe-js|"stripe":\s*"pk_|data-stripe|stripe\.createToken|paymentRequest\.stripe', re.IGNORECASE)
+EC_PAYPAY_SHOP_SIGNALS = re.compile(r'paypaymall\.yahoo|paypay\.ne\.jp/guide/smartstore|smartstore\.paypay', re.IGNORECASE)
 EC_REVIEW_KEYWORDS = ["レビュー", "口コミ", "評価", "★", "件のレビュー", "購入者レビュー"]
 EC_ROBOTS_CART_PATTERN = re.compile(
     r"Disallow:\s*/(?:cart|checkout|order|purchase|wishlist|account/order|basket|bag|mypage/order|ls-portal)",
@@ -179,6 +183,14 @@ def calculate_ec_score(soup: BeautifulSoup, html_source: str, text: str, all_lin
 
     if any(kw in text for kw in EC_PAYMENT_BADGE_KEYWORDS):
         score += 8
+
+    # Stripe統合検出（独自ECサイトの強力なシグナル）
+    if EC_STRIPE_SIGNALS.search(html_source):
+        score += 12
+
+    # PayPayスマートストア検出
+    if EC_PAYPAY_SHOP_SIGNALS.search(html_source):
+        score += 10
 
     if any(kw in text for kw in EC_REVIEW_KEYWORDS):
         score += 5
