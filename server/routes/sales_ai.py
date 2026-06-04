@@ -338,7 +338,7 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                     _msg = _db.query(SalesMessage).filter(SalesMessage.id == msg_id).first()
                     if not _msg:
                         return (msg_id, False, "msg_not_found")
-                    _co = cos_map.get(_msg.company_id) or _db.query(Company).filter(Company.id == _msg.company_id).first()
+                    _co = _db.query(Company).filter(Company.id == _msg.company_id).first()
                     if _co and _co.status in already_sent_statuses:
                         return (msg_id, "skip", "already_sent")
                     if not _co or not _co.website_url:
