@@ -2225,10 +2225,7 @@ export default function SalesAI() {
                     {(stats?.total_messages ?? 0).toLocaleString()}
                   </p>
                   <p className="text-xs text-slate-400 pl-1">
-                    AIで作成した全メッセージの合計
-                    {(stats?.status_counts?.draft ?? 0) > 0 && (
-                      <span className="ml-1">（下書き {(stats?.status_counts?.draft ?? 0).toLocaleString()}件含む）</span>
-                    )}
+                    AIで作成した全メッセージの合計（下書き含む）
                   </p>
                 </div>
 
