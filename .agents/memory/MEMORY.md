@@ -1,4 +1,5 @@
 - [SalesAI bulk-send pattern](salesai-bulksend.md) — bulk-send joins SalesMessage+Company via project ownership; always insert fixed POST paths before dynamic {id} paths in FastAPI
+- [フォーム自動送信 二重送信防止](double-submit-prevention.md) — 4層防御: DBアトミッククレーム(processing lock)・残留リセット・スレッドプール前フィルタ・BG重複ジョブ409
 - [テレアポ機能実装](tele-apo-feature.md) — CallLog モデル・6エンドポイント・AIスクリプト・Zoom Phone統合の全実装記録
 - [Zoom Phone統合パターン](zoom-phone-pattern.md) — zoomus://URIスキーム、日本番号E.164変換、実装済みファイル一覧
 - [ECサイトオーナー向け強化](ec-owner-features.md) — ec_collector.py・7プラットフォーム追加・スコアリング強化の実装記録
