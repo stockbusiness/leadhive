@@ -177,6 +177,16 @@ export default function Companies() {
     return () => clearInterval(interval);
   }, [cleanJobId, fetchCompanies]);
 
+  // ページ復帰時にsessionStorageからジョブIDを復元してポーリング再開
+  useEffect(() => {
+    const savedJobId = sessionStorage.getItem("form_scan_job_id");
+    if (savedJobId && !scanJobId) {
+      setScanJobId(savedJobId);
+      setScanningForms(true);
+      setScanFormMsg(null);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!scanJobId) return;
     const interval = setInterval(async () => {
@@ -187,6 +197,7 @@ export default function Companies() {
           clearInterval(interval);
           setScanJobId(null);
           setScanningForms(false);
+          sessionStorage.removeItem("form_scan_job_id");
           if (job.status === "done") {
             const remaining = (job.total_eligible || 0) - job.total;
             setScanRemaining(remaining);
@@ -217,6 +228,7 @@ export default function Companies() {
         clearInterval(interval);
         setScanJobId(null);
         setScanningForms(false);
+        sessionStorage.removeItem("form_scan_job_id");
       }
     }, 2000);
     return () => clearInterval(interval);
@@ -341,11 +353,12 @@ export default function Companies() {
 
   const _startScanJob = async (params: Parameters<typeof api.companies.startFormScan>[0]) => {
     setScanningForms(true);
-    setScanFormMsg("スキャン準備中...");
+    setScanFormMsg(null);
     setScanJobProgress(null);
     try {
       const res = await api.companies.startFormScan(params);
       setScanJobId(res.job_id);
+      sessionStorage.setItem("form_scan_job_id", res.job_id);
     } catch {
       setScanningForms(false);
       setScanFormMsg("❌ スキャン開始に失敗しました");
@@ -477,7 +490,9 @@ export default function Companies() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Search size={14} className="animate-spin flex-shrink-0" />
-                  <span className="text-sm font-semibold flex-1">フォームURL スキャン中...</span>
+                  <span className="text-sm font-semibold flex-1">
+                    {scanJobProgress ? "フォームURL スキャン中..." : "スキャン準備中..."}
+                  </span>
                 </div>
                 {scanJobProgress && (
                   <>
