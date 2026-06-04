@@ -29,7 +29,7 @@ _HEADERS = {
     ),
     "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
 }
-_FETCH_TIMEOUT = 8
+_FETCH_TIMEOUT = (4, 8)  # (connect_timeout, read_timeout)
 _SUBMIT_TIMEOUT = 20
 _PLAYWRIGHT_TIMEOUT = 30000  # ms
 
@@ -957,7 +957,7 @@ def _find_contact_url(website_url: str, contact_url: str, session: requests.Sess
     for path in _CONTACT_DIRECT_PATHS:
         try:
             candidate = base_origin + path
-            resp = session.get(candidate, timeout=5, allow_redirects=True)
+            resp = session.get(candidate, timeout=(3, 5), allow_redirects=True)
             if resp.status_code == 200 and _verify_has_form(resp.text):
                 logger.info(f"直接パスでフォームURL検出: {candidate}")
                 return candidate
@@ -1008,7 +1008,7 @@ def _find_contact_url(website_url: str, contact_url: str, session: requests.Sess
             continue
         seen.add(url)
         try:
-            resp = session.get(url, timeout=5, allow_redirects=True)
+            resp = session.get(url, timeout=(3, 5), allow_redirects=True)
             if resp.status_code == 200:
                 if _verify_has_form(resp.text):
                     logger.info(f"リンクスコアリングでフォームURL検出: {url} (score={score})")
