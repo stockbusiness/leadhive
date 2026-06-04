@@ -625,7 +625,7 @@ def _run_auto_generate_for_org(org_id: int):
         already_drafted = set(
             r[0] for r in db.query(SalesMessage.company_id).filter(
                 SalesMessage.org_id == org_id,
-                SalesMessage.status.in_(["draft", "ready"]),
+                SalesMessage.status.in_(["draft", "reviewed", "processing"]),
             ).all()
         )
 

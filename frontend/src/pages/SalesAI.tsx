@@ -2320,10 +2320,15 @@ export default function SalesAI() {
                       const reviewed = stats?.status_counts?.reviewed ?? 0;
                       const sent = stats?.total_sent ?? 0;
                       const failed = stats?.total_failed ?? 0;
+                      const processing = stats?.status_counts?.processing ?? 0;
+                      const accounted = draft + reviewed + sent + failed + processing;
+                      const other = Math.max(0, total - accounted);
                       const segments = [
                         { value: sent, color: "bg-green-500", label: "送信完了" },
                         { value: reviewed, color: "bg-blue-400", label: "確認済み" },
                         { value: failed, color: "bg-red-400", label: "エラー" },
+                        { value: processing, color: "bg-yellow-400", label: "処理中" },
+                        { value: other, color: "bg-orange-300", label: "その他" },
                         { value: draft, color: "bg-slate-300", label: "下書き" },
                       ].filter(s => s.value > 0);
                       return segments.map((s, i) => (
@@ -2337,18 +2342,30 @@ export default function SalesAI() {
                     })()}
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    {[
-                      { label: "下書き（未送信）", value: stats?.status_counts?.draft ?? 0, dot: "bg-slate-400" },
-                      { label: "確認済み（送信待ち）", value: stats?.status_counts?.reviewed ?? 0, dot: "bg-blue-400" },
-                      { label: "送信完了", value: stats?.total_sent ?? 0, dot: "bg-green-500" },
-                      { label: "送信エラー", value: stats?.total_failed ?? 0, dot: "bg-red-400" },
-                    ].map(({ label, value, dot }) => (
-                      <div key={label} className="flex items-center gap-1.5">
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
-                        <span className="text-xs text-slate-500">{label}</span>
-                        <span className="text-xs font-semibold text-slate-700">{value.toLocaleString()}件</span>
-                      </div>
-                    ))}
+                    {(() => {
+                      const draft = stats?.status_counts?.draft ?? 0;
+                      const reviewed = stats?.status_counts?.reviewed ?? 0;
+                      const sent = stats?.total_sent ?? 0;
+                      const failed = stats?.total_failed ?? 0;
+                      const processing = stats?.status_counts?.processing ?? 0;
+                      const total = stats?.total_messages ?? 0;
+                      const accounted = draft + reviewed + sent + failed + processing;
+                      const other = Math.max(0, total - accounted);
+                      return [
+                        { label: "下書き（未送信）", value: draft, dot: "bg-slate-400" },
+                        { label: "確認済み（送信待ち）", value: reviewed, dot: "bg-blue-400" },
+                        { label: "送信完了", value: sent, dot: "bg-green-500" },
+                        { label: "送信エラー", value: failed, dot: "bg-red-400" },
+                        ...(processing > 0 ? [{ label: "処理中", value: processing, dot: "bg-yellow-400" }] : []),
+                        ...(other > 0 ? [{ label: "その他", value: other, dot: "bg-orange-300" }] : []),
+                      ].map(({ label, value, dot }) => (
+                        <div key={label} className="flex items-center gap-1.5">
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
+                          <span className="text-xs text-slate-500">{label}</span>
+                          <span className="text-xs font-semibold text-slate-700">{value.toLocaleString()}件</span>
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </div>
               )}
