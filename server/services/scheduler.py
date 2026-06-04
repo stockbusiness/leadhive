@@ -1291,6 +1291,10 @@ def _scheduler_loop():
                 logger.info("AutoCmsScan: Triggered at 06:00")
                 threading.Thread(target=_run_auto_cms_scan, daemon=True).start()
 
+            if now.hour == 17 and now.minute == 0 and last_notify_date != today:
+                logger.info("TeleApoReport: Triggered at 17:00")
+                threading.Thread(target=_run_tele_apo_daily_report, daemon=True).start()
+
             from server.models import AppSetting, Organization
             db2 = SessionLocal()
             try:
@@ -1458,6 +1462,79 @@ def _run_usage_alert():
 
     except Exception as e:
         logger.error(f"UsageAlert error: {e}")
+    finally:
+        db.close()
+
+
+def _run_tele_apo_daily_report():
+    """E7: テレアポ日次レポートを17時にSlack送信"""
+    from server.database import SessionLocal
+    from server.models import AppSetting, CallLog, Organization, User
+    from server.services.encryption import decrypt_value as _dv
+    from server.services.slack import send_slack_notification
+    from datetime import date as _date
+
+    db = SessionLocal()
+    try:
+        today = _date.today()
+        orgs = db.query(Organization).all()
+        for org in orgs:
+            webhook_row = db.query(AppSetting).filter(
+                AppSetting.setting_key == "slack_webhook_url",
+                AppSetting.org_id == org.id,
+            ).first()
+            if not webhook_row or not webhook_row.setting_value:
+                continue
+            tele_report_enabled = db.query(AppSetting).filter(
+                AppSetting.setting_key == "tele_apo_daily_report_enabled",
+                AppSetting.org_id == org.id,
+            ).first()
+            if not tele_report_enabled or tele_report_enabled.setting_value != "true":
+                continue
+
+            logs_today = db.query(CallLog).filter(
+                CallLog.org_id == org.id,
+                __import__("sqlalchemy").func.date(CallLog.called_at) == today,
+            ).all()
+            total = len(logs_today)
+            if total == 0:
+                continue
+
+            connected = sum(1 for l in logs_today if l.result in {"折り返し", "NG", "興味あり", "商談決定"})
+            appointments = sum(1 for l in logs_today if l.result == "商談決定")
+            connect_rate = round(connected / total * 100) if total else 0
+            apo_rate = round(appointments / connected * 100) if connected else 0
+
+            user_ids = list({l.called_by for l in logs_today})
+            users = db.query(User).filter(User.id.in_(user_ids)).all()
+            user_map = {u.id: (u.display_name or u.email) for u in users}
+
+            member_lines = []
+            member_stats: dict = {}
+            for log in logs_today:
+                uid = log.called_by
+                if uid not in member_stats:
+                    member_stats[uid] = {"total": 0, "apo": 0}
+                member_stats[uid]["total"] += 1
+                if log.result == "商談決定":
+                    member_stats[uid]["apo"] += 1
+            for uid, ms in sorted(member_stats.items(), key=lambda x: -x[1]["apo"]):
+                name = user_map.get(uid, f"User#{uid}")
+                member_lines.append(f"  ・{name}: {ms['total']}件 / アポ{ms['apo']}件")
+
+            msg_lines = [
+                f"📞 *LeadHive テレアポ日次レポート* ({today.strftime('%Y/%m/%d')})",
+                f"架電数: *{total}件*  |  接続率: *{connect_rate}%*  |  アポ獲得: *{appointments}件*  |  アポ率: *{apo_rate}%*",
+            ]
+            if member_lines:
+                msg_lines.append("*メンバー別実績:*")
+                msg_lines.extend(member_lines[:10])
+
+            send_slack_notification("\n".join(msg_lines), _dv(webhook_row.setting_value))
+            logger.info(f"TeleApoReport: Sent for org={org.id}")
+
+    except Exception as e:
+        logger.error(f"TeleApoReport error: {e}")
     finally:
         db.close()
 

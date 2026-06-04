@@ -690,6 +690,8 @@ class CallLog(Base):
     called_at = Column(DateTime, server_default=func.now())
     result = Column(String(50), nullable=False)
     note = Column(Text, nullable=True)
+    call_duration = Column(Integer, nullable=True)
+    callback_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 

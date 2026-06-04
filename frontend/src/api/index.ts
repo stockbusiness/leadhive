@@ -813,11 +813,11 @@ export const api = {
   },
 
   teleApo: {
-    companies: (params?: { project_id?: number; score_rank?: string; status?: string; search?: string; limit?: number; offset?: number }) =>
+    companies: (params?: { project_id?: number; score_rank?: string; status?: string; search?: string; sort?: string; exclude_ng?: boolean; limit?: number; offset?: number }) =>
       axios.get("/api/tele-apo/companies", { params }).then(r => r.data),
-    stats: () =>
-      axios.get("/api/tele-apo/stats").then(r => r.data),
-    createLog: (data: { company_id: number; result: string; note?: string }) =>
+    stats: (days?: number) =>
+      axios.get("/api/tele-apo/stats", { params: { days } }).then(r => r.data),
+    createLog: (data: { company_id: number; result: string; note?: string; call_duration?: number; callback_at?: string }) =>
       axios.post("/api/tele-apo/logs", data).then(r => r.data),
     logs: (company_id?: number) =>
       axios.get("/api/tele-apo/logs", { params: { company_id } }).then(r => r.data),
@@ -825,6 +825,18 @@ export const api = {
       axios.delete(`/api/tele-apo/logs/${id}`).then(r => r.data),
     generateScript: (company_id: number) =>
       axios.post("/api/tele-apo/script", { company_id }).then(r => r.data),
+    callbacks: () =>
+      axios.get("/api/tele-apo/callbacks").then(r => r.data),
+    teamStats: (days?: number) =>
+      axios.get("/api/tele-apo/team-stats", { params: { days } }).then(r => r.data),
+    getScriptTemplate: () =>
+      axios.get("/api/tele-apo/script-templates").then(r => r.data),
+    saveScriptTemplate: (template: string) =>
+      axios.post("/api/tele-apo/script-templates", { template }).then(r => r.data),
+    exportCsv: (days?: number) =>
+      axios.get("/api/tele-apo/export.csv", { params: { days }, responseType: "blob" }).then(r => r.data),
+    insights: (days?: number) =>
+      axios.get("/api/tele-apo/insights", { params: { days } }).then(r => r.data),
   },
 
   notifications: {
