@@ -2211,37 +2211,90 @@ export default function SalesAI() {
             </div>
           ) : (
             <>
+              {/* ── サマリー数値カード ── */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: "総メッセージ数", value: stats?.total_messages ?? 0, icon: <FileText size={18} />, color: "bg-slate-100 text-slate-600" },
-                  { label: "送信済み", value: stats?.total_sent ?? 0, icon: <CheckCircle2 size={18} />, color: "bg-green-100 text-green-700" },
-                  { label: "配信停止数", value: stats?.opt_out_count ?? 0, icon: <Ban size={18} />, color: "bg-amber-100 text-amber-700" },
-                ].map(card => (
-                  <div key={card.label} className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${card.color}`}>
-                      {card.icon}
+                {/* 生成済みメッセージ */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 text-slate-600 flex-shrink-0">
+                      <FileText size={15} />
                     </div>
-                    <div>
-                      <p className="text-2xl font-bold text-slate-800">{card.value}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{card.label}</p>
-                    </div>
+                    <span className="text-xs font-medium">生成済みメッセージ</span>
                   </div>
-                ))}
-                {/* 送信失敗カード（リセットボタン付き） */}
-                <div className="bg-white rounded-xl border border-red-200 p-5 flex flex-col gap-2">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100 text-red-700">
-                      <AlertCircle size={18} />
+                  <p className="text-3xl font-bold text-slate-800 leading-none pl-1">
+                    {(stats?.total_messages ?? 0).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-slate-400 pl-1">
+                    AIで作成した全メッセージの合計
+                    {(stats?.status_counts?.draft ?? 0) > 0 && (
+                      <span className="ml-1">（下書き {(stats?.status_counts?.draft ?? 0).toLocaleString()}件含む）</span>
+                    )}
+                  </p>
+                </div>
+
+                {/* 送信完了 */}
+                <div className="bg-white rounded-xl border border-green-200 p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-green-600">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-green-100 flex-shrink-0">
+                      <CheckCircle2 size={15} />
                     </div>
-                    <div>
-                      <p className="text-2xl font-bold text-slate-800">{stats?.total_failed ?? 0}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">送信失敗</p>
-                    </div>
+                    <span className="text-xs font-medium">送信完了</span>
                   </div>
+                  <div className="flex items-end gap-2 pl-1">
+                    <p className="text-3xl font-bold text-slate-800 leading-none">
+                      {(stats?.total_sent ?? 0).toLocaleString()}
+                    </p>
+                    {(() => {
+                      const tried = (stats?.total_sent ?? 0) + (stats?.total_failed ?? 0);
+                      const rate = tried > 0 ? Math.round((stats?.total_sent ?? 0) / tried * 100) : 0;
+                      return tried > 0 ? (
+                        <span className="text-sm font-semibold text-green-600 mb-0.5">({rate}%)</span>
+                      ) : null;
+                    })()}
+                  </div>
+                  <p className="text-xs text-slate-400 pl-1">
+                    フォーム・メール送信に成功した件数
+                    {(() => {
+                      const tried = (stats?.total_sent ?? 0) + (stats?.total_failed ?? 0);
+                      return tried > 0 ? `（試行 ${tried.toLocaleString()}件中）` : "";
+                    })()}
+                  </p>
+                </div>
+
+                {/* 配信停止 */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-amber-600">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-amber-100 flex-shrink-0">
+                      <Ban size={15} />
+                    </div>
+                    <span className="text-xs font-medium">配信停止リスト</span>
+                  </div>
+                  <p className="text-3xl font-bold text-slate-800 leading-none pl-1">
+                    {(stats?.opt_out_count ?? 0).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-slate-400 pl-1">
+                    受信拒否・配信停止の申し出があった企業数
+                  </p>
+                </div>
+
+                {/* 送信エラー（リセットボタン付き） */}
+                <div className="bg-white rounded-xl border border-red-200 p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-red-600">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-red-100 flex-shrink-0">
+                      <AlertCircle size={15} />
+                    </div>
+                    <span className="text-xs font-medium">送信エラー</span>
+                  </div>
+                  <p className="text-3xl font-bold text-slate-800 leading-none pl-1">
+                    {(stats?.total_failed ?? 0).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-slate-400 pl-1">
+                    フォーム・メール送信に失敗した件数
+                  </p>
                   {(stats?.total_failed ?? 0) > 0 && (
                     <button
                       onClick={async () => {
-                        if (!confirm(`失敗した${stats?.total_failed}件を下書きに戻しますか？`)) return;
+                        if (!confirm(`失敗した${stats?.total_failed}件を下書きに戻しますか？\n再送信したい場合は下書きに戻してから再実行してください。`)) return;
                         try {
                           const r = await api.salesAi.resetFailed(currentProject?.id);
                           alert(`${r.reset_count}件を下書きにリセットしました`);
@@ -2253,11 +2306,55 @@ export default function SalesAI() {
                       }}
                       className="w-full text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors font-semibold"
                     >
-                      失敗→下書きにリセット
+                      下書きに戻して再送信できる状態にする
                     </button>
                   )}
                 </div>
               </div>
+
+              {/* ── ステータス内訳サマリーバー ── */}
+              {(stats?.total_messages ?? 0) > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4">
+                  <p className="text-xs font-semibold text-slate-500 mb-3">全 {(stats?.total_messages ?? 0).toLocaleString()}件の内訳</p>
+                  <div className="flex rounded-full overflow-hidden h-3 mb-3">
+                    {(() => {
+                      const total = stats?.total_messages || 1;
+                      const draft = stats?.status_counts?.draft ?? 0;
+                      const reviewed = stats?.status_counts?.reviewed ?? 0;
+                      const sent = stats?.total_sent ?? 0;
+                      const failed = stats?.total_failed ?? 0;
+                      const segments = [
+                        { value: sent, color: "bg-green-500", label: "送信完了" },
+                        { value: reviewed, color: "bg-blue-400", label: "確認済み" },
+                        { value: failed, color: "bg-red-400", label: "エラー" },
+                        { value: draft, color: "bg-slate-300", label: "下書き" },
+                      ].filter(s => s.value > 0);
+                      return segments.map((s, i) => (
+                        <div
+                          key={i}
+                          className={`${s.color} transition-all`}
+                          style={{ width: `${(s.value / total) * 100}%` }}
+                          title={`${s.label}: ${s.value.toLocaleString()}件`}
+                        />
+                      ));
+                    })()}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    {[
+                      { label: "下書き（未送信）", value: stats?.status_counts?.draft ?? 0, dot: "bg-slate-400" },
+                      { label: "確認済み（送信待ち）", value: stats?.status_counts?.reviewed ?? 0, dot: "bg-blue-400" },
+                      { label: "送信完了", value: stats?.total_sent ?? 0, dot: "bg-green-500" },
+                      { label: "送信エラー", value: stats?.total_failed ?? 0, dot: "bg-red-400" },
+                    ].map(({ label, value, dot }) => (
+                      <div key={label} className="flex items-center gap-1.5">
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
+                        <span className="text-xs text-slate-500">{label}</span>
+                        <span className="text-xs font-semibold text-slate-700">{value.toLocaleString()}件</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white rounded-xl border border-slate-200 p-5">
