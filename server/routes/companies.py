@@ -104,6 +104,10 @@ def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filt
         db.commit()
         _update_scan_job(job_id, status="done", done=total, found=found)
     except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
         _update_scan_job(job_id, status="error", error=str(e)[:120])
     finally:
         db.close()
