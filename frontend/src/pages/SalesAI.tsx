@@ -2213,19 +2213,19 @@ export default function SalesAI() {
             <>
               {/* ── サマリー数値カード ── */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* 生成済みメッセージ */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 text-slate-600 flex-shrink-0">
-                      <FileText size={15} />
+                {/* 送信待ち */}
+                <div className="bg-white rounded-xl border border-violet-200 p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-violet-600">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-violet-100 flex-shrink-0">
+                      <Clock size={15} />
                     </div>
-                    <span className="text-xs font-medium">生成済みメッセージ</span>
+                    <span className="text-xs font-medium">送信待ち</span>
                   </div>
                   <p className="text-3xl font-bold text-slate-800 leading-none pl-1">
-                    {(stats?.total_messages ?? 0).toLocaleString()}
+                    {((stats?.status_counts?.draft ?? 0) + (stats?.status_counts?.reviewed ?? 0)).toLocaleString()}
                   </p>
                   <p className="text-xs text-slate-400 pl-1">
-                    AIで作成した全メッセージの合計（下書き含む）
+                    未送信の下書き・確認済みメッセージ数
                   </p>
                 </div>
 
