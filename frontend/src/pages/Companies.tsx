@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock, Mail, LayoutDashboard, Filter, Search } from "lucide-react";
+import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock, Mail, LayoutDashboard, Filter, Search, Sparkles } from "lucide-react";
 import { api } from "../api";
 import { Pagination } from "../components/common";
 import { CompanyFilterBar, CompanyTable, CompanyEditModal } from "../components/companies";
@@ -40,6 +40,7 @@ export default function Companies() {
     cms_type: searchParams.get("cms_type") || "",
     ec_only: searchParams.get("ec_only") || "",
     ec_scale: searchParams.get("ec_scale") || "",
+    website_status: searchParams.get("website_status") || "",
   });
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem("leadhive_view_mode") as ViewMode) || "list";
@@ -70,6 +71,11 @@ export default function Companies() {
   const [scanFormMsg, setScanFormMsg] = useState<string | null>(null);
   const [scanJobId, setScanJobId] = useState<string | null>(null);
   const [scanJobProgress, setScanJobProgress] = useState<{ done: number; total: number; total_eligible: number; found: number; pre_skip_count?: number } | null>(null);
+  const [showCleanModal, setShowCleanModal] = useState(false);
+  const [cleanOps, setCleanOps] = useState<Record<string, boolean>>({ check_status: true, backfill_form: true, normalize: true });
+  const [cleanJobId, setCleanJobId] = useState<string | null>(null);
+  const [cleanJobState, setCleanJobState] = useState<{ status: string; done: number; total: number; results: Record<string, number> } | null>(null);
+  const [cleanLoading, setCleanLoading] = useState(false);
 
   useEffect(() => {
     api.plans.current().then((d) => setCsvPlan(d.plan ?? null)).catch(() => setCsvPlan(null));
@@ -102,6 +108,7 @@ export default function Companies() {
     if (filters.cms_type) params.cms_type = filters.cms_type;
     if (filters.ec_only === "true") params.ec_only = true;
     if (filters.ec_scale) params.ec_scale = filters.ec_scale;
+    if (filters.website_status) params.website_status = filters.website_status;
 
     api.companies.list(params).then((data) => {
       setCompanies(data.companies);
@@ -117,6 +124,42 @@ export default function Companies() {
     setSelectedIds(new Set());
     setAllSelectedMode(false);
   }, [page, filters]);
+
+  const handleStartClean = async () => {
+    setCleanLoading(true);
+    try {
+      const ops = Object.entries(cleanOps).filter(([, v]) => v).map(([k]) => k);
+      const { job_id } = await api.companies.startListClean({
+        ops,
+        project_id: currentProject?.id,
+      });
+      setCleanJobId(job_id);
+      setCleanJobState({ status: "pending", done: 0, total: 0, results: {} });
+    } catch {
+      alert("クリーニングの開始に失敗しました");
+    } finally {
+      setCleanLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!cleanJobId) return;
+    const interval = setInterval(async () => {
+      try {
+        const job = await api.companies.getListCleanJob(cleanJobId);
+        setCleanJobState({ status: job.status, done: job.done, total: job.total, results: job.results });
+        if (job.status === "done" || job.status === "error") {
+          clearInterval(interval);
+          setCleanJobId(null);
+          fetchCompanies();
+        }
+      } catch {
+        clearInterval(interval);
+        setCleanJobId(null);
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [cleanJobId, fetchCompanies]);
 
   useEffect(() => {
     if (!scanJobId) return;
@@ -443,6 +486,15 @@ export default function Companies() {
             </button>
           </div>
           <button
+            onClick={() => setShowCleanModal(true)}
+            disabled={!!cleanJobId}
+            className="flex items-center gap-1.5 bg-violet-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-violet-700 transition-colors disabled:opacity-50"
+            title="リストクリーニング：サイト状態確認・フォームURL補完・データ正規化"
+          >
+            <Sparkles size={15} className={cleanJobId ? "animate-pulse" : ""} />
+            <span className="hidden sm:inline">{cleanJobId ? "クリーニング中..." : "リストクリーニング"}</span>
+          </button>
+          <button
             onClick={handleDuplicateCheck}
             disabled={duplicateLoading}
             className="flex items-center gap-1.5 bg-amber-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-amber-700 transition-colors disabled:opacity-50"
@@ -513,6 +565,68 @@ export default function Companies() {
             <X size={14} />
             ECフィルターを解除
           </button>
+        </div>
+      )}
+
+      {filters.website_status && (
+        <div className={`flex items-center gap-3 rounded-lg px-4 py-3 border ${
+          filters.website_status === "active"
+            ? "bg-green-50 border-green-200"
+            : "bg-red-50 border-red-200"
+        }`}>
+          <Filter size={16} className={filters.website_status === "active" ? "text-green-500" : "text-red-500"} />
+          <span className={`text-sm font-medium ${filters.website_status === "active" ? "text-green-800" : "text-red-800"}`}>
+            {filters.website_status === "active" && "✅ サイト正常稼働の企業でフィルター中"}
+            {filters.website_status === "problem" && "⚠️ サイトに問題あり（全種）でフィルター中"}
+            {filters.website_status === "dead" && "💀 サイト応答なし（死活）でフィルター中"}
+            {filters.website_status === "closed" && "🔒 サイト閉鎖・廃業でフィルター中"}
+            {filters.website_status === "parking" && "🅿️ ドメイン駐車でフィルター中"}
+            {filters.website_status === "under_construction" && "🚧 工事中のサイトでフィルター中"}
+            {filters.website_status === "redirect_external" && "↪️ 外部リダイレクトでフィルター中"}
+          </span>
+          <button
+            onClick={() => handleFilterChange({ ...filters, website_status: "" })}
+            className="flex items-center gap-1.5 ml-auto text-sm text-slate-500 hover:text-slate-700 font-medium transition-colors"
+          >
+            <X size={14} />
+            解除
+          </button>
+        </div>
+      )}
+
+      {cleanJobState && (cleanJobState.status === "running" || cleanJobState.status === "pending") && (
+        <div className="bg-violet-50 border border-violet-200 rounded-lg px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <Sparkles size={14} className="text-violet-600 animate-pulse flex-shrink-0" />
+              <span className="font-semibold text-violet-800">リストクリーニング実行中...</span>
+            </div>
+          </div>
+          {cleanJobState.total > 0 && (
+            <>
+              <div className="text-sm text-violet-700">
+                進捗: <span className="font-bold">{cleanJobState.done}</span> / <span className="font-bold">{cleanJobState.total}</span>件
+              </div>
+              <div className="w-full bg-violet-200 rounded-full h-1.5">
+                <div
+                  className="bg-violet-600 h-1.5 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.round((cleanJobState.done / cleanJobState.total) * 100)}%` }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {cleanJobState?.status === "done" && (
+        <div className="bg-violet-50 border border-violet-200 rounded-lg px-4 py-3 flex items-center gap-4 flex-wrap">
+          <Sparkles size={14} className="text-violet-600 flex-shrink-0" />
+          <span className="text-sm font-semibold text-violet-800">✅ クリーニング完了</span>
+          <span className="text-sm text-violet-700">チェック: {cleanJobState.results.checked ?? 0}件</span>
+          {(cleanJobState.results.dead ?? 0) > 0 && <span className="text-sm text-red-600">💀 死活: {cleanJobState.results.dead}件</span>}
+          {(cleanJobState.results.form_found ?? 0) > 0 && <span className="text-sm text-cyan-700">📨 フォームURL検出: {cleanJobState.results.form_found}件</span>}
+          {(cleanJobState.results.normalized ?? 0) > 0 && <span className="text-sm text-green-700">✏️ 正規化: {cleanJobState.results.normalized}件</span>}
+          <button onClick={() => setCleanJobState(null)} className="ml-auto text-violet-400 hover:text-violet-600"><X size={13} /></button>
         </div>
       )}
 
@@ -683,6 +797,84 @@ export default function Companies() {
             fetchCompanies();
           }}
         />
+      )}
+
+      {showCleanModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Sparkles size={18} className="text-violet-600" />
+                リストクリーニング
+              </h3>
+              <button onClick={() => setShowCleanModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-slate-600">
+                {currentProject ? `「${currentProject.name}」プロジェクト` : "全プロジェクト"}の企業リストに対してクリーニングを実行します。
+              </p>
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cleanOps.check_status}
+                    onChange={(e) => setCleanOps({ ...cleanOps, check_status: e.target.checked })}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">🌐 サイト状態チェック</p>
+                    <p className="text-xs text-slate-500">各企業のWebサイトにアクセスし、稼働・閉鎖・工事中などを判定します</p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cleanOps.backfill_form}
+                    onChange={(e) => setCleanOps({ ...cleanOps, backfill_form: e.target.checked })}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">📨 フォームURL補完</p>
+                    <p className="text-xs text-slate-500">フォームURLが未登録の企業に対してお問い合わせフォームURLを自動検出・登録します</p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cleanOps.normalize}
+                    onChange={(e) => setCleanOps({ ...cleanOps, normalize: e.target.checked })}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">✏️ データ正規化</p>
+                    <p className="text-xs text-slate-500">電話番号の全角→半角変換、メールアドレスの小文字化など</p>
+                  </div>
+                </label>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+                ⚠️ サイト状態チェックはHTTPリクエストを伴うため、企業数が多い場合は時間がかかります
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowCleanModal(false)}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={async () => { setShowCleanModal(false); await handleStartClean(); }}
+                disabled={cleanLoading || !Object.values(cleanOps).some(Boolean)}
+                className="px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                <Sparkles size={14} />
+                クリーニング開始
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showImportModal && (

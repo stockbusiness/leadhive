@@ -107,6 +107,15 @@ export const api = {
     getAllTags: () =>
       axios.get<{ tags: string[] }>("/api/companies/tags/all").then(r => r.data),
 
+    startListClean: (params: { ops: string[]; project_id?: number; company_ids?: number[] }) =>
+      axios.post<{ job_id: string }>("/api/companies/list-clean/start", params).then(r => r.data),
+
+    getListCleanJob: (jobId: string) =>
+      axios.get<{ job_id: string; status: string; done: number; total: number; results: Record<string, number>; error?: string | null }>(`/api/companies/list-clean/${jobId}`).then(r => r.data),
+
+    getWebsiteStatusSummary: (projectId?: number) =>
+      axios.get<{ summary: Record<string, number> }>("/api/companies/website-status-summary", { params: projectId ? { project_id: projectId } : {} }).then(r => r.data),
+
     getDuplicates: () =>
       axios.get<{ duplicate_groups: { normalized_domain: string; companies: Company[] }[]; total_groups: number }>(
         "/api/companies/duplicates"

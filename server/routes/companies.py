@@ -143,6 +143,7 @@ def list_companies(
     cms_type: Optional[str] = None,
     ec_only: Optional[bool] = None,
     ec_scale: Optional[str] = None,
+    website_status: Optional[str] = None,
     sort_by: str = "score_total",
     sort_order: str = "desc",
     page: int = 1,
@@ -212,7 +213,17 @@ def list_companies(
     if ec_only:
         query = query.filter(Company.ec_flag == True)
     if ec_scale:
-        query = query.filter(Company.ec_scale == ec_scale)
+        if ec_scale == "large":
+            query = query.filter(Company.ec_score >= 70)
+        elif ec_scale == "medium":
+            query = query.filter(Company.ec_score >= 50, Company.ec_score < 70)
+        elif ec_scale == "small":
+            query = query.filter(Company.ec_score >= 30, Company.ec_score < 50)
+    if website_status:
+        if website_status == "problem":
+            query = query.filter(Company.website_status.in_(["dead", "closed", "parking", "under_construction", "redirect_external"]))
+        else:
+            query = query.filter(Company.website_status == website_status)
     if follow_up_filter:
         today = date.today()
         if follow_up_filter == "overdue":
@@ -547,7 +558,12 @@ def export_companies_xlsx_v2(
     if ec_only:
         query = query.filter(Company.ec_flag == True)
     if ec_scale:
-        query = query.filter(Company.ec_scale == ec_scale)
+        if ec_scale == "large":
+            query = query.filter(Company.ec_score >= 70)
+        elif ec_scale == "medium":
+            query = query.filter(Company.ec_score >= 50, Company.ec_score < 70)
+        elif ec_scale == "small":
+            query = query.filter(Company.ec_score >= 30, Company.ec_score < 50)
 
     companies = query.order_by(desc(Company.score_total)).limit(5000).all()
 
@@ -680,7 +696,12 @@ def get_company_ids(
     if ec_only:
         query = query.filter(Company.ec_flag == True)
     if ec_scale:
-        query = query.filter(Company.ec_scale == ec_scale)
+        if ec_scale == "large":
+            query = query.filter(Company.ec_score >= 70)
+        elif ec_scale == "medium":
+            query = query.filter(Company.ec_score >= 50, Company.ec_score < 70)
+        elif ec_scale == "small":
+            query = query.filter(Company.ec_score >= 30, Company.ec_score < 50)
     if follow_up_filter:
         today = date.today()
         if follow_up_filter == "overdue":
@@ -1212,7 +1233,12 @@ def export_csv(
     if ec_only:
         query = query.filter(Company.ec_flag == True)
     if ec_scale:
-        query = query.filter(Company.ec_scale == ec_scale)
+        if ec_scale == "large":
+            query = query.filter(Company.ec_score >= 70)
+        elif ec_scale == "medium":
+            query = query.filter(Company.ec_score >= 50, Company.ec_score < 70)
+        elif ec_scale == "small":
+            query = query.filter(Company.ec_score >= 30, Company.ec_score < 50)
 
     query = query.order_by(desc(Company.score_total))
     if csv_limit is not None:
@@ -1530,6 +1556,14 @@ def rescrape_company(
         company.prefecture = scraped["prefecture"]
     if scraped.get("city"):
         company.city = scraped["city"]
+    if scraped.get("website_status"):
+        company.website_status = scraped["website_status"]
+    if scraped.get("scraped_at"):
+        from datetime import datetime as _dt
+        try:
+            company.scraped_at = _dt.fromisoformat(scraped["scraped_at"])
+        except Exception:
+            company.scraped_at = _dt.utcnow()
 
     company.category_main = category_main
     company.category_sub = category_sub
@@ -1856,3 +1890,181 @@ def bulk_rescore_companies(
 
     db.commit()
     return {"updated": updated, "total": len(companies_list), "message": f"{updated}件のスコアを再計算しました"}
+
+
+# ── リストクリーニングジョブストア ──────────────────────────────────────────
+_LIST_CLEAN_JOBS: Dict[str, Dict[str, Any]] = {}
+_LIST_CLEAN_LOCK = threading.Lock()
+
+
+def _update_clean_job(job_id: str, **kwargs):
+    with _LIST_CLEAN_LOCK:
+        if job_id in _LIST_CLEAN_JOBS:
+            _LIST_CLEAN_JOBS[job_id].update(kwargs)
+
+
+def _run_list_clean(job_id: str, org_id: int, project_id: Optional[int],
+                    ops: list, company_ids: list):
+    """バックグラウンドでリストクリーニングを実行する。"""
+    import requests as _req
+    from server.models import Project as _Project
+    from server.services.scraper import detect_website_status as _dws
+    from server.services.form_sender import _find_contact_url as _fcu
+    from datetime import datetime as _dt
+    from bs4 import BeautifulSoup as _BS
+
+    db = SessionLocal()
+    try:
+        owned_ids = [p[0] for p in db.query(_Project.id).filter(_Project.org_id == org_id).all()]
+
+        if company_ids:
+            companies_q = db.query(Company).filter(
+                Company.id.in_(company_ids),
+                Company.project_id.in_(owned_ids),
+            )
+        elif project_id:
+            companies_q = db.query(Company).filter(
+                Company.project_id == project_id,
+                Company.website_url.isnot(None),
+                Company.website_url != "",
+            )
+        else:
+            companies_q = db.query(Company).filter(
+                Company.project_id.in_(owned_ids),
+                Company.website_url.isnot(None),
+                Company.website_url != "",
+            )
+
+        all_cos = companies_q.all()
+        total = len(all_cos)
+        _update_clean_job(job_id, total=total, status="running")
+
+        results = {"checked": 0, "dead": 0, "closed": 0, "parking": 0,
+                   "under_construction": 0, "form_found": 0, "normalized": 0, "errors": 0}
+
+        session = _req.Session()
+        session.headers.update({"User-Agent": "LeadHive/1.0"})
+
+        for i, co in enumerate(all_cos):
+            try:
+                # ── A: ウェブサイト現況チェック ──────────────────────────
+                if "check_status" in ops and co.website_url:
+                    try:
+                        resp = session.get(co.website_url, timeout=10, allow_redirects=True)
+                        soup = _BS(resp.text, "html.parser")
+                        ws = _dws(resp.status_code, soup, resp.text, resp.url, co.website_url)
+                        co.website_status = ws
+                        co.scraped_at = _dt.utcnow()
+                        if ws in ("dead", "closed"):
+                            results["dead"] += 1
+                        if ws == "closed":
+                            results["closed"] += 1
+                        if ws == "parking":
+                            results["parking"] += 1
+                        if ws == "under_construction":
+                            results["under_construction"] += 1
+                    except Exception:
+                        co.website_status = "dead"
+                        results["errors"] += 1
+
+                # ── B: フォームURLバックフィル ───────────────────────────
+                if "backfill_form" in ops and co.website_url and not (co.contact_url or "").strip():
+                    try:
+                        found = _fcu(co.website_url, "", session)
+                        if found:
+                            co.contact_url = found
+                            results["form_found"] += 1
+                    except Exception:
+                        pass
+
+                # ── C: データ正規化 ──────────────────────────────────────
+                if "normalize" in ops:
+                    # 電話番号の全角→半角変換
+                    if co.phone:
+                        normalized_phone = co.phone.translate(str.maketrans("０１２３４５６７８９ー－", "0123456789--"))
+                        if normalized_phone != co.phone:
+                            co.phone = normalized_phone
+                            results["normalized"] += 1
+                    # メールアドレス小文字化
+                    if co.email and co.email != co.email.lower():
+                        co.email = co.email.lower()
+                        results["normalized"] += 1
+
+                results["checked"] += 1
+                db.commit()
+
+            except Exception as e:
+                logger.warning(f"[list_clean:{job_id}] company {co.id} error: {e}")
+                results["errors"] += 1
+
+            _update_clean_job(job_id, done=i + 1, results=results)
+
+        _update_clean_job(job_id, status="done", done=total, results=results)
+
+    except Exception as e:
+        _update_clean_job(job_id, status="error", error=str(e)[:120])
+    finally:
+        db.close()
+
+
+@router.post("/list-clean/start")
+def start_list_clean(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """リストクリーニングをバックグラウンドで開始する。"""
+    ops = data.get("ops", ["check_status", "backfill_form", "normalize"])
+    project_id = data.get("project_id")
+    company_ids = data.get("company_ids", [])
+
+    job_id = str(uuid.uuid4())[:8]
+    with _LIST_CLEAN_LOCK:
+        _LIST_CLEAN_JOBS[job_id] = {
+            "job_id": job_id,
+            "status": "pending",
+            "done": 0,
+            "total": 0,
+            "results": {},
+            "error": None,
+        }
+
+    t = threading.Thread(
+        target=_run_list_clean,
+        args=(job_id, current_user.org_id, project_id, ops, company_ids),
+        daemon=True,
+    )
+    t.start()
+    return {"job_id": job_id}
+
+
+@router.get("/list-clean/{job_id}")
+def get_list_clean_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """クリーニングジョブの進捗を返す。"""
+    with _LIST_CLEAN_LOCK:
+        job = _LIST_CLEAN_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="ジョブが見つかりません")
+    return job
+
+
+@router.get("/website-status-summary")
+def get_website_status_summary(
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """各website_statusの件数サマリーを返す。"""
+    from sqlalchemy import func as _func
+    owned_ids = _owned_projects(current_user, db)
+    q = db.query(Company.website_status, _func.count(Company.id))
+    if project_id:
+        q = q.filter(Company.project_id == project_id)
+    else:
+        q = q.filter(Company.project_id.in_(owned_ids))
+    q = q.filter(Company.website_status.isnot(None))
+    rows = q.group_by(Company.website_status).all()
+    return {"summary": {r[0]: r[1] for r in rows}}

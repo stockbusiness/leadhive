@@ -73,6 +73,8 @@ def company_to_dict(c: Company, db: Session = None) -> dict:
         "robots_disallow": getattr(c, "robots_disallow", False),
         "ec_score": getattr(c, "ec_score", 0) or 0,
         "ec_scale": _derive_ec_scale(getattr(c, "ec_score", 0) or 0),
+        "website_status": getattr(c, "website_status", None),
+        "scraped_at": getattr(c, "scraped_at", None).isoformat() if getattr(c, "scraped_at", None) else None,
         "created_at": c.created_at.isoformat() if c.created_at and hasattr(c.created_at, 'isoformat') else (str(c.created_at) if c.created_at else None),
         "updated_at": c.updated_at.isoformat() if c.updated_at and hasattr(c.updated_at, 'isoformat') else (str(c.updated_at) if c.updated_at else None),
     }

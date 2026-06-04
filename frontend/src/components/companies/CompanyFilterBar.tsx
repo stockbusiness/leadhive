@@ -16,6 +16,7 @@ interface Filters {
   cms_type: string;
   ec_only: string;
   ec_scale: string;
+  website_status: string;
 }
 
 const CMS_COLORS: Record<string, string> = {
@@ -287,6 +288,28 @@ export default function CompanyFilterBar({
           <option value="large">📦 大規模 (商品多数)</option>
           <option value="medium">📦 中規模</option>
           <option value="small">📦 小規模</option>
+        </select>
+        <select
+          value={filters.website_status}
+          onChange={(e) => onFilterChange({ ...filters, website_status: e.target.value })}
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+            filters.website_status === "active"
+              ? "border-green-400 bg-green-50 text-green-700"
+              : filters.website_status === "problem"
+              ? "border-red-400 bg-red-50 text-red-700"
+              : filters.website_status
+              ? "border-amber-400 bg-amber-50 text-amber-700"
+              : "border-slate-300"
+          }`}
+        >
+          <option value="">サイト状態</option>
+          <option value="active">✅ 正常稼働</option>
+          <option value="problem">⚠️ 問題あり（全種）</option>
+          <option value="dead">💀 死活（応答なし）</option>
+          <option value="closed">🔒 閉鎖・廃業</option>
+          <option value="parking">🅿️ ドメイン駐車</option>
+          <option value="under_construction">🚧 工事中</option>
+          <option value="redirect_external">↪️ 外部リダイレクト</option>
         </select>
       </div>
 

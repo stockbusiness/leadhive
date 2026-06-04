@@ -614,6 +614,12 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
                 except Exception:
                     pass
 
+            # ── Webサイト現況ステータス検出 ────────────────────────────────
+            final_url = response.url
+            website_status = detect_website_status(
+                response.status_code, soup, html_source, final_url, url
+            )
+
             cms_type = detect_cms(soup, html_source, dict(response.headers))
             cms_detected_at = datetime.utcnow().isoformat() if cms_type else None
             sns_data = extract_sns_links(soup)
@@ -678,6 +684,8 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
                 "ec_flag": ec_flag_val,
                 "has_recruitment": has_recruitment,
                 "robots_disallow": False,
+                "website_status": website_status,
+                "scraped_at": datetime.utcnow().isoformat(),
                 "full_text": full_text,
                 **platform_flags,
             }
@@ -771,21 +779,156 @@ def extract_location(text: str) -> tuple[str, str]:
     return "", ""
 
 
-def find_contact_page(soup: BeautifulSoup, base_url: str) -> str:
-    contact_patterns = [
-        r"contact", r"inquiry", r"お問い合わせ", r"問い合わせ",
-        r"otoiawase", r"form", r"mail",
-    ]
-    for link in soup.find_all("a", href=True):
-        href = link.get("href", "")
-        link_text = link.get_text(strip=True)
-        combined = f"{href} {link_text}".lower()
+# ── フォームサービスのiframe/embed URL パターン ──────────────────────────────
+_FORM_SERVICE_PATTERNS = [
+    re.compile(r"formrun\.com", re.I),
+    re.compile(r"typeform\.com", re.I),
+    re.compile(r"forms\.google\.com|docs\.google\.com/forms", re.I),
+    re.compile(r"hubspot\.com.*form|hs-scripts\.com", re.I),
+    re.compile(r"form\.run", re.I),
+    re.compile(r"tayori\.com", re.I),
+    re.compile(r"kintoneapp\.com", re.I),
+    re.compile(r"coform\.jp", re.I),
+    re.compile(r"mailchimp\.com/subscribe", re.I),
+    re.compile(r"form\.page", re.I),
+]
 
-        for pattern in contact_patterns:
-            if re.search(pattern, combined, re.IGNORECASE):
-                full_url = urljoin(base_url, href)
-                if urlparse(full_url).netloc == urlparse(base_url).netloc:
-                    return full_url
+# ── コンタクトページ候補パス（優先度順） ────────────────────────────────────
+_CONTACT_DIRECT_PATHS = [
+    "/contact", "/inquiry", "/form", "/contact-us", "/contact_us",
+    "/お問い合わせ", "/otoiawase", "/toiawase",
+    "/contact.html", "/inquiry.html", "/form.html",
+    "/contact.php", "/inquiry.php", "/form.php",
+    "/pages/contact", "/support/contact",
+]
+
+# ── 廃業・サービス終了シグナル ────────────────────────────────────────────────
+_CLOSED_SIGNALS = re.compile(
+    r"廃業|閉業|閉店|サービス終了|事業終了|このサービスは終了|ご利用いただけません|"
+    r"業務を終了|解散|閉鎖しました|サイトを閉鎖",
+    re.I,
+)
+# ── 工事中・準備中シグナル ────────────────────────────────────────────────────
+_CONSTRUCTION_SIGNALS = re.compile(
+    r"準備中|工事中|coming\s*soon|under\s*construction|近日公開|only\s*moment",
+    re.I,
+)
+# ── ドメイン駐車ページシグナル ──────────────────────────────────────────────
+_PARKING_SIGNALS = re.compile(
+    r"domain.*for\s*sale|this\s*domain|buy\s*this\s*domain|"
+    r"お名前\.com|このドメインは|ドメイン取得|sakura\.ne\.jp.*デフォルト|"
+    r"lolipop.*初期ページ|xserver.*デフォルト",
+    re.I,
+)
+
+
+def _has_real_form(soup: BeautifulSoup) -> bool:
+    """ページに実際のお問い合わせフォームが存在するか確認する。"""
+    for form in soup.find_all("form"):
+        has_text_area = bool(form.find("textarea"))
+        has_text_input = bool(form.find("input", {"type": re.compile(r"text|email", re.I)}))
+        if has_text_area or has_text_input:
+            return True
+    # iframeフォームサービス検出
+    for iframe in soup.find_all("iframe"):
+        src = iframe.get("src", "")
+        for pat in _FORM_SERVICE_PATTERNS:
+            if pat.search(src):
+                return True
+    # scriptタグ内のフォームサービス埋め込み検出
+    for script in soup.find_all("script"):
+        src = script.get("src", "") or ""
+        for pat in _FORM_SERVICE_PATTERNS:
+            if pat.search(src):
+                return True
+    return False
+
+
+def detect_website_status(response_status: int, soup: BeautifulSoup, html: str, final_url: str, original_url: str) -> str:
+    """
+    Webサイトの現況を判定する。
+    戻り値: 'active' | 'dead' | 'parking' | 'under_construction' | 'closed' | 'redirect_external'
+    """
+    if response_status in (404, 410):
+        return "dead"
+    if response_status >= 500:
+        return "dead"
+    if response_status in (301, 302, 303, 307, 308):
+        orig_domain = urlparse(original_url).netloc.lower().lstrip("www.")
+        final_domain = urlparse(final_url).netloc.lower().lstrip("www.")
+        if orig_domain and final_domain and orig_domain != final_domain:
+            return "redirect_external"
+
+    text = soup.get_text(" ", strip=True)[:3000]
+    if _CLOSED_SIGNALS.search(text):
+        return "closed"
+    if _PARKING_SIGNALS.search(html[:5000]):
+        return "parking"
+    if _CONSTRUCTION_SIGNALS.search(text):
+        return "under_construction"
+    return "active"
+
+
+def find_contact_page(soup: BeautifulSoup, base_url: str) -> str:
+    """
+    お問い合わせページURLを検出する（スコアリング + 直接パス探索 + フォーム存在確認）。
+    """
+    base_domain = urlparse(base_url).netloc
+
+    # ── ①リンクテキスト・href のスコアリングで候補を収集 ──────────────────
+    candidates: list[tuple[int, str]] = []
+    for a in soup.find_all("a", href=True):
+        href = a.get("href", "")
+        text = a.get_text(strip=True).lower()
+        href_lower = href.lower()
+        combined = f"{href_lower} {text}"
+        score = 0
+
+        # href パスの品質スコア
+        if any(k in href_lower for k in ("/contact", "/inquiry", "/form", "/ask")):
+            score += 8
+        elif any(k in href_lower for k in ("contact", "inquiry", "form")):
+            score += 4
+        if any(k in href_lower for k in ("お問い合わせ", "otoiawase", "toiawase", "問合")):
+            score += 8
+        # リンクテキストのスコア
+        if any(k in text for k in ("お問い合わせ", "問い合わせ", "ご相談", "問合せ")):
+            score += 6
+        if any(k in text for k in ("contact", "inquiry", "form", "ask")):
+            score += 4
+        # フォームサービス検出（高スコア）
+        for pat in _FORM_SERVICE_PATTERNS:
+            if pat.search(combined):
+                score += 10
+                break
+        # クエリパラメータなしのクリーンURLを優先
+        if score > 0 and "?" not in href:
+            score += 2
+
+        if score > 0:
+            full_url = urljoin(base_url, href)
+            if urlparse(full_url).netloc == base_domain:
+                candidates.append((score, full_url))
+
+    # ── ②スコア降順で候補URLを検証（フォーム存在確認） ───────────────────
+    seen: set[str] = set()
+    for score, url in sorted(candidates, key=lambda x: -x[0]):
+        if url in seen:
+            continue
+        seen.add(url)
+        try:
+            resp = requests.get(url, headers={"User-Agent": LEADHIVE_UA}, timeout=8, allow_redirects=True)
+            if resp.status_code == 200:
+                cand_soup = BeautifulSoup(resp.text, "html.parser")
+                if _has_real_form(cand_soup):
+                    return url
+                # フォームなしでも最初の高スコア候補は保留（後で返す）
+        except Exception:
+            pass
+
+    # ── ③フォーム存在確認なしでも最高スコア候補を返す ──────────────────────
+    if candidates:
+        return sorted(candidates, key=lambda x: -x[0])[0][1]
 
     return ""
 

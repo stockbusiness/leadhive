@@ -864,8 +864,54 @@ def _is_spa_page(html: str) -> bool:
     return False
 
 
+_CONTACT_DIRECT_PATHS = [
+    "/contact", "/inquiry", "/form", "/contact-us", "/contact_us",
+    "/contacts", "/お問い合わせ", "/otoiawase", "/toiawase",
+    "/contact.html", "/inquiry.html", "/form.html",
+    "/contact.php", "/inquiry.php", "/form.php",
+    "/pages/contact", "/support/contact", "/help/contact",
+]
+
+_FORM_SERVICE_PATTERNS_FS = [
+    re.compile(r"formrun\.com", re.I),
+    re.compile(r"typeform\.com", re.I),
+    re.compile(r"forms\.google\.com|docs\.google\.com/forms", re.I),
+    re.compile(r"hubspot\.com.*form|hs-scripts\.com", re.I),
+    re.compile(r"form\.run", re.I),
+    re.compile(r"tayori\.com", re.I),
+    re.compile(r"kintoneapp\.com", re.I),
+    re.compile(r"coform\.jp", re.I),
+    re.compile(r"form\.page", re.I),
+]
+
+
+def _verify_has_form(html: str) -> bool:
+    """HTMLにお問い合わせフォームが存在するか確認する。"""
+    soup = BeautifulSoup(html, "html.parser")
+    for form in soup.find_all("form"):
+        if form.find("textarea") or form.find("input", {"type": re.compile(r"^(text|email)$", re.I)}):
+            return True
+    for iframe in soup.find_all("iframe"):
+        src = iframe.get("src", "")
+        for pat in _FORM_SERVICE_PATTERNS_FS:
+            if pat.search(src):
+                return True
+    for script in soup.find_all("script"):
+        src = script.get("src", "") or ""
+        for pat in _FORM_SERVICE_PATTERNS_FS:
+            if pat.search(src):
+                return True
+    return False
+
+
 def _find_contact_url(website_url: str, contact_url: str, session: requests.Session) -> Optional[str]:
-    """コンタクトページURLを決定する。contact_urlがあればそれを使い、なければトップからリンクを探す。"""
+    """
+    コンタクトページURLを決定する。
+    1. contact_urlが設定済みならそれを返す
+    2. よく使われるパス（/contact等）を直接探索
+    3. トップページのリンクからスコアリングで選択
+    4. フォーム存在確認（<form> or フォームサービスiframe）
+    """
     if contact_url:
         return contact_url
     if not website_url:
@@ -873,25 +919,83 @@ def _find_contact_url(website_url: str, contact_url: str, session: requests.Sess
 
     try:
         html, final_url = _fetch_html(website_url, session)
-        soup = BeautifulSoup(html, "html.parser")
-        candidates = []
-        for a in soup.find_all("a", href=True):
-            href = a.get("href", "")
-            text = a.get_text(strip=True).lower()
-            abs_href = urllib.parse.urljoin(final_url, href)
-            if not abs_href.startswith("http"):
-                continue
-            score = 0
-            if any(k in href.lower() for k in ("contact", "inquiry", "form", "ask", "お問い合わせ", "問合")):
-                score += 5
-            if any(k in text for k in ("お問い合わせ", "contact", "inquiry", "問い合わせ", "問合")):
-                score += 3
-            if score > 0:
-                candidates.append((score, abs_href))
-        if candidates:
-            return max(candidates, key=lambda x: x[0])[1]
     except Exception as e:
-        logger.warning(f"コンタクトページ探索失敗: {e}")
+        logger.warning(f"トップページ取得失敗: {e}")
+        return None
+
+    base = urllib.parse.urlparse(final_url)
+    base_origin = f"{base.scheme}://{base.netloc}"
+
+    # ── ① 直接パス探索（よくある /contact 等） ──────────────────────────────
+    for path in _CONTACT_DIRECT_PATHS:
+        try:
+            candidate = base_origin + path
+            resp = session.get(candidate, timeout=8, allow_redirects=True)
+            if resp.status_code == 200 and _verify_has_form(resp.text):
+                logger.info(f"直接パスでフォームURL検出: {candidate}")
+                return candidate
+        except Exception:
+            continue
+
+    # ── ② トップページリンクのスコアリング探索 ──────────────────────────────
+    soup = BeautifulSoup(html, "html.parser")
+    candidates: list[tuple[int, str]] = []
+
+    for a in soup.find_all("a", href=True):
+        href = a.get("href", "")
+        text = a.get_text(strip=True).lower()
+        href_lower = href.lower()
+        abs_href = urllib.parse.urljoin(final_url, href)
+        if not abs_href.startswith("http"):
+            continue
+        if urllib.parse.urlparse(abs_href).netloc != base.netloc:
+            continue
+
+        score = 0
+        # href パスによるスコア
+        if any(k in href_lower for k in ("/contact", "/inquiry", "/form", "/ask")):
+            score += 8
+        elif any(k in href_lower for k in ("contact", "inquiry", "form")):
+            score += 4
+        if any(k in href_lower for k in ("お問い合わせ", "otoiawase", "toiawase", "問合")):
+            score += 8
+        # リンクテキストによるスコア
+        if any(k in text for k in ("お問い合わせ", "問い合わせ", "ご相談", "問合せ")):
+            score += 6
+        if any(k in text for k in ("contact", "inquiry", "form", "ask")):
+            score += 4
+        # フォームサービス直リンク
+        for pat in _FORM_SERVICE_PATTERNS_FS:
+            if pat.search(href):
+                score += 12
+                break
+        if score > 0:
+            if "?" not in href:
+                score += 2
+            candidates.append((score, abs_href))
+
+    # スコア降順で検証
+    seen: set[str] = set()
+    for score, url in sorted(candidates, key=lambda x: -x[0]):
+        if url in seen:
+            continue
+        seen.add(url)
+        try:
+            resp = session.get(url, timeout=8, allow_redirects=True)
+            if resp.status_code == 200:
+                if _verify_has_form(resp.text):
+                    logger.info(f"リンクスコアリングでフォームURL検出: {url} (score={score})")
+                    return url
+        except Exception:
+            continue
+
+    # フォーム確認できなくても最高スコア候補を返す
+    if candidates:
+        best = sorted(candidates, key=lambda x: -x[0])[0][1]
+        logger.info(f"フォーム未確認だが最高スコア候補を返す: {best}")
+        return best
+
+    logger.warning(f"コンタクトページ未検出: {website_url}")
     return None
 
 
