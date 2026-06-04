@@ -224,18 +224,50 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
             opted_domains = {r[0] for r in db.query(OptOutList.domain).filter(OptOutList.domain.in_(domains)).all()}
 
         # ── 送信済み会社を全プロジェクト横断でスキップ（重複送信防止） ──
-        always_skip_ids: set = set()
-        if company_ids:
-            sent_rows = db.query(SalesMessage.company_id).filter(
-                SalesMessage.org_id == org_id,
-                SalesMessage.company_id.in_(company_ids),
-                SalesMessage.status == "sent",
-            ).distinct().all()
-            always_skip_ids = {r[0] for r in sent_rows}
+        _already_sent_pipeline = {"フォーム送信済", "メール送信済", "商談中", "成約", "NG"}
+
+        def _build_skip_sets(db_session, cids: list) -> tuple[set, set]:
+            """送信済み company_id set と送信済み domain set を返す。"""
+            skip_ids: set = set()
+            skip_domains: set = set()
+            if not cids:
+                return skip_ids, skip_domains
+            # sent メッセージが存在する企業（org全体）
+            sent_rows = db_session.execute(text("""
+                SELECT DISTINCT sm.company_id, c.domain
+                FROM sales_messages sm
+                JOIN companies c ON sm.company_id = c.id
+                WHERE sm.org_id = :org_id
+                  AND sm.company_id = ANY(:cids)
+                  AND sm.status = 'sent'
+            """), {"org_id": org_id, "cids": cids}).fetchall()
+            for row in sent_rows:
+                skip_ids.add(row[0])
+                if row[1]:
+                    skip_domains.add(row[1])
+            # ドメイン一致で他の会社も送信済みか確認（同ドメイン複数レコード対策）
+            all_domains = [c.domain for c in all_cos if c.domain]
+            if all_domains:
+                dom_rows = db_session.execute(text("""
+                    SELECT DISTINCT sm.company_id, c.domain
+                    FROM sales_messages sm
+                    JOIN companies c ON sm.company_id = c.id
+                    WHERE sm.org_id = :org_id
+                      AND c.domain = ANY(:domains)
+                      AND sm.status = 'sent'
+                """), {"org_id": org_id, "domains": all_domains}).fetchall()
+                for row in dom_rows:
+                    skip_ids.add(row[0])
+                    if row[1]:
+                        skip_domains.add(row[1])
+            return skip_ids, skip_domains
+
+        always_skip_ids, sent_domains = _build_skip_sets(db, list(company_ids))
 
         # ── パイプラインステータスが「送信済み・成約・NG」の会社もスキップ ──
-        _already_sent_pipeline = {"フォーム送信済", "メール送信済", "商談中", "成約", "NG"}
         pipeline_skip_ids = {c.id for c in all_cos if c.status in _already_sent_pipeline}
+        # パイプライン送信済みのドメインもスキップ対象に追加
+        sent_domains |= {c.domain for c in all_cos if c.status in _already_sent_pipeline and c.domain}
         always_skip_ids |= pipeline_skip_ids
 
         existing_ids: set = set(always_skip_ids)
@@ -264,12 +296,22 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
         for i, chunk in enumerate(chunks):
             _update_job(job_id, batch=i + 1)
 
+            # ── バッチごとにsent_ids/sent_domainsを再取得（並列ジョブ・長時間ジョブ対策） ──
+            if i > 0:
+                _fresh_skip, _fresh_domains = _build_skip_sets(db, list(company_ids))
+                existing_ids |= _fresh_skip
+                sent_domains |= _fresh_domains
+
             eligible = []
             for cid in chunk:
                 if cid in existing_ids:
                     continue
                 c = cos_map.get(cid)
                 if not c:
+                    continue
+                # ── ドメインレベルの重複チェック（同ドメイン複数レコード対策） ──
+                if c.domain and c.domain in sent_domains:
+                    existing_ids.add(cid)  # 以降のバッチでも即スキップ
                     continue
                 if (c.email and c.email in opted_emails) or (c.domain and c.domain in opted_domains):
                     continue
@@ -439,16 +481,29 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                         return (msg_id, False, "msg_not_found")
                     _co = _db.query(Company).filter(Company.id == _msg.company_id).first()
 
-                    # ── ②.5 同一企業の他メッセージが既にsent/processingか確認（並列重複送信防止） ──
+                    # ── ②.5 同一企業・同一ドメインの重複チェック（org_id付き） ──
+                    # company_idレベル
                     dup_count = _db.query(func.count(SalesMessage.id)).filter(
+                        SalesMessage.org_id == org_id,
                         SalesMessage.company_id == _msg.company_id,
                         SalesMessage.id != msg_id,
                         SalesMessage.status.in_(["sent", "processing"]),
                     ).scalar() or 0
+                    # ドメインレベル（同ドメイン・複数レコード対策）
+                    if dup_count == 0 and _co and _co.domain:
+                        dup_count = _db.execute(text("""
+                            SELECT COUNT(sm.id)
+                            FROM sales_messages sm
+                            JOIN companies c ON sm.company_id = c.id
+                            WHERE sm.org_id = :org_id
+                              AND c.domain = :domain
+                              AND sm.id != :msg_id
+                              AND sm.status IN ('sent', 'processing')
+                        """), {"org_id": org_id, "domain": _co.domain, "msg_id": msg_id}).scalar() or 0
                     if dup_count > 0:
                         _db.execute(
-                            text("UPDATE sales_messages SET status='failed' WHERE id=:id"),
-                            {"id": msg_id},
+                            text("UPDATE sales_messages SET status='failed', send_note=:note WHERE id=:id"),
+                            {"note": "同一ドメインへの送信済みを検知（重複防止）", "id": msg_id},
                         )
                         _db.commit()
                         return (msg_id, "skip", "company_already_sent_or_processing")
