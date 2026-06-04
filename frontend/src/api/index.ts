@@ -116,9 +116,14 @@ export const api = {
     getWebsiteStatusSummary: (projectId?: number) =>
       axios.get<{ summary: Record<string, number> }>("/api/companies/website-status-summary", { params: projectId ? { project_id: projectId } : {} }).then(r => r.data),
 
-    getDuplicates: () =>
-      axios.get<{ duplicate_groups: { normalized_domain: string; companies: Company[] }[]; total_groups: number }>(
-        "/api/companies/duplicates"
+    getScoreFeedback: (projectId?: number) =>
+      axios.get<{ total: number; positive: any; negative: any; rank_conversion: Record<string, any>; insights: string[]; positive_count: number; negative_count: number }>(
+        "/api/companies/score-feedback", { params: projectId ? { project_id: projectId } : {} }
+      ).then(r => r.data),
+
+    getDuplicates: (fuzzy = false) =>
+      axios.get<{ duplicate_groups: { normalized_domain: string; match_type: string; companies: Company[] }[]; total_groups: number }>(
+        "/api/companies/duplicates", { params: fuzzy ? { fuzzy: true } : {} }
       ).then(r => r.data),
 
     merge: (mainId: number, mergeIds: number[]) =>

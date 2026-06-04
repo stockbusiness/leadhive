@@ -448,6 +448,20 @@ def extract_sns_links(soup: BeautifulSoup) -> dict:
             if re.search(r"tiktok\.com/[^/]+/shop|shop\.tiktok\.com", href):
                 shop_flags["tiktok_shop"] = True
 
+        # Pinterest / Threads / note / BeReal（追加SNS）
+        if result.get("pinterest") is None and re.search(r"pinterest\.(?:com|jp)/(?!pin/)", href):
+            result["pinterest"] = href
+        if result.get("threads") is None and "threads.net/@" in href:
+            result["threads"] = href
+        if result.get("note") is None and re.search(r"note\.com/[a-zA-Z0-9_]+/?$", href):
+            result["note"] = href
+
+        # YouTube Shorts / Community も検出
+        if "youtube.com/shorts" in href or "youtube.com/community" in href:
+            if result["youtube"] is None:
+                result["youtube"] = href
+                individual["sns_youtube_url"] = href
+
     sns_count = sum(1 for v in individual.values() if v)
     return {**result, **individual, **shop_flags, "sns_count": sns_count}
 

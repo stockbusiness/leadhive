@@ -1281,6 +1281,11 @@ def _scheduler_loop():
                 logger.info("LogCleanup: Triggered at 03:00")
                 threading.Thread(target=_run_log_cleanup, daemon=True).start()
 
+            # 週次リストクリーニング: 毎週日曜 05:00 にサイト状態チェック + 正規化
+            if now.weekday() == 6 and now.hour == 5 and now.minute == 0 and last_log_cleanup_date != today:
+                logger.info("WeeklyListClean: Triggered at Sunday 05:00")
+                threading.Thread(target=_run_weekly_list_clean, daemon=True).start()
+
             if now.hour == 6 and now.minute == 0 and last_cms_scan_date != today:
                 last_cms_scan_date = today
                 logger.info("AutoCmsScan: Triggered at 06:00")
@@ -1496,3 +1501,68 @@ def get_scheduler_status() -> dict:
     return {
         "running": _scheduler_running,
     }
+
+
+def _run_weekly_list_clean():
+    """毎週日曜 05:00 に全テナントのリストをクリーニング（サイト状態 + 正規化）。"""
+    import requests as _req
+    from server.database import SessionLocal
+    from server.models import Company as _Company, Organization, AppSetting
+    from server.services.scraper import detect_website_status as _dws
+    from bs4 import BeautifulSoup as _BS
+    from concurrent.futures import ThreadPoolExecutor
+    from datetime import datetime as _dt
+
+    db = SessionLocal()
+    try:
+        orgs = db.query(Organization).all()
+        for org in orgs:
+            # オートクリーニング無効なテナントはスキップ
+            cfg = db.query(AppSetting).filter(
+                AppSetting.setting_key == "auto_list_clean_enabled",
+                AppSetting.org_id == org.id,
+            ).first()
+            if cfg and cfg.setting_value == "false":
+                continue
+
+            cos = db.query(_Company).filter(
+                _Company.project_id.in_(
+                    [p.id for p in org.projects] if hasattr(org, "projects") else []
+                ),
+                _Company.website_url.isnot(None),
+                _Company.website_url != "",
+            ).all()
+
+            logger.info(f"WeeklyClean: org={org.id} {len(cos)} companies")
+            sess = _req.Session()
+            sess.headers["User-Agent"] = "LeadHive/1.0"
+
+            def _check_one(co_id: int, url: str):
+                try:
+                    resp = sess.get(url, timeout=8, allow_redirects=True)
+                    soup = _BS(resp.text, "html.parser")
+                    return co_id, _dws(resp.status_code, soup, resp.text, resp.url, url), True
+                except Exception:
+                    return co_id, "dead", False
+
+            co_map = {co.id: co for co in cos}
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                futs = {pool.submit(_check_one, co.id, co.website_url): co.id for co in cos}
+                for fut in futs:
+                    co_id, ws, ok = fut.result()
+                    co = co_map.get(co_id)
+                    if co:
+                        co.website_status = ws
+                        if ok:
+                            co.scraped_at = _dt.utcnow()
+                        # 正規化
+                        if co.phone:
+                            co.phone = co.phone.translate(str.maketrans("０１２３４５６７８９ー－", "0123456789--"))
+                        if co.email:
+                            co.email = co.email.lower()
+            db.commit()
+            logger.info(f"WeeklyClean: org={org.id} done")
+    except Exception as e:
+        logger.error(f"WeeklyClean error: {e}")
+    finally:
+        db.close()

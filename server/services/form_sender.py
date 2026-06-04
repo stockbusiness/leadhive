@@ -870,7 +870,34 @@ _CONTACT_DIRECT_PATHS = [
     "/contact.html", "/inquiry.html", "/form.html",
     "/contact.php", "/inquiry.php", "/form.php",
     "/pages/contact", "/support/contact", "/help/contact",
+    # 追加パス（T001-7 JS-rendered form improvement）
+    "/support", "/help", "/faq/contact", "/feedback",
+    "/about/contact", "/get-in-touch", "/reach-us", "/connect",
+    "/contactus", "/contactus.html", "/contactus.php",
+    "/toiawase.html", "/otoiawase.html", "/toiawase.php",
+    "/request", "/request.html", "/request.php",
+    "/inquiry/form", "/contact/form", "/form/contact",
 ]
+
+# React/Vue/Angular/Next.js の特徴的なシグナル（JS-heavy SPA 判定）
+_JS_FRAMEWORK_PATTERNS = [
+    re.compile(r'<div\s+id=["\'](?:__next|app|root|vue-app|ng-app)["\']', re.I),
+    re.compile(r'"react":\s*"[\d.]+"|react\.development\.js|react\.production\.min\.js', re.I),
+    re.compile(r'vue(?:\.min)?\.js|vue\.runtime|VUE_APP_', re.I),
+    re.compile(r'angular(?:\.min)?\.js|ng-version=|ng-controller', re.I),
+    re.compile(r'_nuxt/|__nuxt|nuxt\.js', re.I),
+    re.compile(r'gatsby-chunk|GatsbyConfig', re.I),
+]
+
+
+def _is_js_heavy(html: str) -> bool:
+    """SPA/JS-heavy なページか推定する（Playwright フォールバックの判断用）。"""
+    if len(BeautifulSoup(html, "html.parser").get_text(strip=True)) < 300:
+        return True
+    for pat in _JS_FRAMEWORK_PATTERNS:
+        if pat.search(html):
+            return True
+    return False
 
 _FORM_SERVICE_PATTERNS_FS = [
     re.compile(r"formrun\.com", re.I),

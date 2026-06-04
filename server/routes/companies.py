@@ -328,6 +328,7 @@ def create_company(
 @router.get("/duplicates")
 def find_duplicates(
     project_id: Optional[int] = None,
+    fuzzy: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -340,19 +341,62 @@ def find_duplicates(
     else:
         q = q.filter(Company.project_id.in_(owned_ids))
     companies = q.all()
-    domain_groups = defaultdict(list)
+
+    # ── ドメインベース重複（従来）────────────────────────────────────────────
+    domain_groups: defaultdict = defaultdict(list)
     for c in companies:
         normalized = _normalize_domain(c.domain or c.website_url or "")
         if normalized:
             domain_groups[normalized].append(c)
 
     duplicate_groups = []
+    seen_ids: set = set()
     for norm_domain, group in domain_groups.items():
         if len(group) >= 2:
+            for c in group:
+                seen_ids.add(c.id)
             duplicate_groups.append({
                 "normalized_domain": norm_domain,
+                "match_type": "domain",
                 "companies": [company_to_dict(c, db) for c in group],
             })
+
+    # ── 会社名ファジーマッチング（オプション）───────────────────────────────
+    if fuzzy:
+        try:
+            from rapidfuzz import fuzz as _fuzz, process as _proc
+            _FUZZY_THRESHOLD = 88  # 88%以上で同一企業と判定
+
+            # ドメイン重複で既に検出済みを除いた会社のみ対象
+            candidates = [c for c in companies if c.id not in seen_ids and c.company_name]
+            names = [c.company_name for c in candidates]
+
+            matched: set = set()
+            for i, co in enumerate(candidates):
+                if co.id in matched:
+                    continue
+                name_i = co.company_name or ""
+                group = [co]
+                for j in range(i + 1, len(candidates)):
+                    co2 = candidates[j]
+                    if co2.id in matched:
+                        continue
+                    name_j = co2.company_name or ""
+                    score = _fuzz.token_sort_ratio(name_i, name_j)
+                    if score >= _FUZZY_THRESHOLD:
+                        group.append(co2)
+                        matched.add(co2.id)
+                if len(group) >= 2:
+                    matched.add(co.id)
+                    for gc in group:
+                        seen_ids.add(gc.id)
+                    duplicate_groups.append({
+                        "normalized_domain": f"名称類似: {name_i}",
+                        "match_type": "name_fuzzy",
+                        "companies": [company_to_dict(c, db) for c in group],
+                    })
+        except ImportError:
+            pass
 
     return {"duplicate_groups": duplicate_groups, "total_groups": len(duplicate_groups)}
 
@@ -1905,8 +1949,9 @@ def _update_clean_job(job_id: str, **kwargs):
 
 def _run_list_clean(job_id: str, org_id: int, project_id: Optional[int],
                     ops: list, company_ids: list):
-    """バックグラウンドでリストクリーニングを実行する。"""
+    """バックグラウンドでリストクリーニングを実行する（並列HTTP・スレッドセーフDB書き込み）。"""
     import requests as _req
+    from concurrent.futures import ThreadPoolExecutor, as_completed as _asc
     from server.models import Project as _Project
     from server.services.scraper import detect_website_status as _dws
     from server.services.form_sender import _find_contact_url as _fcu
@@ -1914,92 +1959,131 @@ def _run_list_clean(job_id: str, org_id: int, project_id: Optional[int],
     from bs4 import BeautifulSoup as _BS
 
     db = SessionLocal()
+    _results_lock = threading.Lock()
+    _done_count = 0
+    results = {"checked": 0, "dead": 0, "closed": 0, "parking": 0,
+               "under_construction": 0, "form_found": 0, "normalized": 0, "errors": 0}
+
+    def _inc(key: str, n: int = 1):
+        with _results_lock:
+            results[key] = results.get(key, 0) + n
+
     try:
         owned_ids = [p[0] for p in db.query(_Project.id).filter(_Project.org_id == org_id).all()]
 
         if company_ids:
-            companies_q = db.query(Company).filter(
+            cos_data = db.query(
+                Company.id, Company.website_url, Company.contact_url,
+                Company.phone, Company.email,
+            ).filter(
                 Company.id.in_(company_ids),
                 Company.project_id.in_(owned_ids),
-            )
+            ).all()
         elif project_id:
-            companies_q = db.query(Company).filter(
+            cos_data = db.query(
+                Company.id, Company.website_url, Company.contact_url,
+                Company.phone, Company.email,
+            ).filter(
                 Company.project_id == project_id,
                 Company.website_url.isnot(None),
                 Company.website_url != "",
-            )
+            ).all()
         else:
-            companies_q = db.query(Company).filter(
+            cos_data = db.query(
+                Company.id, Company.website_url, Company.contact_url,
+                Company.phone, Company.email,
+            ).filter(
                 Company.project_id.in_(owned_ids),
                 Company.website_url.isnot(None),
                 Company.website_url != "",
-            )
+            ).all()
 
-        all_cos = companies_q.all()
-        total = len(all_cos)
+        total = len(cos_data)
         _update_clean_job(job_id, total=total, status="running")
 
-        results = {"checked": 0, "dead": 0, "closed": 0, "parking": 0,
-                   "under_construction": 0, "form_found": 0, "normalized": 0, "errors": 0}
+        # スレッドローカルHTTPセッション（スレッドセーフ）
+        import threading as _thr
+        _tls = _thr.local()
 
-        session = _req.Session()
-        session.headers.update({"User-Agent": "LeadHive/1.0"})
+        def _get_session():
+            if not hasattr(_tls, "sess"):
+                _tls.sess = _req.Session()
+                _tls.sess.headers["User-Agent"] = "LeadHive/1.0"
+            return _tls.sess
 
-        for i, co in enumerate(all_cos):
-            try:
-                # ── A: ウェブサイト現況チェック ──────────────────────────
-                if "check_status" in ops and co.website_url:
-                    try:
-                        resp = session.get(co.website_url, timeout=10, allow_redirects=True)
-                        soup = _BS(resp.text, "html.parser")
-                        ws = _dws(resp.status_code, soup, resp.text, resp.url, co.website_url)
-                        co.website_status = ws
-                        co.scraped_at = _dt.utcnow()
-                        if ws in ("dead", "closed"):
-                            results["dead"] += 1
-                        if ws == "closed":
-                            results["closed"] += 1
-                        if ws == "parking":
-                            results["parking"] += 1
-                        if ws == "under_construction":
-                            results["under_construction"] += 1
-                    except Exception:
-                        co.website_status = "dead"
-                        results["errors"] += 1
+        def _process_one(row):
+            nonlocal _done_count
+            co_id, website_url, contact_url, phone, email = row
+            updates: Dict[str, Any] = {}
 
-                # ── B: フォームURLバックフィル ───────────────────────────
-                if "backfill_form" in ops and co.website_url and not (co.contact_url or "").strip():
-                    try:
-                        found = _fcu(co.website_url, "", session)
-                        if found:
-                            co.contact_url = found
-                            results["form_found"] += 1
-                    except Exception:
-                        pass
+            # ── A: ウェブサイト現況チェック（並列HTTP）──────────────────
+            if "check_status" in ops and website_url:
+                try:
+                    resp = _get_session().get(website_url, timeout=10, allow_redirects=True)
+                    soup = _BS(resp.text, "html.parser")
+                    ws = _dws(resp.status_code, soup, resp.text, resp.url, website_url)
+                    updates["website_status"] = ws
+                    updates["scraped_at"] = _dt.utcnow()
+                    if ws in ("dead", "closed"):
+                        _inc("dead")
+                    if ws == "closed":
+                        _inc("closed")
+                    elif ws == "parking":
+                        _inc("parking")
+                    elif ws == "under_construction":
+                        _inc("under_construction")
+                except Exception:
+                    updates["website_status"] = "dead"
+                    _inc("errors")
 
-                # ── C: データ正規化 ──────────────────────────────────────
-                if "normalize" in ops:
-                    # 電話番号の全角→半角変換
-                    if co.phone:
-                        normalized_phone = co.phone.translate(str.maketrans("０１２３４５６７８９ー－", "0123456789--"))
-                        if normalized_phone != co.phone:
-                            co.phone = normalized_phone
-                            results["normalized"] += 1
-                    # メールアドレス小文字化
-                    if co.email and co.email != co.email.lower():
-                        co.email = co.email.lower()
-                        results["normalized"] += 1
+            # ── B: フォームURLバックフィル ───────────────────────────────
+            if "backfill_form" in ops and website_url and not (contact_url or "").strip():
+                try:
+                    found = _fcu(website_url, "", _get_session())
+                    if found:
+                        updates["contact_url"] = found
+                        _inc("form_found")
+                except Exception:
+                    pass
 
-                results["checked"] += 1
-                db.commit()
+            # ── C: データ正規化 ──────────────────────────────────────────
+            if "normalize" in ops:
+                if phone:
+                    normalized_phone = phone.translate(str.maketrans("０１２３４５６７８９ー－", "0123456789--"))
+                    if normalized_phone != phone:
+                        updates["phone"] = normalized_phone
+                        _inc("normalized")
+                if email and email != email.lower():
+                    updates["email"] = email.lower()
+                    _inc("normalized")
 
-            except Exception as e:
-                logger.warning(f"[list_clean:{job_id}] company {co.id} error: {e}")
-                results["errors"] += 1
+            _inc("checked")
+            return co_id, updates
 
-            _update_clean_job(job_id, done=i + 1, results=results)
+        # 並列HTTP（最大10並列）、DB書き込みはメインスレッドで集約
+        batch_updates: Dict[int, Dict] = {}
+        MAX_WORKERS = 10
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+            futs = {pool.submit(_process_one, row): row[0] for row in cos_data}
+            for i, fut in enumerate(_asc(futs), 1):
+                try:
+                    co_id, updates = fut.result()
+                    if updates:
+                        batch_updates[co_id] = updates
+                except Exception as e:
+                    logger.warning(f"[list_clean:{job_id}] future error: {e}")
+                    _inc("errors")
 
-        _update_clean_job(job_id, status="done", done=total, results=results)
+                _done_count = i
+                if i % 10 == 0 or i == total:
+                    _update_clean_job(job_id, done=i, results=dict(results))
+
+        # バッチDB書き込み
+        for co_id, upd in batch_updates.items():
+            db.query(Company).filter(Company.id == co_id).update(upd, synchronize_session=False)
+        db.commit()
+
+        _update_clean_job(job_id, status="done", done=total, results=dict(results))
 
     except Exception as e:
         _update_clean_job(job_id, status="error", error=str(e)[:120])
@@ -2068,3 +2152,98 @@ def get_website_status_summary(
     q = q.filter(Company.website_status.isnot(None))
     rows = q.group_by(Company.website_status).all()
     return {"summary": {r[0]: r[1] for r in rows}}
+
+
+@router.get("/score-feedback")
+def get_score_feedback(
+    project_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    受注・商談化した企業の特徴を分析し、スコアリング改善のためのフィードバックデータを返す。
+    ステータスが「商談中」「受注」「成約」「対象候補」などに変化した企業の
+    スコア・CMS・EC規模の分布を集計する。
+    """
+    from sqlalchemy import func as _func
+    owned_ids = _owned_projects(current_user, db)
+
+    POSITIVE_STATUSES = ["商談中", "受注", "成約", "提案中", "資料送付済"]
+    NEGATIVE_STATUSES = ["対象外", "NG", "不要", "断られた"]
+
+    q_base = db.query(Company)
+    if project_id:
+        if project_id not in owned_ids:
+            raise HTTPException(status_code=403)
+        q_base = q_base.filter(Company.project_id == project_id)
+    else:
+        q_base = q_base.filter(Company.project_id.in_(owned_ids))
+
+    all_cos = q_base.all()
+    total = len(all_cos)
+    if total == 0:
+        return {"total": 0, "positive": {}, "negative": {}, "insights": []}
+
+    def _aggregate(cos):
+        if not cos:
+            return {}
+        scores = [c.score_total for c in cos if c.score_total is not None]
+        ranks = {}
+        for c in cos:
+            r = c.score_rank or "不明"
+            ranks[r] = ranks.get(r, 0) + 1
+        cms = {}
+        for c in cos:
+            if c.cms_type:
+                cms[c.cms_type] = cms.get(c.cms_type, 0) + 1
+        ec_count = sum(1 for c in cos if c.ec_flag)
+        return {
+            "count": len(cos),
+            "avg_score": round(sum(scores) / len(scores), 1) if scores else 0,
+            "rank_dist": dict(sorted(ranks.items())),
+            "top_cms": dict(sorted(cms.items(), key=lambda x: -x[1])[:5]),
+            "ec_ratio": round(ec_count / len(cos) * 100, 1),
+        }
+
+    pos_cos = [c for c in all_cos if c.status in POSITIVE_STATUSES]
+    neg_cos = [c for c in all_cos if c.status in NEGATIVE_STATUSES]
+    pos_agg = _aggregate(pos_cos)
+    neg_agg = _aggregate(neg_cos)
+
+    # インサイト生成
+    insights = []
+    if pos_agg and neg_agg:
+        score_diff = pos_agg.get("avg_score", 0) - neg_agg.get("avg_score", 0)
+        if abs(score_diff) >= 5:
+            direction = "高い" if score_diff > 0 else "低い"
+            insights.append(f"受注企業の平均スコアは対象外企業より {abs(score_diff):.1f}点 {direction}傾向があります")
+
+    if pos_agg and pos_agg.get("ec_ratio", 0) > 50:
+        insights.append(f"受注企業の {pos_agg['ec_ratio']}% が EC サイトです — EC 企業を優先的にアプローチすると効果的です")
+
+    if pos_agg and pos_agg.get("top_cms"):
+        top_cms = list(pos_agg["top_cms"].keys())[0]
+        insights.append(f"受注実績が多い CMS/プラットフォーム: 「{top_cms}」")
+
+    # スコアランク別の受注率
+    rank_conversion = {}
+    for rank in ["A", "B", "C", "D"]:
+        rank_total = sum(1 for c in all_cos if c.score_rank == rank)
+        rank_pos = sum(1 for c in pos_cos if c.score_rank == rank)
+        if rank_total > 0:
+            rank_conversion[rank] = {
+                "total": rank_total,
+                "converted": rank_pos,
+                "rate": round(rank_pos / rank_total * 100, 1),
+            }
+
+    return {
+        "total": total,
+        "positive": pos_agg,
+        "negative": neg_agg,
+        "rank_conversion": rank_conversion,
+        "insights": insights,
+        "positive_statuses": POSITIVE_STATUSES,
+        "positive_count": len(pos_cos),
+        "negative_count": len(neg_cos),
+    }

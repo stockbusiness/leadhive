@@ -39,6 +39,27 @@ function CmsBadge({ cms }: { cms: string }) {
   );
 }
 
+const WS_CONFIG: Record<string, { icon: string; label: string; cls: string }> = {
+  active:             { icon: "✅", label: "稼働中",   cls: "bg-green-100 text-green-700" },
+  dead:               { icon: "💀", label: "応答なし", cls: "bg-red-100 text-red-700" },
+  closed:             { icon: "🔒", label: "閉鎖",     cls: "bg-red-100 text-red-800" },
+  parking:            { icon: "🅿️", label: "駐車",     cls: "bg-amber-100 text-amber-700" },
+  under_construction: { icon: "🚧", label: "工事中",   cls: "bg-yellow-100 text-yellow-700" },
+  redirect_external:  { icon: "↪️", label: "外部転送", cls: "bg-slate-100 text-slate-600" },
+};
+
+function WebsiteStatusBadge({ status }: { status?: string | null }) {
+  if (!status || status === "active") return null;
+  const cfg = WS_CONFIG[status];
+  if (!cfg) return null;
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${cfg.cls} border-current/20`}
+      title={`サイト状態: ${cfg.label}`}>
+      {cfg.icon} {cfg.label}
+    </span>
+  );
+}
+
 export default function CompanyTable({
   companies,
   selectedIds,
@@ -170,6 +191,7 @@ export default function CompanyTable({
                           {tag}
                         </span>
                       ))}
+                      <WebsiteStatusBadge status={(c as any).website_status} />
                     </div>
                   </div>
                 </div>
@@ -301,6 +323,7 @@ export default function CompanyTable({
                           {tag}
                         </span>
                       ))}
+                      <WebsiteStatusBadge status={(c as any).website_status} />
                     </div>
                   </td>
                   <td className="px-3 py-2 text-slate-600">{c.category_main}</td>

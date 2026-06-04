@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock, Mail, LayoutDashboard, Filter, Search, Sparkles } from "lucide-react";
+import { Download, CheckSquare, Copy, X, GitMerge, MoveRight, Upload, LayoutList, Kanban, FileDown, Lock, Mail, LayoutDashboard, Filter, Search, Sparkles, TrendingUp } from "lucide-react";
 import { api } from "../api";
 import { Pagination } from "../components/common";
 import { CompanyFilterBar, CompanyTable, CompanyEditModal } from "../components/companies";
@@ -14,7 +14,18 @@ import { useAuth } from "../contexts/AuthContext";
 
 interface DuplicateGroup {
   normalized_domain: string;
+  match_type?: string;
   companies: Company[];
+}
+
+interface ScoreFeedback {
+  total: number;
+  positive: { count: number; avg_score: number; rank_dist: Record<string, number>; top_cms: Record<string, number>; ec_ratio: number } | null;
+  negative: { count: number; avg_score: number; rank_dist: Record<string, number>; top_cms: Record<string, number>; ec_ratio: number } | null;
+  rank_conversion: Record<string, { total: number; converted: number; rate: number }>;
+  insights: string[];
+  positive_count: number;
+  negative_count: number;
 }
 
 type ViewMode = "list" | "kanban";
@@ -76,6 +87,10 @@ export default function Companies() {
   const [cleanJobId, setCleanJobId] = useState<string | null>(null);
   const [cleanJobState, setCleanJobState] = useState<{ status: string; done: number; total: number; results: Record<string, number> } | null>(null);
   const [cleanLoading, setCleanLoading] = useState(false);
+  const [fuzzyDuplicate, setFuzzyDuplicate] = useState(false);
+  const [showScoreFeedback, setShowScoreFeedback] = useState(false);
+  const [scoreFeedback, setScoreFeedback] = useState<ScoreFeedback | null>(null);
+  const [scoreFeedbackLoading, setScoreFeedbackLoading] = useState(false);
 
   useEffect(() => {
     api.plans.current().then((d) => setCsvPlan(d.plan ?? null)).catch(() => setCsvPlan(null));
@@ -380,10 +395,11 @@ export default function Companies() {
     setMoveLoading(false);
   };
 
-  const handleDuplicateCheck = () => {
+  const handleDuplicateCheck = (useFuzzy?: boolean) => {
+    const fz = useFuzzy ?? fuzzyDuplicate;
     setDuplicateLoading(true);
     api.companies
-      .getDuplicates()
+      .getDuplicates(fz)
       .then((data) => {
         setDuplicateGroups(data.duplicate_groups);
         setMergeSelections({});
@@ -391,6 +407,19 @@ export default function Companies() {
       })
       .catch(() => alert("重複チェックに失敗しました"))
       .finally(() => setDuplicateLoading(false));
+  };
+
+  const handleScoreFeedback = async () => {
+    setScoreFeedbackLoading(true);
+    try {
+      const data = await api.companies.getScoreFeedback(currentProject?.id);
+      setScoreFeedback(data as any);
+      setShowScoreFeedback(true);
+    } catch {
+      alert("スコアフィードバックの取得に失敗しました");
+    } finally {
+      setScoreFeedbackLoading(false);
+    }
   };
 
   const handleMerge = (group: DuplicateGroup) => {
@@ -495,12 +524,21 @@ export default function Companies() {
             <span className="hidden sm:inline">{cleanJobId ? "クリーニング中..." : "リストクリーニング"}</span>
           </button>
           <button
-            onClick={handleDuplicateCheck}
+            onClick={() => handleDuplicateCheck()}
             disabled={duplicateLoading}
             className="flex items-center gap-1.5 bg-amber-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-amber-700 transition-colors disabled:opacity-50"
           >
             <Copy size={15} />
             <span className="hidden sm:inline">{duplicateLoading ? "チェック中..." : "重複チェック"}</span>
+          </button>
+          <button
+            onClick={handleScoreFeedback}
+            disabled={scoreFeedbackLoading}
+            className="flex items-center gap-1.5 bg-teal-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
+            title="受注実績から最適な顧客層のフィードバックを取得"
+          >
+            <TrendingUp size={15} />
+            <span className="hidden sm:inline">{scoreFeedbackLoading ? "分析中..." : "スコア分析"}</span>
           </button>
           <button
             onClick={() => { setShowImportModal(true); setImportResult(null); setImportFile(null); }}
@@ -1011,12 +1049,26 @@ export default function Companies() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-800">
-                重複企業チェック結果
-                <span className="ml-2 text-sm font-normal text-slate-500">
-                  {duplicateGroups.length}グループ検出
-                </span>
-              </h3>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">
+                  重複企業チェック結果
+                  <span className="ml-2 text-sm font-normal text-slate-500">
+                    {duplicateGroups.length}グループ検出
+                  </span>
+                </h3>
+                <label className="flex items-center gap-2 mt-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={fuzzyDuplicate}
+                    onChange={(e) => {
+                      setFuzzyDuplicate(e.target.checked);
+                      handleDuplicateCheck(e.target.checked);
+                    }}
+                    className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-xs text-slate-500">会社名のあいまいマッチング（88%以上で同一企業と判定）</span>
+                </label>
+              </div>
               <button
                 onClick={() => setShowDuplicateModal(false)}
                 className="text-slate-400 hover:text-slate-600"
@@ -1042,6 +1094,16 @@ export default function Companies() {
                         <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
                           {group.companies.length}件
                         </span>
+                        {group.match_type === "name_fuzzy" && (
+                          <span className="ml-1.5 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                            名称類似
+                          </span>
+                        )}
+                        {group.match_type === "domain" && (
+                          <span className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                            ドメイン重複
+                          </span>
+                        )}
                       </h4>
                       <button
                         onClick={() => handleMerge(group)}
@@ -1121,6 +1183,90 @@ export default function Companies() {
           onClose={() => setShowEmailCampaignModal(false)}
           onDone={() => setShowEmailCampaignModal(false)}
         />
+      )}
+
+      {showScoreFeedback && scoreFeedback && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <TrendingUp size={18} className="text-teal-600" />
+                スコアフィードバック分析
+              </h3>
+              <button onClick={() => setShowScoreFeedback(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {scoreFeedback.insights.length > 0 && (
+                <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 space-y-2">
+                  <p className="text-sm font-semibold text-teal-800">💡 インサイト</p>
+                  {scoreFeedback.insights.map((ins, i) => (
+                    <p key={i} className="text-sm text-teal-700">• {ins}</p>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                {scoreFeedback.positive && (
+                  <div className="border border-green-200 rounded-lg p-4 bg-green-50">
+                    <p className="text-xs font-bold text-green-700 mb-2">✅ 受注・商談化企業 ({scoreFeedback.positive_count}社)</p>
+                    <p className="text-2xl font-bold text-green-800">{scoreFeedback.positive.avg_score}<span className="text-sm font-normal text-green-600"> 点（平均）</span></p>
+                    <p className="text-xs text-green-600 mt-1">EC比率: {scoreFeedback.positive.ec_ratio}%</p>
+                    {Object.keys(scoreFeedback.positive.top_cms).length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs text-green-700 font-medium">主要CMS:</p>
+                        {Object.entries(scoreFeedback.positive.top_cms).map(([cms, cnt]) => (
+                          <span key={cms} className="inline-block text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded mr-1 mt-0.5">{cms} ({cnt})</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {scoreFeedback.negative && (
+                  <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+                    <p className="text-xs font-bold text-red-700 mb-2">❌ 対象外・NG企業 ({scoreFeedback.negative_count}社)</p>
+                    <p className="text-2xl font-bold text-red-800">{scoreFeedback.negative.avg_score}<span className="text-sm font-normal text-red-600"> 点（平均）</span></p>
+                    <p className="text-xs text-red-600 mt-1">EC比率: {scoreFeedback.negative.ec_ratio}%</p>
+                  </div>
+                )}
+              </div>
+
+              {Object.keys(scoreFeedback.rank_conversion).length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-slate-700 mb-2">ランク別受注率</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {["A", "B", "C", "D"].map((rank) => {
+                      const rc = scoreFeedback.rank_conversion[rank];
+                      if (!rc) return null;
+                      const rankColor = rank === "A" ? "bg-green-100 border-green-300 text-green-800" : rank === "B" ? "bg-blue-100 border-blue-300 text-blue-800" : rank === "C" ? "bg-yellow-100 border-yellow-300 text-yellow-800" : "bg-slate-100 border-slate-300 text-slate-700";
+                      return (
+                        <div key={rank} className={`border rounded-lg p-3 text-center ${rankColor}`}>
+                          <p className="text-lg font-bold">ランク{rank}</p>
+                          <p className="text-2xl font-bold">{rc.rate}%</p>
+                          <p className="text-xs">{rc.converted}/{rc.total}社</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {scoreFeedback.total === 0 && (
+                <div className="text-center py-8 text-slate-500">
+                  <TrendingUp size={32} className="mx-auto mb-2 text-slate-300" />
+                  <p>まだ受注・商談化実績がありません。</p>
+                  <p className="text-xs mt-1">ステータスを「商談中」「受注」「成約」に変更すると分析に反映されます。</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-200 flex justify-end">
+              <button onClick={() => setShowScoreFeedback(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
