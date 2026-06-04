@@ -201,6 +201,7 @@ def run_db_migrations():
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS futureshop_flag BOOLEAN DEFAULT FALSE",
             "ALTER TABLE company_master ADD COLUMN IF NOT EXISTS stores_flag BOOLEAN DEFAULT FALSE",
             "ALTER TABLE companies ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)",
+            "ALTER TABLE sales_messages ADD COLUMN IF NOT EXISTS send_note TEXT",
         ]:
             conn.execute(sa.text(stmt))
 

@@ -50,6 +50,30 @@ def _expand_variables(text: str, company: Company) -> str:
     return text
 
 
+def _categorize_failure(note: str) -> str:
+    """失敗理由を日本語カテゴリに分類する。"""
+    if not note:
+        return "不明なエラー"
+    n = note.lower()
+    if "タイムアウト" in note or "timeout" in n:
+        return "タイムアウト"
+    if "chromium" in n or "playwright" in n and "エラー" in note and "フォーム" not in note:
+        return "ブラウザエラー"
+    if "フォームが見つかりません" in note or "フォームurl" in n or "お問い合わせフォームのurl" in note:
+        return "フォーム未検出"
+    if "送信ボタン" in note:
+        return "送信ボタン未検出"
+    if "入力エラー" in note or "必須項目" in note or "validation" in n:
+        return "フォーム入力エラー"
+    if "httpエラー" in note or "http error" in n:
+        return "HTTPエラー"
+    if "ページの取得" in note or "ページ取得" in note:
+        return "ページ取得失敗"
+    if "javascript必須" in note or "非対応ページ" in note:
+        return "JS必須ページ"
+    return "その他エラー"
+
+
 def _msg_to_dict(m: SalesMessage, company_name: str = None) -> dict:
     return {
         "id": m.id,
@@ -68,6 +92,7 @@ def _msg_to_dict(m: SalesMessage, company_name: str = None) -> dict:
         "sent_by": m.sent_by,
         "open_count": m.open_count or 0,
         "opened_at": m.opened_at.isoformat() if m.opened_at else None,
+        "send_note": m.send_note,
         "created_at": m.created_at.isoformat() if m.created_at else None,
         "updated_at": m.updated_at.isoformat() if m.updated_at else None,
     }
@@ -360,6 +385,7 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
             sent_c = 0
             failed_c = 0
             skipped_c = 0
+            fail_reasons_local: dict = {}
             early = {"未確認", "対象候補", "アプローチ前"}
             already_sent_statuses = {"フォーム送信済", "メール送信済", "商談中", "成約", "NG"}
 
@@ -451,12 +477,13 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                     )
                     # ── ④ 送信結果をDBに書き戻す（processing → sent / failed） ──
                     final_status = "sent" if r.get("success") else "failed"
+                    final_note = r.get("message", "")
                     _db.execute(
-                        text("UPDATE sales_messages SET status=:s WHERE id=:id"),
-                        {"s": final_status, "id": msg_id},
+                        text("UPDATE sales_messages SET status=:s, send_note=:note WHERE id=:id"),
+                        {"s": final_status, "note": final_note, "id": msg_id},
                     )
                     _db.commit()
-                    return (msg_id, r.get("success", False), r.get("message", ""))
+                    return (msg_id, r.get("success", False), final_note)
                 except Exception as ex:
                     # 例外時は processing → failed に戻す（スタック防止）
                     try:
@@ -508,10 +535,14 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                         if success:
                             msg_obj.status = "sent"
                             msg_obj.sent_at = datetime.utcnow()
+                            msg_obj.send_note = note or None
                             sent_c += 1
                         else:
                             msg_obj.status = "failed"
+                            msg_obj.send_note = note or None
                             logger.warning(f"BG form send failed msg={msg_id}: {note}")
+                            category = _categorize_failure(note)
+                            fail_reasons_local[category] = fail_reasons_local.get(category, 0) + 1
                             failed_c += 1
                         co = cos_map.get(msg_obj.company_id)
                         if success and co and co.status in early:
@@ -520,7 +551,7 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                             db.commit()
                         except Exception:
                             db.rollback()
-                    _update_job(job_id, sent=sent_c, failed=failed_c)
+                    _update_job(job_id, sent=sent_c, failed=failed_c, fail_reasons=dict(fail_reasons_local))
 
         if _is_cancelled(job_id):
             _update_job(job_id, status="cancelled", phase="cancelled")
@@ -563,6 +594,8 @@ def start_bg_job(req: BgJobRequest, current_user: User = Depends(get_current_use
             "generated": 0,
             "sent": 0,
             "failed": 0,
+            "skipped": 0,
+            "fail_reasons": {},
             "error": None,
             "org_id": current_user.org_id,
             "auto_send_form": req.auto_send_form,

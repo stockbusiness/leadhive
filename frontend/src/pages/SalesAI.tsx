@@ -25,6 +25,7 @@ interface SalesMessage {
   sent_at?: string;
   open_count?: number;
   opened_at?: string;
+  send_note?: string;
   created_at?: string;
 }
 
@@ -1459,15 +1460,38 @@ export default function SalesAI() {
                     </>
                   )}
                   {bgJobStatus.status === "running" && bgJobStatus.phase === "sending" && (
-                    <p className="text-xs text-sky-600">
-                      送信成功: {bgJobStatus.sent ?? 0}件 ／ 失敗: {bgJobStatus.failed ?? 0}件 ／ スキップ: {bgJobStatus.skipped ?? 0}件
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-sky-600">
+                        送信成功: {bgJobStatus.sent ?? 0}件 ／ 失敗: {bgJobStatus.failed ?? 0}件 ／ スキップ: {bgJobStatus.skipped ?? 0}件
+                      </p>
+                      {bgJobStatus.fail_reasons && Object.keys(bgJobStatus.fail_reasons).length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(bgJobStatus.fail_reasons as Record<string, number>).map(([reason, count]) => (
+                            <span key={reason} className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
+                              {reason}: {count}件
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                   {bgJobStatus.status === "done" && (
-                    <p className="text-xs text-emerald-600">
-                      生成: {bgJobStatus.generated}件
-                      {bgJobStatus.auto_send_form && <> ／ 送信成功: {bgJobStatus.sent}件 ／ 失敗: {bgJobStatus.failed}件</>}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-emerald-600">
+                        生成: {bgJobStatus.generated}件
+                        {bgJobStatus.auto_send_form && <> ／ 送信成功: {bgJobStatus.sent}件 ／ 失敗: {bgJobStatus.failed}件</>}
+                      </p>
+                      {bgJobStatus.auto_send_form && bgJobStatus.fail_reasons && Object.keys(bgJobStatus.fail_reasons).length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          <span className="text-[10px] text-red-600 font-medium">失敗内訳:</span>
+                          {Object.entries(bgJobStatus.fail_reasons as Record<string, number>).map(([reason, count]) => (
+                            <span key={reason} className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
+                              {reason}: {count}件
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                   {bgJobStatus.status === "error" && bgJobStatus.error && (
                     <p className="text-xs text-red-600">{bgJobStatus.error}</p>
@@ -2048,6 +2072,12 @@ export default function SalesAI() {
                         <p className="text-sm text-slate-500 mt-1 line-clamp-2">{m.body}</p>
                         {m.sent_at && (
                           <p className="text-xs text-slate-400 mt-1">送信: {new Date(m.sent_at).toLocaleString("ja-JP")}</p>
+                        )}
+                        {m.status === "failed" && m.send_note && (
+                          <p className="text-xs text-red-500 mt-1 flex items-start gap-1">
+                            <span className="flex-shrink-0">⚠</span>
+                            <span>{m.send_note}</span>
+                          </p>
                         )}
                         {m.status === "sent" && (
                           <p className="text-xs mt-0.5">

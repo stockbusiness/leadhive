@@ -476,6 +476,7 @@ class SalesMessage(Base):
     tracking_token = Column(String(64), nullable=True, unique=True, index=True)
     opened_at = Column(DateTime, nullable=True)
     open_count = Column(Integer, nullable=False, default=0)
+    send_note = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
