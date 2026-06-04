@@ -8,7 +8,7 @@ import {
   Brain, BarChart2, Crown, Mail, Copy, Sparkles,
   Users, ShieldBan, CreditCard, Key,
   GanttChartSquare, Calendar, Play, SendHorizonal, Ban, TrendingUp,
-  Lock,
+  Lock, Phone, ShoppingCart, Clock, Download, Filter,
 } from "lucide-react";
 
 interface PlanInfo {
@@ -35,6 +35,8 @@ const SECTIONS: Section[] = [
   { id: "activities", title: "営業活動の記録", icon: <FileText size={16} /> },
   { id: "pipeline", title: "営業パイプライン", icon: <GanttChartSquare size={16} /> },
   { id: "salesai", title: "営業AI・メール一括送信", icon: <SendHorizonal size={16} /> },
+  { id: "tele_apo", title: "テレアポ（電話営業）", icon: <Phone size={16} /> },
+  { id: "ec_collection", title: "ECサイト特化収集", icon: <ShoppingCart size={16} /> },
   { id: "team", title: "チーム管理", icon: <Users size={16} /> },
   { id: "notifications", title: "通知・自動収集", icon: <Bell size={16} /> },
   { id: "ai", title: "AI企業分析", icon: <Brain size={16} /> },
@@ -449,11 +451,18 @@ export default function Manual() {
 
             <SubTitle>絞り込みフィルター</SubTitle>
             <p className="text-sm text-slate-600 mb-2">画面上部のフィルターバーで以下の条件を組み合わせられます：</p>
-            <div className="flex flex-wrap gap-2">
-              {["カテゴリ", "ステータス", "スコアランク A/B/C/D", "問い合わせあり/なし", "フリーワード検索", "タグ"].map(f => (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {["カテゴリ", "ステータス", "スコアランク A/B/C/D", "問い合わせあり/なし", "フリーワード検索", "タグ", "担当者", "フォローアップ期限"].map(f => (
                 <Badge key={f} color="bg-slate-100 text-slate-700">{f}</Badge>
               ))}
             </div>
+            <p className="text-sm text-slate-600 mb-1">ECサイト専用フィルター：</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {["CMS/プラットフォーム（Shopify・BASE 等）", "ECプラットフォーム全般", "EC企業のみ", "EC規模（大規模・中規模・小規模）", "サイト状態（正常・死活・閉鎖 等）"].map(f => (
+                <Badge key={f} color="bg-orange-50 text-orange-700">{f}</Badge>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500">フィルターバー下部のプラットフォーム別クイックバッジをクリックすると、そのプラットフォームの企業を一発で絞り込めます。</p>
 
             <SubTitle>ステータス管理</SubTitle>
             <Table
@@ -869,6 +878,222 @@ export default function Manual() {
             </PlanGate>
           </section>
 
+          {/* ========== テレアポ ========== */}
+          <section>
+            <SectionTitle id="tele_apo" icon={<Phone size={20} />} title="テレアポ（電話営業）" />
+            <p className="text-slate-600 mb-4">
+              電話番号が登録されている企業に対して、架電管理・結果記録・AIトークスクリプト生成・統計分析をまとめて行えます。サイドバーの <strong>「テレアポ」</strong>（Phone アイコン）から開きます。
+            </p>
+
+            <SubTitle>画面構成</SubTitle>
+            <Table
+              headers={["エリア", "内容"]}
+              rows={[
+                ["統計バー（上部）", "本日架電数 / 接続率 / アポ獲得数 / アポ率をリアルタイム表示"],
+                ["タブバー", "架電リスト / 折り返し / ベストタイム の3タブ"],
+                ["フィルターバー", "会社名・電話番号検索 / ランク / ステータス / ソート / NG除外 / CSVエクスポート"],
+                ["架電リスト", "電話番号登録済みの企業一覧。スコアランク・未架電バッジ・最終架電結果を表示"],
+                ["架電パネル", "企業をクリックすると右側にスライド表示。発信・結果記録・スクリプト・履歴"],
+              ]}
+            />
+
+            <SubTitle>架電の基本フロー</SubTitle>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>架電リストから対象企業をクリック → 右パネルが開く</Step>
+              <Step number={2}><strong>青い発信ボタン</strong>（tel:）をクリック → 端末の電話アプリが起動し、タイマー計測が開始</Step>
+              <Step number={3}>通話後、<strong>架電結果ボタン</strong>（不在 / 留守電 / 折り返し / NG / 興味あり / 商談決定）をクリックして記録</Step>
+              <Step number={4}>必要に応じてメモを入力して保存</Step>
+              <Step number={5}>◀ ▶ ボタン（または ← → キー）で次の企業に移動</Step>
+            </div>
+
+            <SubTitle>架電結果の種類</SubTitle>
+            <Table
+              headers={["結果", "キー", "説明"]}
+              rows={[
+                ["不在", "1", "電話に出なかった"],
+                ["留守電", "2", "留守電に入れた"],
+                ["折り返し", "3", "折り返し対応に変更。日時を予約できる"],
+                ["NG", "4", "担当者から断られた・対象外と判断"],
+                ["興味あり", "5", "前向きな反応あり。フォロー必要"],
+                ["商談決定", "6", "アポイント確定。会社ステータスが「商談中」に自動更新"],
+              ]}
+            />
+            <InfoBox color="blue">
+              キーボードの <strong>1〜6</strong> キーで結果を即記録できます。パネルを開いた状態で <strong>← →</strong> キーで企業間移動、<strong>Esc</strong> でパネルを閉じます。
+            </InfoBox>
+
+            <SubTitle>ソートとフィルター</SubTitle>
+            <Table
+              headers={["機能", "説明"]}
+              rows={[
+                ["スコア順", "スコアが高い企業から表示（デフォルト）"],
+                ["未架電優先", "一度も架電していない企業を優先表示"],
+                ["未架電→古い順", "未架電の中で登録が古い企業から表示"],
+                ["NG除外", "最終結果がNGの企業をリストから非表示"],
+                ["ランク・ステータスフィルター", "スコアランク（A〜D）・営業ステータスで絞り込み"],
+              ]}
+            />
+
+            <SubTitle>AIトークスクリプト</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              パネル内の <strong>「AIトークスクリプト」</strong> セクションを展開して「<strong>スクリプトを生成</strong>」をクリックすると、企業情報・業種・過去の架電結果をもとに Claude-3-5-Sonnet がトークスクリプトを自動生成します。
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <p className="text-xs font-semibold text-purple-800 mb-1">📋 スクリプトテンプレート</p>
+                <p className="text-xs text-purple-700">「スクリプトテンプレート」（BookOpen）セクションで自社オリジナルのひな型を登録・編集できます。AI生成時のベースとして活用されます。</p>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs font-semibold text-blue-800 mb-1">📋 コピーボタン</p>
+                <p className="text-xs text-blue-700">生成したスクリプトの右上のコピーボタンでクリップボードに一発コピーできます。</p>
+              </div>
+            </div>
+
+            <SubTitle>折り返し予約タブ</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">
+              架電結果で「折り返し」を選ぶと日時入力欄が表示されます。予約した日時は <strong>「折り返し」タブ</strong> で一覧管理でき、期限が近い順に並べ替えて確認できます。
+            </p>
+
+            <SubTitle>ベストタイム分析タブ</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">
+              過去の架電データをもとに <strong>時間帯別・曜日別の接続率</strong> を分析・グラフ表示します。「分析する」ボタンをクリックすると直近30日間のデータを集計します。接続率が高い時間帯に架電を集中させることで効率が上がります。
+            </p>
+
+            <SubTitle>週次グラフ</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">
+              ヘッダー右上の <strong>BarChart アイコン</strong> をクリックすると、過去7日間の架電数をミニバーチャートで確認できます。
+            </p>
+
+            <SubTitle>チーム統計（管理者のみ）</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">
+              ヘッダーの <strong>Users アイコン</strong>（管理者・システム管理者のみ表示）をクリックすると、メンバー別の架電数・接続率・アポ獲得数のランキングが確認できます。
+            </p>
+
+            <SubTitle>CSVエクスポート</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">
+              フィルターバーの <strong>Download アイコン</strong> をクリックすると、直近30日間の架電ログをCSVでダウンロードできます。項目：会社名・電話番号・架電日時・結果・通話時間・メモ。
+            </p>
+
+            <SubTitle>Zoom発信</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">
+              発信エリアに <strong>青い Zoom ボタン</strong> が表示されます。クリックすると Zoom Phone アプリが起動して発信します（Zoom Phone の契約が必要）。日本の電話番号は自動で E.164 形式（+81...）に変換されます。
+            </p>
+
+            <SubTitle>Slack 日次レポート</SubTitle>
+            <p className="text-sm text-slate-600 mb-2">
+              毎日17時に当日の架電サマリー（架電数・接続率・アポ率・上位架電者）を Slack に自動送信します。管理者の設定画面で <strong>「テレアポ日次レポート」</strong> を有効化し、Slack Webhook URL を設定してください。
+            </p>
+            <InfoBox color="amber">
+              テレアポ機能は<strong>電話番号が登録されている企業</strong>のみ対象です。電話番号が未登録の場合は「電話番号のある企業がありません」と表示されます。企業詳細編集で電話番号を追加してください。
+            </InfoBox>
+          </section>
+
+          {/* ========== ECサイト特化収集 ========== */}
+          <section>
+            <SectionTitle id="ec_collection" icon={<ShoppingCart size={20} />} title="ECサイト特化収集" />
+            <p className="text-slate-600 mb-4">
+              Shopify・BASE・STORES などのECプラットフォームを利用して自社ECを運営している企業を、プラットフォーム別・業種別に効率よく収集・絞り込みする機能群です。
+            </p>
+
+            <SubTitle>ECプラットフォーム自動検出</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">企業サイトを収集・スクレイピングする際に、利用しているECプラットフォームを自動判定します。</p>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {["Shopify", "BASE", "STORES", "MakeShop", "futureshop", "ecbeing", "カラーミー", "EC-CUBE", "ロリポップEC", "aishipR", "WooCommerce", "Yahoo!ショッピング", "楽天市場", "Amazon", "BigCommerce"].map(p => (
+                <Badge key={p} color="bg-orange-50 text-orange-700">{p}</Badge>
+              ))}
+              <Badge color="bg-slate-100 text-slate-600">他20+プラットフォーム</Badge>
+            </div>
+            <Table
+              headers={["検出シグナル", "内容"]}
+              rows={[
+                ["HTMLソース解析", "プラットフォーム固有のスクリプト・CSSクラスを検出"],
+                ["og:type=product", "商品ページのOGPメタタグを検出"],
+                ["特商法ページ", "特定商取引法ページの存在をEC判定シグナルとして活用"],
+                ["robots.txt", "/cart・/checkout 等のEC特有パスを検出"],
+                ["決済ページ", "決済・カートページURLパターンを検出"],
+                ["EC規模推定", "商品ページ数から大規模・中規模・小規模を自動分類"],
+              ]}
+            />
+
+            <SubTitle>ECサイト特化収集（EC企業収集ページ）</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              サイドバーの <strong>「EC企業収集」</strong> では、プラットフォーム・業種・地域を指定してECサイト運営企業を専用クエリで収集できます。
+            </p>
+            <div className="space-y-2 mb-3">
+              <Step number={1}>サイドバーの <strong>「EC企業収集」</strong> を開く</Step>
+              <Step number={2}>業種プリセット（アパレル / 食品 / コスメ など）を選択するか、プラットフォームを直接指定</Step>
+              <Step number={3}>収集モードを選択（EC発見 / プラットフォーム別 / マトリクス / 類似サイト）</Step>
+              <Step number={4}><strong>「収集開始」</strong> → 進捗バーで確認</Step>
+            </div>
+            <Table
+              headers={["収集モード", "説明"]}
+              rows={[
+                ["EC発見", "業種・地域・プラットフォームを組み合わせてECサイトを発見"],
+                ["プラットフォーム別", "指定プラットフォーム（Shopify等）に絞って収集"],
+                ["マトリクス", "業種×プラットフォームの組み合わせで網羅的に収集"],
+                ["類似サイト", "既存の収集済み企業と類似したECサイトを収集"],
+              ]}
+            />
+
+            <SubTitle>ECキーワードテンプレート（検索条件管理）</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              <strong>「検索条件管理」</strong> 画面の <strong>「ECテンプレート」</strong> ボタンをクリックすると、業種別のキーワードプリセットをワンクリックで一括登録できます。
+            </p>
+            <Table
+              headers={["業種プリセット", "含むキーワード例"]}
+              rows={[
+                ["アパレル・ファッションEC", "「ファッション通販 会社」「ブランド 通販 Shopify」など5件"],
+                ["食品・飲料・産直EC", "「食品通販 産直」「定期便 食品 EC」など5件"],
+                ["コスメ・美容・健康EC", "「コスメ 通販 自社EC」「スキンケア D2C ブランド」など5件"],
+                ["BtoB EC・資材・卸売", "「法人向け EC 卸売」「BtoB EC 企業間」など5件"],
+                ["インテリア・家具EC", "「家具 通販 自社EC」「インテリア ネットショップ」など5件"],
+                ["スポーツ・アウトドアEC", "「スポーツ用品 通販」「アウトドア ネットショップ」など5件"],
+                ["+ 9業種・3規模・3プラットフォーム別", "計15プリセットを用意"],
+              ]}
+            />
+
+            <SubTitle>候補企業一覧のECフィルター</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              <strong>「候補企業一覧」</strong> のフィルターバーにEC専用の絞り込み条件が追加されています。
+            </p>
+            <Table
+              headers={["フィルター", "説明"]}
+              rows={[
+                ["全CMS/プラットフォーム", "Shopify / BASE / WooCommerce など個別プラットフォームで絞り込み。「ECプラットフォーム全般」で全EC系を一括指定"],
+                ["EC判定", "「🛍️ EC企業のみ」でEC企業だけを表示"],
+                ["EC規模", "大規模（商品多数）/ 中規模 / 小規模 で絞り込み"],
+                ["クイックバッジ", "フィルターバー下部にプラットフォーム別の件数バッジを表示。クリックで即フィルター"],
+              ]}
+            />
+            <InfoBox color="blue">
+              EC企業をフィルター中は画面上部に <strong>「ECフィルターを解除」</strong> バナーが表示されます。クリックで一括解除できます。
+            </InfoBox>
+
+            <SubTitle>ECアプローチメッセージテンプレート</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              <strong>「テンプレート管理」</strong> 画面の <strong>「ECプリセット」</strong> タブで、ECプラットフォーム別・業種別の営業メール/フォーム文面テンプレートを確認・利用できます。
+            </p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {["Shopify移行提案", "BASE → 自社EC移行", "WooCommerce サポート", "EC売上改善提案", "D2Cブランド支援"].map(t => (
+                <Badge key={t} color="bg-emerald-50 text-emerald-700">{t}</Badge>
+              ))}
+            </div>
+
+            <SubTitle>ECスコアリング加点</SubTitle>
+            <Table
+              headers={["条件", "加点"]}
+              rows={[
+                ["EC規模：大規模（商品多数）", "+10点"],
+                ["EC規模：中規模", "+5点"],
+                ["Instagram Shop 検出", "+8点"],
+                ["TikTok Shop 検出", "+8点"],
+              ]}
+            />
+            <InfoBox color="green">
+              EC機能はすべてのプランでご利用いただけます。EC特化収集はキーワード検索の一形態として通常の収集上限にカウントされます。
+            </InfoBox>
+          </section>
+
           {/* ========== チーム管理 ========== */}
           <section>
             <SectionTitle id="team" icon={<Users size={20} />} title="チーム管理" />
@@ -1101,7 +1326,7 @@ export default function Manual() {
             <p className="text-sm text-slate-600 mb-3">
               収集実績が一定数以上あるキーワードについて、成功率の高い順・低い順でランキングを自動表示します。
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <TrendingUp size={14} className="text-emerald-600" />
@@ -1117,6 +1342,22 @@ export default function Manual() {
                 <p className="text-xs text-red-700">2回以上実行して成功率20%未満のキーワード。キーワードの見直しや削除を検討してください。</p>
               </div>
             </div>
+
+            <SubTitle>ECキーワードテンプレート</SubTitle>
+            <p className="text-sm text-slate-600 mb-3">
+              <strong>「キーワードを追加」</strong> ボタン横の <strong>「ECテンプレート」</strong> ボタンから、業種別・プラットフォーム別・EC規模別のキーワードセットをワンクリックで登録できます。
+            </p>
+            <Table
+              headers={["プリセット種別", "内容"]}
+              rows={[
+                ["業種別（9種）", "アパレル / 食品 / コスメ / BtoB / インテリア / スポーツ / ペット / 趣味 / デジタル"],
+                ["プラットフォーム別（3種）", "Shopify 利用EC / BASE 利用EC / STORES 利用EC に絞った専用クエリ"],
+                ["EC規模別（3種）", "大規模EC（100SKU以上）/ 中規模 / 小規模・スタートアップ向けクエリ"],
+              ]}
+            />
+            <InfoBox color="blue">
+              各プリセットには5〜10件のキーワードが含まれます。選択後「一括追加」をクリックすると、既存キーワードに重複なく追加されます。
+            </InfoBox>
           </section>
 
           {/* ========== プラン管理・上限 ========== */}
@@ -1374,6 +1615,30 @@ export default function Manual() {
                 {
                   q: "配信停止リストから削除できますか？",
                   a: "配信停止リスト画面から個別に削除できます。ただし、受信者本人から明確な再受信の意思確認を得た場合のみ削除してください（特定電子メール法）。",
+                },
+                {
+                  q: "テレアポページに企業が表示されない",
+                  a: "テレアポ機能は「電話番号」が登録されている企業のみ対象です。候補企業の詳細編集モーダルで電話番号を入力してください。また「NG除外」チェックが入っている場合、結果がNGの企業は非表示になります。",
+                },
+                {
+                  q: "架電結果を記録したのにステータスが変わらない",
+                  a: "ステータスが自動更新されるのは「商談決定」を記録した場合のみです（会社ステータスが「商談中」に変わります）。他の結果（不在・留守電等）ではステータスは変わりません。必要に応じて候補企業一覧から手動でステータスを変更してください。",
+                },
+                {
+                  q: "AIトークスクリプトが生成されない",
+                  a: "AIスクリプト生成には Anthropic APIキー（Claude-3-5-Sonnet）が必要です。COOLWORKSシステム管理者が設定した場合のみ利用できます。設定済みの場合はパネル内の「AIトークスクリプト」を展開して「スクリプトを生成」ボタンをクリックしてください。",
+                },
+                {
+                  q: "テレアポのSlack日次レポートが届かない",
+                  a: "以下を確認してください：① 設定画面でSlack Webhook URLが登録されているか、② 管理者設定で「テレアポ日次レポート」が有効化されているか、③ 当日の架電件数が0件でないか（0件の場合は送信されません）。",
+                },
+                {
+                  q: "ECサイトのプラットフォームが正しく検出されない",
+                  a: "ECプラットフォームの検出はサイトのHTMLソース・メタタグ・スクリプトを解析して判定します。ヘッドレスコマース構成やカスタムフロントエンドを採用しているサイトは検出できない場合があります。その場合は企業詳細編集で手動で設定してください。",
+                },
+                {
+                  q: "EC企業収集でキーワードが見つからない",
+                  a: "「検索条件管理」画面の「ECテンプレート」ボタンから業種別プリセットを一括登録するのが最も簡単です。または「EC企業収集」ページで業種・プラットフォームを指定して直接収集することもできます。",
                 },
               ].map((item, i) => (
                 <div key={i} className="border border-slate-200 rounded-lg overflow-hidden">
