@@ -203,9 +203,19 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
             rows = db.query(SalesMessage.company_id).filter(
                 SalesMessage.org_id == org_id,
                 SalesMessage.company_id.in_(company_ids),
+                SalesMessage.project_id == req.project_id,
                 SalesMessage.status != "failed",
             ).all()
             existing_ids = {r[0] for r in rows}
+
+        # 既存の下書き/確認済みを全件事前取得（upsert用）
+        _bg_draft_rows = db.query(SalesMessage).filter(
+            SalesMessage.org_id == org_id,
+            SalesMessage.company_id.in_(company_ids),
+            SalesMessage.project_id == req.project_id,
+            SalesMessage.status.in_(["draft", "reviewed"]),
+        ).all()
+        bg_drafts_map: dict[int, SalesMessage] = {r.company_id: r for r in _bg_draft_rows}
 
         effective_type = f"custom:{custom_tpl.id}" if custom_tpl else req.template_type
         all_generated_ids: List[int] = []
@@ -260,19 +270,31 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
             for cid, result, error in gen_results:
                 if error or not result:
                     continue
-                msg = SalesMessage(
-                    org_id=org_id,
-                    company_id=cid,
-                    project_id=req.project_id,
-                    template_type=effective_type,
-                    subject=result["subject"],
-                    body=result["body"],
-                    ai_prompt_id=result.get("ai_prompt_id"),
-                    status="draft",
-                )
-                db.add(msg)
-                db.flush()
-                all_generated_ids.append(msg.id)
+                existing_bg = bg_drafts_map.get(cid)
+                if existing_bg:
+                    existing_bg.subject = result["subject"]
+                    existing_bg.body = result["body"]
+                    existing_bg.ai_prompt_id = result.get("ai_prompt_id")
+                    existing_bg.template_type = effective_type
+                    existing_bg.status = "draft"
+                    existing_bg.reviewed_by = None
+                    existing_bg.reviewed_at = None
+                    db.flush()
+                    all_generated_ids.append(existing_bg.id)
+                else:
+                    msg = SalesMessage(
+                        org_id=org_id,
+                        company_id=cid,
+                        project_id=req.project_id,
+                        template_type=effective_type,
+                        subject=result["subject"],
+                        body=result["body"],
+                        ai_prompt_id=result.get("ai_prompt_id"),
+                        status="draft",
+                    )
+                    db.add(msg)
+                    db.flush()
+                    all_generated_ids.append(msg.id)
                 batch_gen += 1
 
             db.commit()
@@ -611,17 +633,34 @@ def generate_single(
         logger.error(f"generate_single error: {e}")
         raise HTTPException(status_code=500, detail=f"AI生成エラー: {str(e)}")
 
-    msg = SalesMessage(
-        org_id=current_user.org_id,
-        company_id=req.company_id,
-        project_id=req.project_id,
-        template_type=req.template_type,
-        subject=result["subject"],
-        body=result["body"],
-        ai_prompt_id=result["ai_prompt_id"],
-        status="draft",
-    )
-    db.add(msg)
+    # 同一企業×プロジェクトの下書き/確認済みが既にあれば上書き（重複防止）
+    existing_msg = db.query(SalesMessage).filter(
+        SalesMessage.org_id == current_user.org_id,
+        SalesMessage.company_id == req.company_id,
+        SalesMessage.project_id == req.project_id,
+        SalesMessage.status.in_(["draft", "reviewed"]),
+    ).first()
+    if existing_msg:
+        existing_msg.subject = result["subject"]
+        existing_msg.body = result["body"]
+        existing_msg.ai_prompt_id = result["ai_prompt_id"]
+        existing_msg.template_type = req.template_type
+        existing_msg.status = "draft"
+        existing_msg.reviewed_by = None
+        existing_msg.reviewed_at = None
+        msg = existing_msg
+    else:
+        msg = SalesMessage(
+            org_id=current_user.org_id,
+            company_id=req.company_id,
+            project_id=req.project_id,
+            template_type=req.template_type,
+            subject=result["subject"],
+            body=result["body"],
+            ai_prompt_id=result["ai_prompt_id"],
+            status="draft",
+        )
+        db.add(msg)
     db.commit()
     db.refresh(msg)
 
@@ -658,12 +697,22 @@ def generate_batch(
     company_rows = db.query(Company).filter(Company.id.in_(req.company_ids)).all()
     companies_map: dict[int, Company] = {c.id: c for c in company_rows}
 
-    # 生成済みチェックを1回のクエリで
+    # 既存の下書き/確認済みを事前取得（upsert用）
+    _draft_rows = db.query(SalesMessage).filter(
+        SalesMessage.org_id == current_user.org_id,
+        SalesMessage.company_id.in_(req.company_ids),
+        SalesMessage.project_id == req.project_id,
+        SalesMessage.status.in_(["draft", "reviewed"]),
+    ).all()
+    existing_drafts_map: dict[int, SalesMessage] = {r.company_id: r for r in _draft_rows}
+
+    # 生成済みチェックを1回のクエリで（同一プロジェクト内のみ）
     existing_company_ids: set[int] = set()
     if req.skip_existing:
         existing_rows = db.query(SalesMessage.company_id).filter(
             SalesMessage.org_id == current_user.org_id,
             SalesMessage.company_id.in_(req.company_ids),
+            SalesMessage.project_id == req.project_id,
             SalesMessage.status != "failed",
         ).all()
         existing_company_ids = {r[0] for r in existing_rows}
@@ -743,25 +792,37 @@ def generate_batch(
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         gen_results = list(executor.map(_generate_one, eligible))
 
-    # ── Phase 4: バッチDBライト ───────────────────────────────────────────
+    # ── Phase 4: バッチDBライト（upsert: 既存下書きがあれば上書き） ──────────
     results: list[dict] = []
     for company_id, company_dict, result, error in gen_results:
         if error:
             errors.append({"company_id": company_id, "error": error})
             continue
-        msg = SalesMessage(
-            org_id=current_user.org_id,
-            company_id=company_id,
-            project_id=req.project_id,
-            template_type=effective_type,
-            subject=result["subject"],
-            body=result["body"],
-            ai_prompt_id=result["ai_prompt_id"],
-            status="draft",
-        )
-        db.add(msg)
-        db.flush()
-        results.append(_msg_to_dict(msg, company_dict.get("company_name")))
+        existing = existing_drafts_map.get(company_id)
+        if existing:
+            existing.subject = result["subject"]
+            existing.body = result["body"]
+            existing.ai_prompt_id = result["ai_prompt_id"]
+            existing.template_type = effective_type
+            existing.status = "draft"
+            existing.reviewed_by = None
+            existing.reviewed_at = None
+            db.flush()
+            results.append(_msg_to_dict(existing, company_dict.get("company_name")))
+        else:
+            msg = SalesMessage(
+                org_id=current_user.org_id,
+                company_id=company_id,
+                project_id=req.project_id,
+                template_type=effective_type,
+                subject=result["subject"],
+                body=result["body"],
+                ai_prompt_id=result["ai_prompt_id"],
+                status="draft",
+            )
+            db.add(msg)
+            db.flush()
+            results.append(_msg_to_dict(msg, company_dict.get("company_name")))
 
     db.commit()
 
