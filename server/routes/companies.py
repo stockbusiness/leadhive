@@ -27,11 +27,27 @@ def _update_scan_job(job_id: str, **kwargs):
 
 
 def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filters: dict, skip_existing: bool):
-    """バックグラウンドスレッドでフォームURLをスキャンしてDBに保存する。"""
+    """バックグラウンドスレッドでフォームURLをスキャンしてDBに保存する（並列処理版）。"""
     import requests as _req
     from datetime import datetime as _dt_inner
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     from server.services.form_sender import _find_contact_url
     from server.models import Project as _Project
+
+    WORKERS = 15  # 同時スキャン数
+
+    def _scan_one(cid: int, website_url: str) -> tuple:
+        """1社スキャン。スレッドごとに独立したrequestsセッションを使う。"""
+        sess = _req.Session()
+        sess.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+            "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+        })
+        try:
+            url = _find_contact_url(website_url, "", sess)
+            return cid, url
+        except Exception:
+            return cid, None
 
     db = SessionLocal()
     try:
@@ -60,46 +76,47 @@ def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filt
             if filters.get("ec_only"):
                 query = query.filter(Company.ec_flag == True)
 
-        # skip_existing前の件数をログ
         pre_skip_count = query.count()
         logger.info(f"[form_scan:{job_id}] skip_existing前: {pre_skip_count}件")
 
         if skip_existing:
-            # スキャン済み（URLあり・なし問わず）をスキップ
             query = query.filter(Company.form_scanned_at.is_(None))
 
         BATCH_SIZE = 500
         total_eligible = query.count()
         companies = query.order_by(Company.score_total.desc()).limit(BATCH_SIZE).all()
         total = len(companies)
-        logger.info(f"[form_scan:{job_id}] total_eligible={total_eligible} total(batch)={total}")
+        logger.info(f"[form_scan:{job_id}] total_eligible={total_eligible} total(batch)={total} workers={WORKERS}")
         _update_scan_job(job_id, total=total, total_eligible=total_eligible, pre_skip_count=pre_skip_count)
 
         if total == 0:
             _update_scan_job(job_id, status="done", total_eligible=total_eligible, pre_skip_count=pre_skip_count)
             return
 
-        session = _req.Session()
-        session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
-            "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
-        })
+        # company_id → Company オブジェクトのマップ（スレッド結果の反映用）
+        company_map = {c.id: c for c in companies}
 
-        found = 0
         now = _dt_inner.utcnow()
-        for i, company in enumerate(companies):
-            try:
-                url = _find_contact_url(company.website_url, "", session)
-                if url:
-                    company.contact_url = url
-                    found += 1
-            except Exception:
-                pass
-            # 結果にかかわらずスキャン済みとしてマーク
-            company.form_scanned_at = now
-            _update_scan_job(job_id, done=i + 1, found=found)
-            if (i + 1) % 20 == 0:
-                db.commit()
+        found = 0
+        done_count = 0
+
+        with ThreadPoolExecutor(max_workers=WORKERS) as executor:
+            futures = {
+                executor.submit(_scan_one, c.id, c.website_url): c.id
+                for c in companies
+            }
+            for future in as_completed(futures):
+                cid, url = future.result()
+                company = company_map.get(cid)
+                if company:
+                    if url:
+                        company.contact_url = url
+                        found += 1
+                    company.form_scanned_at = now
+                done_count += 1
+                _update_scan_job(job_id, done=done_count, found=found)
+                if done_count % 20 == 0:
+                    db.commit()
 
         db.commit()
         _update_scan_job(job_id, status="done", done=total, found=found)
