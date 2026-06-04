@@ -3,10 +3,15 @@
 
 コンタクトページのHTMLフォームを解析し、AIでフィールドマッピングを行い、
 HTTP POSTで自動送信する。
+
+静的HTTPでフォームが見つからない場合は Playwright（ヘッドレスChromium）で
+JavaScriptを実行してからHTMLを取得するフォールバックを備える。
 """
+import asyncio
 import json
 import logging
 import re
+import shutil
 import time
 import urllib.parse
 from typing import Optional
@@ -26,6 +31,66 @@ _HEADERS = {
 }
 _FETCH_TIMEOUT = 15
 _SUBMIT_TIMEOUT = 20
+_PLAYWRIGHT_TIMEOUT = 30000  # ms
+
+
+# ── Playwright ヘッドレスブラウザ フォールバック ──────────────────────────
+
+def _get_chromium_path() -> Optional[str]:
+    """Nix でインストールされた Chromium の実行ファイルパスを返す。"""
+    return shutil.which("chromium") or shutil.which("chromium-browser")
+
+
+async def _fetch_html_playwright_async(url: str) -> tuple[str, str]:
+    """Playwright でページを開き、JS実行後の HTML と最終URLを返す。"""
+    from playwright.async_api import async_playwright
+
+    chromium_path = _get_chromium_path()
+    launch_args = [
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--single-process",
+        "--disable-blink-features=AutomationControlled",
+    ]
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            executable_path=chromium_path,
+            args=launch_args,
+            headless=True,
+        )
+        ctx = await browser.new_context(
+            user_agent=_HEADERS["User-Agent"],
+            locale="ja-JP",
+        )
+        page = await ctx.new_page()
+        try:
+            resp = await page.goto(url, timeout=_PLAYWRIGHT_TIMEOUT, wait_until="networkidle")
+            # フォームが出るまで最大5秒待機
+            try:
+                await page.wait_for_selector("form", timeout=5000)
+            except Exception:
+                pass
+            html = await page.content()
+            final_url = page.url
+        finally:
+            await browser.close()
+
+    return html, final_url
+
+
+def _fetch_with_playwright(url: str) -> tuple[str, str]:
+    """同期ラッパー: スレッド内から Playwright を呼び出す。"""
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(_fetch_html_playwright_async(url))
+        finally:
+            loop.close()
+    except Exception as e:
+        raise RuntimeError(f"Playwright取得失敗: {e}") from e
 
 
 def _fetch_html(url: str, session: requests.Session) -> tuple[str, str]:
@@ -625,23 +690,32 @@ def send_form_auto(
             "fields_mapped": 0,
         }
 
-    # SPA判定: JSレンダリング必須のページは早期スキップ
-    if _is_spa_page(html):
-        return {
-            "success": False,
-            "message": "フォームが見つかりませんでした（JavaScript必須または非対応ページ）",
-            "form_url": resolved_url,
-            "fields_mapped": 0,
-        }
-
     forms = _extract_forms(html, final_url)
-    if not forms:
-        return {
-            "success": False,
-            "message": "フォームが見つかりませんでした（JavaScript必須または非対応ページ）",
-            "form_url": resolved_url,
-            "fields_mapped": 0,
-        }
+
+    # フォームが見つからない場合 → Playwright でJS実行して再取得
+    if not forms or _is_spa_page(html):
+        chromium_path = _get_chromium_path()
+        if chromium_path:
+            try:
+                logger.info(f"Playwright フォールバック: {resolved_url}")
+                pw_html, pw_final_url = _fetch_with_playwright(resolved_url)
+                pw_forms = _extract_forms(pw_html, pw_final_url)
+                if pw_forms:
+                    html = pw_html
+                    final_url = pw_final_url
+                    forms = pw_forms
+                    logger.info(f"Playwright でフォーム {len(pw_forms)}件 発見: {resolved_url}")
+                else:
+                    logger.info(f"Playwright でもフォーム未発見: {resolved_url}")
+            except Exception as e:
+                logger.warning(f"Playwright フォールバック失敗: {e}")
+        if not forms:
+            return {
+                "success": False,
+                "message": "フォームが見つかりませんでした（JavaScript必須または非対応ページ）",
+                "form_url": resolved_url,
+                "fields_mapped": 0,
+            }
 
     form = _choose_best_form(forms)
 
