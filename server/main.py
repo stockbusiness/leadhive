@@ -480,9 +480,39 @@ def _schedule_periodic_restart(interval_hours: int = 24):
     t.start()
 
 
+def _cleanup_duplicate_draft_messages():
+    """起動時に重複した draft/reviewed メッセージを削除し、最新1件のみ残す。"""
+    try:
+        from server.database import SessionLocal
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            result = db.execute(text("""
+                DELETE FROM sales_messages
+                WHERE status IN ('draft', 'reviewed')
+                  AND id NOT IN (
+                    SELECT MAX(id)
+                    FROM sales_messages
+                    WHERE status IN ('draft', 'reviewed')
+                    GROUP BY company_id, COALESCE(project_id, -1)
+                  )
+            """))
+            deleted = result.rowcount
+            db.commit()
+            if deleted > 0:
+                print(f"[LeadHive] 重複ドラフト削除: {deleted}件の重複メッセージを削除しました")
+            else:
+                print("[LeadHive] 重複ドラフト削除: 重複なし")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[LeadHive] 重複ドラフト削除エラー: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _cleanup_stale_jobs()
+    threading.Thread(target=_cleanup_duplicate_draft_messages, daemon=True).start()
     threading.Thread(target=run_db_migrations, daemon=True).start()
     start_scheduler()
     start_imap_polling()

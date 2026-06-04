@@ -1793,3 +1793,28 @@ def run_auto_generate_now(
         daemon=True,
     ).start()
     return {"ok": True, "message": "バックグラウンドで生成を開始しました"}
+
+
+@router.post("/admin/cleanup-duplicate-drafts")
+def cleanup_duplicate_drafts(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """重複した draft/reviewed メッセージを削除し、企業×プロジェクトごとに最新1件のみ残す。"""
+    if not current_user.is_system_admin:
+        raise HTTPException(status_code=403, detail="システム管理者のみ実行できます")
+    result = db.execute(
+        text("""
+            DELETE FROM sales_messages
+            WHERE status IN ('draft', 'reviewed')
+              AND id NOT IN (
+                SELECT MAX(id)
+                FROM sales_messages
+                WHERE status IN ('draft', 'reviewed')
+                GROUP BY company_id, COALESCE(project_id, -1)
+              )
+        """)
+    )
+    deleted = result.rowcount
+    db.commit()
+    return {"ok": True, "deleted": deleted, "message": f"{deleted}件の重複メッセージを削除しました"}
