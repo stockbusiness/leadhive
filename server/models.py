@@ -201,6 +201,7 @@ class Company(Base):
     robots_disallow = Column(Boolean, default=False)
     website_status = Column(String(30), nullable=True, index=True)
     scraped_at = Column(DateTime, nullable=True)
+    form_scanned_at = Column(DateTime, nullable=True)
     org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

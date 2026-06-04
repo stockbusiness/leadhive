@@ -29,6 +29,7 @@ def _update_scan_job(job_id: str, **kwargs):
 def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filters: dict, skip_existing: bool):
     """バックグラウンドスレッドでフォームURLをスキャンしてDBに保存する。"""
     import requests as _req
+    from datetime import datetime as _dt_inner
     from server.services.form_sender import _find_contact_url
     from server.models import Project as _Project
 
@@ -64,11 +65,12 @@ def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filt
         logger.info(f"[form_scan:{job_id}] skip_existing前: {pre_skip_count}件")
 
         if skip_existing:
-            query = query.filter(or_(Company.contact_url.is_(None), Company.contact_url == ""))
+            # スキャン済み（URLあり・なし問わず）をスキップ
+            query = query.filter(Company.form_scanned_at.is_(None))
 
         BATCH_SIZE = 500
         total_eligible = query.count()
-        companies = query.limit(BATCH_SIZE).all()
+        companies = query.order_by(Company.score_total.desc()).limit(BATCH_SIZE).all()
         total = len(companies)
         logger.info(f"[form_scan:{job_id}] total_eligible={total_eligible} total(batch)={total}")
         _update_scan_job(job_id, total=total, total_eligible=total_eligible, pre_skip_count=pre_skip_count)
@@ -84,6 +86,7 @@ def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filt
         })
 
         found = 0
+        now = _dt_inner.utcnow()
         for i, company in enumerate(companies):
             try:
                 url = _find_contact_url(company.website_url, "", session)
@@ -92,6 +95,8 @@ def _run_form_scan(job_id: str, org_id: int, company_ids: list, project_id, filt
                     found += 1
             except Exception:
                 pass
+            # 結果にかかわらずスキャン済みとしてマーク
+            company.form_scanned_at = now
             _update_scan_job(job_id, done=i + 1, found=found)
             if (i + 1) % 20 == 0:
                 db.commit()
@@ -871,11 +876,9 @@ def bulk_scan_forms(
             query = query.filter(Company.ec_flag == True)
 
     if skip_existing:
-        query = query.filter(
-            or_(Company.contact_url.is_(None), Company.contact_url == "")
-        )
+        query = query.filter(Company.form_scanned_at.is_(None))
 
-    companies = query.limit(500).all()
+    companies = query.order_by(desc(Company.score_total)).limit(500).all()
 
     found_count = 0
     not_found_count = 0
@@ -885,9 +888,12 @@ def bulk_scan_forms(
         "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
     })
 
+    from datetime import datetime as _dt_bulk
+    now = _dt_bulk.utcnow()
     for company in companies:
         if not company.website_url:
             not_found_count += 1
+            company.form_scanned_at = now
             continue
         try:
             url = _find_contact_url(company.website_url, "", session)
@@ -898,6 +904,7 @@ def bulk_scan_forms(
                 not_found_count += 1
         except Exception:
             not_found_count += 1
+        company.form_scanned_at = now
 
     db.commit()
     return {

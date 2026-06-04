@@ -82,6 +82,7 @@ export default function Companies() {
   const [scanFormMsg, setScanFormMsg] = useState<string | null>(null);
   const [scanJobId, setScanJobId] = useState<string | null>(null);
   const [scanJobProgress, setScanJobProgress] = useState<{ done: number; total: number; total_eligible: number; found: number; pre_skip_count?: number } | null>(null);
+  const [scanRemaining, setScanRemaining] = useState<number>(0);
   const [showCleanModal, setShowCleanModal] = useState(false);
   const [cleanOps, setCleanOps] = useState<Record<string, boolean>>({ check_status: true, backfill_form: true, normalize: true });
   const [cleanJobId, setCleanJobId] = useState<string | null>(null);
@@ -188,24 +189,29 @@ export default function Companies() {
           setScanningForms(false);
           if (job.status === "done") {
             const remaining = (job.total_eligible || 0) - job.total;
+            setScanRemaining(remaining);
             if (job.total === 0) {
               const preSkip = job.pre_skip_count ?? 0;
               if (preSkip > 0) {
-                setScanFormMsg(`スキャン対象なし — ${preSkip}件の企業は既にフォームURLが登録済みのためスキップ。「再スキャン」ボタンで上書き再スキャンできます`);
+                setScanFormMsg(`スキャン対象なし — ${preSkip}件はスキャン済みです。「再スキャン」ボタン（右の「再」）で再実行できます`);
               } else {
-                setScanFormMsg("スキャン対象なし（現在のフィルター条件でウェブサイトURLのある企業が見つかりませんでした）");
+                setScanFormMsg("スキャン対象なし（現在のフィルター条件でウェブサイトURLのある未スキャン企業が見つかりませんでした）");
               }
+              setTimeout(() => setScanFormMsg(null), 8000);
             } else if (remaining > 0) {
-              setScanFormMsg(`✅ ${job.total}件スキャン完了・${job.found}件検出。残り${remaining}件あります → 再度「フォームURL検出」を押すと続きをスキャンします`);
+              setScanFormMsg(`✅ ${job.total}件スキャン完了・${job.found}件検出。まだ未スキャンが${remaining}件あります`);
+              // 残りがある場合はボタンを表示するので自動消去しない
             } else {
+              setScanRemaining(0);
               setScanFormMsg(`✅ スキャン完了: ${job.total}件中 ${job.found}件でフォームURL検出`);
+              setTimeout(() => setScanFormMsg(null), 8000);
             }
             fetchCompanies();
           } else {
             setScanFormMsg(`❌ スキャンエラー: ${job.error || "不明"}`);
+            setTimeout(() => setScanFormMsg(null), 8000);
           }
           setScanJobProgress(null);
-          setTimeout(() => setScanFormMsg(null), 8000);
         }
       } catch {
         clearInterval(interval);
@@ -354,9 +360,10 @@ export default function Companies() {
 
   const handleScanAllForms = (skipExisting = true) => {
     const msg = skipExisting
-      ? `現在のフィルター条件の企業（フォームURLが未登録）を全件バックグラウンドでスキャンします（最大500件）。\n\n実行しますか？`
-      : `現在のフィルター条件の企業を全件再スキャンします（登録済みのフォームURLも上書きします）。\n\n実行しますか？`;
+      ? `未スキャンの企業（スキャン済みは自動スキップ）を最大500件バックグラウンドでスキャンします。\n500件超の場合は完了後に「次の500件」ボタンが表示されます。\n\n実行しますか？`
+      : `現在のフィルター条件の企業を全件再スキャンします（スキャン済み・登録済みも含めて上書きします）。\n\n実行しますか？`;
     if (!confirm(msg)) return;
+    setScanRemaining(0);
     const params: Parameters<typeof api.companies.startFormScan>[0] = { skip_existing: skipExisting };
     if (currentProject?.id) params.project_id = currentProject.id;
     if (filters.category) params.category = filters.category;
@@ -791,9 +798,24 @@ export default function Companies() {
                   <span className="font-medium">スキャン準備中...</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-cyan-800 font-medium flex-1">{scanFormMsg}</span>
-                  <button onClick={() => { setScanFormMsg(null); setScanJobProgress(null); }} className="text-cyan-400 hover:text-cyan-600 flex-shrink-0"><X size={13} /></button>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-cyan-800 font-medium flex-1">{scanFormMsg}</span>
+                    <button onClick={() => { setScanFormMsg(null); setScanJobProgress(null); setScanRemaining(0); }} className="text-cyan-400 hover:text-cyan-600 flex-shrink-0"><X size={13} /></button>
+                  </div>
+                  {scanRemaining > 0 && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleScanAllForms(true)}
+                        disabled={scanningForms}
+                        className="flex items-center gap-1.5 bg-cyan-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-cyan-700 transition-colors disabled:opacity-50"
+                      >
+                        <Search size={12} />
+                        次の500件をスキャン（残り{scanRemaining.toLocaleString()}件）
+                      </button>
+                      <span className="text-xs text-slate-400">スキャン済み企業は自動でスキップされます</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
