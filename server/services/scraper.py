@@ -660,7 +660,16 @@ def scrape_company_info(url: str, max_retries: int = 3) -> dict:
                 "base_flag": cms_type == "BASE",
                 "makeshop_flag": cms_type == "MakeShop",
                 "futureshop_flag": cms_type == "futureshop",
+                "ecbeing_flag": cms_type == "ecbeing",
                 "stores_flag": cms_type == "STORES",
+                "woocommerce_flag": cms_type == "WooCommerce",
+                "lolipop_flag": cms_type == "ロリポップEC",
+                "yahoo_shopping_flag": cms_type == "Yahoo!ショッピング",
+                "rakuten_flag": cms_type == "楽天市場",
+                "aishipr_flag": cms_type == "aishipR",
+                "colorme_flag": cms_type == "カラーミー",
+                "ec_cube_flag": cms_type == "EC-CUBE",
+                "welcart_flag": cms_type == "Welcart",
             }
 
             tokusho_data = {}

@@ -6,9 +6,10 @@ from contextlib import asynccontextmanager
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from server.routes import companies, keywords, dashboard, scraper, settings, rejected, collector, templates, projects, master
@@ -607,6 +608,28 @@ app.include_router(lumiqbrain.router)
 app.include_router(email_campaigns.router)
 app.include_router(form_profiles.router)
 app.include_router(tele_apo.router)
+
+_mockup_client = httpx.AsyncClient(base_url="http://127.0.0.1:23636", timeout=10.0)
+
+@app.api_route("/__mockup/{path:path}", methods=["GET", "HEAD", "OPTIONS"])
+async def proxy_mockup(request: Request, path: str):
+    url = f"/__mockup/{path}"
+    if request.url.query:
+        url = f"{url}?{request.url.query}"
+    try:
+        resp = await _mockup_client.request(
+            method=request.method,
+            url=url,
+            headers={k: v for k, v in request.headers.items() if k.lower() not in ("host", "content-length")},
+        )
+        return Response(
+            content=resp.content,
+            status_code=resp.status_code,
+            headers={k: v for k, v in resp.headers.items() if k.lower() not in ("content-encoding", "transfer-encoding", "connection")},
+        )
+    except Exception:
+        return Response(content=b"Mockup server unavailable", status_code=503)
+
 
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 
