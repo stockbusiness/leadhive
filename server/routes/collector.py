@@ -1247,6 +1247,98 @@ def collect_urls_preview(
 
         return {"urls": urls, "count": len(urls), "next_page_start": next_page_start}
 
+    elif type_ == "ec-discovery":
+        # プリセットキーワードを3件ずつバッチで検索 → ステージングリスト返却（保存はしない）
+        category_id = data.get("category_id", "all")
+        region = (data.get("region") or "").strip()
+        keyword_batch_start = max(0, int(data.get("keyword_batch_start", 0)))
+        exclude_agency = data.get("exclude_agency", True)
+        BATCH_SIZE = 3
+
+        from server.services.serper_search import search_serper, get_serper_api_key
+        serper_key = get_serper_api_key(db=db, org_id=current_user.org_id)
+        if not serper_key:
+            return {"error": "Serper APIキーが設定されていません。設定画面で登録してください。"}
+
+        from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain
+        from server.services.ec_collector import AGENCY_NEGATIVE_QUERY, is_ec_agency
+        from server.services.collector import _normalize_to_homepage
+        from urllib.parse import urlparse as _up
+
+        all_keywords = EC_DISCOVERY_PRESETS.get(category_id, EC_DISCOVERY_PRESETS["all"])
+        if region:
+            all_keywords = [f"{kw} {region}" for kw in all_keywords]
+
+        total_keywords = len(all_keywords)
+        batch_keywords = all_keywords[keyword_batch_start:keyword_batch_start + BATCH_SIZE]
+        is_last_batch = (keyword_batch_start + BATCH_SIZE) >= total_keywords
+        next_keyword_start = keyword_batch_start + BATCH_SIZE
+
+        # 既存ステージングURLのドメインを除外セットに追加
+        existing_urls = data.get("existing_urls", [])
+        seen_domains: set = set()
+        for existing_url in existing_urls:
+            try:
+                d = _ndomain(_up(existing_url).netloc)
+                if d:
+                    seen_domains.add(d)
+            except Exception:
+                pass
+
+        urls = []
+        for kw_text in batch_keywords:
+            search_query = f"{kw_text} {AGENCY_NEGATIVE_QUERY}" if exclude_agency else kw_text
+            try:
+                results = search_serper(serper_key, search_query, num=50)
+            except Exception as e:
+                logger.warning(f"EC discovery stage search error ({kw_text}): {e}")
+                continue
+
+            for r in results:
+                url = r.get("url", "")
+                if not url:
+                    continue
+                homepage = _normalize_to_homepage(url)
+                domain = _ndomain(_up(homepage).netloc)
+                if not domain or domain in seen_domains:
+                    continue
+                seen_domains.add(domain)
+
+                title_ = (r.get("title") or "").strip()
+                snippet_ = r.get("snippet") or ""
+
+                excluded = False
+                exclude_reason = None
+
+                if exclude_agency:
+                    is_ag, ag_reason = is_ec_agency(title_, snippet_, url=homepage)
+                    if is_ag:
+                        excluded = True
+                        exclude_reason = f"EC代行業者({ag_reason})"
+
+                if not excluded:
+                    is_agg, agg_reason = is_aggregator_site(homepage, title_)
+                    if is_agg:
+                        excluded = True
+                        exclude_reason = agg_reason
+
+                urls.append({
+                    "url": homepage,
+                    "name": title_ or domain,
+                    "source": f"EC収集: {kw_text[:35]}",
+                    "excluded": excluded,
+                    "exclude_reason": exclude_reason,
+                })
+
+        return {
+            "urls": urls,
+            "count": len(urls),
+            "next_keyword_start": next_keyword_start,
+            "total_keywords": total_keywords,
+            "is_last_batch": is_last_batch,
+            "keywords_in_batch": len(batch_keywords),
+        }
+
     return {"error": "不明な収集タイプです"}
 
 

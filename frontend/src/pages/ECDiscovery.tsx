@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ShoppingBag, Play, CheckCircle, XCircle, Loader2, ChevronRight, BarChart3, RefreshCw, MapPin, ExternalLink, Globe, Info, Mail } from "lucide-react";
+import {
+  ShoppingBag, Play, CheckCircle, XCircle, Loader2, ChevronRight,
+  BarChart3, RefreshCw, MapPin, ExternalLink, Globe, Info, Mail,
+  ChevronDown, Search, Zap, AlertCircle,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
@@ -53,55 +57,33 @@ const CATEGORY_PRESETS: CategoryPreset[] = [
 
 const REGIONS = [
   "",
-  // 北海道・東北
   "北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島",
-  // 関東
   "東京", "神奈川", "埼玉", "千葉", "茨城", "栃木", "群馬",
-  // 中部
   "新潟", "富山", "石川", "福井", "山梨", "長野", "岐阜", "静岡", "愛知",
-  // 近畿
   "三重", "滋賀", "京都", "大阪", "兵庫", "奈良", "和歌山",
-  // 中国
   "鳥取", "島根", "岡山", "広島", "山口",
-  // 四国
   "徳島", "香川", "愛媛", "高知",
-  // 九州・沖縄
   "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄",
 ];
 
-interface JobResult {
+type Phase = "preset" | "staging" | "scraping" | "done";
+
+type StagedUrl = {
+  id: string;
+  url: string;
+  name: string;
+  source: string;
+  excluded: boolean;
+  exclude_reason?: string;
+  selected: boolean;
+};
+
+interface ScrapeResult {
   total_success: number;
   total_duplicate: number;
   total_rejected: number;
   keywords_processed: number;
-}
-
-interface SavedJob {
-  job_id: string;
-  status: "running" | "done" | "error";
-  category_id: CategoryId;
-  category_label: string;
-  category_icon: string;
-  region: string;
-  project_id?: number;
-  started_at: string;
-  result?: JobResult;
-  error?: string;
-}
-
-const LS_KEY = "leadhive_ec_job";
-
-function saveJob(data: SavedJob) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch {}
-}
-function loadJob(): SavedJob | null {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-function clearJob() {
-  try { localStorage.removeItem(LS_KEY); } catch {}
+  agency_removed?: number;
 }
 
 const CMS_COLORS: Record<string, string> = {
@@ -117,28 +99,41 @@ const CMS_COLORS: Record<string, string> = {
 
 export default function ECDiscovery() {
   const { currentProject } = useProject();
+  const [phase, setPhase] = useState<Phase>("preset");
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>("all");
   const [region, setRegion] = useState("");
-  const [running, setRunning] = useState(false);
-  const [progressMsg, setProgressMsg] = useState("");
-  const [progressCurrent, setProgressCurrent] = useState(0);
-  const [progressTotal, setProgressTotal] = useState(0);
-  const [progressPhase, setProgressPhase] = useState<"search" | "save" | "">("");
-  const [progressSaved, setProgressSaved] = useState(0);
-  const [progressDup, setProgressDup] = useState(0);
-  const [progressRej, setProgressRej] = useState(0);
-  const [progressUrlsFound, setProgressUrlsFound] = useState(0);
-  const [result, setResult] = useState<JobResult | null>(null);
+
+  // Staging phase state
+  const [stagedUrls, setStagedUrls] = useState<StagedUrl[]>([]);
+  const [stagingLoading, setStagingLoading] = useState(false);
+  const [stagingError, setStagingError] = useState<string | null>(null);
+  const [keywordBatchStart, setKeywordBatchStart] = useState(0);
+  const [totalKeywords, setTotalKeywords] = useState(0);
+  const [isLastBatch, setIsLastBatch] = useState(false);
+  const [showExcluded, setShowExcluded] = useState(false);
+
+  // Scraping phase state
+  const [scrapeProgressMsg, setScrapeProgressMsg] = useState("");
+  const [scrapeProgressCurrent, setScrapeProgressCurrent] = useState(0);
+  const [scrapeProgressTotal, setScrapeProgressTotal] = useState(0);
+  const [scrapeSaved, setScrapeSaved] = useState(0);
+  const [scrapeDup, setScrapeDup] = useState(0);
+  const [scrapeRej, setScrapeRej] = useState(0);
+  const [scrapeJobId, setScrapeJobId] = useState<string | null>(null);
+
+  // Done state
+  const [result, setResult] = useState<ScrapeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [collectedCompanies, setCollectedCompanies] = useState<Company[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
-  const [savedJobMeta, setSavedJobMeta] = useState<{ label: string; icon: string; region: string } | null>(null);
+
+  // Email modal
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [ecEmailIds, setEcEmailIds] = useState<number[]>([]);
   const [fetchingEmailIds, setFetchingEmailIds] = useState(false);
+
   const esRef = useRef<EventSource | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const currentJobIdRef = useRef<string | null>(null);
 
   const stopAll = useCallback(() => {
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
@@ -166,104 +161,152 @@ export default function ECDiscovery() {
     }
   };
 
-  const pollJobStatus = useCallback((job_id: string, savedMeta?: SavedJob) => {
+  const pollJobStatus = useCallback((job_id: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
         const data = await api.collector.jobStatus(job_id);
         if (!data.found) {
           clearInterval(pollRef.current!);
-          setRunning(false);
           setError("ジョブが見つかりません");
-          clearJob();
+          setPhase("preset");
           return;
         }
-        if (data.message) setProgressMsg(data.message);
-        if (data.current !== undefined) setProgressCurrent(data.current);
-        if (data.total !== undefined) setProgressTotal(data.total);
-        if (data.phase !== undefined) setProgressPhase(data.phase);
-        if (data.saved_count !== undefined) setProgressSaved(data.saved_count);
-        if (data.dup_count !== undefined) setProgressDup(data.dup_count);
-        if (data.rej_count !== undefined) setProgressRej(data.rej_count);
-        if (data.urls_found !== undefined) setProgressUrlsFound(data.urls_found);
+        if (data.message) setScrapeProgressMsg(data.message);
+        if (data.current !== undefined) setScrapeProgressCurrent(data.current);
+        if (data.total !== undefined) setScrapeProgressTotal(data.total);
+        if (data.saved_count !== undefined) setScrapeSaved(data.saved_count);
+        if (data.dup_count !== undefined) setScrapeDup(data.dup_count);
+        if (data.rej_count !== undefined) setScrapeRej(data.rej_count);
 
         if (data.status === "done") {
           clearInterval(pollRef.current!);
-          const jobResult = data.result ?? savedMeta?.result ?? null;
-          setResult(jobResult);
-          setProgressMsg("");
-          setRunning(false);
-          const saved = loadJob();
-          if (saved) { saved.status = "done"; saved.result = jobResult ?? undefined; saveJob(saved); }
+          const summary = data.result?.summary ?? data.result ?? {};
+          setResult({
+            total_success: summary.success ?? scrapeSaved,
+            total_duplicate: summary.duplicate ?? scrapeDup,
+            total_rejected: summary.rejected ?? scrapeRej,
+            keywords_processed: totalKeywords,
+            agency_removed: summary.agency_removed,
+          });
+          setScrapeProgressMsg("");
+          setPhase("done");
           fetchRecentEcCompanies();
         } else if (data.status === "error" || data.status === "interrupted") {
           clearInterval(pollRef.current!);
-          setError(data.message || (data.status === "interrupted" ? "サーバー再起動によりジョブが中断されました。再度お試しください。" : "エラーが発生しました"));
-          setProgressMsg("");
-          setRunning(false);
-          clearJob();
+          setError(data.message || "エラーが発生しました");
+          setPhase("preset");
         }
-      } catch {
-      }
+      } catch {}
     }, 3000);
-  }, []);
+  }, [scrapeSaved, scrapeDup, scrapeRej, totalKeywords]);
 
-  useEffect(() => {
-    const saved = loadJob();
-    if (!saved) return;
-
-    if (saved.status === "done") {
-      const preset = CATEGORY_PRESETS.find(c => c.id === saved.category_id);
-      if (preset) setSelectedCategory(saved.category_id);
-      setSavedJobMeta({ label: saved.category_label, icon: saved.category_icon, region: saved.region });
-      if (saved.result) setResult(saved.result);
-      fetchRecentEcCompanies();
-      return;
-    }
-
-    if (saved.status === "running") {
-      const preset = CATEGORY_PRESETS.find(c => c.id === saved.category_id);
-      if (preset) setSelectedCategory(saved.category_id);
-      setSavedJobMeta({ label: saved.category_label, icon: saved.category_icon, region: saved.region });
-      setRunning(true);
-      setProgressMsg("バックグラウンドで収集中...");
-      currentJobIdRef.current = saved.job_id;
-      pollJobStatus(saved.job_id, saved);
-    }
-  }, []);
-
+  // ============================================================
+  // Phase 1 → 2: プリセット選択後、最初のキーワードバッチを検索
+  // ============================================================
   const handleStart = async () => {
-    if (running) return;
-    setRunning(true);
-    setResult(null);
+    setStagingLoading(true);
+    setStagingError(null);
+    setStagedUrls([]);
+    setKeywordBatchStart(0);
+    setIsLastBatch(false);
     setError(null);
-    setSavedJobMeta(null);
-    setProgressMsg("EC専用収集を開始しています...");
-    setProgressCurrent(0);
-    setProgressTotal(0);
-    stopAll();
-
-    const preset = CATEGORY_PRESETS.find(c => c.id === selectedCategory)!;
+    setResult(null);
+    setPhase("staging");
 
     try {
-      const { job_id } = await api.collector.ecDiscovery({
+      const data = await api.collector.urlsPreview({
+        type: "ec-discovery",
         category_id: selectedCategory,
         region: region || undefined,
         project_id: currentProject?.id,
+        keyword_batch_start: 0,
+        existing_urls: [],
       });
+      if ((data as any).error) {
+        setStagingError((data as any).error);
+      } else {
+        const d = data as any;
+        setStagedUrls(
+          (d.urls as any[]).map((u: any, i: number) => ({
+            ...u,
+            id: `0-${i}-${u.url}`,
+            selected: !u.excluded,
+          }))
+        );
+        setKeywordBatchStart(d.next_keyword_start ?? 3);
+        setTotalKeywords(d.total_keywords ?? 0);
+        setIsLastBatch(d.is_last_batch ?? false);
+      }
+    } catch (err: any) {
+      setStagingError(err.response?.data?.detail || "検索エラーが発生しました");
+    }
+    setStagingLoading(false);
+  };
 
-      currentJobIdRef.current = job_id;
+  // ============================================================
+  // Phase 2: 「次へ」 — さらにキーワードを検索してURLを追加
+  // ============================================================
+  const handleLoadMore = async () => {
+    if (stagingLoading || isLastBatch) return;
+    setStagingLoading(true);
+    setStagingError(null);
 
-      saveJob({
-        job_id,
-        status: "running",
+    try {
+      const existingUrls = stagedUrls.map(u => u.url);
+      const data = await api.collector.urlsPreview({
+        type: "ec-discovery",
         category_id: selectedCategory,
-        category_label: preset.label,
-        category_icon: preset.icon,
-        region,
+        region: region || undefined,
         project_id: currentProject?.id,
-        started_at: new Date().toISOString(),
+        keyword_batch_start: keywordBatchStart,
+        existing_urls: existingUrls,
       });
+      if ((data as any).error) {
+        setStagingError((data as any).error);
+      } else {
+        const d = data as any;
+        const existingSet = new Set(existingUrls);
+        const newUrls = (d.urls as any[])
+          .filter((u: any) => !existingSet.has(u.url))
+          .map((u: any, i: number) => ({
+            ...u,
+            id: `${keywordBatchStart}-${i}-${u.url}`,
+            selected: !u.excluded,
+          }));
+        setStagedUrls(prev => [...prev, ...newUrls]);
+        setKeywordBatchStart(d.next_keyword_start ?? keywordBatchStart + 3);
+        setIsLastBatch(d.is_last_batch ?? true);
+      }
+    } catch (err: any) {
+      setStagingError(err.response?.data?.detail || "追加収集エラーが発生しました");
+    }
+    setStagingLoading(false);
+  };
+
+  // ============================================================
+  // Phase 2 → 3: 選択URLをスクレイピング
+  // ============================================================
+  const handleScrapeStaged = async () => {
+    const selected = stagedUrls.filter(u => u.selected && u.url);
+    if (!selected.length) return;
+
+    setPhase("scraping");
+    setScrapeProgressMsg("スクレイピングを開始しています...");
+    setScrapeProgressCurrent(0);
+    setScrapeProgressTotal(selected.length);
+    setScrapeSaved(0);
+    setScrapeDup(0);
+    setScrapeRej(0);
+    stopAll();
+
+    try {
+      const { job_id } = await api.collector.scrapeStaged(
+        selected.map(u => ({ url: u.url, name: u.name, source: u.source })),
+        currentProject?.id,
+        true
+      );
+      setScrapeJobId(job_id);
 
       const es = new EventSource(`/api/collect/progress/${job_id}`);
       esRef.current = es;
@@ -271,99 +314,113 @@ export default function ECDiscovery() {
       es.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data);
-          if (msg.message) setProgressMsg(msg.message);
-          if (msg.current !== undefined) setProgressCurrent(msg.current);
-          if (msg.total !== undefined) setProgressTotal(msg.total);
-          if (msg.phase !== undefined) setProgressPhase(msg.phase);
-          if (msg.saved_count !== undefined) setProgressSaved(msg.saved_count);
-          if (msg.dup_count !== undefined) setProgressDup(msg.dup_count);
-          if (msg.rej_count !== undefined) setProgressRej(msg.rej_count);
-          if (msg.urls_found !== undefined) setProgressUrlsFound(msg.urls_found);
+          if (msg.message) setScrapeProgressMsg(msg.message);
+          if (msg.current !== undefined) setScrapeProgressCurrent(msg.current);
+          if (msg.total !== undefined) setScrapeProgressTotal(msg.total);
+          if (msg.saved_count !== undefined) setScrapeSaved(msg.saved_count);
+          if (msg.dup_count !== undefined) setScrapeDup(msg.dup_count);
+          if (msg.rej_count !== undefined) setScrapeRej(msg.rej_count);
 
           if (msg.type === "done") {
             stopAll();
-            const jobResult = msg.result as JobResult;
-            setResult(jobResult);
-            setProgressMsg("");
-            setRunning(false);
-            const saved = loadJob();
-            if (saved) { saved.status = "done"; saved.result = jobResult; saveJob(saved); }
+            const summary = msg.result?.summary ?? msg.result ?? {};
+            setResult({
+              total_success: summary.success ?? scrapeSaved,
+              total_duplicate: summary.duplicate ?? scrapeDup,
+              total_rejected: summary.rejected ?? scrapeRej,
+              keywords_processed: totalKeywords,
+              agency_removed: summary.agency_removed,
+            });
+            setScrapeProgressMsg("");
+            setPhase("done");
             fetchRecentEcCompanies();
           } else if (msg.type === "error") {
             stopAll();
             setError(msg.message || "エラーが発生しました");
-            setProgressMsg("");
-            setRunning(false);
-            clearJob();
+            setPhase("preset");
           }
         } catch {}
       };
 
       es.onerror = () => {
         if (esRef.current) { esRef.current.close(); esRef.current = null; }
-        if (currentJobIdRef.current) {
-          pollJobStatus(currentJobIdRef.current);
-        }
+        pollJobStatus(job_id);
       };
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "収集の開始に失敗しました");
-      setProgressMsg("");
-      setRunning(false);
-      clearJob();
+      setError(err?.response?.data?.detail || "スクレイピングの開始に失敗しました");
+      setPhase("preset");
     }
+  };
+
+  const handleCancelScrape = async () => {
+    if (scrapeJobId) {
+      try { await api.collector.cancelJob(scrapeJobId); } catch {}
+    }
+    stopAll();
+    setPhase("staging");
+    setScrapeProgressMsg("");
   };
 
   const handleReset = () => {
     stopAll();
-    setRunning(false);
+    setPhase("preset");
+    setStagedUrls([]);
+    setStagingError(null);
+    setKeywordBatchStart(0);
+    setTotalKeywords(0);
+    setIsLastBatch(false);
     setResult(null);
     setError(null);
-    setProgressMsg("");
-    setProgressCurrent(0);
-    setProgressTotal(0);
-    setProgressPhase("");
-    setProgressSaved(0);
-    setProgressDup(0);
-    setProgressRej(0);
-    setProgressUrlsFound(0);
     setCollectedCompanies([]);
-    setSavedJobMeta(null);
-    clearJob();
-    currentJobIdRef.current = null;
+    setScrapeJobId(null);
+    setScrapeProgressMsg("");
   };
 
-  const handleCancel = async () => {
-    const jobId = currentJobIdRef.current;
-    if (jobId) {
-      try {
-        await api.collector.cancelJob(jobId);
-      } catch (_) {}
-    }
-    handleReset();
-  };
+  const toggleAll = (checked: boolean) =>
+    setStagedUrls(prev => prev.map(u => ({ ...u, selected: u.excluded ? false : checked })));
+  const toggleOne = (id: string) =>
+    setStagedUrls(prev => prev.map(u => u.id === id ? { ...u, selected: !u.selected } : u));
 
-  const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
   const selectedPreset = CATEGORY_PRESETS.find(c => c.id === selectedCategory)!;
-  const displayMeta = savedJobMeta ?? { label: selectedPreset.label, icon: selectedPreset.icon, region };
+  const visibleUrls = showExcluded ? stagedUrls : stagedUrls.filter(u => !u.excluded);
+  const selectedCount = stagedUrls.filter(u => u.selected).length;
+  const excludedCount = stagedUrls.filter(u => u.excluded).length;
+  const scrapePercent = scrapeProgressTotal > 0 ? Math.round((scrapeProgressCurrent / scrapeProgressTotal) * 100) : 0;
+  const kw_progress = totalKeywords > 0 ? Math.round((keywordBatchStart / totalKeywords) * 100) : 0;
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
+      {/* ヘッダー */}
       <div className="flex items-center gap-3">
         <div className="bg-emerald-100 p-2 rounded-lg">
           <ShoppingBag size={24} className="text-emerald-600" />
         </div>
         <div>
           <h2 className="text-2xl font-bold text-slate-800">EC収集</h2>
-          <p className="text-sm text-slate-500">業種プリセットから一括でECサイトを発見・収集します</p>
+          <p className="text-sm text-slate-500">業種プリセットで検索 → URLを確認 → スクレイピングで詳細取得</p>
         </div>
       </div>
 
-      {!running && !result && (
+      {/* エラー表示 */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+          <XCircle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-red-800 text-sm">{error}</p>
+          </div>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 flex-shrink-0 text-xs border border-red-300 px-2 py-1 rounded">
+            閉じる
+          </button>
+        </div>
+      )}
+
+      {/* ====== Phase: preset ====== */}
+      {phase === "preset" && (
         <>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
             <div className="p-5 border-b border-slate-100">
               <h3 className="font-semibold text-slate-800 mb-0.5">業種プリセットを選択</h3>
-              <p className="text-xs text-slate-500">収集したいECサイトの業種を選択してください。ワンクリックで自動的にキーワード検索を実行します。</p>
+              <p className="text-xs text-slate-500">収集したいECサイトの業種を選択してください。</p>
             </div>
             <div className="p-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -421,41 +478,227 @@ export default function ECDiscovery() {
                   <span>{selectedPreset.icon}</span>
                   <span className="font-semibold">{selectedPreset.label}</span>
                 </span>
-                {region && (
-                  <span className="ml-2 text-slate-500">
-                    / <span className="font-medium">{region}</span>
-                  </span>
-                )}
-                {currentProject && (
-                  <span className="ml-2 text-slate-400">
-                    → {currentProject.name}
-                  </span>
-                )}
+                {region && <span className="ml-2 text-slate-500">/ <span className="font-medium">{region}</span></span>}
+                {currentProject && <span className="ml-2 text-slate-400">→ {currentProject.name}</span>}
               </div>
               <button
                 onClick={handleStart}
                 className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
               >
-                <Play size={16} />
-                EC収集を開始
+                <Search size={16} />
+                URLを検索する
               </button>
             </div>
           </div>
         </>
       )}
 
-      {running && (
+      {/* ====== Phase: staging ====== */}
+      {phase === "staging" && (
+        <div className="space-y-4">
+          {/* ステージングヘッダー */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${selectedPreset.color.split(" ")[0]}`}>
+                  <span className="text-xl">{selectedPreset.icon}</span>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800">{selectedPreset.label}{region ? ` / ${region}` : ""}</p>
+                  <p className="text-xs text-slate-500">
+                    {totalKeywords > 0
+                      ? `${Math.min(keywordBatchStart, totalKeywords)} / ${totalKeywords} キーワード検索済み`
+                      : "検索中..."}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleReset}
+                className="text-xs text-slate-500 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                ← プリセット選択に戻る
+              </button>
+            </div>
+
+            {/* キーワード進捗バー */}
+            {totalKeywords > 0 && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                  <span>キーワード深掘り進捗</span>
+                  <span>{Math.min(keywordBatchStart, totalKeywords)}/{totalKeywords}</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2">
+                  <div
+                    className="h-2 rounded-full bg-emerald-500 transition-all duration-500"
+                    style={{ width: `${Math.min(kw_progress, 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* URLリスト */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <h3 className="font-semibold text-slate-800">
+                  収集したECサイト
+                </h3>
+                <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                  {stagedUrls.filter(u => !u.excluded).length}件
+                </span>
+                {excludedCount > 0 && (
+                  <button
+                    onClick={() => setShowExcluded(v => !v)}
+                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
+                  >
+                    {showExcluded ? "除外を非表示" : `除外${excludedCount}件を表示`}
+                    <ChevronDown size={12} className={`transition-transform ${showExcluded ? "rotate-180" : ""}`} />
+                  </button>
+                )}
+              </div>
+              {!stagingLoading && stagedUrls.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => toggleAll(true)} className="text-xs text-blue-600 hover:underline">全選択</button>
+                  <span className="text-slate-300">|</span>
+                  <button onClick={() => toggleAll(false)} className="text-xs text-slate-500 hover:underline">全解除</button>
+                </div>
+              )}
+            </div>
+
+            {stagingLoading && stagedUrls.length === 0 ? (
+              <div className="p-10 flex flex-col items-center gap-3 text-slate-400">
+                <Loader2 size={28} className="animate-spin text-emerald-500" />
+                <p className="text-sm">ECサイトを検索中...</p>
+              </div>
+            ) : visibleUrls.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 text-sm">
+                <Globe size={32} className="mx-auto mb-2 text-slate-300" />
+                URLが見つかりませんでした
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+                {visibleUrls.map((u) => (
+                  <div
+                    key={u.id}
+                    className={`flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors ${u.excluded ? "opacity-50" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={u.selected}
+                      onChange={() => toggleOne(u.id)}
+                      disabled={u.excluded}
+                      className="flex-shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{u.name || u.url}</p>
+                      <p className="text-xs text-slate-400 truncate">{u.url}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {u.excluded && u.exclude_reason && (
+                        <span className="text-[10px] bg-red-50 text-red-600 border border-red-200 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={u.exclude_reason}>
+                          除外
+                        </span>
+                      )}
+                      <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded hidden sm:inline truncate max-w-[100px]" title={u.source}>
+                        {u.source.replace("EC収集: ", "")}
+                      </span>
+                      <a
+                        href={u.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-slate-400 hover:text-blue-500 transition-colors"
+                      >
+                        <ExternalLink size={13} />
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {stagingLoading && stagedUrls.length > 0 && (
+              <div className="px-5 py-3 border-t border-slate-100 flex items-center gap-2 text-sm text-slate-500">
+                <Loader2 size={14} className="animate-spin text-emerald-500 flex-shrink-0" />
+                さらに検索中...
+              </div>
+            )}
+          </div>
+
+          {/* staging エラー */}
+          {stagingError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center gap-2">
+              <AlertCircle size={15} className="text-red-500 flex-shrink-0" />
+              <p className="text-sm text-red-700">{stagingError}</p>
+            </div>
+          )}
+
+          {/* アクションボタン */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-800">{selectedCount}件</span>を選択中
+                {excludedCount > 0 && (
+                  <span className="ml-2 text-slate-400 text-xs">（代行業者・まとめサイト {excludedCount}件を除外）</span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={stagingLoading || isLastBatch}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm border transition-colors ${
+                    isLastBatch
+                      ? "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed"
+                      : stagingLoading
+                      ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                      : "bg-white text-blue-600 border-blue-300 hover:bg-blue-50"
+                  }`}
+                >
+                  {stagingLoading ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <ChevronRight size={15} />
+                  )}
+                  {isLastBatch ? "全キーワード検索済み" : "次へ（さらに深く検索）"}
+                </button>
+                <button
+                  onClick={handleScrapeStaged}
+                  disabled={selectedCount === 0 || stagingLoading}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-colors ${
+                    selectedCount === 0
+                      ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                      : "bg-emerald-600 text-white hover:bg-emerald-700"
+                  }`}
+                >
+                  <Zap size={15} />
+                  スクレイピング開始（{selectedCount}件）
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
+              <Info size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-700">
+                「次へ」でキーワードを深く掘り下げてURLをさらに追加できます。件数に満足したら「スクレイピング開始」で詳細情報を取得してリストに保存します。
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== Phase: scraping ====== */}
+      {phase === "scraping" && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <Loader2 size={22} className="text-emerald-600 animate-spin flex-shrink-0" />
               <div className="min-w-0">
-                <p className="font-semibold text-slate-800">EC収集中...</p>
-                <p className="text-sm text-slate-500 truncate">{progressMsg || "処理中..."}</p>
+                <p className="font-semibold text-slate-800">スクレイピング中...</p>
+                <p className="text-sm text-slate-500 truncate">{scrapeProgressMsg || "処理中..."}</p>
               </div>
             </div>
             <button
-              onClick={handleCancel}
+              onClick={handleCancelScrape}
               className="flex-shrink-0 flex items-center gap-1.5 text-xs text-slate-500 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
             >
               キャンセル
@@ -464,85 +707,52 @@ export default function ECDiscovery() {
 
           <div>
             <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-              <span className="flex items-center gap-1.5">
-                {progressPhase === "search" ? (
-                  <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[11px] font-medium">
-                    🔍 検索フェーズ
-                  </span>
-                ) : progressPhase === "save" ? (
-                  <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[11px] font-medium">
-                    💾 保存フェーズ
-                  </span>
-                ) : (
-                  <span className="text-slate-400">準備中</span>
-                )}
+              <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[11px] font-medium">
+                🔍 スクレイピング中
               </span>
               <span className="text-slate-400">
-                {progressTotal > 0 ? `${progressCurrent + 1} / ${progressTotal} ステップ` : "処理中..."}
+                {scrapeProgressTotal > 0
+                  ? `${scrapeProgressCurrent + 1} / ${scrapeProgressTotal} 件`
+                  : "処理中..."}
               </span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
               <div
-                className={`h-3 rounded-full transition-all duration-500 ${progressPhase === "search" ? "bg-blue-500" : "bg-emerald-500"}`}
-                style={{ width: progressTotal > 0 ? `${progressPercent}%` : "5%" }}
+                className="h-3 rounded-full transition-all duration-500 bg-emerald-500"
+                style={{ width: scrapeProgressTotal > 0 ? `${scrapePercent}%` : "5%" }}
               />
             </div>
-            {progressTotal > 0 && (
-              <p className="text-right text-xs text-slate-400 mt-1">{progressPercent}%</p>
+            {scrapeProgressTotal > 0 && (
+              <p className="text-right text-xs text-slate-400 mt-1">{scrapePercent}%</p>
             )}
           </div>
 
-          {/* 詳細ステータス */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="bg-slate-50 rounded-lg px-3 py-2.5 text-center border border-slate-100">
-              <p className="text-[11px] text-slate-400 mb-0.5">探索URL数</p>
-              <p className="text-lg font-bold text-slate-700">{progressUrlsFound.toLocaleString()}</p>
-            </div>
+          <div className="grid grid-cols-3 gap-2">
             <div className="bg-emerald-50 rounded-lg px-3 py-2.5 text-center border border-emerald-100">
               <p className="text-[11px] text-emerald-600 mb-0.5">保存済み</p>
-              <p className="text-lg font-bold text-emerald-700">{progressSaved.toLocaleString()}</p>
+              <p className="text-lg font-bold text-emerald-700">{scrapeSaved.toLocaleString()}</p>
             </div>
             <div className="bg-amber-50 rounded-lg px-3 py-2.5 text-center border border-amber-100">
               <p className="text-[11px] text-amber-600 mb-0.5">重複スキップ</p>
-              <p className="text-lg font-bold text-amber-700">{progressDup.toLocaleString()}</p>
+              <p className="text-lg font-bold text-amber-700">{scrapeDup.toLocaleString()}</p>
             </div>
             <div className="bg-slate-50 rounded-lg px-3 py-2.5 text-center border border-slate-100">
               <p className="text-[11px] text-slate-400 mb-0.5">除外</p>
-              <p className="text-lg font-bold text-slate-500">{progressRej.toLocaleString()}</p>
+              <p className="text-lg font-bold text-slate-500">{scrapeRej.toLocaleString()}</p>
             </div>
           </div>
 
           <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
             <Info size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-blue-700">
-              収集はバックグラウンドで実行中です。他のページを使いながらお待ちいただけます。このページに戻ると進捗・結果を確認できます。
+              スクレイピングはバックグラウンドで実行中です。他のページを使いながらお待ちいただけます。
             </p>
           </div>
         </div>
       )}
 
-      {error && !running && (
-        <div className="bg-white rounded-xl border border-red-200 shadow-sm p-5">
-          <div className="flex items-start gap-3">
-            <XCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-slate-800">エラーが発生しました</p>
-              <p className="text-sm text-slate-600 mt-1">{error}</p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <button
-              onClick={handleReset}
-              className="flex items-center gap-2 text-sm text-slate-600 border border-slate-300 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              <RefreshCw size={14} />
-              やり直す
-            </button>
-          </div>
-        </div>
-      )}
-
-      {result && !running && (
+      {/* ====== Phase: done ====== */}
+      {phase === "done" && result && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-emerald-200 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-5">
@@ -550,8 +760,8 @@ export default function ECDiscovery() {
               <div>
                 <p className="font-bold text-slate-800 text-lg">EC収集が完了しました</p>
                 <p className="text-sm text-slate-500">
-                  {displayMeta.icon} {displayMeta.label}
-                  {displayMeta.region ? ` / ${displayMeta.region}` : ""}
+                  {selectedPreset.icon} {selectedPreset.label}
+                  {region ? ` / ${region}` : ""}
                 </p>
               </div>
             </div>
@@ -571,7 +781,7 @@ export default function ECDiscovery() {
               </div>
               <div className="bg-purple-50 rounded-lg p-4 text-center border border-purple-100">
                 <div className="text-3xl font-bold text-purple-700">{result.keywords_processed}</div>
-                <div className="text-xs text-purple-600 mt-1 font-medium">キーワード数</div>
+                <div className="text-xs text-purple-600 mt-1 font-medium">検索キーワード数</div>
               </div>
             </div>
           </div>
@@ -621,7 +831,6 @@ export default function ECDiscovery() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex-shrink-0 text-slate-400 hover:text-blue-500 transition-colors"
-                        title={c.website_url}
                       >
                         <Globe size={15} />
                       </a>
