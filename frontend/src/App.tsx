@@ -227,8 +227,8 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
 
 function NavSeparator({ label }: { label: string }) {
   return (
-    <div className="px-3 pt-3 pb-1">
-      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{label}</p>
+    <div className="px-3 pt-4 pb-1">
+      <p className="text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-widest">{label}</p>
     </div>
   );
 }
@@ -269,7 +269,7 @@ function AppContent() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-zinc-950 overflow-hidden">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
@@ -279,162 +279,164 @@ function AppContent() {
 
       <aside className={`
         fixed md:static inset-y-0 left-0 z-40 flex-shrink-0
-        w-64 bg-slate-900 text-white flex flex-col
+        w-60 bg-white dark:bg-zinc-950 border-r border-gray-100 dark:border-zinc-800 flex flex-col
         transition-transform duration-300 ease-in-out
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}>
-        <div className="flex items-center justify-between p-4 border-b border-slate-700">
-          <div>
-            <h1 className="text-lg font-bold">LeadHive</h1>
-            <p className="text-xs text-slate-400 hidden md:block">営業先リスト自動化ツール</p>
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-100 dark:border-zinc-800">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+              <span className="text-white font-bold text-sm">L</span>
+            </div>
+            <h1 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">LeadHive</h1>
           </div>
           <button
             onClick={closeSidebar}
-            className="md:hidden text-slate-400 hover:text-white p-1"
+            className="md:hidden text-gray-400 hover:text-gray-600 p-1"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="px-3 py-2 border-b border-slate-700">
-          <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">プロジェクト</label>
+        <div className="px-4 py-2.5 border-b border-gray-100 dark:border-zinc-800">
+          <label className="text-[10px] text-gray-400 dark:text-zinc-500 font-semibold uppercase tracking-wider mb-1 block">プロジェクト</label>
           <div className="relative">
             <select
               value={currentProject?.id || ""}
               onChange={(e) => setCurrentProjectId(Number(e.target.value))}
-              className="w-full bg-slate-800 text-sm text-white rounded px-2 py-1.5 pr-7 border border-slate-600 appearance-none focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-50 dark:bg-zinc-900 text-sm text-gray-800 dark:text-zinc-200 rounded-md px-2.5 py-1.5 pr-7 border border-gray-200 dark:border-zinc-700 appearance-none focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
             >
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
-            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
         </div>
 
-        <nav className="flex-1 p-2 overflow-y-auto">
-          <div className="space-y-1">
-            <SidebarLink to="/" icon={<LayoutDashboard size={18} />} label="ダッシュボード" onClick={closeSidebar} />
-            <SidebarLink to="/companies" icon={<Building2 size={18} />} label="候補企業一覧" onClick={closeSidebar} />
-            <SidebarLink to="/sales-ai" icon={<Bot size={18} />} label="営業AI" onClick={closeSidebar} />
-            <SidebarLink to="/pipeline" icon={<GanttChartSquare size={18} />} label="パイプライン" onClick={closeSidebar} />
-            <SidebarLink to="/email-campaigns" icon={<Mail size={18} />} label="一括メール送信" onClick={closeSidebar} />
-            <SidebarLink to="/tele-apo" icon={<Phone size={18} />} label="テレアポ" onClick={closeSidebar} />
+        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-0.5">
+          <div className="space-y-0.5">
+            <SidebarLink to="/" icon={<LayoutDashboard size={16} />} label="ダッシュボード" onClick={closeSidebar} />
+            <SidebarLink to="/companies" icon={<Building2 size={16} />} label="候補企業一覧" onClick={closeSidebar} />
+            <SidebarLink to="/sales-ai" icon={<Bot size={16} />} label="営業AI" onClick={closeSidebar} />
+            <SidebarLink to="/pipeline" icon={<GanttChartSquare size={16} />} label="パイプライン" onClick={closeSidebar} />
+            <SidebarLink to="/email-campaigns" icon={<Mail size={16} />} label="一括メール送信" onClick={closeSidebar} />
+            <SidebarLink to="/tele-apo" icon={<Phone size={16} />} label="テレアポ" onClick={closeSidebar} />
           </div>
 
           <NavSeparator label="収集" />
-          <div className="space-y-1">
-            <SidebarLink to="/keywords" icon={<Search size={18} />} label="検索条件管理" onClick={closeSidebar} />
+          <div className="space-y-0.5">
+            <SidebarLink to="/keywords" icon={<Search size={16} />} label="検索条件管理" onClick={closeSidebar} />
             {(user?.feature_ec_discovery || user?.is_system_admin) && (
-              <SidebarLink to="/ec-discovery" icon={<ShoppingBag size={18} />} label="EC企業収集" onClick={closeSidebar} />
+              <SidebarLink to="/ec-discovery" icon={<ShoppingBag size={16} />} label="EC企業収集" onClick={closeSidebar} />
             )}
-            <SidebarLink to="/scraper" icon={<Globe size={18} />} label="URL収集" onClick={closeSidebar} />
-            <SidebarLink to="/history" icon={<History size={18} />} label="収集履歴" onClick={closeSidebar} />
+            <SidebarLink to="/scraper" icon={<Globe size={16} />} label="URL収集" onClick={closeSidebar} />
+            <SidebarLink to="/history" icon={<History size={16} />} label="収集履歴" onClick={closeSidebar} />
           </div>
 
           <NavSeparator label="管理" />
-          <div className="space-y-1">
-            <SidebarLink to="/projects" icon={<FolderKanban size={18} />} label="プロジェクト管理" onClick={closeSidebar} />
-            <SidebarLink to="/templates" icon={<FileText size={18} />} label="メモテンプレート" onClick={closeSidebar} />
-            <SidebarLink to="/rejected" icon={<ShieldBan size={18} />} label="拒否リスト" onClick={closeSidebar} />
+          <div className="space-y-0.5">
+            <SidebarLink to="/projects" icon={<FolderKanban size={16} />} label="プロジェクト管理" onClick={closeSidebar} />
+            <SidebarLink to="/templates" icon={<FileText size={16} />} label="メモテンプレート" onClick={closeSidebar} />
+            <SidebarLink to="/rejected" icon={<ShieldBan size={16} />} label="拒否リスト" onClick={closeSidebar} />
             {user?.is_system_admin && (
-              <SidebarLink to="/master" icon={<Database size={18} />} label="マスターDB" onClick={closeSidebar} />
+              <SidebarLink to="/master" icon={<Database size={16} />} label="マスターDB" onClick={closeSidebar} />
             )}
             {user?.role === "admin" && (
-              <SidebarLink to="/users" icon={<Users size={18} />} label="メンバー管理" onClick={closeSidebar} />
+              <SidebarLink to="/users" icon={<Users size={16} />} label="メンバー管理" onClick={closeSidebar} />
             )}
             {user?.role === "admin" && (
-              <SidebarLink to="/webhooks" icon={<Link2 size={18} />} label="Webhook設定" onClick={closeSidebar} />
+              <SidebarLink to="/webhooks" icon={<Link2 size={16} />} label="Webhook設定" onClick={closeSidebar} />
             )}
-            <SidebarLink to="/form-profiles" icon={<Globe size={18} />} label="フォーム送信プロフィール" onClick={closeSidebar} />
-            <SidebarLink to="/support" icon={<LifeBuoy size={18} />} label="サポート" onClick={closeSidebar} />
+            <SidebarLink to="/form-profiles" icon={<Globe size={16} />} label="フォーム送信" onClick={closeSidebar} />
+            <SidebarLink to="/support" icon={<LifeBuoy size={16} />} label="サポート" onClick={closeSidebar} />
           </div>
 
           {user?.is_system_admin && (
-            <div className="mt-2">
+            <div className="mt-1">
               <button
                 onClick={toggleAdminNav}
-                className="w-full px-3 py-1.5 flex items-center gap-2 text-slate-500 hover:text-slate-300 transition-colors"
+                className="w-full px-3 py-1.5 flex items-center gap-2 text-gray-400 dark:text-zinc-500 hover:text-gray-600 transition-colors"
               >
-                <div className="h-px flex-1 bg-slate-700" />
+                <div className="h-px flex-1 bg-gray-100 dark:bg-zinc-800" />
                 <span className="text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap flex items-center gap-1">
                   システム管理
                   <ChevronDown size={10} className={`transition-transform ${adminNavOpen ? "rotate-180" : ""}`} />
                 </span>
-                <div className="h-px flex-1 bg-slate-700" />
+                <div className="h-px flex-1 bg-gray-100 dark:bg-zinc-800" />
               </button>
               {adminNavOpen && (
-                <div className="space-y-1 mt-1">
-                  <SidebarLink to="/admin/dashboard" icon={<BarChart2 size={18} />} label="管理ダッシュボード" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/tenants" icon={<Building2 size={18} />} label="テナント管理" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/users" icon={<Users size={18} />} label="全ユーザー管理" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/announcements" icon={<Megaphone size={18} />} label="お知らせ配信" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/plans" icon={<Crown size={18} />} label="プラン管理" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/billing" icon={<CreditCard size={18} />} label="請求・履歴" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/stripe" icon={<CreditCard size={18} />} label="Stripe設定" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/smtp" icon={<Mail size={18} />} label="SMTP設定" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/email-templates" icon={<Mail size={18} />} label="メールテンプレート" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/contact-settings" icon={<Mail size={18} />} label="問い合わせフォーム設定" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/hubsrev" icon={<Link2 size={18} />} label="Hubsrev 連携" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/commitrev" icon={<Link2 size={18} />} label="CommitRev 連携" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/onbizu" icon={<Zap size={18} />} label="Onbizu 連携" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/legal" icon={<Scale size={18} />} label="特定商取引法の表記" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/support" icon={<LifeBuoy size={18} />} label="サポートチケット管理" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/faq" icon={<HelpCircle size={18} />} label="FAQ管理" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/status" icon={<Activity size={18} />} label="ステータスページ" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/features" icon={<Sliders size={18} />} label="機能フラグ" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/api-keys" icon={<Key size={18} />} label="システムAPI設定" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/auto-master" icon={<DatabaseZap size={18} />} label="マスターDB自動収集" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/scoring-rules" icon={<Star size={18} />} label="スコアリングルール" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/security" icon={<Shield size={18} />} label="セキュリティ管理" onClick={closeSidebar} />
-                  <SidebarLink to="/admin/logs" icon={<ScrollText size={18} />} label="システムログ" onClick={closeSidebar} />
+                <div className="space-y-0.5 mt-1">
+                  <SidebarLink to="/admin/dashboard" icon={<BarChart2 size={16} />} label="管理ダッシュボード" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/tenants" icon={<Building2 size={16} />} label="テナント管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/users" icon={<Users size={16} />} label="全ユーザー管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/announcements" icon={<Megaphone size={16} />} label="お知らせ配信" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/plans" icon={<Crown size={16} />} label="プラン管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/billing" icon={<CreditCard size={16} />} label="請求・履歴" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/stripe" icon={<CreditCard size={16} />} label="Stripe設定" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/smtp" icon={<Mail size={16} />} label="SMTP設定" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/email-templates" icon={<Mail size={16} />} label="メールテンプレート" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/contact-settings" icon={<Mail size={16} />} label="問い合わせフォーム設定" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/hubsrev" icon={<Link2 size={16} />} label="Hubsrev 連携" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/commitrev" icon={<Link2 size={16} />} label="CommitRev 連携" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/onbizu" icon={<Zap size={16} />} label="Onbizu 連携" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/legal" icon={<Scale size={16} />} label="特定商取引法の表記" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/support" icon={<LifeBuoy size={16} />} label="サポートチケット管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/faq" icon={<HelpCircle size={16} />} label="FAQ管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/status" icon={<Activity size={16} />} label="ステータスページ" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/features" icon={<Sliders size={16} />} label="機能フラグ" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/api-keys" icon={<Key size={16} />} label="システムAPI設定" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/auto-master" icon={<DatabaseZap size={16} />} label="マスターDB自動収集" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/scoring-rules" icon={<Star size={16} />} label="スコアリングルール" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/security" icon={<Shield size={16} />} label="セキュリティ管理" onClick={closeSidebar} />
+                  <SidebarLink to="/admin/logs" icon={<ScrollText size={16} />} label="システムログ" onClick={closeSidebar} />
                 </div>
               )}
             </div>
           )}
         </nav>
 
-        <div className="p-2 border-t border-slate-700 space-y-1">
+        <div className="px-3 py-2 border-t border-gray-100 dark:border-zinc-800 space-y-0.5">
           <div>
             <button
               onClick={() => setHelpOpen(v => !v)}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-900 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
             >
-              <HelpCircle size={18} />
+              <HelpCircle size={16} />
               <span className="flex-1 text-left">ヘルプ</span>
               <ChevronDown size={14} className={`transition-transform ${helpOpen ? "rotate-180" : ""}`} />
             </button>
             {helpOpen && (
-              <div className="space-y-1 ml-2">
-                <SidebarLink to="/roadmap" icon={<Map size={16} />} label="ロードマップ" onClick={closeSidebar} />
-                <SidebarLink to="/guide" icon={<Zap size={16} />} label="機能ガイド" onClick={closeSidebar} />
-                <SidebarLink to="/manual" icon={<BookOpen size={16} />} label="マニュアル" onClick={closeSidebar} />
+              <div className="space-y-0.5 ml-2">
+                <SidebarLink to="/roadmap" icon={<Map size={15} />} label="ロードマップ" onClick={closeSidebar} />
+                <SidebarLink to="/guide" icon={<Zap size={15} />} label="機能ガイド" onClick={closeSidebar} />
+                <SidebarLink to="/manual" icon={<BookOpen size={15} />} label="マニュアル" onClick={closeSidebar} />
               </div>
             )}
           </div>
-          <SidebarLink to="/settings" icon={<Settings size={18} />} label="設定" onClick={closeSidebar} />
+          <SidebarLink to="/settings" icon={<Settings size={16} />} label="設定" onClick={closeSidebar} />
           <button
             onClick={toggleTheme}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-900 hover:text-gray-900 transition-colors"
           >
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             {theme === "dark" ? "ライトモード" : "ダークモード"}
           </button>
         </div>
 
         {user && (
-          <div className="px-3 py-3 border-t border-slate-700 bg-slate-950">
-              <div className="flex items-center gap-1 mb-1">
+          <div className="px-4 py-3 border-t border-gray-100 dark:border-zinc-800">
+            <div className="flex items-center gap-1 mb-1">
               <button
                 onClick={() => { setShowProfileModal(true); closeSidebar(); }}
-                className="flex items-center gap-2 flex-1 min-w-0 hover:bg-slate-800 rounded-md px-1 py-1 transition-colors"
+                className="flex items-center gap-2.5 flex-1 min-w-0 hover:bg-gray-50 dark:hover:bg-zinc-900 rounded-lg px-2 py-1.5 transition-colors text-left"
               >
-                <div className="bg-blue-600 rounded-full p-1.5 flex-shrink-0">
-                  <User size={12} />
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                  {(user.display_name || user.org_name || "U").charAt(0).toUpperCase()}
                 </div>
-                <div className="overflow-hidden text-left flex-1 min-w-0">
+                <div className="overflow-hidden flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <p className="text-xs text-white font-medium truncate">{user.display_name || user.org_name}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.display_name || user.org_name}</p>
                     {user.is_founder && (
                       <span className="flex-shrink-0 flex items-center gap-0.5 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                         <Star size={8} />
@@ -442,19 +444,19 @@ function AppContent() {
                       </span>
                     )}
                     {user.is_system_admin && !user.is_founder && (
-                      <span className="flex-shrink-0 bg-blue-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                      <span className="flex-shrink-0 bg-indigo-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                         Admin
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
+                  <p className="text-[10px] text-gray-400 dark:text-zinc-500 truncate">{user.email}</p>
                 </div>
               </button>
-              <NotificationPanel buttonClassName="relative p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 transition-colors flex-shrink-0" />
+              <NotificationPanel buttonClassName="relative p-1.5 rounded-lg text-gray-400 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors flex-shrink-0" />
             </div>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-900 rounded-md transition-colors"
             >
               <LogOut size={12} />
               ログアウト
@@ -464,27 +466,27 @@ function AppContent() {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
+        <header className="md:hidden bg-white dark:bg-zinc-950 border-b border-gray-100 dark:border-zinc-800 px-4 py-3 flex items-center gap-3 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-slate-600 hover:text-slate-800 p-1 -ml-1"
+            className="text-gray-500 hover:text-gray-700 p-1 -ml-1"
           >
             <Menu size={22} />
           </button>
           <div className="flex-1 min-w-0">
             {currentProject ? (
-              <p className="text-sm font-semibold text-slate-800 truncate">{currentProject.name}</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{currentProject.name}</p>
             ) : (
-              <span className="text-sm font-bold text-slate-800">LeadHive</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-white">LeadHive</span>
             )}
           </div>
           {user && <NotificationPanel />}
           {user && (
             <button
               onClick={() => setShowProfileModal(true)}
-              className="bg-blue-600 rounded-full p-1.5 flex-shrink-0"
+              className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
             >
-              <User size={14} className="text-white" />
+              {(user.display_name || user.org_name || "U").charAt(0).toUpperCase()}
             </button>
           )}
         </header>
@@ -624,8 +626,10 @@ function SidebarLink({ to, icon, label, onClick }: { to: string; icon: React.Rea
       end={to === "/"}
       onClick={onClick}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-          isActive ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+        `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          isActive
+            ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"
+            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
         }`
       }
     >

@@ -27,7 +27,7 @@ const CMS_COLORS: Record<string, string> = {
   WordPress: "bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-200",
   Wix: "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
 };
-const DEFAULT_CMS_BADGE_COLOR = "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200";
+const DEFAULT_CMS_BADGE_COLOR = "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200";
 const TOP_CMS_COUNT = 5;
 
 const FUNNEL_STATUSES = ["未確認", "対象候補", "アプローチ前", "フォーム送信済", "返信あり", "面談化", "代理店化"];
@@ -81,7 +81,7 @@ export default function Dashboard() {
   if (!data) {
     return (
       <div className="p-6 flex items-center justify-center h-full">
-        <p className="text-slate-500">読み込み中...</p>
+        <p className="text-gray-400 dark:text-zinc-500">読み込み中...</p>
       </div>
     );
   }
@@ -122,7 +122,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-slate-800">ダッシュボード</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">ダッシュボード</h2>
             <HelpTooltip text="現在のプロジェクトの収集状況・スコア分布・フォローアップ予定をまとめて確認できます。" />
           </div>
           {currentPlan && (
@@ -146,11 +146,11 @@ export default function Dashboard() {
               "チームタブは管理者・オーナーのみ閲覧できます",
             ]}
           />
-          <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+          <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-1 gap-1">
           <button
             onClick={() => setActiveTab("overview")}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              activeTab === "overview" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              activeTab === "overview" ? "bg-white dark:bg-zinc-900 text-gray-900 dark:text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200"
             }`}
           >
             <TrendingUp size={14} />
@@ -160,7 +160,7 @@ export default function Dashboard() {
             <button
               onClick={() => setActiveTab("team")}
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "team" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                activeTab === "team" ? "bg-white dark:bg-zinc-900 text-gray-900 dark:text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200"
               }`}
             >
               <Users size={14} />
@@ -169,7 +169,7 @@ export default function Dashboard() {
           ) : (
             <button
               onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "チームダッシュボードは有料プランで利用できます。" } }))}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium text-slate-400 cursor-not-allowed"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium text-gray-400 dark:text-zinc-500 cursor-not-allowed"
             >
               <Lock size={14} />
               チーム
@@ -183,31 +183,31 @@ export default function Dashboard() {
       {activeTab === "team" && (
         <div className="space-y-5">
           {teamLoading ? (
-            <div className="flex items-center justify-center h-48 text-slate-400">読み込み中...</div>
+            <div className="flex items-center justify-center h-48 text-gray-400 dark:text-zinc-500">読み込み中...</div>
           ) : teamData ? (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard icon={<TrendingUp size={18} className="text-blue-600" />} label="今月の新規収集" value={teamData.team_summary.total_collected_this_month} color="bg-blue-50" />
-                <StatCard icon={<Phone size={18} className="text-indigo-600" />} label="アプローチ済み" value={teamData.team_summary.approached_count} color="bg-indigo-50" />
-                <StatCard icon={<Users size={18} className="text-green-600" />} label="面談・商談化" value={teamData.team_summary.meeting_count} color="bg-green-50" />
-                <StatCard icon={<AlertTriangle size={18} className="text-red-600" />} label="期限超過" value={teamData.team_summary.overdue_count} color="bg-red-50" />
+                <StatCard icon={<TrendingUp size={16} />} label="今月の新規収集" value={teamData.team_summary.total_collected_this_month} color="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400" />
+                <StatCard icon={<Phone size={16} />} label="アプローチ済み" value={teamData.team_summary.approached_count} color="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" />
+                <StatCard icon={<Users size={16} />} label="面談・商談化" value={teamData.team_summary.meeting_count} color="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
+                <StatCard icon={<AlertTriangle size={16} />} label="期限超過" value={teamData.team_summary.overdue_count} color="bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400" />
               </div>
 
               {teamData.members.length > 0 && (
-                <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 bg-slate-50">
-                    <Users size={16} className="text-slate-500" />
-                    <h3 className="font-semibold text-slate-700">担当者別進捗</h3>
+                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2 px-5 py-3.5 border-b border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50">
+                    <Users size={16} className="text-gray-400 dark:text-zinc-500" />
+                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm">担当者別進捗</h3>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-slate-100 bg-slate-50">
-                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">担当者</th>
-                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">担当企業</th>
-                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">今週の活動</th>
-                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">期限超過</th>
-                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 min-w-[200px]">ステータス内訳</th>
+                        <tr className="border-b border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50">
+                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">担当者</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">担当企業</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">今週の活動</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">期限超過</th>
+                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[200px]">ステータス内訳</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -216,20 +216,20 @@ export default function Dashboard() {
                             .filter(([s]) => ["フォーム送信済","コンタクト済み","返信あり","面談化","商談中","代理店化"].includes(s))
                             .reduce((sum, [, c]) => sum + c, 0);
                           return (
-                            <tr key={m.user_id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                            <tr key={m.user_id} className="border-b border-gray-50 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
-                                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
+                                  <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-xs font-bold text-indigo-700 dark:text-indigo-400 flex-shrink-0">
                                     {m.display_name.charAt(0).toUpperCase()}
                                   </div>
                                   <div>
-                                    <div className="font-medium text-slate-800 text-sm">{m.display_name}</div>
-                                    <div className="text-xs text-slate-400">{m.email}</div>
+                                    <div className="font-medium text-gray-900 dark:text-white text-sm">{m.display_name}</div>
+                                    <div className="text-xs text-gray-400 dark:text-zinc-500">{m.email}</div>
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-right font-semibold text-slate-700">{m.assigned_count}</td>
-                              <td className="px-4 py-3 text-right text-slate-600">{m.activity_count_this_week}</td>
+                              <td className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-zinc-200">{m.assigned_count}</td>
+                              <td className="px-4 py-3 text-right text-gray-600 dark:text-zinc-300">{m.activity_count_this_week}</td>
                               <td className="px-4 py-3 text-right">
                                 {m.overdue_followups > 0 ? (
                                   <span className="inline-flex items-center gap-1 text-red-600 font-medium">
@@ -237,24 +237,24 @@ export default function Dashboard() {
                                     {m.overdue_followups}
                                   </span>
                                 ) : (
-                                  <span className="text-slate-400">—</span>
+                                  <span className="text-gray-300 dark:text-zinc-600">—</span>
                                 )}
                               </td>
                               <td className="px-4 py-3">
                                 {m.assigned_count > 0 ? (
                                   <div className="flex items-center gap-2">
-                                    <div className="flex-1 bg-slate-100 rounded-full h-2 min-w-[80px]">
+                                    <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded-full h-2 min-w-[80px]">
                                       <div
-                                        className="h-2 rounded-full bg-blue-500 transition-all"
+                                        className="h-2 rounded-full bg-indigo-500 transition-all"
                                         style={{ width: `${Math.min(100, (approached / m.assigned_count) * 100)}%` }}
                                       />
                                     </div>
-                                    <span className="text-xs text-slate-500 whitespace-nowrap">
+                                    <span className="text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">
                                       {approached}/{m.assigned_count} アプローチ済
                                     </span>
                                   </div>
                                 ) : (
-                                  <span className="text-xs text-slate-400">未割当</span>
+                                  <span className="text-xs text-gray-400 dark:text-zinc-500">未割当</span>
                                 )}
                               </td>
                             </tr>
@@ -267,18 +267,18 @@ export default function Dashboard() {
               )}
 
               {teamData.members.some(m => m.assigned_count > 0) && (
-                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
-                    <Users size={14} className="text-blue-500" />
+                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 p-5 shadow-sm">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Users size={14} className="text-indigo-500" />
                     担当企業数（担当者別）
                   </h3>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={teamData.members.map(m => ({ name: m.display_name, 担当: m.assigned_count, アプローチ: Object.entries(m.status_breakdown).filter(([s]) => ["フォーム送信済","コンタクト済み","返信あり","面談化","商談中","代理店化"].includes(s)).reduce((s,[,c]) => s+c, 0) }))} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                      <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} allowDecimals={false} />
-                      <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
-                      <Bar dataKey="担当" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#9ca3af" }} />
+                      <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} allowDecimals={false} />
+                      <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                      <Bar dataKey="担当" fill="#6366f1" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="アプローチ" fill="#10b981" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -286,7 +286,7 @@ export default function Dashboard() {
               )}
             </>
           ) : (
-            <div className="text-center py-16 text-slate-400">データを取得できませんでした</div>
+            <div className="text-center py-16 text-gray-400 dark:text-zinc-500">データを取得できませんでした</div>
           )}
         </div>
       )}
@@ -297,13 +297,13 @@ export default function Dashboard() {
 
       {/* ===== 今日のアクション ===== */}
       {hasActions && (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-slate-200">
-            <Bell size={16} className="text-indigo-600" />
-            <h3 className="font-semibold text-slate-700">今日のアクション</h3>
-            <span className="text-xs text-slate-500 ml-1">— 対応が必要な企業</span>
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-3.5 bg-indigo-50 dark:bg-indigo-500/10 border-b border-indigo-100 dark:border-indigo-500/20">
+            <Bell size={15} className="text-indigo-600 dark:text-indigo-400" />
+            <h3 className="font-semibold text-gray-900 dark:text-white text-sm">今日のアクション</h3>
+            <span className="text-xs text-gray-500 dark:text-zinc-400 ml-1">— 対応が必要な企業</span>
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-gray-50 dark:divide-zinc-800">
             {todayFollowups.length > 0 && (
               <ActionGroup
                 icon={<CalendarClock size={14} className="text-red-500" />}
@@ -348,24 +348,24 @@ export default function Dashboard() {
 
       {/* ===== 統計カード ===== */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <StatCard label="総収集件数" value={data.total} icon={<Building2 size={20} />} color="bg-blue-500" />
-        <StatCard label="重複除外後" value={data.unique_domains} icon={<Search size={20} />} color="bg-indigo-500" />
-        <StatCard label="未確認" value={data.unconfirmed} icon={<AlertCircle size={20} />} color="bg-amber-500" />
-        <StatCard label="高スコア (A/B)" value={data.high_score} icon={<Star size={20} />} color="bg-emerald-500" />
-        <StatCard label="問い合わせあり" value={data.with_contact} icon={<Phone size={20} />} color="bg-purple-500" />
+        <StatCard label="総収集件数" value={data.total} icon={<Building2 size={16} />} color="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" />
+        <StatCard label="重複除外後" value={data.unique_domains} icon={<Search size={16} />} color="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400" />
+        <StatCard label="未確認" value={data.unconfirmed} icon={<AlertCircle size={16} />} color="bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400" />
+        <StatCard label="高スコア (A/B)" value={data.high_score} icon={<Star size={16} />} color="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
+        <StatCard label="問い合わせあり" value={data.with_contact} icon={<Phone size={16} />} color="bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400" />
         <ApiUsageCard usage={data.api_usage_today} limit={data.api_daily_limit} percent={usagePercent} />
       </div>
 
       {/* ===== EC統計カード ===== */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 flex items-center gap-4">
-          <div className="bg-orange-500 text-white p-2.5 rounded-lg flex-shrink-0">
-            <ShoppingCart size={20} />
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 p-5 shadow-sm flex items-center gap-4">
+          <div className="bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 p-2.5 rounded-lg flex-shrink-0">
+            <ShoppingCart size={18} />
           </div>
           <div>
-            <p className="text-sm text-slate-500">EC企業数</p>
-            <p className="text-2xl font-bold text-slate-800 mt-0.5">{data.ec_companies ?? 0}<span className="text-sm font-normal text-slate-400 ml-1">社</span></p>
-            <p className="text-xs text-slate-400 mt-0.5">EC判定フラグが立っている企業</p>
+            <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">EC企業数</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5 tabular-nums">{data.ec_companies ?? 0}<span className="text-sm font-normal text-gray-400 dark:text-zinc-500 ml-1">社</span></p>
+            <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">EC判定フラグが立っている企業</p>
           </div>
         </div>
 
@@ -392,7 +392,7 @@ export default function Dashboard() {
                   <Tooltip formatter={(v: number | string | undefined) => [`${v ?? 0}社`, ""]} />
                   <Legend
                     formatter={(value, entry) => (
-                      <span style={{ fontSize: 11, color: "#475569" }}>
+                      <span style={{ fontSize: 11, color: "#6b7280" }}>
                         {value} {(entry.payload as { value?: number })?.value ?? 0}社
                       </span>
                     )}
@@ -401,8 +401,8 @@ export default function Dashboard() {
               </ResponsiveContainer>
             );
           })() : (
-            <div className="flex flex-col items-center justify-center h-[200px] text-slate-400 text-sm gap-2">
-              <ShoppingCart size={24} className="text-slate-300" />
+            <div className="flex flex-col items-center justify-center h-[200px] text-gray-400 text-sm gap-2">
+              <ShoppingCart size={24} className="text-gray-300" />
               <p>プラットフォームデータなし</p>
             </div>
           )}
@@ -419,17 +419,17 @@ export default function Dashboard() {
         const hiddenTotal = hiddenCms.reduce((sum, [, c]) => sum + c, 0);
         const visibleCms = showAllCms ? sortedCms : sortedCms.slice(0, TOP_CMS_COUNT);
         return (
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 p-5 shadow-sm">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
               <ShoppingCart size={16} className="text-purple-500" />
               CMS / プラットフォーム別
-              <span className="text-xs font-normal text-slate-400">クリックで企業一覧をフィルター</span>
+              <span className="text-xs font-normal text-gray-400 dark:text-zinc-500">クリックで企業一覧をフィルター</span>
             </h3>
             <div className="flex flex-wrap gap-2">
               {data.ec_count != null && data.ec_count > 0 && (
                 <button
                   onClick={() => navigate("/companies?ec_only=true")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100"
                 >
                   🛍️ ECサイト: <span className="font-bold">{data.ec_count.toLocaleString()}社</span>
                 </button>
@@ -446,7 +446,7 @@ export default function Dashboard() {
               {!showAllCms && hiddenCount > 0 && (
                 <button
                   onClick={() => setShowAllCms(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-slate-50 text-slate-500 border-slate-300 hover:bg-slate-100"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
                 >
                   その他 {hiddenCount}件 ({hiddenTotal.toLocaleString()}社) ▼
                 </button>
@@ -454,7 +454,7 @@ export default function Dashboard() {
               {showAllCms && hiddenCount > 0 && (
                 <button
                   onClick={() => setShowAllCms(false)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200"
                 >
                   折りたたむ ▲
                 </button>
@@ -466,8 +466,8 @@ export default function Dashboard() {
 
       {/* ===== 営業ファネル ===== */}
       {funnelData.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-          <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <TrendingUp size={16} className="text-indigo-500" />
             営業ファネル
           </h3>
@@ -479,8 +479,8 @@ export default function Dashboard() {
               const convRate = prev && prev.value > 0 ? Math.round((d.value / prev.value) * 100) : null;
               return (
                 <div key={d.name} className="flex items-center gap-3">
-                  <div className="w-24 text-right text-xs text-slate-500 flex-shrink-0">{d.name}</div>
-                  <div className="flex-1 bg-slate-100 rounded-full h-7 relative overflow-hidden">
+                  <div className="w-24 text-right text-xs text-gray-500 dark:text-zinc-400 flex-shrink-0">{d.name}</div>
+                  <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded-full h-7 relative overflow-hidden">
                     <div
                       className="h-full rounded-full flex items-center justify-end pr-2 transition-all duration-500"
                       style={{ width: `${Math.max(pct, 4)}%`, backgroundColor: d.fill }}
@@ -488,7 +488,7 @@ export default function Dashboard() {
                       <span className="text-white text-xs font-bold drop-shadow">{d.value}</span>
                     </div>
                   </div>
-                  <div className="w-16 text-xs text-slate-400 flex-shrink-0">
+                  <div className="w-16 text-xs text-gray-400 dark:text-zinc-500 flex-shrink-0">
                     {convRate !== null && (
                       <span className={`font-medium ${convRate >= 30 ? "text-emerald-600" : convRate >= 10 ? "text-amber-600" : "text-red-500"}`}>
                         ↑{convRate}%
@@ -499,7 +499,7 @@ export default function Dashboard() {
               );
             })}
           </div>
-          <p className="text-xs text-slate-400 mt-3">※ 矢印は前ステータスからの転換率</p>
+          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-3">※ 矢印は前ステータスからの転換率</p>
         </div>
       )}
 
@@ -598,33 +598,33 @@ export default function Dashboard() {
         );
       })()}
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-        <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          <Clock size={16} />
+      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 p-5 shadow-sm">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <Clock size={16} className="text-gray-400" />
           最近追加された企業
         </h3>
         {data.recent_companies.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left px-3 py-2 font-medium text-slate-600">会社名</th>
-                  <th className="text-left px-3 py-2 font-medium text-slate-600">カテゴリ</th>
-                  <th className="text-center px-3 py-2 font-medium text-slate-600">スコア</th>
-                  <th className="text-left px-3 py-2 font-medium text-slate-600">追加日時</th>
+                <tr className="border-b border-gray-100 dark:border-zinc-800">
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">会社名</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">カテゴリ</th>
+                  <th className="text-center px-3 py-2 text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">スコア</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">追加日時</th>
                 </tr>
               </thead>
               <tbody>
                 {data.recent_companies.map((c) => (
-                  <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50">
-                    <td className="px-3 py-2 text-slate-800">{c.company_name || c.domain}</td>
-                    <td className="px-3 py-2 text-slate-600">{c.category_main || "-"}</td>
-                    <td className="px-3 py-2 text-center">
+                  <tr key={c.id} className="border-b border-gray-50 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <td className="px-3 py-2.5 text-gray-800 dark:text-zinc-200 font-medium">{c.company_name || c.domain}</td>
+                    <td className="px-3 py-2.5 text-gray-500 dark:text-zinc-400">{c.category_main || "-"}</td>
+                    <td className="px-3 py-2.5 text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${SCORE_BADGE_COLORS[c.score_rank] || SCORE_BADGE_COLORS.D}`}>
                         {c.score_rank} {c.score_total}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-slate-500 text-xs">
+                    <td className="px-3 py-2.5 text-gray-400 dark:text-zinc-500 text-xs">
                       {c.created_at ? new Date(c.created_at).toLocaleDateString("ja-JP") : "-"}
                     </td>
                   </tr>
@@ -633,7 +633,7 @@ export default function Dashboard() {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-slate-400 text-center py-4">まだ企業が追加されていません</p>
+          <p className="text-sm text-gray-400 dark:text-zinc-500 text-center py-4">まだ企業が追加されていません</p>
         )}
       </div>
       </>}
@@ -654,15 +654,15 @@ function ActionGroup({
     <div className="px-4 py-3">
       <div className="flex items-center gap-1.5 mb-2">
         {icon}
-        <span className="text-xs font-semibold text-slate-600">{label}</span>
-        <span className="text-xs text-slate-400">({companies.length}件)</span>
+        <span className="text-xs font-semibold text-gray-700 dark:text-zinc-300">{label}</span>
+        <span className="text-xs text-gray-400 dark:text-zinc-500">({companies.length}件)</span>
       </div>
       <div className="space-y-1.5">
         {companies.map((c) => (
           <div key={c.id} className="flex items-center gap-3 text-sm">
-            <ChevronRight size={12} className="text-slate-300 flex-shrink-0" />
-            <span className="flex-1 text-slate-700 truncate">{c.company_name || c.domain}</span>
-            <span className="text-xs text-slate-400">{c.status}</span>
+            <ChevronRight size={12} className="text-gray-300 dark:text-zinc-600 flex-shrink-0" />
+            <span className="flex-1 text-gray-700 dark:text-zinc-300 truncate">{c.company_name || c.domain}</span>
+            <span className="text-xs text-gray-400 dark:text-zinc-500">{c.status}</span>
             {renderBadge && renderBadge(c)}
           </div>
         ))}
@@ -673,36 +673,34 @@ function ActionGroup({
 
 function ApiUsageCard({ usage, limit, percent }: { usage: number; limit: number; percent: number }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <p className="text-sm text-slate-500">API使用量</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">
-            {usage}<span className="text-sm font-normal text-slate-400">/{limit}</span>
-          </p>
-        </div>
-        <div className="bg-cyan-500 text-white p-2 rounded-lg"><Zap size={20} /></div>
+    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-sm font-medium text-gray-500 dark:text-zinc-400">API使用量</div>
+        <div className="bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 p-2 rounded-lg"><Zap size={16} /></div>
       </div>
-      <div className="w-full bg-slate-200 rounded-full h-2">
+      <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
+        {usage}<span className="text-sm font-normal text-gray-400 dark:text-zinc-500">/{limit}</span>
+      </p>
+      <div className="w-full bg-gray-100 dark:bg-zinc-800 rounded-full h-1.5 mt-3">
         <div
-          className={`h-2 rounded-full transition-all ${percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-amber-500" : "bg-cyan-500"}`}
+          className={`h-1.5 rounded-full transition-all ${percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-amber-500" : "bg-cyan-500"}`}
           style={{ width: `${percent}%` }}
         />
       </div>
-      <p className="text-xs text-slate-400 mt-1">残り {limit - usage} 回</p>
+      <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1.5">残り {limit - usage} 回</p>
     </div>
   );
 }
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-      <h3 className="font-semibold text-slate-700 mb-3">{title}</h3>
+    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 p-5 shadow-sm">
+      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">{title}</h3>
       {children}
     </div>
   );
 }
 
 function EmptyChart() {
-  return <p className="text-sm text-slate-400 py-8 text-center">データなし</p>;
+  return <p className="text-sm text-gray-400 dark:text-zinc-500 py-8 text-center">データなし</p>;
 }
