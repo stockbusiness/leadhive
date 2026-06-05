@@ -118,13 +118,11 @@ export default function Dashboard() {
   const hasActions = todayFollowups.length > 0 || repliedCompanies.length > 0 || topUncontacted.length > 0;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">ダッシュボード</h2>
-            <HelpTooltip text="現在のプロジェクトの収集状況・スコア分布・フォローアップ予定をまとめて確認できます。" />
-          </div>
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">ダッシュボード</h2>
+          <HelpTooltip text="現在のプロジェクトの収集状況・スコア分布・フォローアップ予定をまとめて確認できます。" />
           {currentPlan && (
             <span className="flex items-center gap-1.5 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
               <Crown size={12} />
@@ -132,7 +130,7 @@ export default function Dashboard() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <HelpPanel
             title="ダッシュボードのヘルプ"
             manualLinks={[
@@ -147,34 +145,34 @@ export default function Dashboard() {
             ]}
           />
           <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-1 gap-1">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              activeTab === "overview" ? "bg-white dark:bg-zinc-900 text-gray-900 dark:text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200"
-            }`}
-          >
-            <TrendingUp size={14} />
-            概要
-          </button>
-          {(isSystemAdmin || user?.role === "admin") ? (
             <button
-              onClick={() => setActiveTab("team")}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "team" ? "bg-white dark:bg-zinc-900 text-gray-900 dark:text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200"
+              onClick={() => setActiveTab("overview")}
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "overview" ? "bg-white dark:bg-zinc-900 text-gray-900 dark:text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200"
               }`}
             >
-              <Users size={14} />
-              チーム
+              <TrendingUp size={14} />
+              概要
             </button>
-          ) : (
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "チームダッシュボードは有料プランで利用できます。" } }))}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium text-gray-400 dark:text-zinc-500 cursor-not-allowed"
-            >
-              <Lock size={14} />
-              チーム
-            </button>
-          )}
+            {(isSystemAdmin || user?.role === "admin") ? (
+              <button
+                onClick={() => setActiveTab("team")}
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === "team" ? "bg-white dark:bg-zinc-900 text-gray-900 dark:text-white shadow-sm" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200"
+                }`}
+              >
+                <Users size={14} />
+                チーム
+              </button>
+            ) : (
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "チームダッシュボードは有料プランで利用できます。" } }))}
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium text-gray-400 dark:text-zinc-500 cursor-not-allowed"
+              >
+                <Lock size={14} />
+                チーム
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -347,7 +345,7 @@ export default function Dashboard() {
       )}
 
       {/* ===== 統計カード ===== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         <StatCard label="総収集件数" value={data.total} icon={<Building2 size={16} />} color="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" />
         <StatCard label="重複除外後" value={data.unique_domains} icon={<Search size={16} />} color="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400" />
         <StatCard label="未確認" value={data.unconfirmed} icon={<AlertCircle size={16} />} color="bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400" />
@@ -673,21 +671,21 @@ function ActionGroup({
 
 function ApiUsageCard({ usage, limit, percent }: { usage: number; limit: number; percent: number }) {
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-medium text-gray-500 dark:text-zinc-400">API使用量</div>
-        <div className="bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 p-2 rounded-lg"><Zap size={16} /></div>
+    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 p-3 sm:p-5 shadow-sm">
+      <div className="flex items-start justify-between mb-2 sm:mb-3 gap-1">
+        <div className="text-xs sm:text-sm font-medium text-gray-500 dark:text-zinc-400 leading-tight">API使用量</div>
+        <div className="bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 p-1.5 sm:p-2 rounded-lg flex-shrink-0"><Zap size={16} /></div>
       </div>
-      <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
-        {usage}<span className="text-sm font-normal text-gray-400 dark:text-zinc-500">/{limit}</span>
+      <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
+        {usage}<span className="text-xs sm:text-sm font-normal text-gray-400 dark:text-zinc-500">/{limit}</span>
       </p>
-      <div className="w-full bg-gray-100 dark:bg-zinc-800 rounded-full h-1.5 mt-3">
+      <div className="w-full bg-gray-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 sm:mt-3">
         <div
           className={`h-1.5 rounded-full transition-all ${percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-amber-500" : "bg-cyan-500"}`}
           style={{ width: `${percent}%` }}
         />
       </div>
-      <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1.5">残り {limit - usage} 回</p>
+      <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1 sm:mt-1.5">残り {limit - usage} 回</p>
     </div>
   );
 }
