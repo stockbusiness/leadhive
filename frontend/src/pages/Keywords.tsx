@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Search, BarChart2, List, TrendingUp, Zap, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Lightbulb, MapPin, ShoppingCart, CheckCircle2, Pencil, Check, X } from "lucide-react";
+import { Plus, Trash2, Search, BarChart2, List, TrendingUp, Zap, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Lightbulb, MapPin, ShoppingCart, CheckCircle2, Pencil, Check, X, Sparkles, Link, Tag } from "lucide-react";
 import HelpTooltip from "../components/HelpTooltip";
 import HelpPanel from "../components/HelpPanel";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { api } from "../api";
 import { CATEGORIES, DEFAULT_KEYWORDS, KEYWORD_SUGGESTIONS, REGION_SUGGESTIONS } from "../constants";
-import type { SearchKeyword, KeywordAnalytics, KeywordAnalyticsSummary, EcKeywordTemplate } from "../types";
+import type { SearchKeyword, KeywordAnalytics, KeywordAnalyticsSummary, EcKeywordTemplate, AiKeywordSuggestion } from "../types";
 import { useProject } from "../contexts/ProjectContext";
 
 function EfficiencyBadge({ rate, runs }: { rate: number; runs: number }) {
@@ -263,6 +263,14 @@ export default function Keywords() {
   const [addingEcTemplate, setAddingEcTemplate] = useState(false);
   const [addedEcTemplates, setAddedEcTemplates] = useState<Set<string>>(new Set());
 
+  const [showAiSuggest, setShowAiSuggest] = useState(false);
+  const [aiSuggestUrl, setAiSuggestUrl] = useState("");
+  const [aiSuggestLoading, setAiSuggestLoading] = useState(false);
+  const [aiSuggestError, setAiSuggestError] = useState("");
+  const [aiSuggestions, setAiSuggestions] = useState<AiKeywordSuggestion[]>([]);
+  const [aiSuggestTitle, setAiSuggestTitle] = useState("");
+  const [aiAddedSet, setAiAddedSet] = useState<Set<string>>(new Set());
+
   const fetchKeywords = () => {
     api.keywords.list().then((data) => setKeywords(data.keywords));
   };
@@ -315,6 +323,38 @@ export default function Keywords() {
 
   const addDefaultKeywords = () => {
     Promise.all(DEFAULT_KEYWORDS.map((kw) => api.keywords.create(kw))).then(() => fetchKeywords());
+  };
+
+  const handleAiSuggest = async () => {
+    if (!aiSuggestUrl.trim()) return;
+    setAiSuggestLoading(true);
+    setAiSuggestError("");
+    setAiSuggestions([]);
+    setAiAddedSet(new Set());
+    try {
+      const data = await api.keywords.aiSuggest(aiSuggestUrl.trim());
+      setAiSuggestions(data.suggestions);
+      setAiSuggestTitle(data.title);
+    } catch (e: any) {
+      setAiSuggestError(e?.response?.data?.detail || "分析に失敗しました");
+    } finally {
+      setAiSuggestLoading(false);
+    }
+  };
+
+  const handleAiAddOne = async (s: AiKeywordSuggestion) => {
+    const projectId = selectedProject?.id;
+    await api.keywords.create({ keyword: s.keyword, category: s.category, region: s.region, project_id: projectId });
+    setAiAddedSet((prev) => new Set([...prev, s.keyword]));
+    fetchKeywords();
+  };
+
+  const handleAiAddAll = async () => {
+    const projectId = selectedProject?.id;
+    const pending = aiSuggestions.filter((s) => !aiAddedSet.has(s.keyword));
+    await Promise.all(pending.map((s) => api.keywords.create({ keyword: s.keyword, category: s.category, region: s.region, project_id: projectId })));
+    setAiAddedSet(new Set(aiSuggestions.map((s) => s.keyword)));
+    fetchKeywords();
   };
 
   const addEcTemplateKeywords = async (templateId: string) => {
@@ -511,6 +551,147 @@ export default function Keywords() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* AIキーワード提案 */}
+          <div className="bg-white rounded-lg shadow-sm border border-violet-200 overflow-hidden">
+            <button
+              onClick={() => setShowAiSuggest((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-violet-50 transition-colors"
+            >
+              <span className="flex items-center gap-2 font-semibold text-slate-700 text-sm">
+                <Sparkles size={16} className="text-violet-500" />
+                AIキーワード提案
+                <span className="text-xs font-normal text-slate-400 hidden sm:inline">— 商品LP・URLからターゲットキーワードを自動生成</span>
+              </span>
+              {showAiSuggest ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+            </button>
+
+            {showAiSuggest && (
+              <div className="border-t border-violet-100 p-4 space-y-4">
+                {/* URL入力 */}
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-600">
+                    商品・サービスのランディングページURLを入力すると、AIがターゲット企業を探すための検索キーワードを10件提案します。
+                  </p>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Link size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="url"
+                        placeholder="https://example.com/lp/product"
+                        value={aiSuggestUrl}
+                        onChange={(e) => setAiSuggestUrl(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAiSuggest()}
+                        className="w-full border border-slate-300 rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                      />
+                    </div>
+                    <button
+                      onClick={handleAiSuggest}
+                      disabled={aiSuggestLoading || !aiSuggestUrl.trim()}
+                      className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {aiSuggestLoading ? (
+                        <><RefreshCw size={14} className="animate-spin" />分析中...</>
+                      ) : (
+                        <><Sparkles size={14} />AIで分析</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* エラー */}
+                {aiSuggestError && (
+                  <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                    {aiSuggestError}
+                  </div>
+                )}
+
+                {/* ローディング表示 */}
+                {aiSuggestLoading && (
+                  <div className="text-center py-8 text-slate-400 text-sm">
+                    <RefreshCw size={24} className="animate-spin mx-auto mb-2 text-violet-400" />
+                    LPを読み込んでAIが分析中です…（10〜20秒かかる場合があります）
+                  </div>
+                )}
+
+                {/* 結果 */}
+                {aiSuggestions.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">
+                          {aiSuggestTitle ? `「${aiSuggestTitle}」の` : ""}提案キーワード {aiSuggestions.length}件
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">各キーワードを個別に追加、または一括追加できます</p>
+                      </div>
+                      {aiSuggestions.some((s) => !aiAddedSet.has(s.keyword)) && (
+                        <button
+                          onClick={handleAiAddAll}
+                          className="flex items-center gap-1.5 bg-violet-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-violet-700 transition-colors font-medium"
+                        >
+                          <Plus size={13} />
+                          未追加をすべて追加
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2">
+                      {aiSuggestions.map((s, i) => {
+                        const added = aiAddedSet.has(s.keyword);
+                        return (
+                          <div
+                            key={i}
+                            className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                              added
+                                ? "bg-emerald-50 border-emerald-200"
+                                : "bg-slate-50 border-slate-200 hover:border-violet-200 hover:bg-violet-50"
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-800">{s.keyword}</p>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                {s.category && (
+                                  <span className="inline-flex items-center gap-1 text-xs text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
+                                    <Tag size={10} />
+                                    {s.category}
+                                  </span>
+                                )}
+                                {s.region && (
+                                  <span className="inline-flex items-center gap-1 text-xs text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                                    <MapPin size={10} />
+                                    {s.region}
+                                  </span>
+                                )}
+                              </div>
+                              {s.reason && (
+                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{s.reason}</p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => !added && handleAiAddOne(s)}
+                              disabled={added}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
+                                added
+                                  ? "bg-emerald-100 text-emerald-700 cursor-default"
+                                  : "bg-violet-600 text-white hover:bg-violet-700"
+                              }`}
+                            >
+                              {added ? (
+                                <><CheckCircle2 size={12} />追加済み</>
+                              ) : (
+                                <><Plus size={12} />追加</>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* EC特化キーワードテンプレート */}

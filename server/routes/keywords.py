@@ -90,6 +90,116 @@ def create_keyword(
     }
 
 
+@router.post("/ai-suggest")
+def ai_suggest_keywords(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    url = (data.get("url") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URLを入力してください")
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    from server.services.ai_analyzer import get_openai_key
+    from server.services.encryption import decrypt_value
+
+    raw_key = get_openai_key(db, current_user.org_id)
+    openai_key = decrypt_value(raw_key) if raw_key else ""
+    if not openai_key:
+        raise HTTPException(
+            status_code=400,
+            detail="OpenAI APIキーが設定されていません。設定 › AI連携からキーを登録してください。",
+        )
+
+    import requests as _requests
+    from bs4 import BeautifulSoup
+
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; LeadHive/1.0)"}
+        resp = _requests.get(url, headers=headers, timeout=(5, 12))
+        resp.encoding = resp.apparent_encoding or "utf-8"
+        soup = BeautifulSoup(resp.content, "html.parser")
+        for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+            tag.decompose()
+        raw_text = soup.get_text(separator="\n", strip=True)
+        body = "\n".join(line for line in raw_text.splitlines() if line.strip())[:4000]
+        title = (soup.title.string or "").strip() if soup.title else ""
+        meta_desc_tag = soup.find("meta", attrs={"name": "description"})
+        meta_desc = (meta_desc_tag.get("content") or "").strip() if meta_desc_tag else ""
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"URLの取得に失敗しました: {e}")
+
+    from openai import OpenAI
+    import json
+
+    prompt = f"""あなたはBtoB営業のターゲティング専門家です。
+以下は商品・サービスのランディングページ（LP）の内容です。
+
+URL: {url}
+タイトル: {title}
+メタディスクリプション: {meta_desc}
+本文（抜粋）:
+{body[:3000]}
+
+---
+
+このサービスをBtoB営業で販売したい場合に、ターゲットとなる企業をGoogle検索で
+探すためのキーワードを10個提案してください。
+
+各キーワードは「業種＋会社種別＋地域（任意）」の組み合わせで、
+実際にGoogle検索で使える自然な日本語フレーズにしてください。
+
+以下のJSON形式で出力してください：
+{{
+  "suggestions": [
+    {{
+      "keyword": "キーワード文字列（例: Webデザイン 制作会社 東京）",
+      "category": "業種カテゴリ（例: IT・Web, 製造, 小売, 飲食, 医療）",
+      "region": "地域（東京・大阪など。地域を限定しない場合は空文字）",
+      "reason": "このキーワードを提案した理由（1〜2文）"
+    }}
+  ]
+}}
+
+JSON以外は出力しないでください。"""
+
+    try:
+        client = OpenAI(api_key=openai_key)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5,
+            max_tokens=2000,
+            response_format={"type": "json_object"},
+        )
+        raw = response.choices[0].message.content
+        parsed = json.loads(raw)
+        suggestions = parsed.get("suggestions") or []
+
+        try:
+            from server.models import AiUsageLog
+            log = AiUsageLog(
+                org_id=current_user.org_id,
+                user_id=current_user.id,
+                action_type="keyword_suggest",
+                token_input=response.usage.prompt_tokens if response.usage else 0,
+                token_output=response.usage.completion_tokens if response.usage else 0,
+                model="gpt-4o-mini",
+            )
+            db.add(log)
+            db.commit()
+        except Exception:
+            pass
+
+        return {"suggestions": suggestions, "url": url, "title": title}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="AIの応答の解析に失敗しました")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI分析エラー: {e}")
+
+
 @router.put("/{keyword_id}")
 def update_keyword(
     keyword_id: int,

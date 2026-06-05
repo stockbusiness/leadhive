@@ -3,7 +3,7 @@ import type {
   Company, StatusHistoryEntry, MemoTemplate, SearchKeyword,
   ScrapeResult, CollectionLog, RejectedItem, DashboardData, ActivityLogEntry, Project, CompanyMaster,
   PlanData, PlanUsage, OrgWithPlan, KeywordAnalytics, KeywordAnalyticsSummary, PipelineCard,
-  EcKeywordTemplate, EcTemplatePreset,
+  EcKeywordTemplate, EcTemplatePreset, AiKeywordSuggestion,
 } from "../types";
 
 axios.interceptors.response.use(
@@ -186,6 +186,11 @@ export const api = {
 
     ecTemplates: () =>
       axios.get<{ templates: EcKeywordTemplate[] }>("/api/keywords/ec-templates").then(r => r.data),
+
+    aiSuggest: (url: string) =>
+      axios.post<{ suggestions: AiKeywordSuggestion[]; url: string; title: string }>(
+        "/api/keywords/ai-suggest", { url }
+      ).then(r => r.data),
   },
 
   scraper: {

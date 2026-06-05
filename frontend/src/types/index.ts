@@ -313,3 +313,10 @@ export interface EcTemplatePreset {
   title: string;
   content: string;
 }
+
+export interface AiKeywordSuggestion {
+  keyword: string;
+  category: string;
+  region: string;
+  reason: string;
+}
