@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2, Search, ChevronDown, ChevronUp, DatabaseZap, ShieldBan, ExternalLink, AlertTriangle, Store } from "lucide-react";
+import { Globe, Loader2, CheckCircle, XCircle, Zap, Play, List, ShoppingBag, MapPin, Building2, Search, ChevronDown, ChevronUp, DatabaseZap, ShieldBan, ExternalLink, AlertTriangle, Store, CheckSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import HelpTooltip from "../components/HelpTooltip";
 import { api } from "../api";
@@ -255,6 +255,19 @@ export default function Scraper() {
   const toggleAll = (checked: boolean) => setStagedUrls((prev) => prev.map((u) => ({ ...u, selected: u.has_url === false ? false : checked })));
   const toggleOne = (id: string) => setStagedUrls((prev) => prev.map((u) => u.id === id ? { ...u, selected: !u.selected } : u));
 
+  const _PUBLIC_ORG_SUFFIXES = ['go.jp', 'lg.jp', 'or.jp', 'ac.jp', 'ed.jp'];
+  const _isPublicOrgUrl = (url: string, excludeReason?: string | null): boolean => {
+    if (excludeReason && ['行政機関', '公共団体', '財団', 'NPO', '学術', '教育'].some(kw => excludeReason.includes(kw))) return true;
+    try {
+      const hostname = new URL(url).hostname.replace(/^www\./, '');
+      return _PUBLIC_ORG_SUFFIXES.some(s => hostname === s || hostname.endsWith('.' + s));
+    } catch { return false; }
+  };
+  const deselectPublicOrgs = () => setStagedUrls(prev => prev.map(u =>
+    _isPublicOrgUrl(u.url, u.exclude_reason) ? { ...u, selected: false } : u
+  ));
+  const selectAllIncludingExcluded = () => setStagedUrls(prev => prev.map(u => ({ ...u, selected: u.has_url !== false })));
+
   const tabs: { key: CollectTab; label: string; icon: typeof Zap }[] = [
     { key: "google-api", label: "Google API検索", icon: Zap },
     { key: "ec-search", label: "ECサイト検索", icon: Store },
@@ -418,6 +431,8 @@ export default function Scraper() {
             onToggleOne={toggleOne}
             onScrapeSelected={handleScrapeStaged}
             onScrapeOne={handleScrapeOne}
+            onDeselectPublicOrgs={deselectPublicOrgs}
+            onSelectAllIncluding={selectAllIncludingExcluded}
             scrapeInProgress={scrapeInProgress}
             scrapeProgressMsg={scrapeProgressMsg}
             scrapeProgressCurrent={scrapeProgressCurrent}
@@ -1438,6 +1453,7 @@ function GmStagingCards({
 
 function StagingTable({
   urls, onToggleAll, onToggleOne, onScrapeSelected, onScrapeOne,
+  onDeselectPublicOrgs, onSelectAllIncluding,
   scrapeInProgress, scrapeProgressMsg, scrapeProgressCurrent, scrapeProgressTotal, scrapeResults,
 }: {
   urls: StagedUrlItem[];
@@ -1445,6 +1461,8 @@ function StagingTable({
   onToggleOne: (id: string) => void;
   onScrapeSelected: () => void;
   onScrapeOne: (url: string) => void;
+  onDeselectPublicOrgs: () => void;
+  onSelectAllIncluding: () => void;
   scrapeInProgress: boolean;
   scrapeProgressMsg: string;
   scrapeProgressCurrent: number;
@@ -1466,15 +1484,15 @@ function StagingTable({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
-        <div className="flex items-center gap-2">
-          <Globe size={16} className="text-blue-600" />
-          <span className="font-semibold text-slate-700 text-sm">
-            URL一覧（{urls.length}件）
-          </span>
-          <span className="text-xs text-slate-400">— {selectedCount}件選択中</span>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Globe size={16} className="text-blue-600" />
+            <span className="font-semibold text-slate-700 text-sm">
+              URL一覧（{urls.length}件）
+            </span>
+            <span className="text-xs text-slate-400">— {selectedCount}件選択中</span>
+          </div>
           <button
             onClick={onScrapeSelected}
             disabled={scrapeInProgress || selectedCount === 0}
@@ -1482,6 +1500,23 @@ function StagingTable({
           >
             {scrapeInProgress ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
             選択をスクレイピング ({selectedCount})
+          </button>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-slate-400">クイック操作:</span>
+          <button
+            onClick={onDeselectPublicOrgs}
+            title="行政・社団法人・NPO・学術機関等のドメイン（go.jp / lg.jp / or.jp / ac.jp）のチェックを外します"
+            className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
+          >
+            <Building2 size={11} /> 公的組織を除外
+          </button>
+          <button
+            onClick={onSelectAllIncluding}
+            title="自動的に除外候補とされたURLも含めて、全てのURLを選択状態にします"
+            className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-600 bg-white hover:bg-slate-100 transition-colors"
+          >
+            <CheckSquare size={11} /> 除外候補も全選択
           </button>
         </div>
       </div>
@@ -1529,7 +1564,7 @@ function StagingTable({
                     <div className="truncate">{u.name || "—"}</div>
                     {u.location && <span className="text-xs text-slate-400">{u.location}</span>}
                     {u.excluded && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded" title={u.exclude_reason || "まとめサイト除外候補"}>
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded" title={`${u.exclude_reason || "除外候補"} — チェックを入れれば収集対象に含められます`}>
                         <ShieldBan size={9} /> 除外候補
                       </span>
                     )}
