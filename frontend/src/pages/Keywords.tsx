@@ -325,6 +325,12 @@ export default function Keywords() {
     Promise.all(DEFAULT_KEYWORDS.map((kw) => api.keywords.create(kw))).then(() => fetchKeywords());
   };
 
+  const _buildExcludeList = (currentSuggestions: AiKeywordSuggestion[]) => {
+    const registered = keywords.map((k) => k.keyword);
+    const proposed = currentSuggestions.map((s) => s.keyword);
+    return [...new Set([...registered, ...proposed])];
+  };
+
   const handleAiSuggest = async () => {
     if (!aiSuggestUrl.trim()) return;
     setAiSuggestLoading(true);
@@ -332,7 +338,8 @@ export default function Keywords() {
     setAiSuggestions([]);
     setAiAddedSet(new Set());
     try {
-      const data = await api.keywords.aiSuggest(aiSuggestUrl.trim());
+      const exclude = keywords.map((k) => k.keyword);
+      const data = await api.keywords.aiSuggest(aiSuggestUrl.trim(), exclude);
       setAiSuggestions(data.suggestions);
       setAiSuggestTitle(data.title);
     } catch (e: any) {
@@ -342,18 +349,34 @@ export default function Keywords() {
     }
   };
 
+  const handleAiSuggestMore = async () => {
+    if (!aiSuggestUrl.trim()) return;
+    setAiSuggestLoading(true);
+    setAiSuggestError("");
+    try {
+      const exclude = _buildExcludeList(aiSuggestions);
+      const data = await api.keywords.aiSuggest(aiSuggestUrl.trim(), exclude);
+      setAiSuggestions((prev) => [...prev, ...data.suggestions]);
+    } catch (e: any) {
+      setAiSuggestError(e?.response?.data?.detail || "追加提案の取得に失敗しました");
+    } finally {
+      setAiSuggestLoading(false);
+    }
+  };
+
   const handleAiAddOne = async (s: AiKeywordSuggestion) => {
     const projectId = selectedProject?.id;
-    await api.keywords.create({ keyword: s.keyword, category: s.category, region: s.region, project_id: projectId });
+    await api.keywords.create({ keyword: s.keyword, category: s.category, region: "", project_id: projectId });
     setAiAddedSet((prev) => new Set([...prev, s.keyword]));
     fetchKeywords();
   };
 
   const handleAiAddAll = async () => {
     const projectId = selectedProject?.id;
-    const pending = aiSuggestions.filter((s) => !aiAddedSet.has(s.keyword));
-    await Promise.all(pending.map((s) => api.keywords.create({ keyword: s.keyword, category: s.category, region: s.region, project_id: projectId })));
-    setAiAddedSet(new Set(aiSuggestions.map((s) => s.keyword)));
+    const registeredSet = new Set(keywords.map((k) => k.keyword));
+    const pending = aiSuggestions.filter((s) => !aiAddedSet.has(s.keyword) && !registeredSet.has(s.keyword));
+    await Promise.all(pending.map((s) => api.keywords.create({ keyword: s.keyword, category: s.category, region: "", project_id: projectId })));
+    setAiAddedSet((prev) => new Set([...prev, ...pending.map((s) => s.keyword)]));
     fetchKeywords();
   };
 
@@ -617,79 +640,103 @@ export default function Keywords() {
                 )}
 
                 {/* 結果 */}
-                {aiSuggestions.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-700">
-                          {aiSuggestTitle ? `「${aiSuggestTitle}」の` : ""}提案キーワード {aiSuggestions.length}件
-                        </p>
-                        <p className="text-xs text-slate-400 mt-0.5">各キーワードを個別に追加、または一括追加できます</p>
-                      </div>
-                      {aiSuggestions.some((s) => !aiAddedSet.has(s.keyword)) && (
-                        <button
-                          onClick={handleAiAddAll}
-                          className="flex items-center gap-1.5 bg-violet-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-violet-700 transition-colors font-medium"
-                        >
-                          <Plus size={13} />
-                          未追加をすべて追加
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2">
-                      {aiSuggestions.map((s, i) => {
-                        const added = aiAddedSet.has(s.keyword);
-                        return (
-                          <div
-                            key={i}
-                            className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-                              added
-                                ? "bg-emerald-50 border-emerald-200"
-                                : "bg-slate-50 border-slate-200 hover:border-violet-200 hover:bg-violet-50"
-                            }`}
+                {aiSuggestions.length > 0 && (() => {
+                  const registeredSet = new Set(keywords.map((k) => k.keyword));
+                  const pendingCount = aiSuggestions.filter(
+                    (s) => !aiAddedSet.has(s.keyword) && !registeredSet.has(s.keyword)
+                  ).length;
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-700">
+                            {aiSuggestTitle ? `「${aiSuggestTitle}」の` : ""}提案キーワード {aiSuggestions.length}件
+                          </p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            各キーワードを追加、または「さらに10件」で新しい提案を追加できます
+                          </p>
+                        </div>
+                        {pendingCount > 0 && (
+                          <button
+                            onClick={handleAiAddAll}
+                            className="flex items-center gap-1.5 bg-violet-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-violet-700 transition-colors font-medium"
                           >
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-slate-800">{s.keyword}</p>
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                {s.category && (
-                                  <span className="inline-flex items-center gap-1 text-xs text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
-                                    <Tag size={10} />
-                                    {s.category}
-                                  </span>
-                                )}
-                                {s.region && (
-                                  <span className="inline-flex items-center gap-1 text-xs text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                                    <MapPin size={10} />
-                                    {s.region}
-                                  </span>
-                                )}
-                              </div>
-                              {s.reason && (
-                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{s.reason}</p>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => !added && handleAiAddOne(s)}
-                              disabled={added}
-                              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
-                                added
-                                  ? "bg-emerald-100 text-emerald-700 cursor-default"
-                                  : "bg-violet-600 text-white hover:bg-violet-700"
+                            <Plus size={13} />
+                            未追加をすべて追加（{pendingCount}件）
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2">
+                        {aiSuggestions.map((s, i) => {
+                          const alreadyRegistered = registeredSet.has(s.keyword);
+                          const justAdded = aiAddedSet.has(s.keyword);
+                          const isDone = alreadyRegistered || justAdded;
+                          return (
+                            <div
+                              key={i}
+                              className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                                isDone
+                                  ? "bg-emerald-50 border-emerald-200 opacity-70"
+                                  : "bg-slate-50 border-slate-200 hover:border-violet-200 hover:bg-violet-50"
                               }`}
                             >
-                              {added ? (
-                                <><CheckCircle2 size={12} />追加済み</>
-                              ) : (
-                                <><Plus size={12} />追加</>
-                              )}
-                            </button>
-                          </div>
-                        );
-                      })}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-slate-800">{s.keyword}</p>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  {s.category && (
+                                    <span className="inline-flex items-center gap-1 text-xs text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
+                                      <Tag size={10} />
+                                      {s.category}
+                                    </span>
+                                  )}
+                                  {alreadyRegistered && (
+                                    <span className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                      登録済み
+                                    </span>
+                                  )}
+                                </div>
+                                {s.reason && (
+                                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">{s.reason}</p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => !isDone && handleAiAddOne(s)}
+                                disabled={isDone}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
+                                  isDone
+                                    ? "bg-emerald-100 text-emerald-700 cursor-default"
+                                    : "bg-violet-600 text-white hover:bg-violet-700"
+                                }`}
+                              >
+                                {isDone ? (
+                                  <><CheckCircle2 size={12} />{alreadyRegistered ? "登録済み" : "追加済み"}</>
+                                ) : (
+                                  <><Plus size={12} />追加</>
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* さらに提案ボタン */}
+                      <div className="flex justify-center pt-1">
+                        <button
+                          onClick={handleAiSuggestMore}
+                          disabled={aiSuggestLoading}
+                          className="flex items-center gap-2 border border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100 px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                        >
+                          {aiSuggestLoading ? (
+                            <><RefreshCw size={14} className="animate-spin" />分析中...</>
+                          ) : (
+                            <><Sparkles size={14} />さらに10件提案する</>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             )}
           </div>

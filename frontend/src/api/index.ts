@@ -187,9 +187,9 @@ export const api = {
     ecTemplates: () =>
       axios.get<{ templates: EcKeywordTemplate[] }>("/api/keywords/ec-templates").then(r => r.data),
 
-    aiSuggest: (url: string) =>
+    aiSuggest: (url: string, excludeKeywords: string[] = []) =>
       axios.post<{ suggestions: AiKeywordSuggestion[]; url: string; title: string }>(
-        "/api/keywords/ai-suggest", { url }
+        "/api/keywords/ai-suggest", { url, exclude_keywords: excludeKeywords }
       ).then(r => r.data),
   },
 

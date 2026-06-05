@@ -101,6 +101,7 @@ def ai_suggest_keywords(
         raise HTTPException(status_code=400, detail="URLを入力してください")
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
+    exclude_keywords: list = data.get("exclude_keywords") or []
 
     from server.services.ai_analyzer import get_openai_key
     from server.services.encryption import decrypt_value
@@ -134,31 +135,43 @@ def ai_suggest_keywords(
     from openai import OpenAI
     import json
 
-    prompt = f"""あなたはBtoB営業のターゲティング専門家です。
-以下は商品・サービスのランディングページ（LP）の内容です。
+    exclude_section = ""
+    if exclude_keywords:
+        listed = "\n".join(f"- {k}" for k in exclude_keywords[:80])
+        exclude_section = f"""
+【除外リスト】以下のキーワードはすでに登録・提案済みです。これらと完全一致または非常に似たものは提案しないでください：
+{listed}
+"""
+
+    prompt = f"""あなたはBtoB新規開拓営業のターゲティング専門家です。
+以下は販売したい商品・サービスのランディングページ（LP）の内容です。
 
 URL: {url}
 タイトル: {title}
 メタディスクリプション: {meta_desc}
 本文（抜粋）:
 {body[:3000]}
-
+{exclude_section}
 ---
 
-このサービスをBtoB営業で販売したい場合に、ターゲットとなる企業をGoogle検索で
-探すためのキーワードを10個提案してください。
+【重要な制約】
+- キーワードに地域は含めないこと（地域は後から別途設定する）
+- 「○○会社」「○○業者」「○○事業者」「○○企業」「○○法人」など、Googleで実際に検索される自然な日本語にすること
+- 業種・職種・会社規模・業界特性を組み合わせて多様性を持たせること
+- このサービスを最も必要としているターゲット企業を具体的にイメージして提案すること
+- 除外リストと重複するキーワードは絶対に含めないこと
 
-各キーワードは「業種＋会社種別＋地域（任意）」の組み合わせで、
-実際にGoogle検索で使える自然な日本語フレーズにしてください。
+【出力形式】
+このサービスをBtoB営業で販売する際に、ターゲット企業をGoogle検索で探すための
+キーワードを正確に10個提案してください。
 
 以下のJSON形式で出力してください：
 {{
   "suggestions": [
     {{
-      "keyword": "キーワード文字列（例: Webデザイン 制作会社 東京）",
-      "category": "業種カテゴリ（例: IT・Web, 製造, 小売, 飲食, 医療）",
-      "region": "地域（東京・大阪など。地域を限定しない場合は空文字）",
-      "reason": "このキーワードを提案した理由（1〜2文）"
+      "keyword": "キーワード文字列（地域なし。例: Webデザイン 制作会社）",
+      "category": "業種カテゴリ（例: IT・Web, 製造業, 小売・EC, 飲食, 医療・介護, 建設・不動産, 教育, 士業・コンサル）",
+      "reason": "なぜこの業種がターゲットになるか（1〜2文で具体的に）"
     }}
   ]
 }}
@@ -170,13 +183,16 @@ JSON以外は出力しないでください。"""
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
+            temperature=0.7,
             max_tokens=2000,
             response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content
         parsed = json.loads(raw)
         suggestions = parsed.get("suggestions") or []
+        # Ensure region is always empty (strip if model added it)
+        for s in suggestions:
+            s["region"] = ""
 
         try:
             from server.models import AiUsageLog
