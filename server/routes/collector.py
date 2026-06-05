@@ -1060,15 +1060,18 @@ def collect_urls_preview(
         if not serper_key:
             return {"error": "Serper APIキーが設定されていません。設定画面でSerper APIキーを登録してください。"}
 
-        from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain, KNOWN_AGGREGATOR_DOMAINS
+        from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain, KNOWN_AGGREGATOR_DOMAINS, is_public_org
         from urllib.parse import urlparse as _up
 
-        def _is_agg_domain_only(url: str) -> tuple:
-            """ホームページ正規化後はパス・タイトル判定不要 → ドメイン一致のみで除外"""
+        def _is_agg_domain_only(url: str, title: str = "") -> tuple:
+            """ホームページ正規化後はパス・タイトル判定不要 → ドメイン一致＋公的組織チェック"""
             domain = _ndomain(_up(url).netloc)
             for agg in KNOWN_AGGREGATOR_DOMAINS:
                 if agg in domain:
                     return True, f"既知のまとめサイト: {agg}"
+            pub, reason = is_public_org(url, title)
+            if pub:
+                return True, reason
             return False, ""
 
         # Google検索クエリに直接付与するノイズドメイン除外リスト
@@ -1156,10 +1159,11 @@ def collect_urls_preview(
                         continue
                     seen_domains.add(domain)
                     homepage = f"{_up(url).scheme}://{_up(url).netloc}/"
-                    is_agg, reason = _is_agg_domain_only(url)
+                    title_ = r.get("title", "")
+                    is_agg, reason = _is_agg_domain_only(url, title_)
                     urls.append({
                         "url": homepage,
-                        "name": r.get("title", ""),
+                        "name": title_,
                         "source": f"Serper: {q[:40]} (P{page_start}〜)",
                         "excluded": is_agg,
                         "exclude_reason": reason if is_agg else None,
@@ -1180,7 +1184,7 @@ def collect_urls_preview(
         if not serper_key:
             return {"error": "Serper APIキーが設定されていません。設定画面でSerper APIキーを登録してください。"}
 
-        from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain
+        from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain, is_public_org as _is_public_org
         from urllib.parse import urlparse as _up
 
         query = f"{keyword} {ec_modifier}" if ec_modifier else keyword
@@ -1197,10 +1201,13 @@ def collect_urls_preview(
                 continue
             seen_domains.add(domain)
             homepage = f"{_up(url).scheme}://{_up(url).netloc}/"
-            is_agg, reason = is_aggregator_site(url, r.get("title", ""))
+            title_ = r.get("title", "")
+            is_agg, reason = is_aggregator_site(url, title_)
+            if not is_agg:
+                is_agg, reason = _is_public_org(url, title_)
             urls.append({
                 "url": homepage,
-                "name": r.get("title", ""),
+                "name": title_,
                 "source": f"ECサイト検索: {keyword}",
                 "excluded": is_agg,
                 "exclude_reason": reason if is_agg else None,

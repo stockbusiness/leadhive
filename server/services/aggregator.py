@@ -1,6 +1,27 @@
 import re
 from urllib.parse import urlparse
 
+# 行政・社団法人・NPO等の公的ドメインサフィックス
+PUBLIC_ORG_DOMAIN_SUFFIXES = [
+    "go.jp",   # 国の行政機関
+    "lg.jp",   # 地方公共団体（都道府県・市区町村）
+    "or.jp",   # 社団法人・財団法人・NPO法人・協同組合等
+    "ac.jp",   # 大学・学術機関
+    "ed.jp",   # 小中高等学校・教育機関
+]
+
+PUBLIC_ORG_TITLE_PATTERNS = [
+    r"社団法人", r"財団法人",
+    r"NPO法人", r"特定非営利活動法人",
+    r"市役所", r"区役所", r"町役場", r"村役場",
+    r"都庁", r"県庁", r"道庁", r"府庁",
+    r"(?:農業|漁業|信用|消費生活|森林)協同組合",
+    r"農業協同組合|農協",
+    r"国立(?:大学|病院|研究)",
+    r"公立(?:大学|病院)",
+    r"(?:都|道|府|県|市|区|町|村)立",
+]
+
 KNOWN_AGGREGATOR_DOMAINS = [
     "matome.naver.jp", "matomeno.in", "togetter.com",
     "naver.jp", "hatena.ne.jp", "hatenablog.com",
@@ -112,6 +133,28 @@ def normalize_domain(domain: str) -> str:
     if domain.startswith("www."):
         domain = domain[4:]
     return domain
+
+
+def is_public_org(url: str, title: str = "") -> tuple[bool, str]:
+    """行政・社団法人・NPO・学術機関等の公的組織かどうかを判定する。"""
+    domain = normalize_domain(urlparse(url).netloc)
+    _SUFFIX_LABELS = {
+        "go.jp": "国の行政機関",
+        "lg.jp": "地方公共団体",
+        "or.jp": "社団・財団・NPO等",
+        "ac.jp": "学術機関",
+        "ed.jp": "教育機関",
+    }
+    for suffix, label in _SUFFIX_LABELS.items():
+        if domain == suffix or domain.endswith("." + suffix):
+            return True, label
+
+    if title:
+        for pattern in PUBLIC_ORG_TITLE_PATTERNS:
+            if re.search(pattern, title):
+                return True, f"公的組織: {re.search(pattern, title).group()}"
+
+    return False, ""
 
 
 def is_aggregator_site(url: str, title: str = "") -> tuple[bool, str]:
