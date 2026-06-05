@@ -847,6 +847,9 @@ def get_companies_for_sales_ai(
             )
         )
 
+    _SENT_STATUSES = ["フォーム送信済", "メール送信済", "商談中", "成約", "NG"]
+    query = query.filter(~Company.status.in_(_SENT_STATUSES))
+
     rows = query.order_by(desc(Company.score_total)).all()
     companies = [
         {
