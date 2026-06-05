@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ShoppingCart, Play, RefreshCw, CheckCircle2, AlertTriangle, MapPin,
   ChevronRight, ExternalLink, Grid3x3, Search, Zap, RotateCcw, ChevronDown,
+  ShieldCheck,
 } from "lucide-react";
 import { api } from "../api";
 import { useProject } from "../contexts/ProjectContext";
@@ -194,6 +195,8 @@ export default function EcCollector() {
   const [similarCms, setSimilarCms] = useState("");
   const [similarCategory, setSimilarCategory] = useState("");
 
+  const [excludeAgency, setExcludeAgency] = useState(true);
+
   const [rescoreLoading, setRescoreLoading] = useState(false);
   const [rescoreResult, setRescoreResult] = useState<string | null>(null);
 
@@ -219,6 +222,7 @@ export default function EcCollector() {
           category_id: selectedCategory,
           region: region || undefined,
           project_id: currentProject.id,
+          exclude_agency: excludeAgency,
         });
         job.listen(job_id);
       } else if (activeTab === "platform") {
@@ -227,6 +231,7 @@ export default function EcCollector() {
           keyword: platformKeyword || undefined,
           region: platformRegion || undefined,
           project_id: currentProject.id,
+          exclude_agency: excludeAgency,
         });
         job.listen(job_id);
       } else if (activeTab === "matrix") {
@@ -239,6 +244,7 @@ export default function EcCollector() {
           category_ids: matrixCats,
           prefectures: matrixPrefs,
           project_id: currentProject.id,
+          exclude_agency: excludeAgency,
         });
         job.listen(job_id);
       } else if (activeTab === "similar") {
@@ -251,6 +257,7 @@ export default function EcCollector() {
           cms_type: similarCms || undefined,
           category: similarCategory || undefined,
           project_id: currentProject.id,
+          exclude_agency: excludeAgency,
         });
         job.listen(job_id);
       }
@@ -543,6 +550,33 @@ export default function EcCollector() {
                 <AlertTriangle size={12} /> プラットフォームまたは業種カテゴリを入力してください
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 代行業者除外オプション */}
+      {job.jobStatus === "idle" && (
+        <div
+          className={`rounded-lg border p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+            excludeAgency
+              ? "bg-emerald-50 border-emerald-200"
+              : "bg-slate-50 border-slate-200 hover:border-slate-300"
+          }`}
+          onClick={() => setExcludeAgency(!excludeAgency)}
+        >
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck size={16} className={excludeAgency ? "text-emerald-500" : "text-slate-400"} />
+            <div>
+              <p className={`text-xs font-semibold ${excludeAgency ? "text-emerald-700" : "text-slate-600"}`}>
+                EC代行・制作会社を除外
+              </p>
+              <p className={`text-xs mt-0.5 ${excludeAgency ? "text-emerald-600" : "text-slate-400"}`}>
+                Web制作会社・EC構築代行・運営代行業者を自動除外します
+              </p>
+            </div>
+          </div>
+          <div className={`relative w-10 h-5 rounded-full flex-shrink-0 transition-colors ${excludeAgency ? "bg-emerald-500" : "bg-slate-300"}`}>
+            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${excludeAgency ? "translate-x-5" : "translate-x-0.5"}`} />
           </div>
         </div>
       )}

@@ -127,6 +127,56 @@ _HEADLESS_SHOPIFY_PATTERNS = [
     re.compile(r'"@shopify/hydrogen"', re.IGNORECASE),
 ]
 
+# ── EC代行業者除外 ───────────────────────────────────────────────────────────
+
+AGENCY_NEGATIVE_QUERY = "-EC代行 -EC制作 -Web制作 -ホームページ制作 -運営代行 -制作会社"
+
+_AGENCY_TITLE_KEYWORDS: list[str] = [
+    "ec代行", "ec制作", "ecサイト制作", "ec構築", "ecサイト構築",
+    "ec運営代行", "ec支援", "ec導入支援", "ecシステム開発",
+    "ネットショップ制作", "ネットショップ代行", "通販代行", "通販サイト制作",
+    "web制作", "ホームページ制作", "サイト制作", "システム開発",
+    "webデザイン", "ウェブ制作", "ウェブデザイン",
+    "ecコンサル", "ecコンサルティング", "ec事業支援", "ec導入コンサル",
+    "物流代行", "フルフィルメント代行", "受注管理代行",
+    "広告代行", "sns運用代行", "リスティング代行",
+    "制作実績", "導入実績", "構築実績",
+]
+
+_AGENCY_SNIPPET_PATTERNS: list[re.Pattern] = [
+    re.compile(r"ec(サイト|ショップ)?を(制作|構築|開設|立ち上げ|運営代行)", re.IGNORECASE),
+    re.compile(r"(ネットショップ|通販サイト|ecサイト)(の?)(制作|構築|開業支援|立ち上げ)", re.IGNORECASE),
+    re.compile(r"(web|ウェブ|ホームページ)(制作|デザイン|開発)(会社|業者|代行|を)", re.IGNORECASE),
+    re.compile(r"ec(運営|構築|制作)(の|を|は)(代行|支援|お手伝い|承り)", re.IGNORECASE),
+    re.compile(r"\d+(社|店舗|件)(以上|の)(ec|通販|ネットショップ)(支援|制作|構築|導入)", re.IGNORECASE),
+    re.compile(r"お客様のec(を|の|に)(サポート|支援|構築|制作|代わり)", re.IGNORECASE),
+    re.compile(r"(shopify|base|ec-cube|woocommerce|カラーミー)(の|を|で)(制作|構築|代行|支援)", re.IGNORECASE),
+]
+
+
+def is_ec_agency(title: str, snippet: str, company_name: str = "") -> tuple[bool, str]:
+    """EC代行・制作業者かどうかを判定する。
+
+    収集された検索結果のタイトル・スニペット・会社名を元に
+    EC代行・Web制作業者と判断されれば True を返す。
+
+    Returns:
+        (is_agency: bool, reason: str)
+    """
+    text_lower = f"{title} {snippet} {company_name}".lower()
+
+    for kw in _AGENCY_TITLE_KEYWORDS:
+        if kw in text_lower:
+            return True, f"代行・制作キーワード: 「{kw}」"
+
+    combined = f"{title} {snippet}"
+    for pat in _AGENCY_SNIPPET_PATTERNS:
+        m = pat.search(combined)
+        if m:
+            return True, f"代行業者パターン: 「{m.group()}」"
+
+    return False, ""
+
 
 def generate_ec_platform_queries(
     platform: str,

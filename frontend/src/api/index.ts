@@ -246,16 +246,16 @@ export const api = {
     searchEngineStatus: () =>
       axios.get<{ active_engine: string; has_serper: boolean; has_google: boolean }>("/api/collect/search-engine-status").then(r => r.data),
 
-    ecDiscovery: (params: { category_id: string; region?: string; project_id?: number }) =>
+    ecDiscovery: (params: { category_id: string; region?: string; project_id?: number; exclude_agency?: boolean }) =>
       axios.post<{ job_id: string }>("/api/collect/ec-discovery", params).then(r => r.data),
 
-    ecPlatform: (params: { platform: string; keyword?: string; region?: string; project_id?: number }) =>
+    ecPlatform: (params: { platform: string; keyword?: string; region?: string; project_id?: number; exclude_agency?: boolean }) =>
       axios.post<{ job_id: string }>("/api/collect/ec-platform", params).then(r => r.data),
 
-    ecMatrix: (params: { category_ids: string[]; prefectures: string[]; project_id?: number }) =>
+    ecMatrix: (params: { category_ids: string[]; prefectures: string[]; project_id?: number; exclude_agency?: boolean }) =>
       axios.post<{ job_id: string }>("/api/collect/ec-matrix", params).then(r => r.data),
 
-    ecSimilar: (params: { company_id?: number; domain?: string; cms_type?: string; category?: string; project_id?: number }) =>
+    ecSimilar: (params: { company_id?: number; domain?: string; cms_type?: string; category?: string; project_id?: number; exclude_agency?: boolean }) =>
       axios.post<{ job_id: string }>("/api/collect/ec-similar", params).then(r => r.data),
 
     jobStatus: (jobId: string) =>

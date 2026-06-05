@@ -512,6 +512,7 @@ def collect_ec_discovery(
     keywords_text = EC_DISCOVERY_PRESETS.get(category_id, EC_DISCOVERY_PRESETS["all"])
     region = data.get("region", "")
     project_id = data.get("project_id")
+    exclude_agency = data.get("exclude_agency", True)
     if region:
         keywords_text = [f"{kw} {region}" for kw in keywords_text]
 
@@ -544,10 +545,13 @@ def collect_ec_discovery(
             from server.services.serper_search import search_serper, get_serper_api_key
             from server.models import Company, RejectedUrl
 
+            from server.services.ec_collector import is_ec_agency, AGENCY_NEGATIVE_QUERY
+
             total_kws = len(keywords_text)
             total_success = 0
             total_duplicate = 0
             total_rejected = 0
+            total_agency_excluded = 0
 
             # Serper API キー取得
             serper_key = get_serper_api_key(db=db, org_id=org_id)
@@ -586,7 +590,8 @@ def collect_ec_discovery(
                     rej_count=0,
                 )
                 try:
-                    results = search_serper(serper_key, kw_text, num=500)
+                    search_query = f"{kw_text} {AGENCY_NEGATIVE_QUERY}" if exclude_agency else kw_text
+                    results = search_serper(serper_key, search_query, num=500)
                     if results and not ("error" in results[0]):
                         from server.services.collector import _normalize_to_homepage
                         from urllib.parse import urlparse as _up
@@ -595,6 +600,15 @@ def collect_ec_discovery(
                             url = r.get("url", "")
                             if not url:
                                 continue
+                            # 代行業者フィルター（タイトル・スニペットで判定）
+                            if exclude_agency:
+                                _title = r.get("title", "")
+                                _snippet = r.get("snippet", "")
+                                _is_agency, _reason = is_ec_agency(_title, _snippet)
+                                if _is_agency:
+                                    total_agency_excluded += 1
+                                    logger.debug(f"EC discovery agency excluded: {url} ({_reason})")
+                                    continue
                             # ホームページURLでの重複排除（/blog/ 等のパス違いを同一サイトとして扱う）
                             homepage = _normalize_to_homepage(url)
                             domain_key = _nd(_up(homepage).netloc)
@@ -673,8 +687,9 @@ def collect_ec_discovery(
                     "total_duplicate": total_duplicate,
                     "total_rejected": total_rejected,
                     "keywords_processed": total_kws,
+                    "agency_excluded": total_agency_excluded,
                 },
-                message=f"EC専用収集完了: {total_success}件獲得（{total_urls_found}URL中）",
+                message=f"EC専用収集完了: {total_success}件獲得（代行業者{total_agency_excluded}件除外）",
             )
         except Exception as e:
             job_update(job_id, type="error", message=str(e))
@@ -1358,6 +1373,7 @@ def ec_platform_collect(
     keyword = (data.get("keyword") or "").strip()
     region = (data.get("region") or "").strip()
     project_id = data.get("project_id")
+    exclude_agency = data.get("exclude_agency", True)
 
     PLATFORM_QUERIES: dict[str, list[str]] = {
         "Shopify": [
@@ -1408,6 +1424,9 @@ def ec_platform_collect(
         f"{platform} 通販 自社EC {keyword} {region}".strip(),
     ])
     keywords_text = [kw for kw in keywords_text if kw.strip()]
+    if exclude_agency:
+        from server.services.ec_collector import AGENCY_NEGATIVE_QUERY
+        keywords_text = [f"{kw} {AGENCY_NEGATIVE_QUERY}" for kw in keywords_text]
 
     job_id = str(uuid.uuid4())
     job_update(job_id, type="progress", current=0, total=len(keywords_text),
@@ -1470,6 +1489,7 @@ def ec_matrix_collect(
     category_ids = data.get("category_ids") or ["all"]
     prefectures = data.get("prefectures") or [""]
     project_id = data.get("project_id")
+    exclude_agency = data.get("exclude_agency", True)
 
     EC_MATRIX_KEYWORDS: dict[str, str] = {
         "apparel":       "アパレル ファッション 通販 自社EC",
@@ -1482,11 +1502,17 @@ def ec_matrix_collect(
         "all":           "ECサイト 通販 自社EC 運営",
     }
 
+    _agency_neg = ""
+    if exclude_agency:
+        from server.services.ec_collector import AGENCY_NEGATIVE_QUERY
+        _agency_neg = f" {AGENCY_NEGATIVE_QUERY}"
+
     combos = []
     for cat_id in category_ids:
         base_kw = EC_MATRIX_KEYWORDS.get(cat_id, cat_id)
         for pref in prefectures:
-            combos.append((cat_id, pref, f"{base_kw} {pref}".strip() if pref else base_kw))
+            kw_base = f"{base_kw} {pref}".strip() if pref else base_kw
+            combos.append((cat_id, pref, f"{kw_base}{_agency_neg}"))
 
     if not combos:
         from fastapi import HTTPException
@@ -1579,6 +1605,10 @@ def ec_similar_collect(
         keywords_text.append(f"{category} ECサイト 運営 会社")
 
     keywords_text = list(dict.fromkeys(kw for kw in keywords_text if kw.strip()))[:5]
+    exclude_agency = data.get("exclude_agency", True)
+    if exclude_agency:
+        from server.services.ec_collector import AGENCY_NEGATIVE_QUERY
+        keywords_text = [f"{kw} {AGENCY_NEGATIVE_QUERY}" for kw in keywords_text]
 
     job_id = str(uuid.uuid4())
     job_update(job_id, type="progress", current=0, total=len(keywords_text),
