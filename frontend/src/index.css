@@ -3,7 +3,7 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #f8fafc;
+  background-color: #ffffff;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 

@@ -269,7 +269,7 @@ function AppContent() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-zinc-950 overflow-hidden">
+    <div className="flex h-screen bg-white dark:bg-zinc-950 overflow-hidden">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
