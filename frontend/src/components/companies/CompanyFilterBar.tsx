@@ -17,6 +17,7 @@ interface Filters {
   ec_only: string;
   ec_scale: string;
   website_status: string;
+  domain_type: string;
 }
 
 const CMS_COLORS: Record<string, string> = {
@@ -310,6 +311,21 @@ export default function CompanyFilterBar({
           <option value="parking">🅿️ ドメイン駐車</option>
           <option value="under_construction">🚧 工事中</option>
           <option value="redirect_external">↪️ 外部リダイレクト</option>
+        </select>
+        <select
+          value={filters.domain_type}
+          onChange={(e) => onFilterChange({ ...filters, domain_type: e.target.value })}
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-zinc-900 ${
+            filters.domain_type === "public"
+              ? "border-amber-400 bg-amber-50 text-amber-700"
+              : filters.domain_type === "exclude_public"
+              ? "border-blue-400 bg-blue-50 text-blue-700"
+              : "border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200"
+          }`}
+        >
+          <option value="">組織タイプ</option>
+          <option value="exclude_public">🏢 民間企業のみ（公的組織を除外）</option>
+          <option value="public">🏛 公的組織のみ（go.jp / lg.jp / or.jp等）</option>
         </select>
       </div>
 

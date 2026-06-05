@@ -52,6 +52,7 @@ export default function Companies() {
     ec_only: searchParams.get("ec_only") || "",
     ec_scale: searchParams.get("ec_scale") || "",
     website_status: searchParams.get("website_status") || "",
+    domain_type: searchParams.get("domain_type") || "",
   });
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem("leadhive_view_mode") as ViewMode) || "list";
@@ -125,6 +126,7 @@ export default function Companies() {
     if (filters.ec_only === "true") params.ec_only = true;
     if (filters.ec_scale) params.ec_scale = filters.ec_scale;
     if (filters.website_status) params.website_status = filters.website_status;
+    if (filters.domain_type) params.domain_type = filters.domain_type;
 
     api.companies.list(params).then((data) => {
       setCompanies(data.companies);
@@ -701,6 +703,23 @@ export default function Companies() {
           </span>
           <button
             onClick={() => handleFilterChange({ ...filters, website_status: "" })}
+            className="flex items-center gap-1.5 ml-auto text-sm text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:text-zinc-300 font-medium transition-colors"
+          >
+            <X size={14} />
+            解除
+          </button>
+        </div>
+      )}
+
+      {filters.domain_type && (
+        <div className="flex items-center gap-3 rounded-lg px-4 py-3 border bg-blue-50 border-blue-200">
+          <Filter size={16} className="text-blue-500" />
+          <span className="text-sm font-medium text-blue-800">
+            {filters.domain_type === "exclude_public" && "🏢 民間企業のみ表示中（公的組織を除外）"}
+            {filters.domain_type === "public" && "🏛 公的組織のみ表示中（go.jp / lg.jp / or.jp等）"}
+          </span>
+          <button
+            onClick={() => handleFilterChange({ ...filters, domain_type: "" })}
             className="flex items-center gap-1.5 ml-auto text-sm text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:text-zinc-300 font-medium transition-colors"
           >
             <X size={14} />

@@ -170,6 +170,7 @@ def list_companies(
     ec_only: Optional[bool] = None,
     ec_scale: Optional[str] = None,
     website_status: Optional[str] = None,
+    domain_type: Optional[str] = None,
     sort_by: str = "score_total",
     sort_order: str = "desc",
     page: int = 1,
@@ -250,6 +251,14 @@ def list_companies(
             query = query.filter(Company.website_status.in_(["dead", "closed", "parking", "under_construction", "redirect_external"]))
         else:
             query = query.filter(Company.website_status == website_status)
+    if domain_type:
+        _PUBLIC_SUFFIXES = ["go.jp", "lg.jp", "or.jp", "ac.jp", "ed.jp"]
+        _pub_conds = [Company.domain.ilike(f"%.{s}") for s in _PUBLIC_SUFFIXES]
+        if domain_type == "public":
+            query = query.filter(or_(*_pub_conds))
+        elif domain_type == "exclude_public":
+            from sqlalchemy import and_ as _and_
+            query = query.filter(_and_(*[~c for c in _pub_conds]))
     if follow_up_filter:
         today = date.today()
         if follow_up_filter == "overdue":
