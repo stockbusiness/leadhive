@@ -126,8 +126,17 @@ _SUCCESS_KWS = [
     "thank you", "success", "submitted", "received", "confirmation",
     "送信完了", "受付完了", "お問い合わせありがとう",
 ]
-_ERROR_KWS = ["エラー", "error", "required", "invalid", "入力エラー",
-               "必須項目が入力されていません", "必須フィールド", "validation error"]
+_ERROR_KWS = [
+    "必須項目が入力されていません",
+    "必須フィールドが入力されていません",
+    "ご入力いただいていない必須項目",
+    "未入力の必須項目があります",
+    "入力内容にエラーがあります",
+    "入力エラーがあります",
+    "validation error",
+    "required field is missing",
+    "please fill in all required",
+]
 
 
 async def _submit_form_playwright_full_async(
@@ -1099,6 +1108,23 @@ def send_form_auto(
             except Exception as e:
                 logger.warning(f"Playwright フォールバック失敗: {e}")
         if not forms:
+            # iframe 内の外部フォームサービスを検出
+            try:
+                from bs4 import BeautifulSoup as _BS
+                _soup = _BS(html, "html.parser")
+                for _iframe in _soup.find_all("iframe"):
+                    _src = _iframe.get("src", "") or ""
+                    for _pat in _FORM_SERVICE_PATTERNS_FS:
+                        if _pat.search(_src):
+                            _domain = urllib.parse.urlparse(_src).netloc or _src[:40]
+                            return {
+                                "success": False,
+                                "message": f"外部フォームサービス（{_domain}）を使用しているため自動送信非対応",
+                                "form_url": resolved_url,
+                                "fields_mapped": 0,
+                            }
+            except Exception:
+                pass
             return {
                 "success": False,
                 "message": "フォームが見つかりませんでした（JavaScript必須または非対応ページ）",
@@ -1177,30 +1203,60 @@ def send_form_auto(
             "ありがとう", "送信しました", "受け付けました", "完了",
             "thank you", "success", "submitted", "received", "confirmation",
             "送信完了", "お問い合わせありがとう", "受付完了",
+            "ありがとうございました", "送信が完了", "お申し込みありがとう",
+            "お問合せありがとう", "確認メールをお送り", "担当者よりご連絡",
+            "改めてご連絡", "折り返しご連絡", "内容を確認の上",
         ]
-        error_keywords = [
-            "エラー", "error", "required", "invalid",
-        ]
-        # 「必須」「入力してください」はフォームのラベルにも含まれるため
-        # エラーキーワードとして判定する場合は文脈を絞る
+        # 誤判定を避けるため、明確に「入力エラー」を示すパターンのみ使用
+        # （"error","required","invalid" はHTMLのCSS/属性/JSに頻出するため除外）
         strict_error_keywords = [
-            "必須項目が入力されていません", "必須フィールド", "入力エラー",
-            "validation error", "required field",
+            "必須項目が入力されていません",
+            "必須フィールドが入力されていません",
+            "ご入力いただいていない必須項目",
+            "未入力の必須項目があります",
+            "入力内容にエラーがあります",
+            "入力エラーがあります",
+            "validation error",
+            "required field is missing",
+            "please fill in all required",
         ]
-        has_success = any(k in response_text for k in success_keywords)
-        has_error = (
-            any(k in response_text for k in error_keywords) or
-            any(k in response_text for k in strict_error_keywords)
-        )
 
-        if has_error and not has_success:
+        # 送信後のURLが変化した = リダイレクトあり = 成功の強いシグナル
+        try:
+            action_path = urllib.parse.urlparse(form["action"]).path.rstrip("/")
+            final_resp_path = urllib.parse.urlparse(submit_resp.url).path.rstrip("/")
+            redirected = (action_path != final_resp_path)
+        except Exception:
+            redirected = False
+
+        has_success = any(k in response_text for k in success_keywords)
+        has_strict_error = any(k in response_text for k in strict_error_keywords)
+
+        # 判定ロジック（優先順位順）
+        if has_success and not has_strict_error:
+            return {
+                "success": True,
+                "message": f"フォーム送信完了（{fields_mapped}項目入力、ステータス{status}）",
+                "form_url": resolved_url,
+                "fields_mapped": fields_mapped,
+            }
+        if has_strict_error:
             return {
                 "success": False,
                 "message": "フォームの入力エラーが発生しました（必須項目不足の可能性）",
                 "form_url": resolved_url,
                 "fields_mapped": fields_mapped,
             }
-
+        if redirected:
+            # リダイレクト発生＋明確なエラーなし = 成功と推定
+            return {
+                "success": True,
+                "message": f"フォーム送信完了（{fields_mapped}項目入力、リダイレクト確認）",
+                "form_url": resolved_url,
+                "fields_mapped": fields_mapped,
+            }
+        # 成功/失敗が不明（同じページに留まり成功メッセージもなし）→ 成功と推定
+        # ※ 誤判定を減らすため不明ケースは成功扱い
         return {
             "success": True,
             "message": f"フォーム送信完了（{fields_mapped}項目入力、ステータス{status}）",

@@ -57,8 +57,13 @@ def _categorize_failure(note: str) -> str:
     n = note.lower()
     if "タイムアウト" in note or "timeout" in n:
         return "タイムアウト"
-    if "chromium" in n or "playwright" in n and "エラー" in note and "フォーム" not in note:
+    if "chromium" in n or ("playwright" in n and "エラー" in note and "フォーム" not in note):
         return "ブラウザエラー"
+    # JS必須・外部サービスを先にチェック（「フォームが見つかりません」より前）
+    if "javascript必須" in note or "非対応ページ" in note:
+        return "JS必須ページ"
+    if "外部フォームサービス" in note:
+        return "外部フォームサービス"
     if "フォームが見つかりません" in note or "フォームurl" in n or "お問い合わせフォームのurl" in note:
         return "フォーム未検出"
     if "送信ボタン" in note:
@@ -69,8 +74,6 @@ def _categorize_failure(note: str) -> str:
         return "HTTPエラー"
     if "ページの取得" in note or "ページ取得" in note:
         return "ページ取得失敗"
-    if "javascript必須" in note or "非対応ページ" in note:
-        return "JS必須ページ"
     return "その他エラー"
 
 
