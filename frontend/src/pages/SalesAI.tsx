@@ -41,6 +41,10 @@ interface Company {
   prefecture?: string;
   category_main?: string;
   project_id?: number;
+  contact_url?: string;
+  status?: string;
+  domain?: string;
+  has_failed_msg?: boolean;
 }
 
 const TEMPLATE_LABELS: Record<TemplateType, string> = {
@@ -1000,7 +1004,9 @@ export default function SalesAI() {
   const SENT_STATUSES = new Set(["フォーム送信済", "メール送信済", "コンタクト済み", "返信あり", "面談化", "商談中", "代理店化", "成約", "失注", "NG"]);
   const filteredCompanies = companies.filter(c => {
     // 送信済み・商談中・成約・NGは常に除外
-    if (SENT_STATUSES.has(c.status)) return false;
+    if (SENT_STATUSES.has(c.status ?? "")) return false;
+    // 送信失敗メッセージがある企業は除外（再送しても失敗するため）
+    if (c.has_failed_msg) return false;
     if (companySearch && !(c.company_name || "").toLowerCase().includes(companySearch.toLowerCase())) return false;
     if (filterRanks.length > 0 && !filterRanks.includes(c.score_rank)) return false;
     if (filterEcOnly && !c.ec_flag) return false;
@@ -1015,6 +1021,8 @@ export default function SalesAI() {
   });
   // Mode C用: フォームURL登録済み＆未送信の企業のみ
   const filteredCompaniesWithForm = filteredCompanies.filter(c => !!c.contact_url);
+  // 送信失敗企業の件数
+  const failedMsgCompanies = companies.filter(c => c.has_failed_msg);
 
   const categoryOptions = Array.from(new Set(companies.map(c => c.category_main).filter(Boolean))) as string[];
 
@@ -1620,6 +1628,38 @@ export default function SalesAI() {
                     </button>
                   </div>
                 </div>
+
+                {/* 送信失敗バナー */}
+                {failedMsgCompanies.length > 0 && (
+                  <div className="border-2 border-red-300 bg-red-50 rounded-xl px-3 py-2.5 flex items-start gap-2.5">
+                    <AlertCircle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-red-700">
+                        送信失敗: {failedMsgCompanies.length}社が送信対象から除外されています
+                      </p>
+                      <p className="text-[10px] text-red-500 mt-0.5">
+                        過去の送信エラーにより除外中。原因を確認後、下書きに戻して再試行してください。
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`送信失敗した${failedMsgCompanies.length}社のメッセージを下書きに戻して再送信可能にしますか？`)) return;
+                        try {
+                          const r = await api.salesAi.resetFailed(currentProject?.id);
+                          alert(`${r.reset_count}件を下書きにリセットしました`);
+                          loadCompanies();
+                          loadMessages();
+                          loadStats();
+                        } catch {
+                          alert("リセットに失敗しました");
+                        }
+                      }}
+                      className="flex-shrink-0 text-[10px] bg-red-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-red-700 transition-colors font-semibold whitespace-nowrap"
+                    >
+                      下書きに戻す
+                    </button>
+                  </div>
+                )}
 
                 {/* MODE B: 全件バッチ生成 */}
                 <div className="border-2 border-emerald-200 rounded-xl overflow-hidden">

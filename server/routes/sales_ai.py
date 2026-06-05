@@ -443,7 +443,7 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
 
             msgs = db.query(SalesMessage).filter(
                 SalesMessage.id.in_(all_generated_ids),
-                SalesMessage.status.notin_(["sent"]),  # 送信済みは最初から除外
+                SalesMessage.status.notin_(["sent", "failed"]),  # 送信済み・送信失敗は除外
             ).all()
             sent_c = 0
             failed_c = 0

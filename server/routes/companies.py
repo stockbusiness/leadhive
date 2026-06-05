@@ -851,6 +851,24 @@ def get_companies_for_sales_ai(
     query = query.filter(~Company.status.in_(_SENT_STATUSES))
 
     rows = query.order_by(desc(Company.score_total)).all()
+
+    # 送信失敗メッセージを持つ企業IDを1クエリで取得
+    all_company_ids = [r[0] for r in rows]
+    failed_company_id_set: set[int] = set()
+    if all_company_ids:
+        from server.models import SalesMessage as _SM
+        failed_rows = (
+            db.query(_SM.company_id)
+            .filter(
+                _SM.org_id == current_user.org_id,
+                _SM.company_id.in_(all_company_ids),
+                _SM.status == "failed",
+            )
+            .distinct()
+            .all()
+        )
+        failed_company_id_set = {r[0] for r in failed_rows}
+
     companies = [
         {
             "id": r[0],
@@ -865,6 +883,7 @@ def get_companies_for_sales_ai(
             "contact_url": r[9] or "",
             "status": r[10] or "",
             "domain": r[11] or "",
+            "has_failed_msg": r[0] in failed_company_id_set,
         }
         for r in rows
     ]
