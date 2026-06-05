@@ -234,8 +234,8 @@ export const api = {
         "/api/collect/urls-preview", params
       ).then(r => r.data),
 
-    scrapeStaged: (urls: { url: string; name: string; source: string }[], projectId?: number) =>
-      axios.post<{ job_id: string }>("/api/collect/scrape-staged", { urls, project_id: projectId }).then(r => r.data),
+    scrapeStaged: (urls: { url: string; name: string; source: string }[], projectId?: number, excludeAgency?: boolean) =>
+      axios.post<{ job_id: string }>("/api/collect/scrape-staged", { urls, project_id: projectId, exclude_agency: excludeAgency ?? false }).then(r => r.data),
 
     enrichCount: (projectId: number) =>
       axios.get<{ count: number }>("/api/collect/enrich-count", { params: { project_id: projectId } }).then(r => r.data),

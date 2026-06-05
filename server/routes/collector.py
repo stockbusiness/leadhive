@@ -600,11 +600,11 @@ def collect_ec_discovery(
                             url = r.get("url", "")
                             if not url:
                                 continue
-                            # 代行業者フィルター（タイトル・スニペットで判定）
+                            # 代行業者フィルター（タイトル・スニペット・URL で判定）
                             if exclude_agency:
                                 _title = r.get("title", "")
                                 _snippet = r.get("snippet", "")
-                                _is_agency, _reason = is_ec_agency(_title, _snippet)
+                                _is_agency, _reason = is_ec_agency(_title, _snippet, url=url)
                                 if _is_agency:
                                     total_agency_excluded += 1
                                     logger.debug(f"EC discovery agency excluded: {url} ({_reason})")
@@ -1228,9 +1228,11 @@ def collect_urls_preview(
             is_agg, reason = is_aggregator_site(url, title_)
             if not is_agg:
                 is_agg, reason = _is_public_org(url, title_)
-            if not is_agg and exclude_agency and is_ec_agency(title_, snippet_):
-                is_agg = True
-                reason = "EC代行・制作会社"
+            if not is_agg and exclude_agency:
+                _ag, _ag_reason = is_ec_agency(title_, snippet_, url=homepage)
+                if _ag:
+                    is_agg = True
+                    reason = f"EC代行・制作会社({_ag_reason})"
             urls.append({
                 "url": homepage,
                 "name": title_,
@@ -1257,6 +1259,7 @@ def scrape_staged_urls(
     """ステージングリストのURLをスクレイピングして保存する（SSEジョブ）"""
     urls = data.get("urls", [])
     project_id = data.get("project_id")
+    exclude_agency = data.get("exclude_agency", False)
 
     if not urls:
         return {"error": "URLリストが空です"}
@@ -1265,11 +1268,14 @@ def scrape_staged_urls(
     job_update(job_id, type="progress", current=0, total=len(urls), message="スクレイピングを開始しています...", status="running")
 
     def run():
+        from server.models import Company as CompanyModel
+        from server.services.ec_collector import validate_ec_post_scrape
         new_db = SessionLocal()
         try:
             total = len(urls)
             BATCH = 5
             all_results = []
+            agency_removed = 0
 
             for batch_start in range(0, total, BATCH):
                 batch = urls[batch_start:batch_start + BATCH]
@@ -1282,7 +1288,34 @@ def scrape_staged_urls(
                     message=f"({batch_start + 1}〜{min(batch_start + BATCH, total)}/{total}) 「{label}」をスクレイピング中...",
                 )
                 batch_result = process_urls_to_companies(batch, new_db, source="ステージング収集", project_id=project_id)
-                all_results.extend(batch_result.get("results", []))
+                batch_items = batch_result.get("results", [])
+
+                # ── スクレイプ後 代行業者除外（ec_score + cms_type で精密判定）──
+                if exclude_agency:
+                    for item in batch_items:
+                        if item.get("status") != "success" or not item.get("company_id"):
+                            continue
+                        cid = item["company_id"]
+                        company = new_db.query(CompanyModel).filter(CompanyModel.id == cid).first()
+                        if not company:
+                            continue
+                        is_ag, ag_reason = validate_ec_post_scrape(
+                            ec_score=company.ec_score or 0,
+                            cms_type=company.cms_type,
+                            full_text="",
+                            company_name=company.company_name or "",
+                        )
+                        if is_ag:
+                            try:
+                                new_db.delete(company)
+                                new_db.commit()
+                                agency_removed += 1
+                                item["status"] = "rejected"
+                                item["message"] = f"代行業者として除外: {ag_reason}"
+                            except Exception:
+                                new_db.rollback()
+
+                all_results.extend(batch_items)
 
             summary = {
                 "source": "ステージング収集",
@@ -1291,10 +1324,14 @@ def scrape_staged_urls(
                 "duplicate": sum(1 for r in all_results if r["status"] == "duplicate"),
                 "rejected": sum(1 for r in all_results if r["status"] == "rejected"),
                 "error": sum(1 for r in all_results if r["status"] == "error"),
+                "agency_removed": agency_removed,
             }
             result = {"results": all_results, "summary": summary}
             cache_invalidate("dashboard")
-            job_update(job_id, type="done", result=result, message="スクレイピング完了")
+            msg = f"スクレイピング完了"
+            if agency_removed:
+                msg += f"（代行業者{agency_removed}件を除外）"
+            job_update(job_id, type="done", result=result, message=msg)
         except Exception as e:
             job_update(job_id, type="error", message=str(e))
         finally:

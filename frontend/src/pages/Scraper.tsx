@@ -207,7 +207,8 @@ export default function Scraper() {
     setScrapeProgressTotal(selected.length);
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
     try {
-      const { job_id } = await api.collector.scrapeStaged(selected, currentProject?.id);
+      const isEcTab = activeTab === "ec-search";
+      const { job_id } = await api.collector.scrapeStaged(selected, currentProject?.id, isEcTab ? ecSearchExcludeAgency : false);
       const es = new EventSource(`/api/collect/progress/${job_id}`);
       esRef.current = es;
 

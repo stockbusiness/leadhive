@@ -129,51 +129,244 @@ _HEADLESS_SHOPIFY_PATTERNS = [
 
 # ── EC代行業者除外 ───────────────────────────────────────────────────────────
 
-AGENCY_NEGATIVE_QUERY = "-EC代行 -EC制作 -Web制作 -ホームページ制作 -運営代行 -制作会社"
+AGENCY_NEGATIVE_QUERY = (
+    "-EC代行 -EC制作 -Web制作 -ホームページ制作 -運営代行 -制作会社"
+    " -ECサイト制作 -ネットショップ制作 -ECコンサル -システム開発"
+)
 
-_AGENCY_TITLE_KEYWORDS: list[str] = [
-    "ec代行", "ec制作", "ecサイト制作", "ec構築", "ecサイト構築",
-    "ec運営代行", "ec支援", "ec導入支援", "ecシステム開発",
-    "ネットショップ制作", "ネットショップ代行", "通販代行", "通販サイト制作",
-    "web制作", "ホームページ制作", "サイト制作", "システム開発",
-    "webデザイン", "ウェブ制作", "ウェブデザイン",
-    "ecコンサル", "ecコンサルティング", "ec事業支援", "ec導入コンサル",
-    "物流代行", "フルフィルメント代行", "受注管理代行",
-    "広告代行", "sns運用代行", "リスティング代行",
-    "制作実績", "導入実績", "構築実績",
+# ① タイトル・スニペットのキーワードマッチ（高スコア）
+_AGENCY_TITLE_KEYWORDS: list[tuple[str, int]] = [
+    # EC/ショップ制作・構築系
+    ("ec代行", 60), ("ec制作", 60), ("ecサイト制作", 60), ("ec構築", 55),
+    ("ecサイト構築", 60), ("ec運営代行", 70), ("ec支援", 45), ("ec導入支援", 55),
+    ("ecシステム開発", 60), ("ecコンサル", 50), ("ecコンサルティング", 55),
+    ("ec事業支援", 50), ("ec導入コンサル", 55),
+    ("ネットショップ制作", 60), ("ネットショップ代行", 65), ("ネットショップ構築", 60),
+    ("通販代行", 65), ("通販サイト制作", 60), ("通販サイト構築", 60),
+    # Web制作系
+    ("web制作", 50), ("ホームページ制作", 50), ("サイト制作", 45),
+    ("webデザイン", 45), ("ウェブ制作", 50), ("ウェブデザイン", 45),
+    ("webシステム開発", 50), ("システム開発会社", 50),
+    # 代行・物流系
+    ("物流代行", 55), ("フルフィルメント代行", 60), ("受注管理代行", 60),
+    ("広告代行", 45), ("sns運用代行", 50), ("リスティング代行", 50),
+    # 実績系（代行業者の典型表現）
+    ("制作実績", 40), ("導入実績", 40), ("構築実績", 40), ("支援実績", 40),
+    ("累計.*社", 35),
 ]
 
-_AGENCY_SNIPPET_PATTERNS: list[re.Pattern] = [
-    re.compile(r"ec(サイト|ショップ)?を(制作|構築|開設|立ち上げ|運営代行)", re.IGNORECASE),
-    re.compile(r"(ネットショップ|通販サイト|ecサイト)(の?)(制作|構築|開業支援|立ち上げ)", re.IGNORECASE),
-    re.compile(r"(web|ウェブ|ホームページ)(制作|デザイン|開発)(会社|業者|代行|を)", re.IGNORECASE),
-    re.compile(r"ec(運営|構築|制作)(の|を|は)(代行|支援|お手伝い|承り)", re.IGNORECASE),
-    re.compile(r"\d+(社|店舗|件)(以上|の)(ec|通販|ネットショップ)(支援|制作|構築|導入)", re.IGNORECASE),
-    re.compile(r"お客様のec(を|の|に)(サポート|支援|構築|制作|代わり)", re.IGNORECASE),
-    re.compile(r"(shopify|base|ec-cube|woocommerce|カラーミー)(の|を|で)(制作|構築|代行|支援)", re.IGNORECASE),
+# ② スニペットの文脈パターンマッチ（高スコア）
+_AGENCY_SNIPPET_PATTERNS: list[tuple[re.Pattern, int]] = [
+    (re.compile(r"ec(サイト|ショップ)?を(制作|構築|開設|立ち上げ|運営代行)", re.IGNORECASE), 65),
+    (re.compile(r"(ネットショップ|通販サイト|ecサイト)(の?)(制作|構築|開業支援|立ち上げ)", re.IGNORECASE), 65),
+    (re.compile(r"(web|ウェブ|ホームページ)(制作|デザイン|開発)(会社|業者|代行|を)", re.IGNORECASE), 55),
+    (re.compile(r"ec(運営|構築|制作)(の|を|は)(代行|支援|お手伝い|承り)", re.IGNORECASE), 70),
+    (re.compile(r"\d+(社|店舗|件)(以上|の)(ec|通販|ネットショップ)(支援|制作|構築|導入)", re.IGNORECASE), 70),
+    (re.compile(r"お客様の(ec|ショップ|通販)(を|の|に)(サポート|支援|構築|制作|代わり)", re.IGNORECASE), 65),
+    (re.compile(r"(shopify|base|ec-cube|woocommerce|カラーミー|makeshop)(の|を|で)(制作|構築|代行|支援)", re.IGNORECASE), 65),
+    (re.compile(r"(無料相談|お見積もり|お問い合わせ).{0,20}(ec|ショップ|通販|ネットショップ)", re.IGNORECASE), 45),
+    (re.compile(r"(ec|ネットショップ|通販)(開業|スタート|立ち上げ)を(サポート|支援|お手伝い)", re.IGNORECASE), 60),
+    (re.compile(r"月額.{0,10}(円|万).*?(ec|ショップ|通販)(運営|管理|支援)", re.IGNORECASE), 55),
 ]
 
+# ③ ドメイン名のパターン（B: 中スコア）
+_AGENCY_DOMAIN_PATTERNS: list[tuple[re.Pattern, int]] = [
+    (re.compile(r"(web|ウェブ)[-_]?(design|designer|制作|creative|agency|studio)", re.IGNORECASE), 30),
+    (re.compile(r"(ec|ecommerce|shop)[-_]?(agency|agent|support|consulting|solution|pro)", re.IGNORECASE), 35),
+    (re.compile(r"(creative|クリエイティブ)[-_]?(studio|lab|works|inc|co)", re.IGNORECASE), 25),
+    (re.compile(r"(digital|デジタル)[-_]?(marketing|agency|solution|works)", re.IGNORECASE), 25),
+    (re.compile(r"(solution|ソリューション)(s)?[-_.]*(co\.jp|inc|llc|jp|com)?$", re.IGNORECASE), 25),
+    (re.compile(r"\.(agency|studio|works|design|creative)$", re.IGNORECASE), 30),
+    (re.compile(r"(consulting|consult|コンサル)(s|ing)?[-._](co\.jp|jp|com|net)?", re.IGNORECASE), 30),
+    (re.compile(r"(system|systems|システム)(s)?[-._](co\.jp|jp|com|net)?", re.IGNORECASE), 20),
+]
 
-def is_ec_agency(title: str, snippet: str, company_name: str = "") -> tuple[bool, str]:
-    """EC代行・制作業者かどうかを判定する。
+# ④ URLパスのパターン（C: 低〜中スコア）
+_AGENCY_PATH_PATTERNS: list[tuple[re.Pattern, int]] = [
+    (re.compile(r"/(service|services|サービス)(/|$)", re.IGNORECASE), 20),
+    (re.compile(r"/(works|制作実績|case[-_]?stud|導入事例|実績)(/|$)", re.IGNORECASE), 25),
+    (re.compile(r"/(consulting|コンサル|solution|ソリューション)(/|$)", re.IGNORECASE), 25),
+    (re.compile(r"/(ec[-_]?(support|agency|consulting|solution|service))(/|$)", re.IGNORECASE), 35),
+    (re.compile(r"/(lp|landing|campaign)(/|$)", re.IGNORECASE), 15),
+]
 
-    収集された検索結果のタイトル・スニペット・会社名を元に
-    EC代行・Web制作業者と判断されれば True を返す。
+# ⑤ スニペット内の語彙スコアリング（D: 代行語 vs ショップ語）
+_AGENCY_VOCAB: list[str] = [
+    "無料相談", "お見積もり", "料金プラン", "月額", "初期費用", "ご相談",
+    "構築支援", "運営支援", "集客支援", "マーケティング支援",
+    "ソリューション", "コンサルティング", "サポートします", "お手伝いします",
+    "制作から運営まで", "丸ごとお任せ", "まるっとサポート",
+]
+
+_SHOP_VOCAB: list[str] = [
+    "カートに入れる", "ショッピングカート", "商品一覧", "在庫あり", "在庫切れ",
+    "送料無料", "送料", "税込", "購入する", "お気に入り",
+    "レビュー", "クーポン", "ポイント", "特定商取引", "お届け",
+    "決済", "カード払い", "代引き", "即日発送",
+]
+
+# ⑥ フルテキスト（スクレイプ後）用の語彙リスト
+_AGENCY_FULL_TEXT_VOCAB: list[str] = [
+    "ec構築", "ec運営代行", "ネットショップ制作", "web制作会社", "ホームページ制作会社",
+    "制作実績", "導入実績", "支援実績", "無料相談", "料金プラン", "月額費用",
+    "お見積もり", "ご相談ください", "集客支援", "マーケティング支援",
+    "広告運用代行", "sns運用代行", "物流代行", "フルフィルメント",
+    "ecコンサル", "shopify構築", "base制作", "ec-cube構築",
+    "初期費用", "運用費用", "月額サービス",
+]
+
+_SHOP_FULL_TEXT_VOCAB: list[str] = [
+    "カートに入れる", "商品一覧", "在庫", "税込", "送料",
+    "ご購入", "クーポン", "ポイント", "お届け日", "レビュー",
+    "特定商取引法", "返品・交換", "お支払い方法", "会員登録",
+    "商品詳細", "新着商品", "売れ筋", "ランキング", "セール",
+]
+
+# ポジティブECシグナル（これがあれば代行業者スコアを大幅減算）
+_EC_POSITIVE_SIGNALS: list[str] = [
+    "カートに入れる", "ショッピングカート", "商品を購入", "税込",
+    "在庫あり", "在庫切れ", "送料無料", "特定商取引法",
+    "注文する", "今すぐ購入", "add to cart",
+]
+
+_AGENCY_SCORE_THRESHOLD = 45
+
+
+def is_ec_agency(title: str, snippet: str, company_name: str = "", url: str = "") -> tuple[bool, str]:
+    """EC代行・制作業者かどうかをスコアリングで判定する（3層方式）。
+
+    Layer 1: タイトル・スニペットのキーワードマッチ
+    Layer 2: ドメイン名・URLパスのパターンマッチ
+    Layer 3: 語彙スコアリング（代行語 vs ショップ語）
 
     Returns:
         (is_agency: bool, reason: str)
     """
+    agency_score = 0
+    reasons: list[str] = []
     text_lower = f"{title} {snippet} {company_name}".lower()
 
-    for kw in _AGENCY_TITLE_KEYWORDS:
-        if kw in text_lower:
-            return True, f"代行・制作キーワード: 「{kw}」"
+    # ─ ポジティブECシグナルチェック（あれば代行業者スコアを大幅抑制）─
+    ec_positive_count = sum(1 for sig in _EC_POSITIVE_SIGNALS if sig in text_lower)
+    if ec_positive_count >= 2:
+        return False, ""  # 明確なECショップシグナルがある → 代行業者ではない
 
+    # ─ Layer 1a: タイトルキーワードマッチ ─
+    for kw, score in _AGENCY_TITLE_KEYWORDS:
+        if kw in text_lower:
+            agency_score += score
+            reasons.append(f"KW「{kw}」")
+            if agency_score >= _AGENCY_SCORE_THRESHOLD:
+                break
+
+    # ─ Layer 1b: スニペット文脈パターンマッチ ─
     combined = f"{title} {snippet}"
-    for pat in _AGENCY_SNIPPET_PATTERNS:
+    for pat, score in _AGENCY_SNIPPET_PATTERNS:
         m = pat.search(combined)
         if m:
-            return True, f"代行業者パターン: 「{m.group()}」"
+            agency_score += score
+            reasons.append(f"PAT「{m.group()[:20]}」")
+            if agency_score >= _AGENCY_SCORE_THRESHOLD:
+                break
+
+    # ─ Layer 2a: ドメイン名パターン ─
+    if url:
+        try:
+            from urllib.parse import urlparse as _up2
+            parsed = _up2(url)
+            domain = parsed.netloc.lower()
+            path = parsed.path.lower()
+
+            for pat, score in _AGENCY_DOMAIN_PATTERNS:
+                if pat.search(domain):
+                    agency_score += score
+                    reasons.append(f"DOM「{domain}」")
+                    break
+
+            # ─ Layer 2b: URLパスパターン ─
+            for pat, score in _AGENCY_PATH_PATTERNS:
+                if pat.search(path):
+                    agency_score += score
+                    reasons.append(f"PATH「{path[:30]}」")
+                    break
+        except Exception:
+            pass
+
+    # ─ Layer 3: 語彙スコアリング ─
+    agency_vocab_count = sum(1 for w in _AGENCY_VOCAB if w in text_lower)
+    shop_vocab_count = sum(1 for w in _SHOP_VOCAB if w in text_lower)
+
+    if agency_vocab_count > 0:
+        vocab_bonus = min(agency_vocab_count * 12, 40)
+        if shop_vocab_count == 0:
+            agency_score += vocab_bonus
+            if agency_vocab_count >= 2:
+                reasons.append(f"VOCAB代行語{agency_vocab_count}語")
+        elif agency_vocab_count > shop_vocab_count + 1:
+            agency_score += vocab_bonus // 2
+            reasons.append(f"VOCAB代行優勢({agency_vocab_count}vs{shop_vocab_count})")
+
+    # ショップ語が多い場合は減算
+    if shop_vocab_count >= 3:
+        agency_score = max(0, agency_score - 25)
+
+    if agency_score >= _AGENCY_SCORE_THRESHOLD:
+        reason_str = " / ".join(reasons[:3]) if reasons else "複合シグナル"
+        return True, f"代行業者スコア{agency_score}: {reason_str}"
+
+    return False, ""
+
+
+def validate_ec_post_scrape(
+    ec_score: int,
+    cms_type: Optional[str],
+    full_text: str,
+    company_name: str = "",
+) -> tuple[bool, str]:
+    """スクレイプ後データを使ってEC代行業者かどうかを精密判定する（A+D層）。
+
+    scraper.py が返す ec_score・cms_type・full_text を利用して
+    EC実態のない企業（代行業者・制作会社・非EC事業者）を検出する。
+
+    Args:
+        ec_score:     スクレイパーが算出したECスコア（0〜100）
+        cms_type:     検出CMSタイプ（Shopify / BASE / WooCommerce 等、または None）
+        full_text:    スクレイプ済みページの全文テキスト
+        company_name: 会社名（任意）
+
+    Returns:
+        (is_agency: bool, reason: str)
+    """
+    # ─ 強いECポジティブシグナル → 確実にECショップ ─
+    EC_CMS_PLATFORMS = {
+        "Shopify", "BASE", "MakeShop", "futureshop", "ecbeing", "STORES",
+        "WooCommerce", "カラーミー", "EC-CUBE", "Welcart", "aishipR",
+        "ロリポップEC", "Yahoo!ショッピング", "楽天市場",
+    }
+    if cms_type in EC_CMS_PLATFORMS:
+        return False, ""  # 既知ECプラットフォーム → 確実にECショップ
+
+    if ec_score >= 50:
+        return False, ""  # 高ECスコア → ECショップと判定
+
+    # ─ フルテキスト語彙スコアリング（D層）─
+    text_lower = (full_text or "").lower()
+
+    agency_words = [w for w in _AGENCY_FULL_TEXT_VOCAB if w in text_lower]
+    shop_words = [w for w in _SHOP_FULL_TEXT_VOCAB if w in text_lower]
+    agency_count = len(agency_words)
+    shop_count = len(shop_words)
+
+    # ECスコアが低く、代行語彙が多い
+    if ec_score < 20 and agency_count >= 3 and shop_count <= 1:
+        return True, f"ECスコア低({ec_score}) + 代行語{agency_count}語({', '.join(agency_words[:3])})"
+
+    if ec_score < 30 and agency_count >= 5 and shop_count == 0:
+        return True, f"代行語彙優勢({agency_count}語, ECスコア{ec_score})"
+
+    # ショップ語彙ゼロ・ECスコア極低
+    if ec_score < 15 and shop_count == 0 and agency_count >= 2:
+        return True, f"EC実態なし(スコア{ec_score}, ショップ語0語)"
 
     return False, ""
 
