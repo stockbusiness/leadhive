@@ -26,11 +26,11 @@ const CMS_COLORS: Record<string, string> = {
   "カート365": "bg-violet-100 text-violet-700",
   "Yahoo!ショッピング": "bg-red-100 text-red-700",
   WordPress: "bg-blue-100 text-blue-700",
-  Wix: "bg-slate-100 text-slate-600",
+  Wix: "bg-gray-100 text-gray-600",
 };
 
 function CmsBadge({ cms }: { cms: string }) {
-  const color = CMS_COLORS[cms] || "bg-slate-100 text-slate-600";
+  const color = CMS_COLORS[cms] || "bg-gray-100 text-gray-600";
   const isEC = Object.keys(CMS_COLORS).slice(0, 13).includes(cms);
   return (
     <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${color}`}>
@@ -45,7 +45,7 @@ const WS_CONFIG: Record<string, { icon: string; label: string; cls: string }> = 
   closed:             { icon: "🔒", label: "閉鎖",     cls: "bg-red-100 text-red-800" },
   parking:            { icon: "🅿️", label: "駐車",     cls: "bg-amber-100 text-amber-700" },
   under_construction: { icon: "🚧", label: "工事中",   cls: "bg-yellow-100 text-yellow-700" },
-  redirect_external:  { icon: "↪️", label: "外部転送", cls: "bg-slate-100 text-slate-600" },
+  redirect_external:  { icon: "↪️", label: "外部転送", cls: "bg-gray-100 text-gray-600" },
 };
 
 function WebsiteStatusBadge({ status }: { status?: string | null }) {
@@ -105,14 +105,14 @@ export default function CompanyTable({
   const empty = (
     <div className="px-4 py-14 text-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+        <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-zinc-800 flex items-center justify-center">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 dark:text-zinc-500">
             <path d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/>
           </svg>
         </div>
         <div>
-          <p className="text-sm font-semibold text-slate-600 mb-1">企業データがありません</p>
-          <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+          <p className="text-sm font-semibold text-gray-600 dark:text-zinc-400 mb-1">企業データがありません</p>
+          <p className="text-xs text-gray-400 dark:text-zinc-500 max-w-xs mx-auto leading-relaxed">
             「URL収集」でキーワードから企業を自動収集するか、CSVでインポートしてください
           </p>
         </div>
@@ -120,8 +120,8 @@ export default function CompanyTable({
           <a href="/scraper" className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">
             URL収集を開始
           </a>
-          <span className="text-xs text-slate-400">または</span>
-          <span className="text-xs text-slate-500">CSVインポートボタンを使用</span>
+          <span className="text-xs text-gray-400 dark:text-zinc-500">または</span>
+          <span className="text-xs text-gray-500 dark:text-zinc-400">CSVインポートボタンを使用</span>
         </div>
       </div>
     </div>
@@ -130,7 +130,7 @@ export default function CompanyTable({
   return (
     <>
       {/* Mobile card list */}
-      <div className="md:hidden divide-y divide-slate-100">
+      <div className="md:hidden divide-y divide-gray-100 dark:divide-zinc-800">
         {companies.length === 0 && empty}
         {companies.map((c) => {
           const isOverdue = c.follow_up_date && new Date(c.follow_up_date) < new Date(new Date().toDateString());
@@ -145,7 +145,7 @@ export default function CompanyTable({
                     type="checkbox"
                     checked={selectedIds.has(c.id)}
                     onChange={() => handleSelectOne(c.id)}
-                    className="mt-1 flex-shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="mt-1 flex-shrink-0 rounded border-gray-200 text-blue-600 focus:ring-blue-500"
                   />
                   <div className="min-w-0">
                     <button
@@ -159,20 +159,20 @@ export default function CompanyTable({
                         href={c.website_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-slate-400 hover:underline mt-0.5"
+                        className="flex items-center gap-1 text-xs text-gray-400 dark:text-zinc-500 hover:underline mt-0.5"
                         onClick={e => e.stopPropagation()}
                       >
                         {c.domain} <ExternalLink size={10} />
                       </a>
                     )}
                     {c.category_main && (
-                      <span className="text-xs text-slate-500 mt-0.5 block">{c.category_main}</span>
+                      <span className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5 block">{c.category_main}</span>
                     )}
                     <div className="flex flex-wrap gap-1 mt-1">
                       {c.ec_flag && <FlagBadge label="🛒 ECサイト" color="bg-blue-100 text-blue-700" />}
                       {c.ec_scale === "large" && <FlagBadge label="規模:大" color="bg-indigo-100 text-indigo-700" />}
                       {c.ec_scale === "medium" && <FlagBadge label="規模:中" color="bg-teal-100 text-teal-700" />}
-                      {c.ec_scale === "small" && <FlagBadge label="規模:小" color="bg-slate-100 text-slate-600" />}
+                      {c.ec_scale === "small" && <FlagBadge label="規模:小" color="bg-gray-100 text-gray-600" />}
                       {c.cms_type ? (
                         <CmsBadge cms={c.cms_type} />
                       ) : (
@@ -204,7 +204,7 @@ export default function CompanyTable({
                 <select
                   value={c.status}
                   onChange={(e) => onStatusChange(c.id, e.target.value)}
-                  className="text-xs border border-slate-300 rounded px-1.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 flex-1 min-w-0 bg-white"
+                  className="text-xs border border-gray-200 rounded px-1.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 flex-1 min-w-0 bg-white"
                 >
                   {STATUSES.map((s) => (
                     <option key={s} value={s}>{s}</option>
@@ -251,37 +251,37 @@ export default function CompanyTable({
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
+            <tr className="bg-gray-50 dark:bg-zinc-800/50 border-b border-gray-100 dark:border-zinc-800">
               <th className="px-3 py-2 w-8">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={handleSelectAll}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-gray-200 text-blue-600 focus:ring-blue-500"
                 />
               </th>
-              <th className="text-left px-3 py-2 font-medium text-slate-600">会社名</th>
-              <th className="text-left px-3 py-2 font-medium text-slate-600">カテゴリ</th>
-              <th className="text-center px-3 py-2 font-medium text-slate-600">スコア</th>
-              <th className="text-left px-3 py-2 font-medium text-slate-600">所在地</th>
-              <th className="text-left px-3 py-2 font-medium text-slate-600">問い合わせ</th>
-              <th className="text-left px-3 py-2 font-medium text-slate-600">担当者</th>
-              <th className="text-left px-3 py-2 font-medium text-slate-600">ステータス</th>
-              <th className="text-left px-3 py-2 font-medium text-slate-600">メモ</th>
-              <th className="text-center px-3 py-2 font-medium text-slate-600">操作</th>
+              <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-zinc-400">会社名</th>
+              <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-zinc-400">カテゴリ</th>
+              <th className="text-center px-3 py-2 font-medium text-gray-600 dark:text-zinc-400">スコア</th>
+              <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-zinc-400">所在地</th>
+              <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-zinc-400">問い合わせ</th>
+              <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-zinc-400">担当者</th>
+              <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-zinc-400">ステータス</th>
+              <th className="text-left px-3 py-2 font-medium text-gray-600 dark:text-zinc-400">メモ</th>
+              <th className="text-center px-3 py-2 font-medium text-gray-600 dark:text-zinc-400">操作</th>
             </tr>
           </thead>
           <tbody>
             {companies.map((c) => {
               const isOverdue = c.follow_up_date && new Date(c.follow_up_date) < new Date(new Date().toDateString());
               return (
-                <tr key={c.id} className={`border-b border-slate-100 hover:bg-slate-50 ${selectedIds.has(c.id) ? "bg-blue-50" : isOverdue ? "bg-red-50" : ""}`}>
+                <tr key={c.id} className={`border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/30 ${selectedIds.has(c.id) ? "bg-blue-50" : isOverdue ? "bg-red-50" : ""}`}>
                   <td className="px-3 py-2">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(c.id)}
                       onChange={() => handleSelectOne(c.id)}
-                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-gray-200 text-blue-600 focus:ring-blue-500"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -295,7 +295,7 @@ export default function CompanyTable({
                       href={c.website_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-slate-400 hover:underline flex items-center gap-1"
+                      className="text-xs text-gray-400 dark:text-zinc-500 hover:underline flex items-center gap-1"
                       onClick={e => e.stopPropagation()}
                     >
                       {c.domain} <ExternalLink size={10} />
@@ -304,7 +304,7 @@ export default function CompanyTable({
                       {c.ec_flag && <FlagBadge label="🛒 ECサイト" color="bg-blue-100 text-blue-700" />}
                       {c.ec_scale === "large" && <FlagBadge label="規模:大" color="bg-indigo-100 text-indigo-700" />}
                       {c.ec_scale === "medium" && <FlagBadge label="規模:中" color="bg-teal-100 text-teal-700" />}
-                      {c.ec_scale === "small" && <FlagBadge label="規模:小" color="bg-slate-100 text-slate-600" />}
+                      {c.ec_scale === "small" && <FlagBadge label="規模:小" color="bg-gray-100 text-gray-600" />}
                       {c.cms_type ? (
                         <CmsBadge cms={c.cms_type} />
                       ) : (
@@ -326,15 +326,15 @@ export default function CompanyTable({
                       <WebsiteStatusBadge status={(c as any).website_status} />
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-slate-600">{c.category_main}</td>
+                  <td className="px-3 py-2 text-gray-600 dark:text-zinc-400">{c.category_main}</td>
                   <td className="px-3 py-2 text-center">
                     <ScoreBadge score={c.score_total} rank={c.score_rank} />
                   </td>
-                  <td className="px-3 py-2 text-slate-600 text-xs">
+                  <td className="px-3 py-2 text-gray-600 dark:text-zinc-400 text-xs">
                     {c.prefecture}{c.city}
                     {c.phone && (
                       <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-slate-400">{c.phone}</span>
+                        <span className="text-gray-400 dark:text-zinc-500">{c.phone}</span>
                         <a
                           href={toZoomPhoneUrl(c.phone)}
                           title="Zoom Phoneで発信"
@@ -359,7 +359,7 @@ export default function CompanyTable({
                         問い合わせ
                       </a>
                     ) : (
-                      <span className="text-xs text-slate-400">なし</span>
+                      <span className="text-xs text-gray-400 dark:text-zinc-500">なし</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -368,14 +368,14 @@ export default function CompanyTable({
                         {c.assignee.display_name || c.assignee.email}
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-400">—</span>
+                      <span className="text-xs text-gray-400 dark:text-zinc-500">—</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
                     <select
                       value={c.status}
                       onChange={(e) => onStatusChange(c.id, e.target.value)}
-                      className="text-xs border border-slate-300 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="text-xs border border-gray-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       {STATUSES.map((s) => (
                         <option key={s} value={s}>{s}</option>
@@ -384,7 +384,7 @@ export default function CompanyTable({
                     {c.follow_up_date && <FollowUpBadge date={c.follow_up_date} />}
                   </td>
                   <td className="px-3 py-2">
-                    <span className="text-xs text-slate-500 max-w-[120px] truncate block">
+                    <span className="text-xs text-gray-500 dark:text-zinc-400 max-w-[120px] truncate block">
                       {c.notes || "-"}
                     </span>
                   </td>
@@ -406,7 +406,7 @@ export default function CompanyTable({
             })}
             {companies.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-slate-400">
+                <td colSpan={10} className="px-3 py-8 text-center text-gray-400 dark:text-zinc-500">
                   企業データがありません。「URL収集」から企業を追加してください。
                 </td>
               </tr>

@@ -44,7 +44,7 @@ const CMS_COLORS: Record<string, string> = {
   "メルカート": "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
   "Yahoo!ショッピング": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
   "NEXT ENGINE": "bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200",
-  "独自EC": "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200",
+  "独自EC": "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200",
   "Amazon": "bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200",
   WordPress: "bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-200",
   Wix: "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
@@ -52,10 +52,10 @@ const CMS_COLORS: Record<string, string> = {
   WACA: "bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200",
   "メルカリShops": "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
   TEMPOSTAR: "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
-  "Square Online": "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200",
+  "Square Online": "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200",
 };
 
-const DEFAULT_BADGE_COLOR = "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200";
+const DEFAULT_BADGE_COLOR = "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200";
 
 export default function CompanyFilterBar({
   filters,
@@ -96,7 +96,7 @@ export default function CompanyFilterBar({
     setSearchInput(filters.search);
   }, [filters.search]);
 
-  const selectClass = "border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
+  const selectClass = "border border-gray-200 dark:border-zinc-700 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-200";
 
   const [showAllCms, setShowAllCms] = useState(false);
 
@@ -119,7 +119,7 @@ export default function CompanyFilterBar({
   const visibleCmsEntries = showAllCms ? sortedCmsEntries : sortedCmsEntries.slice(0, TOP_CMS_COUNT);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3 space-y-2">
+    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 shadow-sm p-3 space-y-2">
       <div className="flex flex-wrap gap-2">
         <input
           type="text"
@@ -161,12 +161,12 @@ export default function CompanyFilterBar({
         <select
           value={filters.has_contact}
           onChange={(e) => onFilterChange({ ...filters, has_contact: e.target.value })}
-          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-zinc-900 ${
             filters.has_contact === "true"
               ? "border-cyan-400 bg-cyan-50 text-cyan-700"
               : filters.has_contact === "false"
-              ? "border-slate-400 bg-slate-50 text-slate-600"
-              : "border-slate-300"
+              ? "border-gray-300 bg-gray-50 text-gray-600"
+              : "border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200"
           }`}
         >
           <option value="">フォームURL</option>
@@ -201,12 +201,12 @@ export default function CompanyFilterBar({
         <select
           value={filters.follow_up_filter}
           onChange={(e) => onFilterChange({ ...filters, follow_up_filter: e.target.value })}
-          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-zinc-900 ${
             filters.follow_up_filter === "overdue"
               ? "border-red-400 bg-red-50 text-red-700"
               : filters.follow_up_filter
               ? "border-amber-400 bg-amber-50 text-amber-700"
-              : "border-slate-300"
+              : "border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200"
           }`}
         >
           <option value="">フォローアップ</option>
@@ -217,8 +217,8 @@ export default function CompanyFilterBar({
         <select
           value={filters.cms_type}
           onChange={(e) => onFilterChange({ ...filters, cms_type: e.target.value })}
-          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
-            filters.cms_type ? "border-purple-400 bg-purple-50 text-purple-700" : "border-slate-300"
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-zinc-900 ${
+            filters.cms_type ? "border-purple-400 bg-purple-50 text-purple-700" : "border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200"
           }`}
         >
           <option value="">全CMS/プラットフォーム</option>
@@ -270,8 +270,8 @@ export default function CompanyFilterBar({
         <select
           value={filters.ec_only}
           onChange={(e) => onFilterChange({ ...filters, ec_only: e.target.value })}
-          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
-            filters.ec_only ? "border-orange-400 bg-orange-50 text-orange-700" : "border-slate-300"
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-zinc-900 ${
+            filters.ec_only ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200"
           }`}
         >
           <option value="">EC判定</option>
@@ -280,8 +280,8 @@ export default function CompanyFilterBar({
         <select
           value={filters.ec_scale}
           onChange={(e) => onFilterChange({ ...filters, ec_scale: e.target.value })}
-          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
-            filters.ec_scale ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-slate-300"
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-zinc-900 ${
+            filters.ec_scale ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200"
           }`}
         >
           <option value="">EC規模</option>
@@ -292,14 +292,14 @@ export default function CompanyFilterBar({
         <select
           value={filters.website_status}
           onChange={(e) => onFilterChange({ ...filters, website_status: e.target.value })}
-          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+          className={`border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-zinc-900 ${
             filters.website_status === "active"
               ? "border-green-400 bg-green-50 text-green-700"
               : filters.website_status === "problem"
               ? "border-red-400 bg-red-50 text-red-700"
               : filters.website_status
               ? "border-amber-400 bg-amber-50 text-amber-700"
-              : "border-slate-300"
+              : "border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200"
           }`}
         >
           <option value="">サイト状態</option>
@@ -314,7 +314,7 @@ export default function CompanyFilterBar({
       </div>
 
       {(sortedCmsEntries.length > 0 || ecCount > 0 || formCount > 0) && (
-        <div className="flex flex-wrap gap-1.5 pt-1 border-t border-slate-100">
+        <div className="flex flex-wrap gap-1.5 pt-1 border-t border-gray-100 dark:border-zinc-800">
           {formCount > 0 && (
             <button
               onClick={() => onFilterChange({ ...filters, has_contact: filters.has_contact === "true" ? "" : "true" })}
@@ -345,7 +345,7 @@ export default function CompanyFilterBar({
               onClick={() => onFilterChange({ ...filters, cms_type: filters.cms_type === cms ? "" : cms, ec_only: "" })}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                 filters.cms_type === cms
-                  ? "bg-slate-700 text-white border-slate-700"
+                  ? "bg-indigo-600 text-white border-indigo-600"
                   : (CMS_COLORS[cms] ?? DEFAULT_BADGE_COLOR)
               }`}
             >
@@ -355,7 +355,7 @@ export default function CompanyFilterBar({
           {!showAllCms && hiddenCount > 0 && (
             <button
               onClick={() => setShowAllCms(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors bg-slate-50 text-slate-500 border-slate-300 hover:bg-slate-100"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
             >
               その他 {hiddenCount}件 ({hiddenTotal.toLocaleString()}社) ▼
             </button>
@@ -363,7 +363,7 @@ export default function CompanyFilterBar({
           {showAllCms && hiddenCount > 0 && (
             <button
               onClick={() => setShowAllCms(false)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200"
             >
               折りたたむ ▲
             </button>

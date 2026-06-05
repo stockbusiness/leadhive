@@ -540,7 +540,7 @@ export default function Companies() {
         </div>
       )}
       <div className="flex items-start justify-between gap-2 flex-wrap">
-        <h2 className="text-xl md:text-2xl font-bold text-slate-800">候補企業一覧</h2>
+        <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">候補企業一覧</h2>
         <div className="flex items-center flex-wrap gap-2">
           <HelpPanel
             title="候補企業一覧のヘルプ"
@@ -556,17 +556,17 @@ export default function Companies() {
               "CSVインポートで既存リストを一括登録できます",
             ]}
           />
-          <div className="flex items-center bg-slate-100 rounded-lg p-1">
+          <div className="flex items-center bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
             <button
               onClick={() => handleViewModeChange("list")}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-slate-800 font-medium" : "text-slate-500 hover:text-slate-700"}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-gray-900 dark:text-white font-medium" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:text-zinc-300"}`}
             >
               <LayoutList size={15} />
               <span className="hidden sm:inline">リスト</span>
             </button>
             <button
               onClick={() => handleViewModeChange("kanban")}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors ${viewMode === "kanban" ? "bg-white shadow-sm text-slate-800 font-medium" : "text-slate-500 hover:text-slate-700"}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors ${viewMode === "kanban" ? "bg-white shadow-sm text-gray-900 dark:text-white font-medium" : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:text-zinc-300"}`}
             >
               <Kanban size={15} />
               <span className="hidden sm:inline">カンバン</span>
@@ -636,7 +636,7 @@ export default function Companies() {
           ) : (
             <button
               onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "CSVエクスポートは有料プランで利用できます。" } }))}
-              className="flex items-center gap-1.5 bg-slate-300 text-slate-500 px-3 py-2 rounded-lg text-sm cursor-not-allowed"
+              className="flex items-center gap-1.5 bg-gray-300 text-gray-500 dark:text-zinc-400 px-3 py-2 rounded-lg text-sm cursor-not-allowed"
             >
               <Lock size={15} />
               <span className="hidden sm:inline">CSV出力</span>
@@ -701,7 +701,7 @@ export default function Companies() {
           </span>
           <button
             onClick={() => handleFilterChange({ ...filters, website_status: "" })}
-            className="flex items-center gap-1.5 ml-auto text-sm text-slate-500 hover:text-slate-700 font-medium transition-colors"
+            className="flex items-center gap-1.5 ml-auto text-sm text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:text-zinc-300 font-medium transition-colors"
           >
             <X size={14} />
             解除
@@ -792,7 +792,7 @@ export default function Companies() {
               ) : (
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent("plan-limit-exceeded", { detail: { message: "ステータス一括変更は有料プランで利用できます。" } }))}
-                  className="flex items-center gap-1.5 bg-slate-200 text-slate-500 px-3 py-1 rounded text-sm cursor-not-allowed"
+                  className="flex items-center gap-1.5 bg-gray-200 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 px-3 py-1 rounded text-sm cursor-not-allowed"
                 >
                   <Lock size={13} />
                   一括変更
@@ -823,7 +823,7 @@ export default function Companies() {
               </button>
               <button
                 onClick={() => { setSelectedIds(new Set()); setAllSelectedMode(false); }}
-                className="text-sm text-slate-400 hover:text-slate-600"
+                className="text-sm text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:text-zinc-400"
               >
                 解除
               </button>
@@ -848,7 +848,7 @@ export default function Companies() {
                       検出: <span className="font-bold text-green-600">{scanJobProgress.found}</span>件
                     </span>
                     {(scanJobProgress.total_eligible ?? 0) > scanJobProgress.total && (
-                      <span className="text-slate-500">
+                      <span className="text-gray-500 dark:text-zinc-400">
                         今回の残り: <span className="font-bold">{scanJobProgress.total - scanJobProgress.done}</span>件 ／ 全体残り: <span className="font-bold">{(scanJobProgress.total_eligible ?? 0) - scanJobProgress.done}</span>件
                       </span>
                     )}
@@ -883,7 +883,7 @@ export default function Companies() {
                         <Search size={12} />
                         次の500件をスキャン（残り{scanRemaining.toLocaleString()}件）
                       </button>
-                      <span className="text-xs text-slate-400">スキャン済み企業は自動でスキップされます</span>
+                      <span className="text-xs text-gray-400 dark:text-zinc-500">スキャン済み企業は自動でスキップされます</span>
                     </div>
                   )}
                 </div>
@@ -894,7 +894,7 @@ export default function Companies() {
       )}
 
       {viewMode === "list" ? (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden">
           <CompanyTable
             companies={companies}
             selectedIds={selectedIds}
@@ -913,7 +913,7 @@ export default function Companies() {
           />
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 dark:border-zinc-800 p-4">
           <CompanyKanban companies={companies} onStatusChange={async (id, status) => { await api.companies.update(id, { status }); fetchCompanies(); }} />
         </div>
       )}
@@ -932,17 +932,17 @@ export default function Companies() {
       {showCleanModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-zinc-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Sparkles size={18} className="text-violet-600" />
                 リストクリーニング
               </h3>
-              <button onClick={() => setShowCleanModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowCleanModal(false)} className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:text-zinc-400">
                 <X size={20} />
               </button>
             </div>
             <div className="p-5 space-y-4">
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-gray-600 dark:text-zinc-400">
                 {currentProject ? `「${currentProject.name}」プロジェクト` : "全プロジェクト"}の企業リストに対してクリーニングを実行します。
               </p>
               <div className="space-y-3">
@@ -954,8 +954,8 @@ export default function Companies() {
                     className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
                   />
                   <div>
-                    <p className="text-sm font-medium text-slate-800">🌐 サイト状態チェック</p>
-                    <p className="text-xs text-slate-500">各企業のWebサイトにアクセスし、稼働・閉鎖・工事中などを判定します</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">🌐 サイト状態チェック</p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-400">各企業のWebサイトにアクセスし、稼働・閉鎖・工事中などを判定します</p>
                   </div>
                 </label>
                 <label className="flex items-start gap-3 cursor-pointer">
@@ -966,8 +966,8 @@ export default function Companies() {
                     className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
                   />
                   <div>
-                    <p className="text-sm font-medium text-slate-800">📨 フォームURL補完</p>
-                    <p className="text-xs text-slate-500">フォームURLが未登録の企業に対してお問い合わせフォームURLを自動検出・登録します</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">📨 フォームURL補完</p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-400">フォームURLが未登録の企業に対してお問い合わせフォームURLを自動検出・登録します</p>
                   </div>
                 </label>
                 <label className="flex items-start gap-3 cursor-pointer">
@@ -978,8 +978,8 @@ export default function Companies() {
                     className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
                   />
                   <div>
-                    <p className="text-sm font-medium text-slate-800">✏️ データ正規化</p>
-                    <p className="text-xs text-slate-500">電話番号の全角→半角変換、メールアドレスの小文字化など</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">✏️ データ正規化</p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-400">電話番号の全角→半角変換、メールアドレスの小文字化など</p>
                   </div>
                 </label>
               </div>
@@ -987,10 +987,10 @@ export default function Companies() {
                 ⚠️ サイト状態チェックはHTTPリクエストを伴うため、企業数が多い場合は時間がかかります
               </div>
             </div>
-            <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
+            <div className="p-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end gap-3">
               <button
                 onClick={() => setShowCleanModal(false)}
-                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-zinc-400 border border-gray-200 rounded-lg hover:bg-gray-50 dark:bg-zinc-900"
               >
                 キャンセル
               </button>
@@ -1010,17 +1010,17 @@ export default function Companies() {
       {showImportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-zinc-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Upload size={18} />
                 CSVインポート
               </h3>
-              <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowImportModal(false)} className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:text-zinc-400">
                 <X size={20} />
               </button>
             </div>
             <div className="p-5 space-y-4">
-              <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-zinc-400 bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-lg p-3">
                 <FileDown size={14} className="text-violet-600 flex-shrink-0" />
                 <span>CSVのフォーマットを確認するには</span>
                 <a
@@ -1032,21 +1032,21 @@ export default function Companies() {
                 </a>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">CSVファイルを選択</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2">CSVファイルを選択</label>
                 <input
                   type="file"
                   accept=".csv"
                   onChange={e => setImportFile(e.target.files?.[0] || null)}
-                  className="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 border border-slate-300 rounded-lg p-1"
+                  className="w-full text-sm text-gray-600 dark:text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 border border-gray-200 rounded-lg p-1"
                 />
               </div>
-              <div className="text-xs text-slate-500 space-y-1">
-                <p>対応カラム: <code className="bg-slate-100 px-1 rounded">name</code>, <code className="bg-slate-100 px-1 rounded">website_url</code>, <code className="bg-slate-100 px-1 rounded">email</code>, <code className="bg-slate-100 px-1 rounded">phone</code>, <code className="bg-slate-100 px-1 rounded">prefecture</code>, <code className="bg-slate-100 px-1 rounded">city</code>, <code className="bg-slate-100 px-1 rounded">memo</code>, <code className="bg-slate-100 px-1 rounded">status</code>, <code className="bg-slate-100 px-1 rounded">category_main</code>, <code className="bg-slate-100 px-1 rounded">rank</code></p>
+              <div className="text-xs text-gray-500 dark:text-zinc-400 space-y-1">
+                <p>対応カラム: <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">name</code>, <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">website_url</code>, <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">email</code>, <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">phone</code>, <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">prefecture</code>, <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">city</code>, <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">memo</code>, <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">status</code>, <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">category_main</code>, <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">rank</code></p>
                 <p>重複するURLは自動的にスキップされます。</p>
               </div>
               {importResult && (
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
-                  <p className="text-sm font-semibold text-slate-700">インポート結果</p>
+                <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-lg p-4 space-y-2">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-zinc-300">インポート結果</p>
                   <div className="flex gap-4 text-sm">
                     <span className="text-emerald-700">追加: <strong>{importResult.added}件</strong></span>
                     <span className="text-amber-600">スキップ: <strong>{importResult.skipped}件</strong></span>
@@ -1062,10 +1062,10 @@ export default function Companies() {
                 </div>
               )}
             </div>
-            <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
+            <div className="p-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end gap-3">
               <button
                 onClick={() => setShowImportModal(false)}
-                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-zinc-400 border border-gray-200 rounded-lg hover:bg-gray-50 dark:bg-zinc-900"
               >
                 {importResult ? "閉じる" : "キャンセル"}
               </button>
@@ -1087,25 +1087,25 @@ export default function Companies() {
       {showMoveModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-zinc-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <MoveRight size={20} />
                 プロジェクト間移動
               </h3>
-              <button onClick={() => setShowMoveModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowMoveModal(false)} className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:text-zinc-400">
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-gray-600 dark:text-zinc-400">
                 <strong>{selectedIds.size}件</strong>の企業を別のプロジェクトに移動します。
               </p>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">移動先プロジェクト</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2">移動先プロジェクト</label>
                 <select
                   value={moveTargetProjectId}
                   onChange={(e) => setMoveTargetProjectId(Number(e.target.value))}
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="">プロジェクトを選択...</option>
                   {projects.filter((p) => p.id !== currentProject?.id).map((p) => (
@@ -1113,14 +1113,14 @@ export default function Companies() {
                   ))}
                 </select>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-gray-400 dark:text-zinc-500">
                 移動先に同じドメインの企業が既に存在する場合はスキップされます。
               </p>
             </div>
-            <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
+            <div className="p-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end gap-3">
               <button
                 onClick={() => setShowMoveModal(false)}
-                className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-zinc-400 border border-gray-200 rounded-lg hover:bg-gray-50 dark:bg-zinc-900"
               >
                 キャンセル
               </button>
@@ -1140,11 +1140,11 @@ export default function Companies() {
       {showDuplicateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-zinc-800">
               <div>
-                <h3 className="text-lg font-bold text-slate-800">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                   重複企業チェック結果
-                  <span className="ml-2 text-sm font-normal text-slate-500">
+                  <span className="ml-2 text-sm font-normal text-gray-500 dark:text-zinc-400">
                     {duplicateGroups.length}グループ検出
                   </span>
                 </h3>
@@ -1156,14 +1156,14 @@ export default function Companies() {
                       setFuzzyDuplicate(e.target.checked);
                       handleDuplicateCheck(e.target.checked);
                     }}
-                    className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                    className="rounded border-gray-200 text-amber-600 focus:ring-amber-500"
                   />
-                  <span className="text-xs text-slate-500">会社名のあいまいマッチング（88%以上で同一企業と判定）</span>
+                  <span className="text-xs text-gray-500 dark:text-zinc-400">会社名のあいまいマッチング（88%以上で同一企業と判定）</span>
                 </label>
               </div>
               <button
                 onClick={() => setShowDuplicateModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:text-zinc-400"
               >
                 <X size={20} />
               </button>
@@ -1171,17 +1171,17 @@ export default function Companies() {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {duplicateGroups.length === 0 ? (
-                <div className="text-center py-12 text-slate-500">
+                <div className="text-center py-12 text-gray-500 dark:text-zinc-400">
                   重複企業は見つかりませんでした
                 </div>
               ) : (
                 duplicateGroups.map((group) => (
                   <div
                     key={group.normalized_domain}
-                    className="border border-slate-200 rounded-lg p-4 space-y-3"
+                    className="border border-gray-100 dark:border-zinc-800 rounded-lg p-4 space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-slate-700">
+                      <h4 className="font-semibold text-gray-700 dark:text-zinc-300">
                         {group.normalized_domain}
                         <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
                           {group.companies.length}件
@@ -1213,7 +1213,7 @@ export default function Companies() {
                           className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                             mergeSelections[group.normalized_domain] === c.id
                               ? "border-blue-400 bg-blue-50"
-                              : "border-slate-200 hover:bg-slate-50"
+                              : "border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:bg-zinc-900"
                           }`}
                         >
                           <input
@@ -1229,11 +1229,11 @@ export default function Companies() {
                             className="text-blue-600"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm text-slate-800 truncate">
+                            <div className="font-medium text-sm text-gray-900 dark:text-white truncate">
                               {c.company_name || "名称未設定"}
                             </div>
-                            <div className="text-xs text-slate-500 truncate">{c.website_url}</div>
-                            <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                            <div className="text-xs text-gray-500 dark:text-zinc-400 truncate">{c.website_url}</div>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 dark:text-zinc-500">
                               <span>ID: {c.id}</span>
                               <span>スコア: {c.score_total}</span>
                               <span>ランク: {c.score_rank}</span>
@@ -1248,7 +1248,7 @@ export default function Companies() {
                         </label>
                       ))}
                     </div>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-gray-400 dark:text-zinc-500">
                       メインに残す企業を選択してください。他の企業の情報はメインに統合され、削除されます。
                     </p>
                   </div>
@@ -1256,10 +1256,10 @@ export default function Companies() {
               )}
             </div>
 
-            <div className="p-4 border-t border-slate-200 flex justify-end">
+            <div className="p-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end">
               <button
                 onClick={() => setShowDuplicateModal(false)}
-                className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:text-white border border-gray-200 rounded-lg hover:bg-gray-50 dark:bg-zinc-900 transition-colors"
               >
                 閉じる
               </button>
@@ -1280,12 +1280,12 @@ export default function Companies() {
       {showScoreFeedback && scoreFeedback && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-zinc-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <TrendingUp size={18} className="text-teal-600" />
                 スコアフィードバック分析
               </h3>
-              <button onClick={() => setShowScoreFeedback(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowScoreFeedback(false)} className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:text-zinc-400">
                 <X size={20} />
               </button>
             </div>
@@ -1326,12 +1326,12 @@ export default function Companies() {
 
               {Object.keys(scoreFeedback.rank_conversion).length > 0 && (
                 <div>
-                  <p className="text-sm font-semibold text-slate-700 mb-2">ランク別受注率</p>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-2">ランク別受注率</p>
                   <div className="grid grid-cols-4 gap-2">
                     {["A", "B", "C", "D"].map((rank) => {
                       const rc = scoreFeedback.rank_conversion[rank];
                       if (!rc) return null;
-                      const rankColor = rank === "A" ? "bg-green-100 border-green-300 text-green-800" : rank === "B" ? "bg-blue-100 border-blue-300 text-blue-800" : rank === "C" ? "bg-yellow-100 border-yellow-300 text-yellow-800" : "bg-slate-100 border-slate-300 text-slate-700";
+                      const rankColor = rank === "A" ? "bg-green-100 border-green-300 text-green-800" : rank === "B" ? "bg-blue-100 border-blue-300 text-blue-800" : rank === "C" ? "bg-yellow-100 border-yellow-300 text-yellow-800" : "bg-gray-100 dark:bg-zinc-800 border-gray-200 text-gray-700 dark:text-zinc-300";
                       return (
                         <div key={rank} className={`border rounded-lg p-3 text-center ${rankColor}`}>
                           <p className="text-lg font-bold">ランク{rank}</p>
@@ -1345,15 +1345,15 @@ export default function Companies() {
               )}
 
               {scoreFeedback.total === 0 && (
-                <div className="text-center py-8 text-slate-500">
-                  <TrendingUp size={32} className="mx-auto mb-2 text-slate-300" />
+                <div className="text-center py-8 text-gray-500 dark:text-zinc-400">
+                  <TrendingUp size={32} className="mx-auto mb-2 text-gray-300" />
                   <p>まだ受注・商談化実績がありません。</p>
                   <p className="text-xs mt-1">ステータスを「商談中」「受注」「成約」に変更すると分析に反映されます。</p>
                 </div>
               )}
             </div>
-            <div className="p-4 border-t border-slate-200 flex justify-end">
-              <button onClick={() => setShowScoreFeedback(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">
+            <div className="p-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end">
+              <button onClick={() => setShowScoreFeedback(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-zinc-400 border border-gray-200 rounded-lg hover:bg-gray-50 dark:bg-zinc-900">
                 閉じる
               </button>
             </div>
