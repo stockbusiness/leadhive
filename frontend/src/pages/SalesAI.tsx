@@ -750,6 +750,7 @@ export default function SalesAI() {
   const [filterEmailOnly, setFilterEmailOnly] = useState(false);
   const [filterFormOnly, setFilterFormOnly] = useState(false);
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterExcludePublic, setFilterExcludePublic] = useState(false);
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
 
@@ -1006,6 +1007,10 @@ export default function SalesAI() {
     if (filterEmailOnly && !c.email) return false;
     if (filterFormOnly && !c.contact_url) return false;
     if (filterCategory && c.category_main !== filterCategory) return false;
+    if (filterExcludePublic) {
+      const d = (c.domain || "").toLowerCase();
+      if (d.endsWith(".go.jp") || d.endsWith(".lg.jp") || d.endsWith(".or.jp") || d.endsWith(".ac.jp") || d.endsWith(".ed.jp")) return false;
+    }
     return true;
   });
   // Mode C用: フォームURL登録済み＆未送信の企業のみ
@@ -1788,9 +1793,18 @@ export default function SalesAI() {
                   >
                     フォームURLあり
                   </button>
-                  {(filterRanks.length > 0 || filterEcOnly || filterEmailOnly || filterFormOnly || filterCategory) && (
+                  <button
+                    onClick={() => setFilterExcludePublic(v => !v)}
+                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                      filterExcludePublic ? "bg-orange-600 text-white border-orange-600" : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                    }`}
+                    title="go.jp / lg.jp / or.jp / ac.jp / ed.jp ドメインを除外"
+                  >
+                    🏢 公的組織を除外
+                  </button>
+                  {(filterRanks.length > 0 || filterEcOnly || filterEmailOnly || filterFormOnly || filterCategory || filterExcludePublic) && (
                     <button
-                      onClick={() => { setFilterRanks([]); setFilterEcOnly(false); setFilterEmailOnly(false); setFilterFormOnly(false); setFilterCategory(""); }}
+                      onClick={() => { setFilterRanks([]); setFilterEcOnly(false); setFilterEmailOnly(false); setFilterFormOnly(false); setFilterCategory(""); setFilterExcludePublic(false); }}
                       className="text-xs text-slate-400 hover:text-slate-600 ml-1"
                     >
                       リセット
