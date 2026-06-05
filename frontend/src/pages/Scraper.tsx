@@ -1201,6 +1201,58 @@ function CollectSummaryCard({ summary }: { summary: any }) {
   );
 }
 
+function ScrapeResultBanner({ results }: { results: any }) {
+  const summary = results?.summary;
+  const newCount = summary?.success ?? 0;
+  const dupCount = summary?.duplicate ?? 0;
+  const errCount = summary?.error ?? 0;
+  const rejCount = summary?.rejected ?? 0;
+  const total = newCount + dupCount + errCount + rejCount;
+
+  if (results?.error) {
+    return (
+      <div className="mx-4 mb-4 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+        <XCircle size={16} className="flex-shrink-0" />
+        <span>{results.error}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-4 mb-4">
+      <div className="bg-gradient-to-r from-emerald-50 to-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <CheckCircle size={16} className="text-emerald-600" />
+          <span className="text-sm font-semibold text-slate-700">スクレイピング完了</span>
+          <span className="ml-auto text-xs text-slate-400">計 {total}件処理</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-emerald-100 border border-emerald-200 rounded-lg p-2.5 text-center">
+            <div className="text-xl font-bold text-emerald-700">{newCount}</div>
+            <div className="text-[11px] text-emerald-600 font-medium mt-0.5">📥 新規登録</div>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-center">
+            <div className="text-xl font-bold text-amber-600">{dupCount}</div>
+            <div className="text-[11px] text-amber-600 font-medium mt-0.5">△ 重複スキップ</div>
+          </div>
+          <div className={`border rounded-lg p-2.5 text-center ${errCount > 0 ? "bg-red-50 border-red-200" : "bg-slate-100 border-slate-200"}`}>
+            <div className={`text-xl font-bold ${errCount > 0 ? "text-red-600" : "text-slate-400"}`}>{errCount}</div>
+            <div className={`text-[11px] font-medium mt-0.5 ${errCount > 0 ? "text-red-500" : "text-slate-400"}`}>✕ エラー</div>
+          </div>
+        </div>
+        {newCount > 0 && (
+          <Link
+            to="/companies"
+            className="mt-3 flex items-center justify-center gap-1.5 w-full text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 rounded-lg py-2 transition-colors"
+          >
+            候補企業一覧で {newCount}件 を確認 <ExternalLink size={11} />
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 type StagedUrlItem = {
   id: string; url: string; name: string; source: string; selected: boolean; location?: string;
   address?: string; phone?: string; rating?: number; user_ratings_total?: number; has_url?: boolean;
@@ -1376,24 +1428,8 @@ function GmStagingCards({
       </div>
 
       {scrapeResults && !scrapeInProgress && (
-        <div className="border-t border-slate-200">
-          <button
-            onClick={() => setShowResults((v) => !v)}
-            className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            {showResults ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            保存結果
-            {scrapeResults.summary && (
-              <span className="ml-2 flex gap-3 text-xs font-normal">
-                {scrapeResults.summary.success > 0 && <span className="text-emerald-600">✓ {scrapeResults.summary.success}件保存</span>}
-                {scrapeResults.summary.duplicate > 0 && <span className="text-amber-500">△ {scrapeResults.summary.duplicate}件重複</span>}
-                {scrapeResults.summary.error > 0 && <span className="text-red-500">✕ {scrapeResults.summary.error}件エラー</span>}
-              </span>
-            )}
-          </button>
-          {showResults && scrapeResults.error && (
-            <div className="px-4 pb-3 text-sm text-red-600">{scrapeResults.error}</div>
-          )}
+        <div className="border-t border-slate-200 pt-4">
+          <ScrapeResultBanner results={scrapeResults} />
         </div>
       )}
     </div>
@@ -1544,46 +1580,8 @@ function StagingTable({
       </div>
 
       {scrapeResults && !scrapeInProgress && (
-        <div className="border-t border-slate-200">
-          <button
-            onClick={() => setShowResults((v) => !v)}
-            className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            {showResults ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            スクレイピング結果
-            {scrapeResults.summary && (
-              <span className="ml-auto text-xs text-slate-400">
-                成功: {scrapeResults.summary?.success ?? 0} / エラー: {scrapeResults.summary?.error ?? 0}
-              </span>
-            )}
-          </button>
-          {showResults && (
-            <div className="px-4 pb-4 space-y-2">
-              {scrapeResults.error && (
-                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded">
-                  <XCircle size={14} /> {scrapeResults.error}
-                </div>
-              )}
-              {!scrapeResults.error && (scrapeResults.summary?.success ?? 0) > 0 && (
-                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                  <span className="flex items-center gap-2 text-sm text-emerald-700">
-                    <CheckCircle size={14} />
-                    成功した <strong>{scrapeResults.summary?.success}</strong> 社は「候補企業一覧」に保存されました
-                  </span>
-                  <Link
-                    to="/companies"
-                    className="flex items-center gap-1 text-xs text-emerald-700 font-medium hover:text-emerald-900 transition-colors whitespace-nowrap ml-3"
-                  >
-                    候補企業一覧を確認 <ExternalLink size={12} />
-                  </Link>
-                </div>
-              )}
-              {scrapeResults.summary && <CollectSummaryCard summary={scrapeResults.summary} />}
-              {scrapeResults.results?.map((r: ScrapeResult, i: number) => (
-                <ResultRow key={i} result={r} />
-              ))}
-            </div>
-          )}
+        <div className="border-t border-slate-200 pt-4">
+          <ScrapeResultBanner results={scrapeResults} />
         </div>
       )}
     </div>
