@@ -41,8 +41,9 @@ export default function Scraper() {
   const [gbizMaxResults, setGbizMaxResults] = useState(20);
 
   const [ecSearchKeyword, setEcSearchKeyword] = useState("");
-  const [ecSearchNumResults, setEcSearchNumResults] = useState(100);
   const [ecSearchModifier, setEcSearchModifier] = useState("通販 ネットショップ");
+  const [ecSearchPageStart, setEcSearchPageStart] = useState(1);
+  const [ecSearchExcludeAgency, setEcSearchExcludeAgency] = useState(true);
 
   type StagedUrl = {
     id: string; url: string; name: string; source: string; selected: boolean; location?: string;
@@ -101,6 +102,7 @@ export default function Scraper() {
     setScrapeResults(null);
     setActiveCollectType(type);
     if (type === "google-api") setGoogleApiPageStart(1);
+    if (type === "ec-search") setEcSearchPageStart(1);
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
     try {
       const data = await api.collector.urlsPreview({ type, ...extraParams, project_id: currentProject?.id, page_start: 1 });
@@ -116,6 +118,9 @@ export default function Scraper() {
         );
         if (type === "google-api" && data.next_page_start) {
           setGoogleApiPageStart(data.next_page_start);
+        }
+        if (type === "ec-search" && data.next_page_start) {
+          setEcSearchPageStart(data.next_page_start);
         }
       }
     } catch (err: any) {
@@ -150,6 +155,41 @@ export default function Scraper() {
           }));
         setStagedUrls((prev) => [...prev, ...newUrls]);
         if (data.next_page_start) setGoogleApiPageStart(data.next_page_start);
+      }
+    } catch (err: any) {
+      setStagingError(err.response?.data?.detail || "追加収集エラーが発生しました");
+    }
+    setStagingLoading(false);
+  };
+
+  const handleCollectMoreUrlsEc = async () => {
+    if (ecSearchPageStart <= 1 || stagingLoading) return;
+    setStagingLoading(true);
+    setStagingError(null);
+    try {
+      const existingUrls = stagedUrls.map((u) => u.url).filter(Boolean);
+      const data = await api.collector.urlsPreview({
+        type: "ec-search",
+        keyword: ecSearchKeyword,
+        ec_modifier: ecSearchModifier,
+        exclude_agency: ecSearchExcludeAgency,
+        project_id: currentProject?.id,
+        page_start: ecSearchPageStart,
+        existing_urls: existingUrls,
+      });
+      if (data.error) {
+        setStagingError(data.error);
+      } else {
+        const existingUrlSet = new Set(existingUrls);
+        const newUrls = (data.urls as any[])
+          .filter((u) => !existingUrlSet.has(u.url))
+          .map((u, i) => ({
+            ...u,
+            id: `ec-more-${ecSearchPageStart}-${i}-${u.url}`,
+            selected: u.has_url !== false && !u.excluded,
+          }));
+        setStagedUrls((prev) => [...prev, ...newUrls]);
+        if (data.next_page_start) setEcSearchPageStart(data.next_page_start);
       }
     } catch (err: any) {
       setStagingError(err.response?.data?.detail || "追加収集エラーが発生しました");
@@ -336,16 +376,19 @@ export default function Scraper() {
             <EcSearchSection
               keyword={ecSearchKeyword}
               onKeywordChange={setEcSearchKeyword}
-              numResults={ecSearchNumResults}
-              onNumResultsChange={setEcSearchNumResults}
               modifier={ecSearchModifier}
               onModifierChange={setEcSearchModifier}
+              excludeAgency={ecSearchExcludeAgency}
+              onExcludeAgencyChange={setEcSearchExcludeAgency}
               loading={stagingLoading}
               onCollect={() => handleCollectUrls("ec-search", {
                 keyword: ecSearchKeyword,
-                num_results: ecSearchNumResults,
                 ec_modifier: ecSearchModifier,
+                exclude_agency: ecSearchExcludeAgency,
               })}
+              onCollectMore={handleCollectMoreUrlsEc}
+              nextPageStart={ecSearchPageStart}
+              hasResults={activeCollectType === "ec-search" && stagedUrls.length > 0}
             />
           )}
 
@@ -796,13 +839,15 @@ function GbizSection({
 }
 
 function EcSearchSection({
-  keyword, onKeywordChange, numResults, onNumResultsChange,
-  modifier, onModifierChange, loading, onCollect,
+  keyword, onKeywordChange, modifier, onModifierChange,
+  excludeAgency, onExcludeAgencyChange,
+  loading, onCollect, onCollectMore, nextPageStart, hasResults,
 }: {
   keyword: string; onKeywordChange: (v: string) => void;
-  numResults: number; onNumResultsChange: (v: number) => void;
   modifier: string; onModifierChange: (v: string) => void;
+  excludeAgency: boolean; onExcludeAgencyChange: (v: boolean) => void;
   loading: boolean; onCollect: () => void;
+  onCollectMore: () => void; nextPageStart: number; hasResults: boolean;
 }) {
   const EC_MODIFIERS = [
     { label: "通販・ネットショップ（汎用）", value: "通販 ネットショップ" },
@@ -814,13 +859,14 @@ function EcSearchSection({
     { label: "BtoB・業務用EC", value: "業務用 法人向け 通販" },
     { label: "D2Cブランド", value: "D2C ブランド 通販" },
   ];
+  const canLoadMore = hasResults && nextPageStart > 1 && !loading;
   return (
     <div className="space-y-3">
       <div className="flex items-start gap-2 bg-purple-50 border border-purple-200 rounded-lg p-3">
         <Store size={16} className="text-purple-600 mt-0.5 flex-shrink-0" />
         <p className="text-sm text-slate-600">
           業種・商材キーワードにEC修飾語を組み合わせてSerper APIで検索し、ECサイトのURLをまとめて収集します。
-          まとめサイト・比較サイトは自動的に除外候補として表示されます。
+          1回の収集で約50件取得でき、「さらに追加収集」で続きを取得できます。
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -848,26 +894,43 @@ function EcSearchSection({
           </select>
         </div>
       </div>
-      <div className="flex gap-3 items-end">
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">最大取得件数</label>
-          <select
-            value={numResults}
-            onChange={(e) => onNumResultsChange(Number(e.target.value))}
-            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            {[50, 100, 200].map((n) => (
-              <option key={n} value={n}>{n}件</option>
-            ))}
-          </select>
+      {/* 代行業者除外トグル */}
+      <div
+        className={`rounded-lg border p-2.5 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+          excludeAgency ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200 hover:border-slate-300"
+        }`}
+        onClick={() => onExcludeAgencyChange(!excludeAgency)}
+      >
+        <div className="flex items-center gap-2">
+          <ShieldBan size={14} className={excludeAgency ? "text-emerald-500" : "text-slate-400"} />
+          <span className={`text-xs font-medium ${excludeAgency ? "text-emerald-700" : "text-slate-600"}`}>
+            EC代行・制作会社を除外
+          </span>
+          <span className={`text-xs ${excludeAgency ? "text-emerald-600" : "text-slate-400"}`}>
+            — Web制作・EC構築代行・運営代行業者を自動フィルター
+          </span>
         </div>
+        <div className={`relative w-8 h-4 rounded-full flex-shrink-0 transition-colors ${excludeAgency ? "bg-emerald-500" : "bg-slate-300"}`}>
+          <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${excludeAgency ? "translate-x-4" : "translate-x-0.5"}`} />
+        </div>
+      </div>
+      <div className="flex gap-2 items-center flex-wrap">
         <button
           onClick={onCollect}
           disabled={loading || !keyword.trim()}
-          className="flex items-center gap-2 bg-purple-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
         >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <Store size={16} />}
-          ECサイトを収集
+          {loading ? <Loader2 size={15} className="animate-spin" /> : <Store size={15} />}
+          URLを収集
+        </button>
+        <button
+          onClick={onCollectMore}
+          disabled={!canLoadMore || loading}
+          title={canLoadMore ? `さらに50件収集（${nextPageStart}ページ目〜）` : "URLを収集してから使えます"}
+          className="flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+          さらに追加収集
         </button>
         {!keyword.trim() && (
           <p className="text-xs text-slate-400">キーワードを入力してください</p>

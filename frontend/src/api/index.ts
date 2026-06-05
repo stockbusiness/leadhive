@@ -230,7 +230,7 @@ export const api = {
       axios.post<{ job_id: string }>("/api/collect/gbiz", params).then(r => r.data),
 
     urlsPreview: (params: Record<string, unknown>) =>
-      axios.post<{ urls: { url: string; name: string; source: string; location?: string }[]; count: number; error?: string }>(
+      axios.post<{ urls: { url: string; name: string; source: string; location?: string }[]; count: number; error?: string; next_page_start?: number }>(
         "/api/collect/urls-preview", params
       ).then(r => r.data),
 

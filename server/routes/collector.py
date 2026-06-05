@@ -1191,8 +1191,10 @@ def collect_urls_preview(
         if not keyword:
             return {"error": "キーワードを入力してください"}
 
-        num_results = min(int(data.get("num_results", 100)), 200)
+        per_batch = 50
         ec_modifier = data.get("ec_modifier", "通販 ネットショップ").strip()
+        page_start = max(1, int(data.get("page_start", 1)))
+        exclude_agency = data.get("exclude_agency", True)
 
         from server.services.serper_search import search_serper, get_serper_api_key
         serper_key = get_serper_api_key(db=db, org_id=current_user.org_id)
@@ -1200,10 +1202,15 @@ def collect_urls_preview(
             return {"error": "Serper APIキーが設定されていません。設定画面でSerper APIキーを登録してください。"}
 
         from server.services.aggregator import is_aggregator_site, normalize_domain as _ndomain, is_public_org as _is_public_org
+        from server.services.ec_collector import AGENCY_NEGATIVE_QUERY, is_ec_agency
         from urllib.parse import urlparse as _up
 
-        query = f"{keyword} {ec_modifier}" if ec_modifier else keyword
-        results = search_serper(serper_key, query, num=num_results)
+        if exclude_agency:
+            query = f"{keyword} {ec_modifier} {AGENCY_NEGATIVE_QUERY}".strip() if ec_modifier else f"{keyword} {AGENCY_NEGATIVE_QUERY}".strip()
+        else:
+            query = f"{keyword} {ec_modifier}".strip() if ec_modifier else keyword
+
+        results = search_serper(serper_key, query, num=per_batch, start_page=page_start)
 
         urls = []
         seen_domains = set()
@@ -1217,9 +1224,13 @@ def collect_urls_preview(
             seen_domains.add(domain)
             homepage = f"{_up(url).scheme}://{_up(url).netloc}/"
             title_ = r.get("title", "")
+            snippet_ = r.get("snippet", "")
             is_agg, reason = is_aggregator_site(url, title_)
             if not is_agg:
                 is_agg, reason = _is_public_org(url, title_)
+            if not is_agg and exclude_agency and is_ec_agency(title_, snippet_):
+                is_agg = True
+                reason = "EC代行・制作会社"
             urls.append({
                 "url": homepage,
                 "name": title_,
@@ -1228,7 +1239,11 @@ def collect_urls_preview(
                 "exclude_reason": reason if is_agg else None,
             })
 
-        return {"urls": urls, "count": len(urls)}
+        actual = len(results)
+        pages_fetched = max(1, (actual + 9) // 10)
+        next_page_start = page_start + pages_fetched
+
+        return {"urls": urls, "count": len(urls), "next_page_start": next_page_start}
 
     return {"error": "不明な収集タイプです"}
 
