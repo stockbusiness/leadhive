@@ -997,7 +997,7 @@ export default function SalesAI() {
     );
   };
 
-  const SENT_STATUSES = new Set(["フォーム送信済", "メール送信済", "商談中", "成約", "NG"]);
+  const SENT_STATUSES = new Set(["フォーム送信済", "メール送信済", "コンタクト済み", "返信あり", "面談化", "商談中", "代理店化", "成約", "失注", "NG"]);
   const filteredCompanies = companies.filter(c => {
     // 送信済み・商談中・成約・NGは常に除外
     if (SENT_STATUSES.has(c.status)) return false;
