@@ -1120,8 +1120,17 @@ def collect_urls_preview(
         single_kw_mode = len(keywords_data) == 1
         # 継続収集: 前回の最終ページの次から開始
         page_start = max(1, int(data.get("page_start", 1)))
-        # 各バッチで消費するSerperページ数（deepクエリのnum=200=2ページ分）
-        pages_per_batch = 2 if single_kw_mode else 1
+        is_continuation = page_start > 1
+
+        # 追加収集時はクエリバリエーションを最小限に抑えてタイムアウトを防ぐ。
+        # single_mode=True だと最大6クエリ×複数Serperページ=7回のAPI呼び出し(各15s)
+        # → 合計最大105秒となりプロキシタイムアウトを超える可能性がある。
+        # 継続収集では single_mode=False (2クエリ) に制限し、約2回のAPI呼び出しに留める。
+        query_single_mode = single_kw_mode and not is_continuation
+
+        # 各バッチで消費するSerperページ数
+        # 初回: deepクエリ num=200 = 2ページ分。継続収集: num=60 = 1ページ分。
+        pages_per_batch = 2 if query_single_mode else 1
 
         urls = []
         seen_domains = set()
@@ -1135,7 +1144,7 @@ def collect_urls_preview(
                 pass
 
         for kw in keywords_data:
-            variations = _build_query_variations(kw.keyword, kw.region or "", single_mode=single_kw_mode)
+            variations = _build_query_variations(kw.keyword, kw.region or "", single_mode=query_single_mode)
             for q, num_q in variations:
                 results = search_serper(serper_key, q, num=num_q, start_page=page_start)
                 for r in results:
