@@ -826,6 +826,7 @@ def get_companies_for_sales_ai(
         Company.email,
         Company.contact_url,
         Company.status,
+        Company.domain,
     )
     if project_id and not show_all:
         if project_id not in owned_ids:
@@ -860,6 +861,7 @@ def get_companies_for_sales_ai(
             "email": r[8],
             "contact_url": r[9] or "",
             "status": r[10] or "",
+            "domain": r[11] or "",
         }
         for r in rows
     ]
