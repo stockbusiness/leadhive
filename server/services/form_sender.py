@@ -532,8 +532,10 @@ _MAPPING_PROMPT = """あなたはWebフォームの入力アシスタントで�
 
 送信者情報:
 - 送信者氏名: {sender_name}
+- 送信者氏名（フリガナ/カナ）: {sender_name_kana}
 - 送信者メールアドレス: {sender_email}
 - 送信者会社名: {sender_company}
+- 送信者会社名（フリガナ/カナ）: {sender_company_kana}
 - 送信者電話番号: {sender_phone}
 - 送信者役職: {sender_title}
 - 送信者部署名: {sender_department}
@@ -549,10 +551,13 @@ _MAPPING_PROMPT = """あなたはWebフォームの入力アシスタントで�
 
 ルール:
 - hidden フィールドは元の value をそのまま使う
+- フリガナ/カナ/読み/ヨミ系のフィールドには「送信者氏名（フリガナ）」を使用する
+- 会社名フリガナには「送信者会社名（フリガナ）」を使用する
 - type="select" のフィールドは options の中から最も適切なものを選んでください（お問い合わせ種別は「その他」「一般」「ご相談」等を選ぶ）
 - type="radio" のフィールドは options の中から最も適切なものを選んでください（法人/個人の場合は法人を、お問い合わせ種別はその他を）
 - type="checkbox" で名前/ラベルに「同意」「プライバシー」「個人情報」「利用規約」「agree」「privacy」「terms」が含まれる場合は "1" を返す（必須同意フィールド）
 - type="checkbox" でそれ以外は "" を返す
+- type="number" のフィールドは "1" を返す（従業員数・人数等）
 - 入力不要なフィールド（CAPTCHA、画像等）は "" を返す
 - 全フィールドのnameをキーとしたJSONのみ返してください（他のテキスト不要）
 """
@@ -573,6 +578,8 @@ def _map_fields_rule_based(
     sender_prefecture: str = "",
     sender_address: str = "",
     subject: str = "",
+    sender_name_kana: str = "",
+    sender_company_kana: str = "",
 ) -> dict[str, str]:
     """ルールベースでフォームフィールドをマッピングする（OpenAI不要）。"""
     result = {}
@@ -594,6 +601,18 @@ def _map_fields_rule_based(
     _URL_KWS = ("url", "website", "site", "homepage", "hp", "web")
     _AGREE_KWS = ("同意", "agree", "privacy", "プライバシー", "個人情報", "利用規約", "terms", "policy", "consent", "acceptance")
     _CORPORATE_KWS = ("法人", "corporate", "company", "企業", "business")
+    # フリガナ系（日本語フォームで頻出の必須フィールド）
+    _KANA_KWS = ("フリガナ", "ふりがな", "kana", "furigana", "yomi", "ruby", "phonetic", "読み", "よみ", "ヨミガナ", "ヨミ")
+    _LAST_KANA_KWS = ("姓カナ", "姓フリガナ", "sei_kana", "seikana", "last_kana", "lastkana", "last_furigana", "surname_kana", "family_kana")
+    _FIRST_KANA_KWS = ("名カナ", "名フリガナ", "mei_kana", "meikana", "first_kana", "firstkana", "first_furigana", "given_kana")
+    _COMPANY_KANA_KWS = ("会社名カナ", "法人名カナ", "社名カナ", "company_kana", "companykana", "corporation_kana", "corporate_kana", "org_kana")
+    # フリガナの値（設定済みカナ優先、なければ送信者名をそのまま使用）
+    _kana_name = sender_name_kana or sender_name
+    _kana_company = sender_company_kana or sender_company
+    # 姓名分割用フリガナ
+    _kana_parts = _kana_name.split() if _kana_name else ["", ""]
+    _kana_last = _kana_parts[0] if _kana_parts else ""
+    _kana_first = _kana_parts[1] if len(_kana_parts) > 1 else ""
 
     # 姓名分割用
     name_parts = sender_name.split() if sender_name else ["", ""]
@@ -709,8 +728,21 @@ def _map_fields_rule_based(
             result[name] = val
             continue
 
+        # ── フリガナ系フィールド（姓カナ・名カナ・会社名カナ）──
+        if _match(combined, _LAST_KANA_KWS):
+            val = _kana_last or _kana_name
+        elif _match(combined, _FIRST_KANA_KWS):
+            val = _kana_first or _kana_name
+        elif _match(combined, _COMPANY_KANA_KWS):
+            val = _kana_company
+        elif _match(combined, _KANA_KWS) and not _match(combined, _NAME_KWS):
+            # 氏名フリガナ（全体）または会社フリガナ
+            if _match(combined, _COMPANY_KWS):
+                val = _kana_company
+            else:
+                val = _kana_name
         # 姓名分割対応
-        if _match(combined, _LAST_NAME_KWS) and not _match(combined, _FIRST_NAME_KWS):
+        elif _match(combined, _LAST_NAME_KWS) and not _match(combined, _FIRST_NAME_KWS):
             val = last_name or sender_name
         elif _match(combined, _FIRST_NAME_KWS) and not _match(combined, _LAST_NAME_KWS):
             val = first_name or sender_name
@@ -741,8 +773,8 @@ def _map_fields_rule_based(
         elif _match(combined, _URL_KWS):
             val = sender_website_url or ""
         elif ftype == "number":
-            # 従業員数などの数値フィールド → 空のまま or 1
-            val = ""
+            # 従業員数・人数などの数値フィールド → 1 をデフォルト
+            val = "1"
 
         result[name] = val
 
@@ -772,6 +804,8 @@ def map_fields_with_ai(
     sender_prefecture: str = "",
     sender_address: str = "",
     subject: str = "",
+    sender_name_kana: str = "",
+    sender_company_kana: str = "",
 ) -> dict[str, str]:
     """フォームフィールドをマッピングする。OpenAIキーがあればAI、なければルールベース。"""
     rule_result = _map_fields_rule_based(
@@ -789,6 +823,8 @@ def map_fields_with_ai(
         sender_prefecture=sender_prefecture,
         sender_address=sender_address,
         subject=subject,
+        sender_name_kana=sender_name_kana,
+        sender_company_kana=sender_company_kana,
     )
 
     if not openai_key:
@@ -810,8 +846,10 @@ def map_fields_with_ai(
 
         prompt = _MAPPING_PROMPT.format(
             sender_name=sender_name,
+            sender_name_kana=sender_name_kana or sender_name,
             sender_email=sender_email,
             sender_company=sender_company,
+            sender_company_kana=sender_company_kana or sender_company,
             sender_phone=sender_phone,
             sender_title=sender_title,
             sender_department=sender_department,
@@ -874,18 +912,32 @@ def _is_spa_page(html: str) -> bool:
 
 
 _CONTACT_DIRECT_PATHS = [
+    # 基本英語パス
     "/contact", "/inquiry", "/form", "/contact-us", "/contact_us",
-    "/contacts", "/お問い合わせ", "/otoiawase", "/toiawase",
+    "/contacts", "/contactus", "/contact_form", "/contactform",
     "/contact.html", "/inquiry.html", "/form.html",
     "/contact.php", "/inquiry.php", "/form.php",
     "/pages/contact", "/support/contact", "/help/contact",
-    # 追加パス（T001-7 JS-rendered form improvement）
-    "/support", "/help", "/faq/contact", "/feedback",
     "/about/contact", "/get-in-touch", "/reach-us", "/connect",
-    "/contactus", "/contactus.html", "/contactus.php",
-    "/toiawase.html", "/otoiawase.html", "/toiawase.php",
+    "/contactus.html", "/contactus.php",
     "/request", "/request.html", "/request.php",
     "/inquiry/form", "/contact/form", "/form/contact",
+    "/support", "/help", "/feedback",
+    # 日本語パス・よみがな
+    "/お問い合わせ", "/otoiawase", "/toiawase",
+    "/toiawase.html", "/otoiawase.html", "/toiawase.php", "/otoiawase.php",
+    "/contact/index.html", "/inquiry/index.html",
+    "/contact/index.php", "/inquiry/index.php",
+    # ECサイト・WordPress系
+    "/pages/contact-us", "/pages/inquiry", "/pages/お問い合わせ",
+    "/wp/contact", "/wp/inquiry",
+    # よくあるWordPressスラッグ
+    "/contact-form", "/contact-page", "/inquiry-form",
+    "/お問合わせ", "/お問合せ", "/問い合わせ", "/問合せ",
+    "/goiinquiry", "/toiawase-form",
+    # サブパス
+    "/company/contact", "/about/contact", "/service/contact",
+    "/support/inquiry", "/help/inquiry",
 ]
 
 # React/Vue/Angular/Next.js の特徴的なシグナル（JS-heavy SPA 判定）
@@ -1052,6 +1104,8 @@ def send_form_auto(
     sender_prefecture: str = "",
     sender_address: str = "",
     subject: str = "",
+    sender_name_kana: str = "",
+    sender_company_kana: str = "",
 ) -> dict:
     """
     フォーム自動送信のメインエントリポイント。
@@ -1064,6 +1118,16 @@ def send_form_auto(
             "fields_mapped": int,
         }
     """
+    # mailto: リンクのみのURLはフォームではないのでスキップ
+    for u in (contact_url, website_url):
+        if u and u.strip().lower().startswith("mailto:"):
+            return {
+                "success": False,
+                "message": "メールリンク（mailto:）のためフォーム送信不可",
+                "form_url": u,
+                "fields_mapped": 0,
+            }
+
     session = requests.Session()
     session.headers.update(_HEADERS)
 
@@ -1151,6 +1215,8 @@ def send_form_auto(
             sender_prefecture=sender_prefecture,
             sender_address=sender_address,
             subject=subject,
+            sender_name_kana=sender_name_kana,
+            sender_company_kana=sender_company_kana,
         )
     except Exception as e:
         return {

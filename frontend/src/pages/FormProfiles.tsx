@@ -16,6 +16,8 @@ interface FormProfile {
   postal_code: string;
   prefecture: string;
   address: string;
+  name_kana: string;
+  company_name_kana: string;
   is_default: boolean;
   created_at: string | null;
 }
@@ -33,6 +35,8 @@ interface ProfileFormValues {
   postal_code: string;
   prefecture: string;
   address: string;
+  name_kana: string;
+  company_name_kana: string;
   is_default: boolean;
 }
 
@@ -49,6 +53,8 @@ const emptyForm = (): ProfileFormValues => ({
   postal_code: "",
   prefecture: "",
   address: "",
+  name_kana: "",
+  company_name_kana: "",
   is_default: false,
 });
 
@@ -90,7 +96,7 @@ function ProfileForm({ form, setForm, onSave, onCancel, saveLabel, saving, error
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
+        <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">会社名</label>
           <input
             type="text"
@@ -100,6 +106,16 @@ function ProfileForm({ form, setForm, onSave, onCancel, saveLabel, saving, error
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <p className="text-xs text-slate-400 mt-0.5">ブランド名・屋号など組織名と異なる場合に入力してください</p>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">会社名フリガナ <span className="text-amber-500 text-xs font-normal">（フリガナ必須フォーム対策）</span></label>
+          <input
+            type="text"
+            value={form.company_name_kana}
+            onChange={e => setForm({ ...form, company_name_kana: e.target.value })}
+            placeholder="カブシキガイシャ〇〇"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
         <div className="md:col-span-2">
           <label className="block text-xs font-semibold text-slate-600 mb-1">件名（固定）</label>
@@ -119,6 +135,16 @@ function ProfileForm({ form, setForm, onSave, onCancel, saveLabel, saving, error
             value={form.display_name}
             onChange={e => setForm({ ...form, display_name: e.target.value })}
             placeholder="山田 太郎"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">担当者名フリガナ <span className="text-amber-500 text-xs font-normal">（フリガナ必須フォーム対策）</span></label>
+          <input
+            type="text"
+            value={form.name_kana}
+            onChange={e => setForm({ ...form, name_kana: e.target.value })}
+            placeholder="ヤマダ タロウ"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -259,6 +285,7 @@ export default function FormProfiles() {
       name: p.name, company_name: p.company_name, subject: p.subject, display_name: p.display_name,
       title: p.title, department: p.department, phone: p.phone, email: p.email,
       website_url: p.website_url, postal_code: p.postal_code, prefecture: p.prefecture, address: p.address,
+      name_kana: p.name_kana || "", company_name_kana: p.company_name_kana || "",
       is_default: p.is_default,
     });
     setError("");

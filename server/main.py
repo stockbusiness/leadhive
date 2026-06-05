@@ -205,6 +205,8 @@ def run_db_migrations():
             "ALTER TABLE sales_messages ADD COLUMN IF NOT EXISTS send_note TEXT",
             "ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS call_duration INTEGER",
             "ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS callback_at TIMESTAMP",
+            "ALTER TABLE form_sender_profiles ADD COLUMN IF NOT EXISTS name_kana VARCHAR(200)",
+            "ALTER TABLE form_sender_profiles ADD COLUMN IF NOT EXISTS company_name_kana VARCHAR(255)",
         ]:
             conn.execute(sa.text(stmt))
 

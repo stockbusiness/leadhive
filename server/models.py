@@ -89,6 +89,8 @@ class FormSenderProfile(Base):
     postal_code = Column(String(20), nullable=True)
     prefecture = Column(String(50), nullable=True)
     address = Column(String(500), nullable=True)
+    name_kana = Column(String(200), nullable=True)
+    company_name_kana = Column(String(255), nullable=True)
     is_default = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
 

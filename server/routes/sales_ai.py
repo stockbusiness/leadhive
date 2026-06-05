@@ -417,12 +417,15 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                 ssubject = prof.subject or ""
                 spref = prof.prefecture or ""
                 saddress = prof.address or ""
+                sname_kana = prof.name_kana or ""
+                scompany_kana = prof.company_name_kana or ""
             else:
                 sname = smtp_s.get("smtp_from_name") or ""
                 semail = smtp_s.get("smtp_from_email") or ""
                 scompany = org.name if org else ""
                 sphone = org.phone if org else ""
                 stitle = swebsite = sdept = spostal = ssubject = spref = saddress = ""
+                sname_kana = scompany_kana = ""
 
             # ── 起動時に stuck な "processing" メッセージをリセット ──
             # 前回ジョブがクラッシュしたり強制終了された場合の残留 "processing" を解除
@@ -547,6 +550,8 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                         sender_prefecture=spref,
                         sender_address=saddress,
                         subject=subject,
+                        sender_name_kana=sname_kana,
+                        sender_company_kana=scompany_kana,
                     )
                     # ── ④ 送信結果をDBに書き戻す（processing → sent / failed） ──
                     final_status = "sent" if r.get("success") else "failed"
@@ -1197,6 +1202,8 @@ def send_message(
             sender_subject = prof.subject or ""
             sender_prefecture = prof.prefecture or ""
             sender_address = prof.address or ""
+            sender_name_kana = prof.name_kana or ""
+            sender_company_kana = prof.company_name_kana or ""
         else:
             sender_name = current_user.display_name or current_user.email or ""
             sender_email = smtp_s.get("smtp_from_email") or current_user.email or ""
@@ -1209,6 +1216,8 @@ def send_message(
             sender_subject = ""
             sender_prefecture = ""
             sender_address = ""
+            sender_name_kana = ""
+            sender_company_kana = ""
 
         form_result = send_form_auto(
             company_name=c.company_name if c else "",
@@ -1227,6 +1236,8 @@ def send_message(
             sender_prefecture=sender_prefecture,
             sender_address=sender_address,
             subject=sender_subject or send_subject,
+            sender_name_kana=sender_name_kana,
+            sender_company_kana=sender_company_kana,
         )
 
         actually_sent = form_result["success"]
@@ -1388,6 +1399,8 @@ def bulk_send_form_messages(
         sender_subject = prof.subject or ""
         sender_prefecture = prof.prefecture or ""
         sender_address = prof.address or ""
+        sender_name_kana = prof.name_kana or ""
+        sender_company_kana = prof.company_name_kana or ""
     else:
         sender_name = current_user.display_name or current_user.email or ""
         sender_email = smtp_s.get("smtp_from_email") or current_user.email or ""
@@ -1400,6 +1413,8 @@ def bulk_send_form_messages(
         sender_subject = ""
         sender_prefecture = ""
         sender_address = ""
+        sender_name_kana = ""
+        sender_company_kana = ""
 
     # ── 実行中バックグラウンドジョブがあれば競合を防ぐ（二重送信防止） ──
     with _JOBS_LOCK:
@@ -1486,6 +1501,8 @@ def bulk_send_form_messages(
                 sender_prefecture=sender_prefecture,
                 sender_address=sender_address,
                 subject=sender_subject or expanded_subject,
+                sender_name_kana=sender_name_kana,
+                sender_company_kana=sender_company_kana,
             )
             success = form_result["success"]
             note = form_result["message"]

@@ -25,6 +25,8 @@ def _serialize(p: FormSenderProfile) -> dict:
         "postal_code": p.postal_code or "",
         "prefecture": p.prefecture or "",
         "address": p.address or "",
+        "name_kana": p.name_kana or "",
+        "company_name_kana": p.company_name_kana or "",
         "is_default": bool(p.is_default),
         "created_at": p.created_at.isoformat() if p.created_at else None,
     }
@@ -43,6 +45,8 @@ class ProfileBody(BaseModel):
     postal_code: Optional[str] = ""
     prefecture: Optional[str] = ""
     address: Optional[str] = ""
+    name_kana: Optional[str] = ""
+    company_name_kana: Optional[str] = ""
     is_default: Optional[bool] = False
 
 
@@ -86,6 +90,8 @@ def create_profile(
         postal_code=body.postal_code or None,
         prefecture=body.prefecture or None,
         address=body.address or None,
+        name_kana=body.name_kana or None,
+        company_name_kana=body.company_name_kana or None,
         is_default=bool(body.is_default),
     )
     db.add(profile)
@@ -130,6 +136,8 @@ def update_profile(
     profile.postal_code = body.postal_code or None
     profile.prefecture = body.prefecture or None
     profile.address = body.address or None
+    profile.name_kana = body.name_kana or None
+    profile.company_name_kana = body.company_name_kana or None
     profile.is_default = bool(body.is_default)
     db.commit()
     db.refresh(profile)
