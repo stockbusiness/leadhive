@@ -571,24 +571,24 @@ export default function ECDiscovery() {
                 ) : (
                   <ChevronRight size={13} />
                 )}
-                {isLastBatch ? "検索完了" : "次のキーワードへ"}
+                {isLastBatch ? "検索完了" : "さらに検索"}
               </button>
               <button
                 onClick={handleScrapeStaged}
                 disabled={selectedCount === 0 || stagingLoading}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-colors whitespace-nowrap ${
                   selectedCount === 0
                     ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                     : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200"
                 }`}
               >
                 <Zap size={13} />
-                スクレイピング開始（{selectedCount}件）
+                収集開始（{selectedCount}件）
               </button>
             </div>
 
             <p className="text-[10px] text-emerald-700">
-              💡「次のキーワードへ」でさらにURLを追加。満足したら「スクレイピング開始」でリストに保存。
+              💡「さらに検索」でURLを追加。満足したら「収集開始」でリストに保存。
             </p>
           </div>
 
