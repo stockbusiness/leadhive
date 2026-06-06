@@ -495,16 +495,16 @@ export default function ECDiscovery() {
 
       {/* ====== Phase: staging ====== */}
       {phase === "staging" && (
-        <div className="space-y-4">
-          {/* ステージングヘッダー */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${selectedPreset.color.split(" ")[0]}`}>
-                  <span className="text-xl">{selectedPreset.icon}</span>
+        <div className="space-y-3">
+          {/* ステージングヘッダー（進捗 + 戻るボタン） */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`p-1.5 rounded-lg flex-shrink-0 ${selectedPreset.color.split(" ")[0]}`}>
+                  <span className="text-lg">{selectedPreset.icon}</span>
                 </div>
-                <div>
-                  <p className="font-bold text-slate-800">{selectedPreset.label}{region ? ` / ${region}` : ""}</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-800 text-sm truncate">{selectedPreset.label}{region ? ` / ${region}` : ""}</p>
                   <p className="text-xs text-slate-500">
                     {totalKeywords > 0
                       ? `${Math.min(keywordBatchStart, totalKeywords)} / ${totalKeywords} キーワード検索済み`
@@ -514,22 +514,18 @@ export default function ECDiscovery() {
               </div>
               <button
                 onClick={handleReset}
-                className="text-xs text-slate-500 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                className="text-xs text-slate-500 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors flex-shrink-0"
               >
-                ← プリセット選択に戻る
+                ← 戻る
               </button>
             </div>
 
             {/* キーワード進捗バー */}
             {totalKeywords > 0 && (
-              <div className="mt-4">
-                <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                  <span>キーワード深掘り進捗</span>
-                  <span>{Math.min(keywordBatchStart, totalKeywords)}/{totalKeywords}</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2">
+              <div className="mt-3">
+                <div className="w-full bg-slate-100 rounded-full h-1.5">
                   <div
-                    className="h-2 rounded-full bg-emerald-500 transition-all duration-500"
+                    className="h-1.5 rounded-full bg-emerald-500 transition-all duration-500"
                     style={{ width: `${Math.min(kw_progress, 100)}%` }}
                   />
                 </div>
@@ -537,14 +533,79 @@ export default function ECDiscovery() {
             )}
           </div>
 
+          {/* ══ アクションボタン（常に画面上部に表示） ══ */}
+          <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl px-4 py-3 space-y-2.5">
+            {/* 件数サマリー */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="bg-emerald-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                  {selectedCount}件選択中
+                </span>
+                {excludedCount > 0 && (
+                  <span className="text-xs text-slate-500">除外 {excludedCount}件</span>
+                )}
+              </div>
+              {stagingLoading && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-700">
+                  <Loader2 size={12} className="animate-spin" />
+                  検索中...
+                </div>
+              )}
+            </div>
+
+            {/* ボタン行 */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleLoadMore}
+                disabled={stagingLoading || isLastBatch}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-medium text-sm border transition-colors ${
+                  isLastBatch
+                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                    : stagingLoading
+                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                    : "bg-white text-blue-600 border-blue-400 hover:bg-blue-50"
+                }`}
+              >
+                {stagingLoading ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <ChevronRight size={13} />
+                )}
+                {isLastBatch ? "検索完了" : "次のキーワードへ"}
+              </button>
+              <button
+                onClick={handleScrapeStaged}
+                disabled={selectedCount === 0 || stagingLoading}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-colors ${
+                  selectedCount === 0
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200"
+                }`}
+              >
+                <Zap size={13} />
+                スクレイピング開始（{selectedCount}件）
+              </button>
+            </div>
+
+            <p className="text-[10px] text-emerald-700">
+              💡「次のキーワードへ」でさらにURLを追加。満足したら「スクレイピング開始」でリストに保存。
+            </p>
+          </div>
+
+          {/* staging エラー */}
+          {stagingError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center gap-2">
+              <AlertCircle size={15} className="text-red-500 flex-shrink-0" />
+              <p className="text-sm text-red-700">{stagingError}</p>
+            </div>
+          )}
+
           {/* URLリスト */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                <h3 className="font-semibold text-slate-800">
-                  収集したECサイト
-                </h3>
-                <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-slate-800 text-sm">収集したECサイト</h3>
+                <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">
                   {stagedUrls.filter(u => !u.excluded).length}件
                 </span>
                 {excludedCount > 0 && (
@@ -552,8 +613,7 @@ export default function ECDiscovery() {
                     onClick={() => setShowExcluded(v => !v)}
                     className="text-xs text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
                   >
-                    {showExcluded ? "除外を非表示" : `除外${excludedCount}件を表示`}
-                    <ChevronDown size={12} className={`transition-transform ${showExcluded ? "rotate-180" : ""}`} />
+                    {showExcluded ? "除外非表示" : `除外${excludedCount}件▼`}
                   </button>
                 )}
               </div>
@@ -577,7 +637,7 @@ export default function ECDiscovery() {
                 URLが見つかりませんでした
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+              <div className="divide-y divide-slate-100">
                 {visibleUrls.map((u) => (
                   <div
                     key={u.id}
@@ -596,13 +656,10 @@ export default function ECDiscovery() {
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {u.excluded && u.exclude_reason && (
-                        <span className="text-[10px] bg-red-50 text-red-600 border border-red-200 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={u.exclude_reason}>
+                        <span className="text-[10px] bg-red-50 text-red-600 border border-red-200 px-1.5 py-0.5 rounded" title={u.exclude_reason}>
                           除外
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded hidden sm:inline truncate max-w-[100px]" title={u.source}>
-                        {u.source.replace("EC収集: ", "")}
-                      </span>
                       <a
                         href={u.url}
                         target="_blank"
@@ -618,70 +675,11 @@ export default function ECDiscovery() {
             )}
 
             {stagingLoading && stagedUrls.length > 0 && (
-              <div className="px-5 py-3 border-t border-slate-100 flex items-center gap-2 text-sm text-slate-500">
+              <div className="px-4 py-3 border-t border-slate-100 flex items-center gap-2 text-sm text-slate-500">
                 <Loader2 size={14} className="animate-spin text-emerald-500 flex-shrink-0" />
                 さらに検索中...
               </div>
             )}
-          </div>
-
-          {/* staging エラー */}
-          {stagingError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center gap-2">
-              <AlertCircle size={15} className="text-red-500 flex-shrink-0" />
-              <p className="text-sm text-red-700">{stagingError}</p>
-            </div>
-          )}
-
-          {/* アクションボタン */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="text-sm text-slate-600">
-                <span className="font-semibold text-slate-800">{selectedCount}件</span>を選択中
-                {excludedCount > 0 && (
-                  <span className="ml-2 text-slate-400 text-xs">（代行業者・まとめサイト {excludedCount}件を除外）</span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={handleLoadMore}
-                  disabled={stagingLoading || isLastBatch}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm border transition-colors ${
-                    isLastBatch
-                      ? "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed"
-                      : stagingLoading
-                      ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
-                      : "bg-white text-blue-600 border-blue-300 hover:bg-blue-50"
-                  }`}
-                >
-                  {stagingLoading ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <ChevronRight size={15} />
-                  )}
-                  {isLastBatch ? "全キーワード検索済み" : "次へ（さらに深く検索）"}
-                </button>
-                <button
-                  onClick={handleScrapeStaged}
-                  disabled={selectedCount === 0 || stagingLoading}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-colors ${
-                    selectedCount === 0
-                      ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                      : "bg-emerald-600 text-white hover:bg-emerald-700"
-                  }`}
-                >
-                  <Zap size={15} />
-                  スクレイピング開始（{selectedCount}件）
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
-              <Info size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-700">
-                「次へ」でキーワードを深く掘り下げてURLをさらに追加できます。件数に満足したら「スクレイピング開始」で詳細情報を取得してリストに保存します。
-              </p>
-            </div>
           </div>
         </div>
       )}
