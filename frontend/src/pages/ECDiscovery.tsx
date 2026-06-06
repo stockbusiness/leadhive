@@ -110,6 +110,8 @@ export default function ECDiscovery() {
   const [keywordBatchStart, setKeywordBatchStart] = useState(0);
   const [totalKeywords, setTotalKeywords] = useState(0);
   const [isLastBatch, setIsLastBatch] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchRound, setSearchRound] = useState(1);
   const [showExcluded, setShowExcluded] = useState(false);
 
   // Scraping phase state
@@ -210,6 +212,8 @@ export default function ECDiscovery() {
     setStagedUrls([]);
     setKeywordBatchStart(0);
     setIsLastBatch(false);
+    setSearchPage(1);
+    setSearchRound(1);
     setError(null);
     setResult(null);
     setPhase("staging");
@@ -221,6 +225,7 @@ export default function ECDiscovery() {
         region: region || undefined,
         project_id: currentProject?.id,
         keyword_batch_start: 0,
+        search_page: 1,
         existing_urls: [],
       });
       if ((data as any).error) {
@@ -236,7 +241,9 @@ export default function ECDiscovery() {
         );
         setKeywordBatchStart(d.next_keyword_start ?? 3);
         setTotalKeywords(d.total_keywords ?? 0);
-        setIsLastBatch(d.is_last_batch ?? false);
+        setIsLastBatch(false);
+        setSearchPage(d.next_search_page ?? 1);
+        setSearchRound(d.current_round ?? 1);
       }
     } catch (err: any) {
       setStagingError(err.response?.data?.detail || "検索エラーが発生しました");
@@ -248,7 +255,7 @@ export default function ECDiscovery() {
   // Phase 2: 「次へ」 — さらにキーワードを検索してURLを追加
   // ============================================================
   const handleLoadMore = async () => {
-    if (stagingLoading || isLastBatch) return;
+    if (stagingLoading) return;
     setStagingLoading(true);
     setStagingError(null);
 
@@ -260,6 +267,7 @@ export default function ECDiscovery() {
         region: region || undefined,
         project_id: currentProject?.id,
         keyword_batch_start: keywordBatchStart,
+        search_page: searchPage,
         existing_urls: existingUrls,
       });
       if ((data as any).error) {
@@ -271,12 +279,16 @@ export default function ECDiscovery() {
           .filter((u: any) => !existingSet.has(u.url))
           .map((u: any, i: number) => ({
             ...u,
-            id: `${keywordBatchStart}-${i}-${u.url}`,
+            id: `${searchPage}-${keywordBatchStart}-${i}-${u.url}`,
             selected: !u.excluded,
           }));
         setStagedUrls(prev => [...prev, ...newUrls]);
         setKeywordBatchStart(d.next_keyword_start ?? keywordBatchStart + 3);
-        setIsLastBatch(d.is_last_batch ?? true);
+        setIsLastBatch(false);
+        setSearchPage(d.next_search_page ?? searchPage);
+        // ラウンドが変わった場合（全キーワード完了→次の深さへ）
+        const nextRound = d.completed_round ? searchRound + 1 : searchRound;
+        setSearchRound(nextRound);
       }
     } catch (err: any) {
       setStagingError(err.response?.data?.detail || "追加収集エラーが発生しました");
@@ -507,7 +519,7 @@ export default function ECDiscovery() {
                   <p className="font-bold text-slate-800 text-sm truncate">{selectedPreset.label}{region ? ` / ${region}` : ""}</p>
                   <p className="text-xs text-slate-500">
                     {totalKeywords > 0
-                      ? `${Math.min(keywordBatchStart, totalKeywords)} / ${totalKeywords} キーワード検索済み`
+                      ? `${Math.min(keywordBatchStart, totalKeywords)} / ${totalKeywords} キーワード検索済み（第${searchRound}ラウンド）`
                       : "検索中..."}
                   </p>
                 </div>
@@ -557,11 +569,9 @@ export default function ECDiscovery() {
             <div className="flex gap-2">
               <button
                 onClick={handleLoadMore}
-                disabled={stagingLoading || isLastBatch}
+                disabled={stagingLoading}
                 className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-medium text-sm border transition-colors ${
-                  isLastBatch
-                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
-                    : stagingLoading
+                  stagingLoading
                     ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
                     : "bg-white text-blue-600 border-blue-400 hover:bg-blue-50"
                 }`}
@@ -571,7 +581,7 @@ export default function ECDiscovery() {
                 ) : (
                   <ChevronRight size={13} />
                 )}
-                {isLastBatch ? "検索完了" : "さらに検索"}
+                さらに検索
               </button>
               <button
                 onClick={handleScrapeStaged}

@@ -1247,11 +1247,14 @@ def collect_urls_preview(
 
     elif type_ == "ec-discovery":
         # プリセットキーワードを3件ずつバッチで検索 → ステージングリスト返却（保存はしない）
+        # search_page: Serperの開始ページ番号（深掘り用、1→6→11→...と進む）
         category_id = data.get("category_id", "all")
         region = (data.get("region") or "").strip()
         keyword_batch_start = max(0, int(data.get("keyword_batch_start", 0)))
+        search_page = max(1, int(data.get("search_page", 1)))
         exclude_agency = data.get("exclude_agency", True)
         BATCH_SIZE = 3
+        PAGES_PER_BATCH = 5  # num=50 → Serper 5ページ分
 
         from server.services.serper_search import search_serper, get_serper_api_key
         serper_key = get_serper_api_key(db=db, org_id=current_user.org_id)
@@ -1269,8 +1272,18 @@ def collect_urls_preview(
 
         total_keywords = len(all_keywords)
         batch_keywords = all_keywords[keyword_batch_start:keyword_batch_start + BATCH_SIZE]
-        is_last_batch = (keyword_batch_start + BATCH_SIZE) >= total_keywords
-        next_keyword_start = keyword_batch_start + BATCH_SIZE
+        completed_round = (keyword_batch_start + BATCH_SIZE) >= total_keywords
+
+        # 次バッチの計算: 全キーワード完了したらページを深くしてキーワードを最初に戻す
+        if completed_round:
+            next_keyword_start = 0
+            next_search_page = search_page + PAGES_PER_BATCH
+        else:
+            next_keyword_start = keyword_batch_start + BATCH_SIZE
+            next_search_page = search_page
+
+        # 現在のラウンド番号（1始まり）
+        current_round = (search_page - 1) // PAGES_PER_BATCH + 1
 
         # 既存ステージングURLのドメインを除外セットに追加
         existing_urls = data.get("existing_urls", [])
@@ -1287,7 +1300,7 @@ def collect_urls_preview(
         for kw_text in batch_keywords:
             search_query = f"{kw_text} {AGENCY_NEGATIVE_QUERY}" if exclude_agency else kw_text
             try:
-                results = search_serper(serper_key, search_query, num=50)
+                results = search_serper(serper_key, search_query, num=50, start_page=search_page)
             except Exception as e:
                 logger.warning(f"EC discovery stage search error ({kw_text}): {e}")
                 continue
@@ -1332,8 +1345,11 @@ def collect_urls_preview(
             "urls": urls,
             "count": len(urls),
             "next_keyword_start": next_keyword_start,
+            "next_search_page": next_search_page,
+            "current_round": current_round,
             "total_keywords": total_keywords,
-            "is_last_batch": is_last_batch,
+            "is_last_batch": False,  # 常にfalse（無限に深掘り可能）
+            "completed_round": completed_round,
             "keywords_in_batch": len(batch_keywords),
         }
 
