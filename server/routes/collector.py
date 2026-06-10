@@ -1333,6 +1333,13 @@ def collect_urls_preview(
                         excluded = True
                         exclude_reason = agg_reason
 
+                if not excluded:
+                    from server.services.aggregator import is_public_org
+                    is_pub, pub_reason = is_public_org(homepage, title_)
+                    if is_pub:
+                        excluded = True
+                        exclude_reason = f"非EC組織({pub_reason})"
+
                 urls.append({
                     "url": homepage,
                     "name": title_ or domain,
