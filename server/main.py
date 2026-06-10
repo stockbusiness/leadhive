@@ -544,27 +544,51 @@ app.add_middleware(
 )
 
 
-@app.middleware("http")
-async def add_security_and_cache_headers(request: Request, call_next):
-    response = await call_next(request)
-    path = request.url.path
+class SecurityAndCacheHeadersMiddleware:
+    """純粋なASGIミドルウェア。BaseHTTPMiddlewareを使わないためStaticFilesのストリーミングと競合しない。"""
 
-    response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    _STATIC_SUFFIXES = ("/assets/",)
+    _FAVICON_PATHS = {"/favicon.svg", "/favicon.ico", "/robots.txt", "/sitemap.xml"}
 
-    if path.startswith("/assets/"):
-        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    elif path in ("/favicon.svg", "/favicon.ico", "/robots.txt", "/sitemap.xml"):
-        response.headers["Cache-Control"] = "public, max-age=86400"
-    elif path.startswith("/api/"):
-        response.headers["Cache-Control"] = "no-store"
-    else:
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    def __init__(self, app):
+        self.app = app
 
-    return response
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+
+        is_asset = path.startswith("/assets/")
+        is_favicon = path in self._FAVICON_PATHS
+        is_api = path.startswith("/api/")
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                extra: list[tuple[bytes, bytes]] = [
+                    (b"x-frame-options", b"SAMEORIGIN"),
+                    (b"x-content-type-options", b"nosniff"),
+                    (b"x-xss-protection", b"1; mode=block"),
+                    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+                    (b"permissions-policy", b"geolocation=(), microphone=(), camera=()"),
+                ]
+                if is_asset:
+                    extra.append((b"cache-control", b"public, max-age=31536000, immutable"))
+                elif is_favicon:
+                    extra.append((b"cache-control", b"public, max-age=86400"))
+                elif is_api:
+                    extra.append((b"cache-control", b"no-store"))
+                else:
+                    extra.append((b"cache-control", b"no-cache, no-store, must-revalidate"))
+                message = {**message, "headers": headers + extra}
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
+app.add_middleware(SecurityAndCacheHeadersMiddleware)
 
 
 @app.get("/api/health", tags=["system"])
