@@ -68,6 +68,7 @@ def list_companies_for_call(
     search: Optional[str] = None,
     sort: str = "score",
     exclude_ng: bool = False,
+    form_sent_only: bool = False,
     limit: int = 100,
     offset: int = 0,
     current_user: User = Depends(get_current_user),
@@ -83,7 +84,9 @@ def list_companies_for_call(
         q = q.filter(Company.project_id == project_id)
     if score_rank:
         q = q.filter(Company.score_rank == score_rank)
-    if status:
+    if form_sent_only:
+        q = q.filter(Company.status == "フォーム送信済")
+    elif status:
         q = q.filter(Company.status == status)
     if exclude_ng:
         q = q.filter(Company.status != "NG")

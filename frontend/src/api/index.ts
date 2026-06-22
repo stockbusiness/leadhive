@@ -818,7 +818,7 @@ export const api = {
   },
 
   teleApo: {
-    companies: (params?: { project_id?: number; score_rank?: string; status?: string; search?: string; sort?: string; exclude_ng?: boolean; limit?: number; offset?: number }) =>
+    companies: (params?: { project_id?: number; score_rank?: string; status?: string; search?: string; sort?: string; exclude_ng?: boolean; form_sent_only?: boolean; limit?: number; offset?: number }) =>
       axios.get("/api/tele-apo/companies", { params }).then(r => r.data),
     stats: (days?: number) =>
       axios.get("/api/tele-apo/stats", { params: { days } }).then(r => r.data),

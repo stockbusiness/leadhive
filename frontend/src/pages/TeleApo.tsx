@@ -80,6 +80,7 @@ export default function TeleApo() {
   const [search, setSearch] = useState("");
   const [filterRank, setFilterRank] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterFormSent, setFilterFormSent] = useState(false);
   const [projectId, setProjectId] = useState<number | undefined>(undefined);
   const [sort, setSort] = useState("score");
   const [excludeNg, setExcludeNg] = useState(false);
@@ -140,8 +141,11 @@ export default function TeleApo() {
     try {
       const res = await api.teleApo.companies({
         project_id: projectId, score_rank: filterRank || undefined,
-        status: filterStatus || undefined, search: search || undefined,
-        sort, exclude_ng: excludeNg, limit: 200,
+        status: filterFormSent ? undefined : (filterStatus || undefined),
+        search: search || undefined,
+        sort, exclude_ng: excludeNg,
+        form_sent_only: filterFormSent || undefined,
+        limit: 200,
       });
       setCompanies(res.companies || []);
       setTotal(res.total || 0);
@@ -150,7 +154,7 @@ export default function TeleApo() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, filterRank, filterStatus, search, sort, excludeNg]);
+  }, [projectId, filterRank, filterStatus, filterFormSent, search, sort, excludeNg]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -438,6 +442,21 @@ export default function TeleApo() {
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           )}
+          {/* フォーム送信済みのみ */}
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={filterFormSent}
+              onChange={e => {
+                setFilterFormSent(e.target.checked);
+                if (e.target.checked) setFilterStatus("");
+              }}
+              className="rounded accent-emerald-500"
+            />
+            <span className={filterFormSent ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-slate-600 dark:text-slate-300"}>
+              フォーム送信済みのみ
+            </span>
+          </label>
           {/* E5: Exclude NG */}
           <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 cursor-pointer select-none">
             <input type="checkbox" checked={excludeNg} onChange={e => setExcludeNg(e.target.checked)} className="rounded" />
