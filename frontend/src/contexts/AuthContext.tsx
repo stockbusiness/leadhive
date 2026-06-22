@@ -14,6 +14,7 @@ interface AuthUser {
   onboarding_completed: boolean;
   is_system_admin: boolean;
   is_founder: boolean;
+  is_paid_plan: boolean;
   registration_number: number | null;
   feature_ec_discovery: boolean;
 }
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           display_name: res.data.display_name || "",
           is_system_admin: !!res.data.is_system_admin,
           is_founder: !!res.data.is_founder,
+          is_paid_plan: !!res.data.is_paid_plan,
           registration_number: res.data.registration_number ?? null,
           feature_ec_discovery: !!res.data.feature_ec_discovery,
         });
@@ -97,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       display_name: userData.display_name || "",
       is_system_admin: !!userData.is_system_admin,
       is_founder: !!userData.is_founder,
+      is_paid_plan: !!userData.is_paid_plan,
       registration_number: userData.registration_number ?? null,
       feature_ec_discovery: !!userData.feature_ec_discovery,
     });
@@ -127,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       display_name: userData.display_name || "",
       is_system_admin: !!userData.is_system_admin,
       is_founder: !!userData.is_founder,
+      is_paid_plan: !!userData.is_paid_plan,
       registration_number: userData.registration_number ?? null,
       feature_ec_discovery: !!userData.feature_ec_discovery,
     });

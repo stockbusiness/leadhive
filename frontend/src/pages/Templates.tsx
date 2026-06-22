@@ -7,6 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 export default function Templates() {
   const { user } = useAuth();
   const isSystemAdmin = !!user?.is_system_admin;
+  const isPaidUser = isSystemAdmin || !!user?.is_founder || !!user?.is_paid_plan;
   const [templates, setTemplates] = useState<MemoTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
@@ -94,7 +95,7 @@ export default function Templates() {
   };
 
   const handleImportEcPreset = (preset: EcTemplatePreset) => {
-    if (!isSystemAdmin) return;
+    if (!isPaidUser) return;
     api.templates.create({
       title: preset.title,
       content: preset.content,
@@ -219,7 +220,7 @@ export default function Templates() {
                           >
                             {copiedId === preset.id ? <><Check size={13} className="text-green-500" /> コピー済み</> : <><Copy size={13} /> コピー</>}
                           </button>
-                          {isSystemAdmin ? (
+                          {isPaidUser ? (
                             <button
                               onClick={() => handleImportEcPreset(preset)}
                               disabled={importedPresets.has(preset.id)}
@@ -261,14 +262,14 @@ export default function Templates() {
           <h3 className="font-semibold text-slate-700">
             {isEmailTab ? "新規メールテンプレート追加" : "新規メモテンプレート追加"}
           </h3>
-          {!isSystemAdmin && (
+          {!isPaidUser && (
             <span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
               <Lock size={11} />
               有料プランで解放
             </span>
           )}
         </div>
-        {isSystemAdmin ? (
+        {isPaidUser ? (
           <>
             {isEmailTab && (
               <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3 text-xs text-blue-700">
@@ -388,7 +389,7 @@ export default function Templates() {
                       {t.created_at ? new Date(t.created_at).toLocaleDateString("ja-JP") : ""}
                     </p>
                   </div>
-                  {isSystemAdmin ? (
+                  {isPaidUser ? (
                     <div className="flex items-center gap-1 ml-3 flex-shrink-0">
                       <button onClick={() => startEdit(t)} className="text-slate-400 hover:text-blue-600 p-1" title="編集">
                         <Pencil size={15} />

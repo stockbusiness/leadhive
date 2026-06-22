@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from server.database import get_db
-from server.models import Organization, User, OrgInvitation, PasswordResetToken, EmailVerificationToken
+from server.models import Organization, Plan, User, OrgInvitation, PasswordResetToken, EmailVerificationToken
 from server.auth import hash_password, verify_password, create_access_token, get_current_user
 from server.services.rate_limiter import limiter
 
@@ -77,7 +77,14 @@ class ResendVerificationRequest(BaseModel):
     email: str
 
 
-def _user_response(user: User, org: Organization) -> dict:
+def _user_response(user: User, org: Organization, db: Session = None) -> dict:
+    is_paid_plan = False
+    if org and org.plan_id:
+        if db is not None:
+            plan = db.query(Plan).filter(Plan.id == org.plan_id).first()
+            is_paid_plan = plan is not None and plan.name != "フリー"
+        else:
+            is_paid_plan = True
     return {
         "id": user.id,
         "email": user.email,
@@ -90,6 +97,7 @@ def _user_response(user: User, org: Organization) -> dict:
         "onboarding_completed": org.onboarding_completed if org else False,
         "is_system_admin": bool(user.is_system_admin),
         "is_founder": bool(user.is_founder),
+        "is_paid_plan": bool(is_paid_plan or user.is_founder or user.is_system_admin),
         "registration_number": user.registration_number,
         "totp_enabled": bool(user.totp_enabled),
         "terms_accepted_at": user.terms_accepted_at.isoformat() if user.terms_accepted_at else None,
@@ -412,7 +420,7 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
 @router.get("/me")
 def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
-    return _user_response(current_user, org)
+    return _user_response(current_user, org, db)
 
 
 @router.put("/profile")
