@@ -7,7 +7,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from server.database import get_db
-from server.models import User
+from server.models import User, Organization, Plan
 
 _KNOWN_INSECURE_DEFAULT = "changeme-please-set-session-secret"
 _SESSION_SECRET_RAW = os.environ.get("SESSION_SECRET", "")
@@ -82,11 +82,17 @@ def require_system_admin(
 
 def require_phase0_unlock(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> User:
-    """Phase 0: システム管理者以外はアクセス不可（402を返してアップグレードモーダルを発火）"""
-    if not current_user.is_system_admin:
-        raise HTTPException(
-            status_code=402,
-            detail="この機能は有料プランで利用できます。プランをアップグレードしてください。",
-        )
-    return current_user
+    """有料プラン以上のユーザーのみアクセス可（402を返してアップグレードモーダルを発火）"""
+    if current_user.is_system_admin or current_user.is_founder:
+        return current_user
+    org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+    if org and org.plan_id:
+        plan = db.query(Plan).filter(Plan.id == org.plan_id).first()
+        if plan and plan.name != "フリー":
+            return current_user
+    raise HTTPException(
+        status_code=402,
+        detail="この機能は有料プランで利用できます。プランをアップグレードしてください。",
+    )
