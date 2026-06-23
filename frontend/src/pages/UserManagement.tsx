@@ -34,6 +34,7 @@ export default function UserManagement() {
 
   const isAdmin = currentUser?.role === "admin";
   const isSystemAdmin = !!currentUser?.is_system_admin;
+  const isPaidUser = isSystemAdmin || !!currentUser?.is_founder || !!currentUser?.is_paid_plan;
 
   const loadUsers = async () => {
     try {
@@ -139,14 +140,14 @@ export default function UserManagement() {
           <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
             <UserPlus size={18} className="text-slate-600" />
             <h3 className="font-semibold text-slate-700">メンバーを招待</h3>
-            {!isSystemAdmin && (
+            {!isPaidUser && (
               <span className="ml-auto flex items-center gap-1 text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
                 <Lock size={11} />
                 有料プランで解放
               </span>
             )}
           </div>
-          {isSystemAdmin ? (
+          {isPaidUser ? (
             <div className="flex gap-3">
               <input
                 type="email"

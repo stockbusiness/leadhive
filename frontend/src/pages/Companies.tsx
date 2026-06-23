@@ -33,7 +33,7 @@ type ViewMode = "list" | "kanban";
 export default function Companies() {
   const { projects, currentProject } = useProject();
   const { user } = useAuth();
-  const isAdmin = !!user?.is_system_admin;
+  const isAdmin = !!user?.is_system_admin || !!user?.is_founder || !!user?.is_paid_plan;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [companies, setCompanies] = useState<Company[]>([]);
