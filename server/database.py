@@ -11,6 +11,7 @@ engine = create_engine(
     max_overflow=20,
     pool_timeout=5,      # コネクション取得最大5秒待機（スレッドのDB待機ブロック防止）
     pool_pre_ping=True,  # 切断済みコネクションを再利用しない
+    connect_args={"connect_timeout": 10},  # TCP接続タイムアウト10秒（ハング防止）
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

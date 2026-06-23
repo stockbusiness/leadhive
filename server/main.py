@@ -517,7 +517,7 @@ def _cleanup_duplicate_draft_messages():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _cleanup_stale_jobs()
+    threading.Thread(target=_cleanup_stale_jobs, daemon=True).start()
     threading.Thread(target=_cleanup_duplicate_draft_messages, daemon=True).start()
     threading.Thread(target=run_db_migrations, daemon=True).start()
     start_scheduler()
