@@ -297,6 +297,10 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
         total_generated = 0
 
         for i, chunk in enumerate(chunks):
+            # ── バッチ開始前にキャンセルチェック ──
+            if _is_cancelled(job_id):
+                break
+
             _update_job(job_id, batch=i + 1)
 
             # ── バッチごとにsent_ids/sent_domainsを再取得（並列ジョブ・長時間ジョブ対策） ──
@@ -333,9 +337,16 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                     if url and not url.startswith("http"):
                         url = "https://" + url
                     return (cid, _scrape(url) if url else "")
+                # タイムアウト付き（1サイト最大25秒、バッチ全体120秒）
                 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
-                    for cid, s in ex.map(_do_scrape, eligible):
-                        site_summaries[cid] = s
+                    futs = {ex.submit(_do_scrape, item): item[0] for item in eligible}
+                    for fut in concurrent.futures.as_completed(futs, timeout=120):
+                        cid_f = futs[fut]
+                        try:
+                            _, s = fut.result(timeout=25)
+                            site_summaries[cid_f] = s
+                        except Exception:
+                            site_summaries[cid_f] = ""
 
             def _gen_one(args):
                 cid, cdict = args
@@ -348,8 +359,18 @@ def _run_bg_job(job_id: str, req: BgJobRequest, org_id: int):
                 except Exception as e:
                     return (cid, None, str(e))
 
+            # タイムアウト付き（1件最大60秒、バッチ全体300秒）
+            gen_results = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
-                gen_results = list(ex.map(_gen_one, eligible))
+                futs_g = {ex.submit(_gen_one, item): item[0] for item in eligible}
+                for fut in concurrent.futures.as_completed(futs_g, timeout=300):
+                    cid_f = futs_g[fut]
+                    try:
+                        gen_results.append(fut.result(timeout=60))
+                    except concurrent.futures.TimeoutError:
+                        gen_results.append((cid_f, None, "timeout"))
+                    except Exception as e:
+                        gen_results.append((cid_f, None, str(e)))
 
             batch_gen = 0
             for cid, result, error in gen_results:
